@@ -538,6 +538,28 @@ class AlertDecisionRepository(RepositoryContract):
         )
         return [_alert_decision_from_row(row) for row in rows]
 
+    def list_would_alerts_for_token(
+        self,
+        token_address: str,
+        limit: int = 1000,
+    ) -> List[AlertDecision]:
+        """Return prior WOULD_ALERT decisions for one token, oldest first.
+
+        Used by AlertEligibilityEngine to detect duplicate-tier and
+        tier-progression conditions.
+        """
+
+        rows = self._fetchall(
+            """
+            SELECT * FROM alert_decisions
+            WHERE token_address = ? AND would_alert = 1
+            ORDER BY evaluated_at ASC, id ASC
+            LIMIT ?
+            """,
+            (token_address, _limit(limit)),
+        )
+        return [_alert_decision_from_row(row) for row in rows]
+
 
 class FilterEvaluationRepository(RepositoryContract):
     """Persistence for filter_evaluations."""

@@ -57,9 +57,9 @@ class ATHEvent(SerializableDataclass):
     candidate_mcap: Optional[float] = None
     candidate_source: Optional[str] = None
     prior_ath_price: Optional[float] = None
-    prior_ath_mcap: Optional[float] = None
+    prior_ath_mcap: Optional[float] = None                              
     new_ath_price: Optional[float] = None
-    new_ath_mcap: Optional[float] = None
+    new_ath_mcap: Optional[float] = None                      
     status_before: ATHStatus = ATHStatus.UNKNOWN
     status_after: ATHStatus = ATHStatus.UNKNOWN
     confidence_before: ATHConfidence = ATHConfidence.UNKNOWN
