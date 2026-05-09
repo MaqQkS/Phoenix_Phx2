@@ -391,6 +391,116 @@ class ATHRepository(RepositoryContract):
         )
         return _ath_state_from_row(row) if row else None
 
+    def get_state_at_or_before(
+        self,
+        token_address: str,
+        as_of_time: datetime,
+    ) -> Optional[ATHState]:
+        """Reconstruct the ATHState that was in effect at ``as_of_time``.
+
+        Reads from the append-only ``ath_events`` log instead of the mutable
+        ``ath_state`` row, so a future ATH raise does not leak into a
+        historical or replay evaluation. Returns ``None`` when no event has
+        been recorded for the token at or before ``as_of_time``.
+
+        Reconstruction rules (mirroring ATHService.write semantics):
+
+        * Currently the only state-mutating ``mutation_type`` is
+          ``ATH_RAISED``. Other event types (``ATH_NO_CHANGE``,
+          ``ATH_REJECTED_LOWER``, ``ATH_REJECTED_INVALID``,
+          ``ATH_DATA_LIMITED``) preserve the prior state's ATH-related
+          fields and only advance ``last_event_id``.
+        * If a state-mutating event exists at or before ``as_of_time``, its
+          post-event fields define the ATH numerics, status, confidence,
+          source, ``data_status`` and ``missing_reasons``.
+        * Otherwise the FIRST event at or before ``as_of_time`` defines
+          ``data_status`` and ``missing_reasons`` (matching ATHService's
+          "first rejection sets state, subsequent rejections preserve"
+          behavior); ATH numerics stay None and status/confidence stay
+          UNKNOWN.
+        * ``last_event_id`` is always the id of the latest event at or
+          before ``as_of_time`` (any type).
+
+        ``as_of_time`` must be provided. ``None`` raises ``ValueError`` —
+        callers wanting current state should use ``get_state``.
+        """
+
+        if as_of_time is None:
+            raise ValueError(
+                "get_state_at_or_before requires an explicit as_of_time; "
+                "use get_state(token_address) for the current state."
+            )
+
+        as_of_db = _to_db_value(as_of_time)
+
+        latest_row = self._fetchone(
+            """
+            SELECT * FROM ath_events
+            WHERE token_address = ? AND event_time <= ?
+            ORDER BY event_time DESC, id DESC
+            LIMIT 1
+            """,
+            (token_address, as_of_db),
+        )
+        if latest_row is None:
+            return None
+        latest_event = _ath_event_from_row(latest_row)
+
+        raise_row = self._fetchone(
+            """
+            SELECT * FROM ath_events
+            WHERE token_address = ? AND event_time <= ?
+              AND mutation_type = ?
+            ORDER BY event_time DESC, id DESC
+            LIMIT 1
+            """,
+            (token_address, as_of_db, ATHEventType.ATH_RAISED.value),
+        )
+
+        if raise_row is not None:
+            raise_event = _ath_event_from_row(raise_row)
+            ath_price = raise_event.new_ath_price
+            ath_mcap = raise_event.new_ath_mcap
+            ath_time = raise_event.event_time
+            ath_status = raise_event.status_after
+            ath_confidence = raise_event.confidence_after
+            ath_source = raise_event.candidate_source
+            data_status = raise_event.data_status
+            missing_reasons = list(raise_event.missing_reasons)
+        else:
+            first_row = self._fetchone(
+                """
+                SELECT * FROM ath_events
+                WHERE token_address = ? AND event_time <= ?
+                ORDER BY event_time ASC, id ASC
+                LIMIT 1
+                """,
+                (token_address, as_of_db),
+            )
+            first_event = _ath_event_from_row(first_row)
+            ath_price = None
+            ath_mcap = None
+            ath_time = None
+            ath_status = ATHStatus.UNKNOWN
+            ath_confidence = ATHConfidence.UNKNOWN
+            ath_source = None
+            data_status = first_event.data_status
+            missing_reasons = list(first_event.missing_reasons)
+
+        return ATHState(
+            token_address=token_address,
+            ath_price=ath_price,
+            ath_mcap=ath_mcap,
+            ath_time=ath_time,
+            ath_status=ath_status,
+            ath_confidence=ath_confidence,
+            ath_source=ath_source,
+            last_event_id=latest_event.id,
+            updated_at=None,
+            data_status=data_status,
+            missing_reasons=missing_reasons,
+        )
+
     def insert_event(self, ath_event: ATHEvent) -> int:
         payload = _payload(ath_event)
         return self._insert(
@@ -541,23 +651,39 @@ class AlertDecisionRepository(RepositoryContract):
     def list_would_alerts_for_token(
         self,
         token_address: str,
+        as_of_time: Optional[datetime] = None,
         limit: int = 1000,
     ) -> List[AlertDecision]:
         """Return prior WOULD_ALERT decisions for one token, oldest first.
 
         Used by AlertEligibilityEngine to detect duplicate-tier and
-        tier-progression conditions.
+        tier-progression conditions. When ``as_of_time`` is provided, only
+        rows with ``evaluated_at <= as_of_time`` are returned (inclusive),
+        which prevents future WOULD_ALERTs from leaking into a historical or
+        replay evaluation.
         """
 
-        rows = self._fetchall(
-            """
-            SELECT * FROM alert_decisions
-            WHERE token_address = ? AND would_alert = 1
-            ORDER BY evaluated_at ASC, id ASC
-            LIMIT ?
-            """,
-            (token_address, _limit(limit)),
-        )
+        if as_of_time is None:
+            rows = self._fetchall(
+                """
+                SELECT * FROM alert_decisions
+                WHERE token_address = ? AND would_alert = 1
+                ORDER BY evaluated_at ASC, id ASC
+                LIMIT ?
+                """,
+                (token_address, _limit(limit)),
+            )
+        else:
+            rows = self._fetchall(
+                """
+                SELECT * FROM alert_decisions
+                WHERE token_address = ? AND would_alert = 1
+                  AND evaluated_at <= ?
+                ORDER BY evaluated_at ASC, id ASC
+                LIMIT ?
+                """,
+                (token_address, _to_db_value(as_of_time), _limit(limit)),
+            )
         return [_alert_decision_from_row(row) for row in rows]
 
 

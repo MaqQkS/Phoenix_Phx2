@@ -368,7 +368,9 @@ def test_mcap_missing_uses_price_fallback():
             migration_mcap_override=None,
             ath_mcap_override=None,
         )
-        # Force mcaps None on token + observation + ath_state.
+        # Force mcaps None on token + observation + ath_state + ath_events.
+        # The engine reads ATH via ath_events (Stage 7.1), so the underlying
+        # ATH_RAISED event must be kept consistent with ath_state.
         connection.execute(
             "UPDATE token_sequence_state SET migration_mcap = NULL, current_mcap = NULL WHERE token_address = ?",
             (TOKEN,),
@@ -379,6 +381,10 @@ def test_mcap_missing_uses_price_fallback():
         )
         connection.execute(
             "UPDATE ath_state SET ath_mcap = NULL WHERE token_address = ?",
+            (TOKEN,),
+        )
+        connection.execute(
+            "UPDATE ath_events SET new_ath_mcap = NULL WHERE token_address = ?",
             (TOKEN,),
         )
         connection.commit()
@@ -547,9 +553,14 @@ def test_drawdown_missing():
     with _engine_context() as (connection, engine):
         _insert_eligible_state(connection, drawdown=0.60)
         # Wipe ATH numerics. Status stays CONFIRMED so engine doesn't short-circuit
-        # at step 6.
+        # at step 6. The engine reads ATH via ath_events (Stage 7.1), so the
+        # underlying ATH_RAISED event must be wiped alongside ath_state.
         connection.execute(
             "UPDATE ath_state SET ath_price = NULL, ath_mcap = NULL WHERE token_address = ?",
+            (TOKEN,),
+        )
+        connection.execute(
+            "UPDATE ath_events SET new_ath_price = NULL, new_ath_mcap = NULL WHERE token_address = ?",
             (TOKEN,),
         )
         connection.commit()
@@ -838,6 +849,285 @@ def test_no_future_row_leakage_for_field_and_clock():
         assert decision.clock_features_id == exact_clock_id
         assert decision.clock_features_id != future_clock_id
         assert decision.clock_features_id != early_clock_id
+
+
+# ---------------------------------------------------------------------------
+# 26b. No future-row leakage for price observations (Stage 7.1)
+# ---------------------------------------------------------------------------
+
+
+def test_no_future_row_leakage_for_price_observation():
+    with _engine_context() as (connection, engine):
+        # Helper inserts an eligible state plus one observation at
+        # EVAL_TIME - 60s. Skip field/clock so we keep this test focused on
+        # price observations.
+        _insert_eligible_state(
+            connection,
+            drawdown=0.60,
+            include_field=False,
+            include_clock=False,
+        )
+
+        price_repo = PriceObservationRepository(connection)
+        # Reuse the eligibility-friendly price/mcap so the engine still
+        # passes earlier checks regardless of which observation it picks.
+        cur_price = 40.0
+        cur_mcap = 40000.0
+        early_id = price_repo.insert(
+            PriceObservation(
+                token_address=TOKEN,
+                observed_at=EVAL_TIME - timedelta(seconds=10),
+                source="test",
+                price=cur_price,
+                mcap=cur_mcap,
+                data_status=DataStatus.OK,
+            )
+        )
+        exact_id = price_repo.insert(
+            PriceObservation(
+                token_address=TOKEN,
+                observed_at=EVAL_TIME,
+                source="test",
+                price=cur_price,
+                mcap=cur_mcap,
+                data_status=DataStatus.OK,
+            )
+        )
+        future_id = price_repo.insert(
+            PriceObservation(
+                token_address=TOKEN,
+                observed_at=EVAL_TIME + timedelta(seconds=10),
+                source="test",
+                price=cur_price,
+                mcap=cur_mcap,
+                data_status=DataStatus.OK,
+            )
+        )
+
+        decision = engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+
+        # PriceObservationRepository.get_latest_at_or_before orders by
+        # observed_at DESC, id DESC, so the exact-time match wins over the
+        # earlier helper observation, and the future row is excluded.
+        assert decision.price_observation_id == exact_id
+        assert decision.price_observation_id != future_id
+        assert decision.price_observation_id != early_id
+
+
+# ---------------------------------------------------------------------------
+# 26c. Future WOULD_ALERTs do not leak into historical duplicate-tier checks
+#      (Stage 7.1 — HIGH fix)
+# ---------------------------------------------------------------------------
+
+
+def _insert_future_would_alert(
+    connection: PHX2Connection,
+    *,
+    tier_index: int,
+    tier_name: str,
+    evaluated_at: datetime,
+) -> int:
+    return AlertDecisionRepository(connection).insert(
+        AlertDecision(
+            token_address=TOKEN,
+            evaluated_at=evaluated_at,
+            decision_type=DecisionType.WOULD_ALERT,
+            tier_index=tier_index,
+            tier_name=tier_name,
+            primary_reason=DecisionReason.WOULD_ALERT,
+            reasons=[DecisionReason.WOULD_ALERT],
+            would_alert=True,
+            blocked=False,
+            skipped=False,
+            policy_version="future_test",
+            data_status=DataStatus.OK,
+        )
+    )
+
+
+def test_future_would_alert_does_not_block_historical_evaluation():
+    with _engine_context() as (connection, engine):
+        # T2-eligible token at EVAL_TIME.
+        _insert_eligible_state(connection, drawdown=0.70)
+
+        # A WOULD_ALERT row at the same tier evaluated AFTER EVAL_TIME must
+        # not influence the historical evaluation.
+        _insert_future_would_alert(
+            connection,
+            tier_index=2,
+            tier_name="T2",
+            evaluated_at=EVAL_TIME + timedelta(seconds=100),
+        )
+
+        decision = engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+
+        assert decision.decision_type == DecisionType.WOULD_ALERT
+        assert decision.tier_index == 2
+        assert decision.primary_reason == DecisionReason.WOULD_ALERT
+        assert decision.primary_reason != DecisionReason.DUPLICATE_TIER
+        assert (
+            decision.primary_reason
+            != DecisionReason.LOWER_OR_EQUAL_TIER_ALREADY_ALERTED
+        )
+
+
+def test_future_higher_tier_would_alert_does_not_block_historical_lower_tier_evaluation():
+    with _engine_context() as (connection, engine):
+        # T1-eligible token at EVAL_TIME.
+        _insert_eligible_state(connection, drawdown=0.60)
+
+        # A higher-tier WOULD_ALERT evaluated AFTER EVAL_TIME must not block
+        # the historical lower-tier eligibility.
+        _insert_future_would_alert(
+            connection,
+            tier_index=3,
+            tier_name="T3",
+            evaluated_at=EVAL_TIME + timedelta(seconds=100),
+        )
+
+        decision = engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+
+        assert decision.decision_type == DecisionType.WOULD_ALERT
+        assert decision.tier_index == 1
+        assert decision.primary_reason == DecisionReason.WOULD_ALERT
+        assert (
+            decision.primary_reason
+            != DecisionReason.LOWER_OR_EQUAL_TIER_ALREADY_ALERTED
+        )
+
+
+def test_exact_boundary_would_alert_at_evaluated_at_blocks_duplicate():
+    with _engine_context() as (connection, engine):
+        # T2-eligible token at EVAL_TIME.
+        _insert_eligible_state(connection, drawdown=0.70)
+
+        # Prior WOULD_ALERT at exactly evaluated_at == EVAL_TIME must still be
+        # visible — proves the <= filter is inclusive on the boundary.
+        _insert_future_would_alert(
+            connection,
+            tier_index=2,
+            tier_name="T2",
+            evaluated_at=EVAL_TIME,
+        )
+
+        decision = engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+
+        assert decision.decision_type == DecisionType.SKIP
+        assert decision.primary_reason == DecisionReason.DUPLICATE_TIER
+
+
+# ---------------------------------------------------------------------------
+# 26d. Future ATH raises do not leak into historical drawdown
+#      (Stage 7.1 — MEDIUM fix)
+# ---------------------------------------------------------------------------
+
+
+def _overwrite_ath_state_and_event_to_future_raise(
+    connection: PHX2Connection,
+    *,
+    event_time: datetime,
+    new_ath_price: float,
+    new_ath_mcap: float,
+) -> int:
+    """Insert a future ATH_RAISED event AND overwrite ath_state to it.
+
+    Simulates the live database's "current state has moved past as_of_time"
+    condition during a historical replay.
+    """
+
+    ath_repo = ATHRepository(connection)
+    event_id = ath_repo.insert_event(
+        ATHEvent(
+            token_address=TOKEN,
+            event_time=event_time,
+            candidate_price=new_ath_price,
+            candidate_mcap=new_ath_mcap,
+            candidate_source="test",
+            prior_ath_price=100.0,
+            prior_ath_mcap=100000.0,
+            new_ath_price=new_ath_price,
+            new_ath_mcap=new_ath_mcap,
+            status_before=ATHStatus.CONFIRMED,
+            status_after=ATHStatus.CONFIRMED,
+            confidence_before=ATHConfidence.HIGH,
+            confidence_after=ATHConfidence.HIGH,
+            mutation_type=ATHEventType.ATH_RAISED,
+            accepted=True,
+            data_status=DataStatus.OK,
+        )
+    )
+    ath_repo.upsert_state(
+        ATHState(
+            token_address=TOKEN,
+            ath_price=new_ath_price,
+            ath_mcap=new_ath_mcap,
+            ath_time=event_time,
+            ath_status=ATHStatus.CONFIRMED,
+            ath_confidence=ATHConfidence.HIGH,
+            ath_source="test",
+            last_event_id=event_id,
+            data_status=DataStatus.OK,
+        )
+    )
+    return event_id
+
+
+def test_future_ath_raise_does_not_affect_historical_drawdown():
+    with _engine_context() as (connection, engine):
+        # Helper inserts the historical ATH event at ATH_TIME (= EVAL_TIME
+        # - 50min) with ath_price=100, ath_mcap=100000, current price/mcap
+        # 40/40000 → drawdown 0.60 (T1).
+        _, historical_ath_event_id, _, _ = _insert_eligible_state(
+            connection, drawdown=0.60
+        )
+
+        # A FUTURE ATH raise at EVAL_TIME + 100s pushes ATH to 200/200000.
+        # If the engine read this future state, drawdown would jump to
+        # 1 - 40/200 = 0.80 (T2) and the test would catch it.
+        future_ath_event_id = _overwrite_ath_state_and_event_to_future_raise(
+            connection,
+            event_time=EVAL_TIME + timedelta(seconds=100),
+            new_ath_price=200.0,
+            new_ath_mcap=200000.0,
+        )
+
+        decision = engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+
+        assert decision.decision_type == DecisionType.WOULD_ALERT
+        assert decision.tier_index == 1
+        assert decision.tier_name == "T1"
+        assert decision.drawdown_from_ath == pytest.approx(0.60)
+        # Historical ATH event used, not the future raise.
+        assert decision.ath_event_id == historical_ath_event_id
+        assert decision.ath_event_id != future_ath_event_id
+        assert decision.ath_price == pytest.approx(100.0)
+
+
+def test_exact_boundary_ath_event_at_evaluated_at_is_visible():
+    with _engine_context() as (connection, engine):
+        # Helper inserts the historical ATH event at ATH_TIME (= EVAL_TIME -
+        # 50min). Add another ATH_RAISED at exactly EVAL_TIME with a higher
+        # ATH so we can detect which event the engine picks.
+        _, prior_ath_event_id, _, _ = _insert_eligible_state(
+            connection, drawdown=0.60
+        )
+
+        boundary_ath_event_id = _overwrite_ath_state_and_event_to_future_raise(
+            connection,
+            event_time=EVAL_TIME,
+            new_ath_price=125.0,
+            new_ath_mcap=125000.0,
+        )
+
+        decision = engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+
+        # The boundary event at event_time == EVAL_TIME wins on the latest
+        # ordering (event_time DESC, id DESC), proving the <= filter is
+        # inclusive. drawdown = 1 - 40/125 = 0.68 → T2.
+        assert decision.ath_event_id == boundary_ath_event_id
+        assert decision.ath_event_id != prior_ath_event_id
+        assert decision.drawdown_from_ath == pytest.approx(1.0 - 40.0 / 125.0)
+        assert decision.ath_price == pytest.approx(125.0)
 
 
 # ---------------------------------------------------------------------------

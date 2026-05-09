@@ -263,7 +263,7 @@ class AlertEligibilityEngine:
         ctx.price_obs = self.price_observations.get_latest_at_or_before(
             token_address, evaluated_at
         )
-        ctx.ath_state = self.ath.get_state(token_address)
+        ctx.ath_state = self.ath.get_state_at_or_before(token_address, evaluated_at)
         ctx.field_feat = self.field_features.get_latest_at_or_before(
             token_address, evaluated_at
         )
@@ -486,7 +486,9 @@ class AlertEligibilityEngine:
             )
 
         # 14 / 15. duplicate-tier and tier-progression rules
-        prior = self.alert_decisions.list_would_alerts_for_token(token_address)
+        prior = self.alert_decisions.list_would_alerts_for_token(
+            token_address, as_of_time=evaluated_at
+        )
         prior_tier_indices = [
             d.tier_index for d in prior if d.tier_index is not None
         ]

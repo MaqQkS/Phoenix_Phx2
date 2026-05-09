@@ -3,9 +3,9 @@
 import sqlite3
 import uuid
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, Optional
 
 import pytest
 
@@ -948,3 +948,335 @@ def test_clock_features_get_latest_at_or_before_other_tokens_do_not_match():
         fetched = repository.get_latest_at_or_before("token", NOW_PLUS_300)
 
     assert fetched is None
+
+
+# ---------------------------------------------------------------------------
+# AlertDecisionRepository.list_would_alerts_for_token (Stage 7.1 — HIGH fix)
+# ---------------------------------------------------------------------------
+
+
+def _insert_decision(
+    repo: AlertDecisionRepository,
+    *,
+    token: str,
+    evaluated_at: datetime,
+    would_alert: bool,
+    tier_index: int,
+) -> int:
+    return repo.insert(
+        AlertDecision(
+            token_address=token,
+            evaluated_at=evaluated_at,
+            decision_type=(
+                DecisionType.WOULD_ALERT if would_alert else DecisionType.SKIP
+            ),
+            tier_index=tier_index if would_alert else None,
+            tier_name=f"T{tier_index}" if would_alert else None,
+            primary_reason=(
+                DecisionReason.WOULD_ALERT
+                if would_alert
+                else DecisionReason.MIN_PUMP_NOT_MET
+            ),
+            reasons=[
+                DecisionReason.WOULD_ALERT
+                if would_alert
+                else DecisionReason.MIN_PUMP_NOT_MET
+            ],
+            would_alert=would_alert,
+            blocked=False,
+            skipped=not would_alert,
+            policy_version="filter_test",
+            data_status=DataStatus.OK,
+        )
+    )
+
+
+def test_list_would_alerts_for_token_filters_by_as_of_time_inclusive():
+    t_minus_100 = NOW
+    t_minus_50 = NOW + timedelta(seconds=50)
+    t = NOW + timedelta(seconds=100)
+    t_plus_50 = NOW + timedelta(seconds=150)
+    t_plus_100 = NOW + timedelta(seconds=200)
+
+    with _repository_connection() as connection:
+        repo = AlertDecisionRepository(connection)
+
+        # Five WOULD_ALERTs for the same token straddling t.
+        _insert_decision(repo, token="token", evaluated_at=t_minus_100, would_alert=True, tier_index=2)
+        _insert_decision(repo, token="token", evaluated_at=t_minus_50, would_alert=True, tier_index=2)
+        _insert_decision(repo, token="token", evaluated_at=t, would_alert=True, tier_index=2)
+        _insert_decision(repo, token="token", evaluated_at=t_plus_50, would_alert=True, tier_index=2)
+        _insert_decision(repo, token="token", evaluated_at=t_plus_100, would_alert=True, tier_index=2)
+
+        # A non-WOULD_ALERT row before t — must be excluded by the
+        # would_alert=1 filter regardless of time.
+        _insert_decision(
+            repo,
+            token="token",
+            evaluated_at=t_minus_100 - timedelta(seconds=10),
+            would_alert=False,
+            tier_index=0,
+        )
+
+        # A WOULD_ALERT row for a different token before t — must be
+        # excluded by the token filter when querying "token".
+        _insert_decision(
+            repo,
+            token="other_token",
+            evaluated_at=t_minus_100,
+            would_alert=True,
+            tier_index=2,
+        )
+
+        # as_of_time=t returns exactly the three rows at t-100, t-50, t.
+        bounded = repo.list_would_alerts_for_token("token", as_of_time=t)
+        assert [d.evaluated_at for d in bounded] == [
+            t_minus_100,
+            t_minus_50,
+            t,
+        ]
+
+        # as_of_time=None returns all five same-token WOULD_ALERTs.
+        unbounded = repo.list_would_alerts_for_token("token", as_of_time=None)
+        assert [d.evaluated_at for d in unbounded] == [
+            t_minus_100,
+            t_minus_50,
+            t,
+            t_plus_50,
+            t_plus_100,
+        ]
+
+        # other_token at t-100 only.
+        other_bounded = repo.list_would_alerts_for_token("other_token", as_of_time=t)
+        assert len(other_bounded) == 1
+        assert other_bounded[0].evaluated_at == t_minus_100
+
+
+# ---------------------------------------------------------------------------
+# ATHRepository.get_state_at_or_before (Stage 7.1 — MEDIUM fix)
+# ---------------------------------------------------------------------------
+
+
+def _insert_ath_raise(
+    repo: ATHRepository,
+    *,
+    token: str,
+    event_time: datetime,
+    new_ath_price: float,
+    new_ath_mcap: float,
+    prior_ath_price: Optional[float] = None,
+    prior_ath_mcap: Optional[float] = None,
+    status_after: ATHStatus = ATHStatus.CONFIRMED,
+    confidence_after: ATHConfidence = ATHConfidence.HIGH,
+    candidate_source: str = "test",
+) -> int:
+    return repo.insert_event(
+        ATHEvent(
+            token_address=token,
+            event_time=event_time,
+            candidate_price=new_ath_price,
+            candidate_mcap=new_ath_mcap,
+            candidate_source=candidate_source,
+            prior_ath_price=prior_ath_price,
+            prior_ath_mcap=prior_ath_mcap,
+            new_ath_price=new_ath_price,
+            new_ath_mcap=new_ath_mcap,
+            status_before=ATHStatus.UNKNOWN,
+            status_after=status_after,
+            confidence_before=ATHConfidence.UNKNOWN,
+            confidence_after=confidence_after,
+            mutation_type=ATHEventType.ATH_RAISED,
+            accepted=True,
+            data_status=DataStatus.OK,
+        )
+    )
+
+
+def test_get_state_at_or_before_returns_state_from_latest_qualifying_raise():
+    t_minus_100 = NOW
+    t_minus_50 = NOW + timedelta(seconds=50)
+    t = NOW + timedelta(seconds=100)
+    t_plus_50 = NOW + timedelta(seconds=150)
+
+    with _repository_connection() as connection:
+        repo = ATHRepository(connection)
+
+        first_id = _insert_ath_raise(
+            repo, token="token", event_time=t_minus_100,
+            new_ath_price=1.0, new_ath_mcap=1000.0,
+        )
+        second_id = _insert_ath_raise(
+            repo, token="token", event_time=t_minus_50,
+            new_ath_price=2.0, new_ath_mcap=2000.0,
+            prior_ath_price=1.0, prior_ath_mcap=1000.0,
+        )
+        boundary_id = _insert_ath_raise(
+            repo, token="token", event_time=t,
+            new_ath_price=2.5, new_ath_mcap=2500.0,
+            prior_ath_price=2.0, prior_ath_mcap=2000.0,
+        )
+        future_id = _insert_ath_raise(
+            repo, token="token", event_time=t_plus_50,
+            new_ath_price=3.0, new_ath_mcap=3000.0,
+            prior_ath_price=2.5, prior_ath_mcap=2500.0,
+        )
+
+        result = repo.get_state_at_or_before("token", t)
+
+    assert result is not None
+    assert result.ath_price == pytest.approx(2.5)
+    assert result.ath_mcap == pytest.approx(2500.0)
+    assert result.ath_time == t
+    assert result.last_event_id == boundary_id
+    assert result.last_event_id != future_id
+    # And earlier raises are not selected.
+    assert result.last_event_id != second_id
+    assert result.last_event_id != first_id
+    assert result.ath_status == ATHStatus.CONFIRMED
+    assert result.ath_confidence == ATHConfidence.HIGH
+
+
+def test_get_state_at_or_before_returns_none_when_no_event_qualifies():
+    with _repository_connection() as connection:
+        repo = ATHRepository(connection)
+
+        _insert_ath_raise(
+            repo, token="token", event_time=NOW + timedelta(seconds=200),
+            new_ath_price=1.0, new_ath_mcap=1000.0,
+        )
+
+        result = repo.get_state_at_or_before("token", NOW)
+
+    assert result is None
+
+
+def test_get_state_at_or_before_after_all_events_returns_latest_state():
+    t_first = NOW
+    t_second = NOW + timedelta(seconds=100)
+    t_query = NOW + timedelta(seconds=300)
+
+    with _repository_connection() as connection:
+        repo = ATHRepository(connection)
+
+        _insert_ath_raise(
+            repo, token="token", event_time=t_first,
+            new_ath_price=1.0, new_ath_mcap=1000.0,
+        )
+        latest_id = _insert_ath_raise(
+            repo, token="token", event_time=t_second,
+            new_ath_price=3.0, new_ath_mcap=3000.0,
+            prior_ath_price=1.0, prior_ath_mcap=1000.0,
+        )
+
+        result = repo.get_state_at_or_before("token", t_query)
+
+    assert result is not None
+    assert result.ath_price == pytest.approx(3.0)
+    assert result.ath_mcap == pytest.approx(3000.0)
+    assert result.last_event_id == latest_id
+
+
+def test_get_state_at_or_before_unknown_token_returns_none():
+    with _repository_connection() as connection:
+        repo = ATHRepository(connection)
+
+        _insert_ath_raise(
+            repo, token="token", event_time=NOW,
+            new_ath_price=1.0, new_ath_mcap=1000.0,
+        )
+
+        result = repo.get_state_at_or_before("unknown_token", NOW + timedelta(seconds=100))
+
+    assert result is None
+
+
+def test_get_state_at_or_before_none_as_of_time_raises_value_error():
+    with _repository_connection() as connection:
+        repo = ATHRepository(connection)
+
+        with pytest.raises(ValueError):
+            repo.get_state_at_or_before("token", None)  # type: ignore[arg-type]
+
+
+def test_get_state_at_or_before_other_token_raise_does_not_leak():
+    with _repository_connection() as connection:
+        repo = ATHRepository(connection)
+
+        _insert_ath_raise(
+            repo, token="other_token", event_time=NOW,
+            new_ath_price=99.0, new_ath_mcap=99000.0,
+        )
+
+        result = repo.get_state_at_or_before("token", NOW + timedelta(seconds=100))
+
+    assert result is None
+
+
+def test_get_state_at_or_before_non_raise_event_only_yields_unknown_state():
+    """When only rejection events exist, ATH numerics are unknown but the
+    first event's data_status / missing_reasons are preserved (matches
+    ATHService's "first rejection sets state, subsequent rejections preserve"
+    behavior)."""
+
+    t_first_reject = NOW
+    t_second_reject = NOW + timedelta(seconds=50)
+    t_query = NOW + timedelta(seconds=100)
+
+    with _repository_connection() as connection:
+        repo = ATHRepository(connection)
+
+        first_event_id = repo.insert_event(
+            ATHEvent(
+                token_address="token",
+                event_time=t_first_reject,
+                candidate_price=None,
+                candidate_mcap=None,
+                candidate_source="test",
+                new_ath_price=None,
+                new_ath_mcap=None,
+                status_before=ATHStatus.UNKNOWN,
+                status_after=ATHStatus.UNKNOWN,
+                confidence_before=ATHConfidence.UNKNOWN,
+                confidence_after=ATHConfidence.UNKNOWN,
+                mutation_type=ATHEventType.ATH_REJECTED_INVALID,
+                accepted=False,
+                data_limited=True,
+                data_status=DataStatus.ERROR,
+                missing_reasons=["price_invalid"],
+            )
+        )
+        latest_event_id = repo.insert_event(
+            ATHEvent(
+                token_address="token",
+                event_time=t_second_reject,
+                candidate_price=None,
+                candidate_mcap=None,
+                candidate_source="test",
+                new_ath_price=None,
+                new_ath_mcap=None,
+                status_before=ATHStatus.UNKNOWN,
+                status_after=ATHStatus.UNKNOWN,
+                confidence_before=ATHConfidence.UNKNOWN,
+                confidence_after=ATHConfidence.UNKNOWN,
+                mutation_type=ATHEventType.ATH_REJECTED_INVALID,
+                accepted=False,
+                data_limited=True,
+                data_status=DataStatus.ERROR,
+                missing_reasons=["price_invalid"],
+            )
+        )
+
+        result = repo.get_state_at_or_before("token", t_query)
+
+    assert result is not None
+    assert result.ath_price is None
+    assert result.ath_mcap is None
+    assert result.ath_status == ATHStatus.UNKNOWN
+    assert result.ath_confidence == ATHConfidence.UNKNOWN
+    assert result.ath_source is None
+    # last_event_id tracks the latest event of any type.
+    assert result.last_event_id == latest_event_id
+    assert result.last_event_id != first_event_id
+    # data_status / missing_reasons come from the FIRST event.
+    assert result.data_status == DataStatus.ERROR
+    assert result.missing_reasons == ["price_invalid"]
