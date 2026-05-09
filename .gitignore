@@ -32,3 +32,7 @@ Thumbs.db
 # Secrets
 .env
 .env.*
+
+# Claude Code session metadata
+.claude/
+
