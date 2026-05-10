@@ -700,11 +700,56 @@ def apply_stage9_alert_decision_extension(connection: sqlite3.Connection) -> Non
 def apply_stage9_outcome_windows_recreate(connection: sqlite3.Connection) -> None:
     """Replace the Stage 4B outcome_windows scaffolding with the Stage 9 schema.
 
-    Refuses to drop the table when it contains rows. The safety check exists
-    because the new schema is incompatible with the scaffolding shape and any
-    real outcome data must be preserved through a separately-authored backfill.
+    Operationally idempotent. Four cases:
+
+    1. Table does not exist → create with Stage 9 schema.
+    2. Table already has the Stage 9 shape (``alert_decision_id`` column
+       present) → no-op. Existing Stage 9 rows are preserved untouched. The
+       version row is re-recorded via INSERT OR IGNORE.
+    3. Table has the Stage 4B scaffold shape and is empty → drop and recreate
+       with Stage 9 schema.
+    4. Table has the Stage 4B scaffold shape and is non-empty → refuse with
+       RuntimeError. The new schema is incompatible with the scaffolding
+       shape and any real outcome data must be preserved through a
+       separately-authored backfill.
+
+    The Stage 9 vs Stage 4B discrimination is by column signature:
+    ``alert_decision_id`` exists only in the Stage 9 schema; ``decision_id``
+    exists only in the Stage 4B scaffold.
     """
 
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(outcome_windows)")
+    }
+
+    if not columns:
+        # Case 1: table absent. First-run from a state that has only the
+        # earlier-stage tables, but somehow not the scaffold. Create directly.
+        connection.executescript(STAGE_9_OUTCOME_WINDOWS_SQL)
+        _record_migration(
+            connection,
+            version=STAGE_9B_VERSION,
+            stage="9B",
+            description="Recreate outcome_windows with Stage 9 schema",
+        )
+        return
+
+    if "alert_decision_id" in columns:
+        # Case 2: table is already the Stage 9 shape. No-op — preserve any
+        # existing rows. _record_migration uses INSERT OR IGNORE so a repeat
+        # call leaves schema_migrations unchanged.
+        _record_migration(
+            connection,
+            version=STAGE_9B_VERSION,
+            stage="9B",
+            description="Recreate outcome_windows with Stage 9 schema",
+        )
+        return
+
+    # Case 3 / 4: scaffold shape. Refuse if rows exist; otherwise drop and
+    # recreate. The row-count check is the safety net the original migration
+    # was built around.
     count_row = connection.execute(
         "SELECT COUNT(*) AS count FROM outcome_windows"
     ).fetchone()

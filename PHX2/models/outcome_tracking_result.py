@@ -38,3 +38,4 @@ class BatchTrackingResult:
     rows_inserted: int = 0
     rows_skipped_already_recorded: int = 0
     rows_skipped_window_not_elapsed: int = 0
+    rows_errored: int = 0

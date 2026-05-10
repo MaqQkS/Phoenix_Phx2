@@ -715,12 +715,18 @@ class AlertDecisionRepository(RepositoryContract):
         rows, but the AlertDecision dataclass does not currently expose its
         primary key. This method returns the id alongside the hydrated row so
         the service does not need to re-query by composite key.
+
+        Both ``decision_type = 'would_alert'`` and ``would_alert = 1`` are
+        filtered: layered defense paired with the service-side decision_type
+        re-check. Either filter alone is sufficient in practice today, but
+        keeping both means a regression in either layer cannot leak SKIP/
+        BLOCK/ERROR rows into outcome_windows.
         """
 
         rows = self._fetchall(
             """
             SELECT * FROM alert_decisions
-            WHERE would_alert = 1
+            WHERE decision_type = 'would_alert' AND would_alert = 1
             ORDER BY evaluated_at ASC, id ASC
             LIMIT ? OFFSET ?
             """,

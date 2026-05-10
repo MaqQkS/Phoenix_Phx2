@@ -18,10 +18,18 @@ class OutcomeWindowStatus(str, Enum):
     """Stage-9-specific status for outcome window measurement.
 
     The persisted ``data_status`` column accepts only the strict 3-value subset
-    {COMPLETE, NO_PRICE_DATA, INVALID_ALERT_PRICE}. The remaining values are
-    service-only signals: PARTIAL is reserved for a future stage and never
-    written in v0; WINDOW_NOT_ELAPSED and ALREADY_RECORDED are skip reasons
-    surfaced through ``WindowProcessingResult`` and never reach the DB.
+    {COMPLETE, NO_PRICE_DATA, INVALID_ALERT_PRICE}, enforced both by
+    ``PERSISTABLE_OUTCOME_WINDOW_STATUSES`` at the repository layer and by the
+    schema-level CHECK constraint. The remaining values are service-only
+    signals never reaching the DB:
+
+    - PARTIAL: reserved for a future stage; not written in v0.
+    - WINDOW_NOT_ELAPSED, ALREADY_RECORDED: skip reasons surfaced through
+      ``WindowProcessingResult``.
+    - ERROR: unexpected exception during per-window processing. Distinct from
+      WINDOW_NOT_ELAPSED so a real failure (DB lock timeout, schema mismatch,
+      logic bug) is not silently counted as a normal maturation skip during
+      batch backfill.
     """
 
     COMPLETE = "COMPLETE"
@@ -30,6 +38,7 @@ class OutcomeWindowStatus(str, Enum):
     INVALID_ALERT_PRICE = "INVALID_ALERT_PRICE"
     WINDOW_NOT_ELAPSED = "WINDOW_NOT_ELAPSED"
     ALREADY_RECORDED = "ALREADY_RECORDED"
+    ERROR = "ERROR"
 
 
 PERSISTABLE_OUTCOME_WINDOW_STATUSES = frozenset(

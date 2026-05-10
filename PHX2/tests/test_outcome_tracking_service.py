@@ -240,8 +240,15 @@ def test_decision_with_invalid_current_price_writes_six_invalid_rows(invalid_pri
             assert outcome.max_return_multiple is None
 
 
-def test_token_died_at_t_plus_30m_short_windows_complete_long_windows_empty():
-    # Observations only exist up through 30 minutes after evaluated_at.
+def test_observations_in_early_windows_remain_in_later_cumulative_windows():
+    # Stage 9 windows are cumulative [evaluated_at, evaluated_at + window_seconds]
+    # ranges, NOT disjoint slices. An observation at +1500s is inside every
+    # window whose end is >= 1500s — i.e. 30m, 1h, 4h, 24h. So a token whose
+    # only observations land in the first 30 minutes still produces COMPLETE
+    # rows for all six windows: the 1h/4h/24h windows simply contain those
+    # same observations. There is no observation pattern that yields a
+    # short-windows-complete / long-windows-empty split under cumulative
+    # closed-interval semantics.
     far_future = EVAL_TIME + timedelta(days=2)
     with _service_context(clock_value=far_future) as (connection, service):
         decision_id = _insert_would_alert_decision(connection, current_price=1.0)
@@ -259,20 +266,13 @@ def test_token_died_at_t_plus_30m_short_windows_complete_long_windows_empty():
             for outcome in service.outcome_windows.get_all_for_decision(decision_id)
         }
 
-        # 5m, 15m, 30m — observations present.
-        for window_seconds in (300, 900, 1800):
+        # All six windows COMPLETE because every observation at +60s/+600s/
+        # +1500s falls inside the cumulative [start, end] range of every
+        # window.
+        for window_seconds in (300, 900, 1800, 3600, 14400, 86400):
             assert outcomes[window_seconds].data_status == OutcomeWindowStatus.COMPLETE
             assert outcomes[window_seconds].observations_count is not None
             assert outcomes[window_seconds].observations_count > 0
-        # 1h, 4h, 24h — no observations within the window range. (Even though
-        # earlier observations exist, they fall before the window start? No —
-        # window_start_time = evaluated_at, so the same observations are in
-        # range. Re-read: the spec says start_time <= observed_at <= end_time,
-        # so observations at +60s, +600s, +1500s are all within 1h, 4h, 24h
-        # windows too. So those windows should also be COMPLETE with the same
-        # observations.)
-        for window_seconds in (3600, 14400, 86400):
-            assert outcomes[window_seconds].data_status == OutcomeWindowStatus.COMPLETE
 
 
 # --------------------------------------------------------------------------
@@ -388,6 +388,29 @@ def test_track_pending_skips_skip_block_and_error_decisions():
         assert len(service.outcome_windows.get_all_for_decision(wa_id)) == 6
         assert service.outcome_windows.get_all_for_decision(skip_id) == []
         assert service.outcome_windows.get_all_for_decision(block_id) == []
+
+
+def test_track_pending_skips_error_decisions():
+    # Regression: Stage 9 must never produce outcome_windows rows for
+    # decision_type='error' rows, even though the existing SKIP/BLOCK test
+    # names the case in passing. Layered: SQL filter excludes them at read,
+    # service-side decision_type guard rejects them at write.
+    as_of = EVAL_TIME + timedelta(days=2)
+    with _service_context(clock_value=as_of) as (connection, service):
+        wa_id = _insert_would_alert_decision(connection, current_price=1.0)
+        error_id = _insert_would_alert_decision(
+            connection,
+            evaluated_at=EVAL_TIME + timedelta(seconds=1),
+            decision_type=DecisionType.ERROR,
+            would_alert=False,
+            current_price=1.0,
+        )
+
+        result = service.track_pending()
+
+        assert result.decisions_processed == 1  # only the WOULD_ALERT
+        assert len(service.outcome_windows.get_all_for_decision(wa_id)) == 6
+        assert service.outcome_windows.get_all_for_decision(error_id) == []
 
 
 def test_track_pending_processes_decisions_oldest_first():
@@ -510,6 +533,7 @@ def test_observation_at_end_plus_1us_excluded():
         OutcomeWindowStatus.PARTIAL,
         OutcomeWindowStatus.WINDOW_NOT_ELAPSED,
         OutcomeWindowStatus.ALREADY_RECORDED,
+        OutcomeWindowStatus.ERROR,
     ],
 )
 def test_repository_rejects_non_persistable_status(service_only_status):
@@ -693,9 +717,14 @@ def test_engine_produces_would_alert_then_stage9_runs_end_to_end():
         assert decision.current_price == 40.0
 
         # Stage 9 picks up the engine's row via track_pending.
-        before_dispatch_count = connection.execute(
-            "SELECT COUNT(*) AS count FROM dispatch_events"
-        ).fetchone()["count"]
+        # Snapshot full dispatch_events row content (not just count) so we
+        # catch in-place modifications in addition to inserts/deletes.
+        before_dispatch = [
+            dict(row)
+            for row in connection.execute(
+                "SELECT * FROM dispatch_events ORDER BY id"
+            ).fetchall()
+        ]
 
         result = service.track_pending()
         assert result.decisions_processed == 1
@@ -709,11 +738,15 @@ def test_engine_produces_would_alert_then_stage9_runs_end_to_end():
         assert outcomes[0]["window_seconds"] == 300
 
         # dispatch_events must remain untouched — Stage 9 has no business
-        # writing to it.
-        after_dispatch_count = connection.execute(
-            "SELECT COUNT(*) AS count FROM dispatch_events"
-        ).fetchone()["count"]
-        assert after_dispatch_count == before_dispatch_count
+        # writing to it. Deep equality on every column catches both row-count
+        # changes and in-place mutations.
+        after_dispatch = [
+            dict(row)
+            for row in connection.execute(
+                "SELECT * FROM dispatch_events ORDER BY id"
+            ).fetchall()
+        ]
+        assert after_dispatch == before_dispatch
 
 
 def test_unique_constraint_race_treated_as_already_recorded():
@@ -763,3 +796,167 @@ def test_unique_constraint_race_treated_as_already_recorded():
         assert len(result.window_results) == 1
         assert result.window_results[0].status == OutcomeWindowStatus.ALREADY_RECORDED
         assert result.window_results[0].outcome_window_id is not None
+
+
+# --------------------------------------------------------------------------
+# Per-window exception handling
+# --------------------------------------------------------------------------
+
+
+def test_non_integrity_error_in_one_window_yields_error_status_others_continue():
+    """A non-IntegrityError raised by insert (e.g. a stub RuntimeError
+    standing in for an unexpected DB error or logic bug) must not be
+    silently turned into WINDOW_NOT_ELAPSED. The failed window surfaces as
+    ERROR (service-only, never persisted) and the remaining windows in the
+    same decision continue processing.
+    """
+
+    far_future = EVAL_TIME + timedelta(days=2)
+    with _service_context(clock_value=far_future) as (connection, service):
+        decision_id = _insert_would_alert_decision(connection, current_price=1.0)
+        repo = service.outcome_windows
+        original_insert = repo.insert
+
+        def insert_raising_on_900(row):
+            if row.window_seconds == 900:
+                raise RuntimeError("simulated unexpected failure")
+            return original_insert(row)
+
+        repo.insert = insert_raising_on_900  # type: ignore[assignment]
+        try:
+            result = service.track_for_decision(decision_id)
+        finally:
+            repo.insert = original_insert  # type: ignore[assignment]
+
+        statuses = {wr.window_seconds: wr.status for wr in result.window_results}
+        assert statuses[900] == OutcomeWindowStatus.ERROR
+        # The 900s window was not retried and produced no DB row.
+        rows_900 = [
+            outcome
+            for outcome in service.outcome_windows.get_all_for_decision(decision_id)
+            if outcome.window_seconds == 900
+        ]
+        assert rows_900 == []
+        # The other five windows succeeded and persisted.
+        for window_seconds in (300, 1800, 3600, 14400, 86400):
+            assert statuses[window_seconds] == OutcomeWindowStatus.NO_PRICE_DATA
+        persisted = service.outcome_windows.get_all_for_decision(decision_id)
+        assert len(persisted) == 5
+
+        # The ERROR result carries the exception class name and message in
+        # ``reason`` so operators can distinguish real failures from skips.
+        error_result = next(
+            wr for wr in result.window_results if wr.status == OutcomeWindowStatus.ERROR
+        )
+        assert error_result.reason is not None
+        assert "RuntimeError" in error_result.reason
+        assert "simulated unexpected failure" in error_result.reason
+
+
+def test_integrity_error_race_still_resolves_to_already_recorded_after_narrowing():
+    """Regression: narrowing the per-window exception mapping must not break
+    the unique-constraint race path. The inner ``_insert_or_already_recorded``
+    handler still catches ``sqlite3.IntegrityError`` and resolves the race
+    to ALREADY_RECORDED before the outer handler ever sees the exception.
+    """
+
+    as_of = EVAL_TIME + timedelta(seconds=305)
+    with _service_context(
+        clock_value=as_of, window_seconds=(300,)
+    ) as (connection, service):
+        decision_id = _insert_would_alert_decision(connection, current_price=1.0)
+        repo = service.outcome_windows
+        repo.insert(
+            OutcomeWindow(
+                alert_decision_id=decision_id,
+                token_address=TOKEN,
+                window_seconds=300,
+                window_start_time=EVAL_TIME,
+                window_end_time=EVAL_TIME + timedelta(seconds=300),
+                alert_price=1.0,
+                observations_count=0,
+                data_status=OutcomeWindowStatus.NO_PRICE_DATA,
+            )
+        )
+        original_get = repo.get_by_decision_and_window
+        call_count = {"n": 0}
+
+        def lying_get(alert_decision_id_, window_seconds_):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return None
+            return original_get(alert_decision_id_, window_seconds_)
+
+        repo.get_by_decision_and_window = lying_get  # type: ignore[assignment]
+        try:
+            result = service.track_for_decision(decision_id)
+        finally:
+            repo.get_by_decision_and_window = original_get  # type: ignore[assignment]
+
+        # Race resolves cleanly via the inner handler — never propagates to
+        # the outer ERROR mapping.
+        assert len(result.window_results) == 1
+        assert result.window_results[0].status == OutcomeWindowStatus.ALREADY_RECORDED
+        assert result.window_results[0].status != OutcomeWindowStatus.ERROR
+
+
+def test_track_pending_continues_batch_when_one_decision_has_an_errored_window():
+    """An exception during one window of one decision must not abort the
+    batch. Other decisions in the same ``track_pending`` call continue, and
+    the per-window failure is reflected in ``rows_errored`` rather than
+    silently absorbed into ``rows_skipped_window_not_elapsed``.
+    """
+
+    far_future = EVAL_TIME + timedelta(days=2)
+    with _service_context(clock_value=far_future) as (connection, service):
+        first_id = _insert_would_alert_decision(
+            connection,
+            token_address="t1",
+            evaluated_at=EVAL_TIME,
+            current_price=1.0,
+        )
+        second_id = _insert_would_alert_decision(
+            connection,
+            token_address="t2",
+            evaluated_at=EVAL_TIME + timedelta(seconds=1),
+            current_price=1.0,
+        )
+
+        repo = service.outcome_windows
+        original_insert = repo.insert
+        triggered = {"done": False}
+
+        def insert_raising_once_on_first_decision(row):
+            # Fail exactly once, on the first decision's 900s window. Every
+            # other call (including subsequent windows on the first decision
+            # and all windows on the second decision) goes through normally.
+            if (
+                not triggered["done"]
+                and row.alert_decision_id == first_id
+                and row.window_seconds == 900
+            ):
+                triggered["done"] = True
+                raise RuntimeError("simulated unexpected failure")
+            return original_insert(row)
+
+        repo.insert = insert_raising_once_on_first_decision  # type: ignore[assignment]
+        try:
+            result = service.track_pending()
+        finally:
+            repo.insert = original_insert  # type: ignore[assignment]
+
+        # Both decisions ran to completion.
+        assert result.decisions_processed == 2
+        # 6 windows × 2 decisions = 12 attempts; one window errored, eleven
+        # NO_PRICE_DATA rows persisted.
+        assert result.rows_inserted == 11
+        assert result.rows_errored == 1
+        assert result.rows_skipped_window_not_elapsed == 0
+
+        # Per-decision view: first decision has one errored window and five
+        # persisted; second decision has all six persisted.
+        first_persisted = service.outcome_windows.get_all_for_decision(first_id)
+        second_persisted = service.outcome_windows.get_all_for_decision(second_id)
+        assert len(first_persisted) == 5
+        assert len(second_persisted) == 6
+        assert all(o.window_seconds != 900 for o in first_persisted)

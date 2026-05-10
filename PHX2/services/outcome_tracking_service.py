@@ -300,12 +300,18 @@ class OutcomeTrackingService:
                     },
                     exc_info=exc,
                 )
-                # Per-window exceptions must not abort other windows. The
-                # service exposes the failure via the per-window result, not
-                # by raising.
+                # Per-window exceptions must not abort other windows. Map to
+                # ERROR (service-only, never persisted) rather than the prior
+                # WINDOW_NOT_ELAPSED — a real DB failure (lock timeout,
+                # schema mismatch, logic bug) is not the same as a window
+                # that has not yet matured, and counting it as such would
+                # hide failures during batch backfill. The unique-constraint
+                # race path is handled inside ``_insert_or_already_recorded``
+                # via ``sqlite3.IntegrityError`` and resolves to
+                # ALREADY_RECORDED before this handler ever sees it.
                 result = WindowProcessingResult(
                     window_seconds=window_seconds,
-                    status=OutcomeWindowStatus.WINDOW_NOT_ELAPSED,
+                    status=OutcomeWindowStatus.ERROR,
                     reason=f"{type(exc).__name__}: {exc}",
                 )
             results.append(result)
@@ -336,6 +342,7 @@ class OutcomeTrackingService:
         rows_inserted = 0
         rows_skipped_already = 0
         rows_skipped_pending = 0
+        rows_errored = 0
 
         for decision_id, _decision in candidates:
             decisions_processed += 1
@@ -346,6 +353,8 @@ class OutcomeTrackingService:
                     rows_skipped_already += 1
                 elif window_result.status == OutcomeWindowStatus.WINDOW_NOT_ELAPSED:
                     rows_skipped_pending += 1
+                elif window_result.status == OutcomeWindowStatus.ERROR:
+                    rows_errored += 1
                 elif window_result.outcome_window_id is not None:
                     rows_inserted += 1
 
@@ -356,6 +365,7 @@ class OutcomeTrackingService:
             rows_inserted=rows_inserted,
             rows_skipped_already_recorded=rows_skipped_already,
             rows_skipped_window_not_elapsed=rows_skipped_pending,
+            rows_errored=rows_errored,
         )
 
     def _process_window(

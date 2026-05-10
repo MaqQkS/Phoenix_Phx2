@@ -678,16 +678,19 @@ def test_stage9_migration_is_idempotent():
 
 
 def test_stage9_recreate_refuses_when_outcome_windows_has_rows():
-    with _phx2_connection_stage9() as connection:
-        # Insert one outcome row, then attempt the recreate again.
+    # Scaffold-with-rows safety case: the table has Stage 4B's shape (the
+    # scaffold uses ``decision_id``, not ``alert_decision_id``) and contains
+    # real rows. Stage 9 must refuse to drop because the scaffold's columns
+    # are incompatible with the new schema.
+    with _phx2_connection_stage5c1() as connection:
         connection.execute(
             """
             INSERT INTO outcome_windows (
-                alert_decision_id, token_address, window_seconds,
+                decision_id, token_address, window_seconds,
                 window_start_time, window_end_time, data_status, created_at
             )
             VALUES (1, 'token', 300, '2026-05-08T00:00:00+00:00',
-                    '2026-05-08T00:05:00+00:00', 'COMPLETE',
+                    '2026-05-08T00:05:00+00:00', 'partial',
                     '2026-05-08T00:05:01+00:00')
             """
         )
@@ -701,6 +704,49 @@ def test_stage9_recreate_refuses_when_outcome_windows_has_rows():
             "SELECT COUNT(*) AS count FROM outcome_windows"
         ).fetchone()["count"]
         assert count == 1
+
+
+def test_stage9_recreate_is_noop_on_already_stage9_db():
+    # Operational idempotency: Stage 9B may be re-applied against a populated
+    # Stage 9 DB without dropping the table. Existing Stage 9 rows must
+    # survive the second call. This is the path future stages (10+) will hit
+    # whenever migrate_phx2_schema runs against a DB where Stage 9 has
+    # already been applied.
+    with _phx2_connection_stage9() as connection:
+        connection.execute(
+            """
+            INSERT INTO outcome_windows (
+                alert_decision_id, token_address, window_seconds,
+                window_start_time, window_end_time, data_status, created_at
+            )
+            VALUES (1, 'token', 300, '2026-05-08T00:00:00+00:00',
+                    '2026-05-08T00:05:00+00:00', 'COMPLETE',
+                    '2026-05-08T00:05:01+00:00')
+            """
+        )
+        connection.commit()
+        before_rowid = connection.execute(
+            "SELECT id FROM outcome_windows"
+        ).fetchone()["id"]
+
+        # Re-apply: must not raise, must not drop the table.
+        apply_stage9_outcome_windows_recreate(connection)
+
+        rows = connection.execute(
+            "SELECT id, alert_decision_id, data_status FROM outcome_windows"
+        ).fetchall()
+        assert len(rows) == 1
+        # Same id proves the table wasn't dropped and recreated.
+        assert rows[0]["id"] == before_rowid
+        assert rows[0]["alert_decision_id"] == 1
+        assert rows[0]["data_status"] == "COMPLETE"
+        # Stage 9B version row is still present (INSERT OR IGNORE — exactly
+        # one row regardless of how many times the migration is run).
+        version_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM schema_migrations WHERE version = ?",
+            (STAGE_9B_VERSION,),
+        ).fetchone()["count"]
+        assert version_count == 1
 
 
 def test_stage9_outcome_windows_unique_index_prevents_duplicate_rows():
