@@ -157,6 +157,10 @@ CREATE TABLE IF NOT EXISTS alert_decisions (
     price_age_seconds REAL,
     pump_multiple REAL,
     drawdown_from_ath REAL,
+    -- current_price / current_mcap: written by AlertEligibilityEngine starting Stage 9.
+    -- Included in CORE_TELEMETRY_SQL so fresh-DB test fixtures match production DBs after
+    -- Stage 9A's ALTER TABLE migration. Stage 9A (apply_stage9_alert_decision_extension)
+    -- remains authoritative for upgrading pre-Stage-9 production databases.
     current_price REAL,
     current_mcap REAL,
     filter_labels_json TEXT NOT NULL DEFAULT '{}',
