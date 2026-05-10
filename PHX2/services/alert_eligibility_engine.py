@@ -7,10 +7,11 @@ row per evaluation. Performs no rendering, dispatch, network I/O, or writes to
 any other PHX2 table.
 """
 
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from math import isfinite
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 from PHX2.db.repositories import (
     ATHRepository,
@@ -20,6 +21,12 @@ from PHX2.db.repositories import (
     PriceObservationRepository,
     TokenSequenceRepository,
 )
+
+if TYPE_CHECKING:
+    from PHX2.dispatch.preview_pipeline import PreviewPipeline
+
+
+logger = logging.getLogger(__name__)
 from PHX2.models import (
     ATHConfidence,
     ATHState,
@@ -211,6 +218,7 @@ class AlertEligibilityEngine:
         alert_decisions: AlertDecisionRepository,
         policy: Optional[AlertPolicy] = None,
         current_time_provider: Optional[CurrentTimeProvider] = None,
+        preview_pipeline: Optional["PreviewPipeline"] = None,
     ) -> None:
         self.token_sequence = token_sequence
         self.price_observations = price_observations
@@ -220,6 +228,7 @@ class AlertEligibilityEngine:
         self.alert_decisions = alert_decisions
         self.policy = policy if policy is not None else DEFAULT_ALERT_POLICY
         self.current_time_provider = current_time_provider or _default_current_time
+        self._preview_pipeline = preview_pipeline
 
     def evaluate_token(
         self,
@@ -626,7 +635,13 @@ class AlertEligibilityEngine:
             data_status=data_status,
             missing_reasons=missing_reasons,
         )
-        self.alert_decisions.insert(decision)
+        decision_id = self.alert_decisions.insert(decision)
+        if self._preview_pipeline is not None:
+            try:
+                self._preview_pipeline.handle(decision, ctx.evaluated_at, decision_id)
+            except Exception as exc:
+                logger.error("preview_pipeline_failed", exc_info=exc)
+                # Never re-raise. Engine output must not depend on dispatcher state.
         return decision
 
     def _build_tier_context(self, ctx: _EvalContext) -> Dict[str, Any]:
@@ -701,7 +716,17 @@ class AlertEligibilityEngine:
         evaluated_at: datetime,
         exc: BaseException,
     ) -> None:
-        """Best-effort: write an ERROR audit row. Swallow any error during this write."""
+        """Best-effort: write an ERROR audit row and route it through PreviewPipeline.
+
+        The audit insert is best-effort; if it raises, the original engine
+        exception is re-raised by the caller and no pipeline call is made.
+        When the insert succeeds and a preview pipeline is attached, the
+        ERROR row flows through the same pipeline as normal decisions so
+        engine failures appear in dispatch_events / JSONL / console / Discord.
+        Pipeline failures during error audit are logged but never re-raised:
+        the original engine exception (the ``exc`` parameter) is what the
+        caller sees, regardless of dispatcher state.
+        """
 
         try:
             decision = AlertDecision(
@@ -746,8 +771,22 @@ class AlertEligibilityEngine:
                     f"{type(exc).__name__}: {exc}",
                 ],
             )
-            self.alert_decisions.insert(decision)
+            decision_id = self.alert_decisions.insert(decision)
         except Exception:
             # Audit row is best-effort; the original exception is re-raised by
             # the caller.
-            pass
+            return
+
+        if self._preview_pipeline is not None:
+            try:
+                self._preview_pipeline.handle(
+                    decision, evaluated_at, decision_id
+                )
+            except Exception as pipeline_exc:
+                logger.error(
+                    "preview_pipeline_failed_in_error_audit",
+                    exc_info=pipeline_exc,
+                )
+                # Never re-raise. The original engine exception must still
+                # propagate from evaluate_token; pipeline failures here must
+                # not interfere.

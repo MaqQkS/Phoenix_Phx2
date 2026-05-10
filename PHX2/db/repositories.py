@@ -24,7 +24,6 @@ from PHX2.models import (
     DecisionReason,
     DecisionType,
     DispatchEvent,
-    DispatchMode,
     FeeWindow,
     FieldFeatures,
     FilterResult,
@@ -274,6 +273,13 @@ class PriceObservationRepository(RepositoryContract):
                 "missing_reasons_json": _json_list(payload["missing_reasons"]),
             },
         )
+
+    def get_by_id(self, observation_id: int) -> Optional[PriceObservation]:
+        row = self._fetchone(
+            "SELECT * FROM price_observations WHERE id = ?",
+            (observation_id,),
+        )
+        return _price_observation_from_row(row) if row else None
 
     def get_latest(self, token_address: str) -> Optional[PriceObservation]:
         row = self._fetchone(
@@ -531,6 +537,13 @@ class ATHRepository(RepositoryContract):
                 "missing_reasons_json": _json_list(payload["missing_reasons"]),
             },
         )
+
+    def get_event_by_id(self, event_id: int) -> Optional[ATHEvent]:
+        row = self._fetchone(
+            "SELECT * FROM ath_events WHERE id = ?",
+            (event_id,),
+        )
+        return _ath_event_from_row(row) if row else None
 
     def list_events(self, token_address: str, limit: int = 100) -> List[ATHEvent]:
         rows = self._fetchall(
@@ -1235,6 +1248,13 @@ class FieldFeatureRepository(RepositoryContract):
         )
         return int(row["id"])
 
+    def get_by_id(self, features_id: int) -> Optional[FieldFeatures]:
+        row = self._fetchone(
+            "SELECT * FROM field_features WHERE id = ?",
+            (features_id,),
+        )
+        return _field_features_from_row(row) if row else None
+
     def get_latest(self, token_address: str) -> Optional[FieldFeatures]:
         row = self._fetchone(
             """
@@ -1455,6 +1475,13 @@ class ClockFeatureRepository(RepositoryContract):
         )
         return int(row["id"])
 
+    def get_by_id(self, features_id: int) -> Optional[ClockFeatures]:
+        row = self._fetchone(
+            "SELECT * FROM clock_features WHERE id = ?",
+            (features_id,),
+        )
+        return _clock_features_from_row(row) if row else None
+
     def get_latest(self, token_address: str) -> Optional[ClockFeatures]:
         row = self._fetchone(
             """
@@ -1541,38 +1568,102 @@ class OutcomeWindowRepository(RepositoryContract):
 
 
 class DispatchEventRepository(RepositoryContract):
-    """Persistence for dispatch_events."""
+    """Persistence for dispatch_events (Stage 8B audit log).
 
-    def insert(self, event: DispatchEvent) -> int:
-        payload = _payload(event)
-        return self._insert(
-            "dispatch_events",
-            {
-                "alert_decision_id": payload["alert_decision_id"],
-                "token_address": payload["token_address"],
-                "dispatch_mode": payload["dispatch_mode"],
-                "destination": payload["destination"],
-                "renderer_version": payload["renderer_version"],
-                "rendered_text": payload["rendered_text"],
-                "preview_file_path": payload["preview_file_path"],
-                "status": payload["status"],
-                "dry_run": payload["dry_run"],
-                "error_message": payload["error_message"],
-                "metadata_json": _json_dict(payload["metadata"]),
-                "created_at": payload["created_at"] or _now_iso(),
-                "attempted_at": payload["attempted_at"],
-                "completed_at": payload["completed_at"],
-                "data_status": payload["data_status"],
-                "missing_reasons_json": _json_list(payload["missing_reasons"]),
-            },
+    Two-phase write: the dispatcher calls ``create`` with a pending row, then
+    invokes the sink, then calls ``update_status`` to record the terminal
+    outcome. ``exists_non_failed`` enforces the idempotency contract.
+    """
+
+    def create(self, event: DispatchEvent) -> None:
+        self.connection.execute(
+            """
+            INSERT INTO dispatch_events (
+                id,
+                alert_decision_id,
+                dispatch_run_id,
+                target,
+                status,
+                decision_type,
+                severity,
+                tier_label,
+                attempted_at,
+                completed_at,
+                payload_ref,
+                error_message
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.id,
+                event.alert_decision_id,
+                event.dispatch_run_id,
+                event.target,
+                event.status,
+                event.decision_type,
+                event.severity,
+                event.tier_label,
+                _to_db_value(event.attempted_at),
+                _to_db_value(event.completed_at),
+                event.payload_ref,
+                event.error_message,
+            ),
         )
+        self._commit_if_top_level()
+
+    def get_by_id(self, event_id: str) -> Optional[DispatchEvent]:
+        row = self._fetchone(
+            "SELECT * FROM dispatch_events WHERE id = ?",
+            (event_id,),
+        )
+        return _dispatch_event_from_row(row) if row else None
+
+    def update_status(
+        self,
+        event_id: str,
+        status: str,
+        completed_at: datetime,
+        payload_ref: Optional[str],
+        error_message: Optional[str],
+    ) -> None:
+        self.connection.execute(
+            """
+            UPDATE dispatch_events
+            SET status = ?,
+                completed_at = ?,
+                payload_ref = ?,
+                error_message = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                _to_db_value(completed_at),
+                payload_ref,
+                error_message,
+                event_id,
+            ),
+        )
+        self._commit_if_top_level()
+
+    def exists_non_failed(self, alert_decision_id: int, target: str) -> bool:
+        row = self._fetchone(
+            """
+            SELECT 1 FROM dispatch_events
+            WHERE alert_decision_id = ?
+              AND target = ?
+              AND status != 'failed'
+            LIMIT 1
+            """,
+            (alert_decision_id, target),
+        )
+        return row is not None
 
     def list_by_decision(self, alert_decision_id: int) -> List[DispatchEvent]:
         rows = self._fetchall(
             """
             SELECT * FROM dispatch_events
             WHERE alert_decision_id = ?
-            ORDER BY created_at DESC, id DESC
+            ORDER BY attempted_at ASC, id ASC
             """,
             (alert_decision_id,),
         )
@@ -2035,25 +2126,19 @@ def _outcome_window_from_row(row: sqlite3.Row) -> OutcomeWindow:
 
 
 def _dispatch_event_from_row(row: sqlite3.Row) -> DispatchEvent:
+    attempted_at = _parse_datetime(row["attempted_at"])
+    assert attempted_at is not None  # NOT NULL in schema
     return DispatchEvent(
+        id=row["id"],
         alert_decision_id=row["alert_decision_id"],
-        token_address=row["token_address"],
-        dispatch_mode=_enum_value(
-            DispatchMode,
-            row["dispatch_mode"],
-            DispatchMode.DISABLED,
-        ),
-        destination=row["destination"],
-        renderer_version=row["renderer_version"],
-        rendered_text=row["rendered_text"],
-        preview_file_path=row["preview_file_path"],
+        dispatch_run_id=row["dispatch_run_id"],
+        target=row["target"],
         status=row["status"],
-        dry_run=bool(row["dry_run"]),
-        error_message=row["error_message"],
-        metadata=_load_json(row["metadata_json"], {}),
-        created_at=_parse_datetime(row["created_at"]),
-        attempted_at=_parse_datetime(row["attempted_at"]),
+        decision_type=row["decision_type"],
+        severity=row["severity"],
+        tier_label=row["tier_label"],
+        attempted_at=attempted_at,
         completed_at=_parse_datetime(row["completed_at"]),
-        data_status=_enum_value(DataStatus, row["data_status"], DataStatus.MISSING),
-        missing_reasons=_load_json(row["missing_reasons_json"], []),
+        payload_ref=row["payload_ref"],
+        error_message=row["error_message"],
     )

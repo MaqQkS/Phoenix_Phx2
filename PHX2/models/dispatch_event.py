@@ -1,33 +1,36 @@
-"""Dispatch event model."""
+"""Dispatch event model.
 
-from dataclasses import dataclass, field
+Stage 8B: a row in the dispatch_events table records exactly one attempt by
+:class:`PHX2.dispatch.dispatcher.Dispatcher` to route a rendered alert to a
+sink. The row goes through ``pending`` → ``sent``/``failed``/``skipped``.
+"""
+
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
-from PHX2.models.enums import DataStatus, DispatchMode
 from PHX2.models.serialization import SerializableDataclass
 
 
 @dataclass(frozen=True)
 class DispatchEvent(SerializableDataclass):
-    """Verification or send-attempt record.
+    """Audit record for one dispatch attempt.
 
-    Stage 4 stores dispatch intent/audit rows only. It implements no sending.
+    ``id`` is a UUID hex string assigned by the dispatcher. ``alert_decision_id``
+    is the integer primary key of the ``alert_decisions`` row this dispatch
+    corresponds to. ``dispatch_run_id`` is shared by every row written by one
+    Dispatcher instance.
     """
 
-    token_address: str
-    dispatch_mode: DispatchMode = DispatchMode.DISABLED
-    alert_decision_id: Optional[int] = None
-    destination: Optional[str] = None
-    renderer_version: Optional[str] = None
-    rendered_text: Optional[str] = None
-    preview_file_path: Optional[str] = None
-    status: str = "pending"
-    dry_run: bool = True
-    error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    created_at: Optional[datetime] = None
-    attempted_at: Optional[datetime] = None
+    id: str
+    alert_decision_id: int
+    dispatch_run_id: str
+    target: str
+    status: str
+    decision_type: str
+    severity: str
+    attempted_at: datetime
+    tier_label: Optional[str] = None
     completed_at: Optional[datetime] = None
-    data_status: DataStatus = DataStatus.MISSING
-    missing_reasons: List[str] = field(default_factory=list)
+    payload_ref: Optional[str] = None
+    error_message: Optional[str] = None

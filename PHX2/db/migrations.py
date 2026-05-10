@@ -183,23 +183,19 @@ CREATE TABLE IF NOT EXISTS filter_evaluations (
 );
 
 CREATE TABLE IF NOT EXISTS dispatch_events (
-    id INTEGER PRIMARY KEY,
-    alert_decision_id INTEGER,
-    token_address TEXT NOT NULL,
-    dispatch_mode TEXT NOT NULL,
-    destination TEXT,
-    renderer_version TEXT,
-    rendered_text TEXT,
-    preview_file_path TEXT,
+    id TEXT PRIMARY KEY,
+    alert_decision_id INTEGER NOT NULL,
+    dispatch_run_id TEXT NOT NULL,
+    target TEXT NOT NULL,
     status TEXT NOT NULL,
-    dry_run INTEGER NOT NULL DEFAULT 1,
-    error_message TEXT,
-    metadata_json TEXT NOT NULL DEFAULT '{}',
-    created_at TEXT NOT NULL,
-    attempted_at TEXT,
+    decision_type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    tier_label TEXT,
+    attempted_at TEXT NOT NULL,
     completed_at TEXT,
-    data_status TEXT NOT NULL,
-    missing_reasons_json TEXT NOT NULL DEFAULT '[]'
+    payload_ref TEXT,
+    error_message TEXT,
+    FOREIGN KEY (alert_decision_id) REFERENCES alert_decisions(id)
 );
 """
 
@@ -410,10 +406,19 @@ CREATE INDEX IF NOT EXISTS idx_filter_evaluations_filter_label ON filter_evaluat
 CREATE INDEX IF NOT EXISTS idx_filter_evaluations_alert_decision_id ON filter_evaluations(alert_decision_id);
 CREATE INDEX IF NOT EXISTS idx_filter_evaluations_would_block ON filter_evaluations(would_block);
 
-CREATE INDEX IF NOT EXISTS idx_dispatch_events_alert_decision_id ON dispatch_events(alert_decision_id);
-CREATE INDEX IF NOT EXISTS idx_dispatch_events_token_created ON dispatch_events(token_address, created_at);
-CREATE INDEX IF NOT EXISTS idx_dispatch_events_dispatch_mode ON dispatch_events(dispatch_mode);
-CREATE INDEX IF NOT EXISTS idx_dispatch_events_status ON dispatch_events(status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dispatch_events_idempotency
+    ON dispatch_events(alert_decision_id, target)
+    WHERE status != 'failed';
+CREATE INDEX IF NOT EXISTS idx_dispatch_events_query
+    ON dispatch_events(decision_type, severity, attempted_at);
+CREATE INDEX IF NOT EXISTS idx_dispatch_events_run
+    ON dispatch_events(dispatch_run_id);
+CREATE INDEX IF NOT EXISTS idx_dispatch_events_alert_decision_id
+    ON dispatch_events(alert_decision_id);
+CREATE INDEX IF NOT EXISTS idx_dispatch_events_status
+    ON dispatch_events(status);
+CREATE INDEX IF NOT EXISTS idx_dispatch_events_target_status_time
+    ON dispatch_events(target, status, attempted_at);
 
 CREATE INDEX IF NOT EXISTS idx_fee_windows_token_window_time ON fee_windows(token_address, window_seconds, as_of_time);
 CREATE INDEX IF NOT EXISTS idx_fee_windows_last_event_time ON fee_windows(last_event_time);

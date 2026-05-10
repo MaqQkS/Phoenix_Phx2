@@ -39,7 +39,16 @@ def test_every_model_instantiates_with_minimal_required_fields():
         ATHState(token_address="token"),
         ATHEvent(token_address="token"),
         AlertDecision(token_address="token"),
-        DispatchEvent(token_address="token"),
+        DispatchEvent(
+            id="evt-1",
+            alert_decision_id=1,
+            dispatch_run_id="run-1",
+            target="console",
+            status="pending",
+            decision_type="would_alert",
+            severity="CLEAN",
+            attempted_at=now,
+        ),
         FeeWindow(token_address="token"),
         RawPumpSwapEvent(
             observed_at=now,
@@ -81,7 +90,16 @@ def test_every_model_serializes_to_json_safe_dict():
             decision_type=DecisionType.SKIP,
             primary_reason=DecisionReason.PRICE_STALE,
         ),
-        DispatchEvent(token_address="token", created_at=now),
+        DispatchEvent(
+            id="evt-2",
+            alert_decision_id=2,
+            dispatch_run_id="run-1",
+            target="file_preview",
+            status="sent",
+            decision_type="would_alert",
+            severity="PARTIAL",
+            attempted_at=now,
+        ),
         FeeWindow(token_address="token", as_of_time=now),
         RawPumpSwapEvent(
             observed_at=now,
@@ -129,7 +147,6 @@ def test_missing_reasons_default_to_empty_lists():
         MigrationEvent(token_address="token"),
         PriceObservation(token_address="token"),
         ATHState(token_address="token"),
-        DispatchEvent(token_address="token"),
         FeeWindow(token_address="token"),
         RawPumpSwapEvent(
             observed_at=now,
