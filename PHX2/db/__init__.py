@@ -5,6 +5,9 @@ from PHX2.db.migrations import (
     apply_stage4_schema,
     apply_stage5a_schema,
     apply_stage5c1_schema,
+    apply_stage9_alert_decision_extension,
+    apply_stage9_outcome_windows_recreate,
+    apply_stage9_schema,
     migrate_phx2_schema,
 )
 from PHX2.db.repositories import (
@@ -47,6 +50,9 @@ __all__ = [
     "apply_stage4_schema",
     "apply_stage5a_schema",
     "apply_stage5c1_schema",
+    "apply_stage9_alert_decision_extension",
+    "apply_stage9_outcome_windows_recreate",
+    "apply_stage9_schema",
     "get_phoenix1_readonly_connection",
     "get_phx2_connection",
     "migrate_phx2_schema",

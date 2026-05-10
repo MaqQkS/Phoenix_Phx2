@@ -599,6 +599,12 @@ class AlertEligibilityEngine:
             field_features_id=field_features_id,
             clock_features_id=clock_features_id,
         )
+        current_price = (
+            ctx.price_obs.price if ctx.price_obs is not None else None
+        )
+        current_mcap = (
+            ctx.price_obs.mcap if ctx.price_obs is not None else None
+        )
 
         decision = AlertDecision(
             token_address=ctx.token_address,
@@ -628,6 +634,8 @@ class AlertEligibilityEngine:
             price_age_seconds=ctx.price_age_seconds,
             pump_multiple=ctx.pump_multiple,
             drawdown_from_ath=ctx.drawdown,
+            current_price=current_price,
+            current_mcap=current_mcap,
             filter_labels={},
             tier_context=tier_context,
             key_feature_snapshot=key_feature_snapshot,

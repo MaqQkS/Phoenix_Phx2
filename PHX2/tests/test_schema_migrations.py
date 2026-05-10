@@ -6,6 +6,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
 
+import pytest
+
 from PHX2.config.settings import PHX2DryRunDbSettings
 from PHX2.db.connection import get_phx2_connection
 from PHX2.db.migrations import (
@@ -13,9 +15,14 @@ from PHX2.db.migrations import (
     STAGE_4B_VERSION,
     STAGE_5A_VERSION,
     STAGE_5C1_VERSION,
+    STAGE_9A_VERSION,
+    STAGE_9B_VERSION,
     apply_stage4_schema,
     apply_stage5a_schema,
     apply_stage5c1_schema,
+    apply_stage9_alert_decision_extension,
+    apply_stage9_outcome_windows_recreate,
+    apply_stage9_schema,
 )
 
 
@@ -569,3 +576,151 @@ def test_alert_decisions_store_would_alert_skip_block_and_error():
         }
 
     assert stored == {"would_alert", "skip", "block", "error"}
+
+
+# ---------------------------------------------------------------------------
+# Stage 9 migrations
+# ---------------------------------------------------------------------------
+
+
+@contextmanager
+def _phx2_connection_stage9() -> Iterator[sqlite3.Connection]:
+    path = _temporary_phx2_db_path()
+    connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
+    try:
+        apply_stage9_schema(connection)
+        yield connection
+    finally:
+        connection.close()
+        _cleanup_temporary_phx2_db(path)
+
+
+def test_stage9_migration_creates_new_outcome_windows_schema():
+    with _phx2_connection_stage9() as connection:
+        columns = _columns(connection, "outcome_windows")
+
+    expected_columns = {
+        "id",
+        "alert_decision_id",
+        "token_address",
+        "window_seconds",
+        "window_start_time",
+        "window_end_time",
+        "alert_price",
+        "alert_mcap",
+        "max_price",
+        "max_mcap",
+        "max_observation_time",
+        "min_price",
+        "min_mcap",
+        "min_observation_time",
+        "max_return_multiple",
+        "max_return_pct",
+        "min_return_multiple",
+        "min_return_pct",
+        "max_drawdown_from_peak_pct",
+        "time_to_max_return_seconds",
+        "hit_2x",
+        "hit_3x",
+        "hit_5x",
+        "observations_count",
+        "first_observation_time",
+        "last_observation_time",
+        "data_status",
+        "created_at",
+    }
+    assert expected_columns <= set(columns)
+    # Stage 4B scaffolding columns must be gone.
+    assert "decision_id" not in columns
+    assert "baseline_alert_id" not in columns
+    assert "entry_price" not in columns
+    assert "activity_status" not in columns
+    assert "death_label" not in columns
+    assert "missing_reasons_json" not in columns
+
+
+def test_stage9_migration_creates_alert_decision_current_price_columns():
+    with _phx2_connection_stage9() as connection:
+        columns = _columns(connection, "alert_decisions")
+
+    assert "current_price" in columns
+    assert "current_mcap" in columns
+    assert columns["current_price"]["type"] == "REAL"
+    assert columns["current_mcap"]["type"] == "REAL"
+    # Stage 9 fields are nullable — backfill is out of scope for v0.
+    assert columns["current_price"]["notnull"] == 0
+    assert columns["current_mcap"]["notnull"] == 0
+
+
+def test_stage9_migration_records_stage9a_and_stage9b():
+    with _phx2_connection_stage9() as connection:
+        rows = connection.execute(
+            "SELECT version, stage, success FROM schema_migrations "
+            "ORDER BY applied_at"
+        ).fetchall()
+
+    versions = [(row["version"], row["stage"], row["success"]) for row in rows]
+    assert (STAGE_9A_VERSION, "9A", 1) in versions
+    assert (STAGE_9B_VERSION, "9B", 1) in versions
+
+
+def test_stage9_migration_is_idempotent():
+    with _phx2_connection_stage9() as connection:
+        # Re-running on a freshly migrated DB must succeed (outcome_windows is
+        # empty, alert_decisions columns exist) and leave the schema intact.
+        apply_stage9_alert_decision_extension(connection)
+        apply_stage9_outcome_windows_recreate(connection)
+
+        # Columns still exactly two of each.
+        columns = _columns(connection, "alert_decisions")
+        assert "current_price" in columns
+        assert "current_mcap" in columns
+
+
+def test_stage9_recreate_refuses_when_outcome_windows_has_rows():
+    with _phx2_connection_stage9() as connection:
+        # Insert one outcome row, then attempt the recreate again.
+        connection.execute(
+            """
+            INSERT INTO outcome_windows (
+                alert_decision_id, token_address, window_seconds,
+                window_start_time, window_end_time, data_status, created_at
+            )
+            VALUES (1, 'token', 300, '2026-05-08T00:00:00+00:00',
+                    '2026-05-08T00:05:00+00:00', 'COMPLETE',
+                    '2026-05-08T00:05:01+00:00')
+            """
+        )
+        connection.commit()
+
+        with pytest.raises(RuntimeError, match="safety check"):
+            apply_stage9_outcome_windows_recreate(connection)
+
+        # Table must still exist with the row preserved.
+        count = connection.execute(
+            "SELECT COUNT(*) AS count FROM outcome_windows"
+        ).fetchone()["count"]
+        assert count == 1
+
+
+def test_stage9_outcome_windows_unique_index_prevents_duplicate_rows():
+    with _phx2_connection_stage9() as connection:
+        sql = """
+            INSERT INTO outcome_windows (
+                alert_decision_id, token_address, window_seconds,
+                window_start_time, window_end_time, data_status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            1,
+            "token",
+            300,
+            "2026-05-08T00:00:00+00:00",
+            "2026-05-08T00:05:00+00:00",
+            "COMPLETE",
+            "2026-05-08T00:05:01+00:00",
+        )
+        connection.execute(sql, params)
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(sql, params)

@@ -48,6 +48,8 @@ class AlertDecision(SerializableDataclass):
     price_age_seconds: Optional[float] = None
     pump_multiple: Optional[float] = None
     drawdown_from_ath: Optional[float] = None
+    current_price: Optional[float] = None
+    current_mcap: Optional[float] = None
     filter_labels: Dict[str, str] = field(default_factory=dict)
     tier_context: Dict[str, Any] = field(default_factory=dict)
     key_feature_snapshot: Dict[str, Any] = field(default_factory=dict)

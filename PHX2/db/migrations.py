@@ -16,6 +16,8 @@ STAGE_4A_VERSION = "stage_4a_core_telemetry"
 STAGE_4B_VERSION = "stage_4b_field_score_clock"
 STAGE_5A_VERSION = "stage_5a_raw_pumpswap_events"
 STAGE_5C1_VERSION = "stage_5c1_price_curve_points"
+STAGE_9A_VERSION = "stage_9a_alert_decision_current_price"
+STAGE_9B_VERSION = "stage_9b_outcome_windows_recreate"
 
 
 CORE_TELEMETRY_SQL = """
@@ -155,6 +157,8 @@ CREATE TABLE IF NOT EXISTS alert_decisions (
     price_age_seconds REAL,
     pump_multiple REAL,
     drawdown_from_ath REAL,
+    current_price REAL,
+    current_mcap REAL,
     filter_labels_json TEXT NOT NULL DEFAULT '{}',
     tier_context_json TEXT NOT NULL DEFAULT '{}',
     key_feature_snapshot_json TEXT NOT NULL DEFAULT '{}',
@@ -619,11 +623,120 @@ def apply_stage5c1_schema(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+STAGE_9_OUTCOME_WINDOWS_SQL = """
+CREATE TABLE outcome_windows (
+    id INTEGER PRIMARY KEY,
+    alert_decision_id INTEGER NOT NULL,
+    token_address TEXT NOT NULL,
+    window_seconds INTEGER NOT NULL,
+    window_start_time TEXT NOT NULL,
+    window_end_time TEXT NOT NULL,
+    alert_price REAL,
+    alert_mcap REAL,
+    max_price REAL,
+    max_mcap REAL,
+    max_observation_time TEXT,
+    min_price REAL,
+    min_mcap REAL,
+    min_observation_time TEXT,
+    max_return_multiple REAL,
+    max_return_pct REAL,
+    min_return_multiple REAL,
+    min_return_pct REAL,
+    max_drawdown_from_peak_pct REAL,
+    time_to_max_return_seconds REAL,
+    hit_2x INTEGER,
+    hit_3x INTEGER,
+    hit_5x INTEGER,
+    observations_count INTEGER,
+    first_observation_time TEXT,
+    last_observation_time TEXT,
+    data_status TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (alert_decision_id) REFERENCES alert_decisions(id),
+    UNIQUE (alert_decision_id, window_seconds),
+    CHECK (data_status IN ('COMPLETE', 'NO_PRICE_DATA', 'INVALID_ALERT_PRICE')),
+    CHECK (window_seconds IN (300, 900, 1800, 3600, 14400, 86400))
+);
+
+CREATE INDEX idx_outcome_windows_token_address ON outcome_windows(token_address);
+CREATE INDEX idx_outcome_windows_alert_decision_id ON outcome_windows(alert_decision_id);
+CREATE INDEX idx_outcome_windows_window_start_time ON outcome_windows(window_start_time);
+"""
+
+
+def apply_stage9_alert_decision_extension(connection: sqlite3.Connection) -> None:
+    """Add nullable current_price / current_mcap columns to alert_decisions.
+
+    Idempotent: re-running on a DB that already has the columns is a no-op.
+    Stage 9 reads ``alert_decisions.current_price`` directly as the canonical
+    denominator for forward-return measurement; AlertEligibilityEngine writes
+    these from the same values it places into ``key_feature_snapshot``.
+    """
+
+    columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(alert_decisions)")
+    }
+    if "current_price" not in columns:
+        connection.execute(
+            "ALTER TABLE alert_decisions ADD COLUMN current_price REAL"
+        )
+    if "current_mcap" not in columns:
+        connection.execute(
+            "ALTER TABLE alert_decisions ADD COLUMN current_mcap REAL"
+        )
+    _record_migration(
+        connection,
+        version=STAGE_9A_VERSION,
+        stage="9A",
+        description="Add current_price/current_mcap to alert_decisions",
+    )
+
+
+def apply_stage9_outcome_windows_recreate(connection: sqlite3.Connection) -> None:
+    """Replace the Stage 4B outcome_windows scaffolding with the Stage 9 schema.
+
+    Refuses to drop the table when it contains rows. The safety check exists
+    because the new schema is incompatible with the scaffolding shape and any
+    real outcome data must be preserved through a separately-authored backfill.
+    """
+
+    count_row = connection.execute(
+        "SELECT COUNT(*) AS count FROM outcome_windows"
+    ).fetchone()
+    existing_rows = int(count_row["count"]) if count_row is not None else 0
+    if existing_rows > 0:
+        raise RuntimeError(
+            "Stage 9 migration safety check refused to drop outcome_windows: "
+            f"table has {existing_rows} row(s). Stage 9 expects an empty "
+            "scaffolded table. Backfill or archive existing rows before "
+            "re-running this migration."
+        )
+
+    connection.execute("DROP TABLE outcome_windows")
+    connection.executescript(STAGE_9_OUTCOME_WINDOWS_SQL)
+    _record_migration(
+        connection,
+        version=STAGE_9B_VERSION,
+        stage="9B",
+        description="Recreate outcome_windows with Stage 9 schema",
+    )
+
+
+def apply_stage9_schema(connection: sqlite3.Connection) -> None:
+    """Apply Stage 4 through Stage 9 schema in order."""
+
+    apply_stage5c1_schema(connection)
+    apply_stage9_alert_decision_extension(connection)
+    apply_stage9_outcome_windows_recreate(connection)
+    connection.commit()
+
+
 def migrate_phx2_schema(settings: Union[PHX2Settings, PHX2DryRunDbSettings]) -> None:
     """Open the PHX2 dry-run DB and apply the current PHX2 schema."""
 
     connection = get_phx2_connection(settings)
     try:
-        apply_stage5c1_schema(connection)
+        apply_stage9_schema(connection)
     finally:
         connection.close()

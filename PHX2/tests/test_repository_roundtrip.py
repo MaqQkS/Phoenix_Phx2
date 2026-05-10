@@ -11,7 +11,7 @@ import pytest
 
 from PHX2.config.settings import PHX2DryRunDbSettings
 from PHX2.db.connection import get_phx2_connection
-from PHX2.db.migrations import apply_stage5c1_schema
+from PHX2.db.migrations import apply_stage9_schema
 from PHX2.db.repositories import (
     ATHRepository,
     AlertDecisionRepository,
@@ -40,12 +40,12 @@ from PHX2.models import (
     DecisionReason,
     DecisionType,
     DispatchEvent,
-    DispatchMode,
     FeeWindow,
     FieldFeatures,
     FilterResult,
     MigrationEvent,
     OutcomeWindow,
+    OutcomeWindowStatus,
     PriceCurvePoint,
     PriceObservation,
     RawPumpSwapEvent,
@@ -78,7 +78,7 @@ def _repository_connection() -> Iterator[sqlite3.Connection]:
     path = _temporary_phx2_db_path()
     connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
     try:
-        apply_stage5c1_schema(connection)
+        apply_stage9_schema(connection)
         yield connection
     finally:
         connection.close()
@@ -585,48 +585,77 @@ def test_alert_decision_would_alert_dispatch_and_outcome_roundtrip():
         )
 
         decision_id = decision_repo.insert(decision)
-        dispatch_id = dispatch_repo.insert(
-            DispatchEvent(
-                token_address="token",
-                alert_decision_id=decision_id,
-                dispatch_mode=DispatchMode.FILE_PREVIEW,
-                rendered_text="preview",
-                status="previewed",
-                metadata={"path": "preview.txt"},
-                data_status=DataStatus.OK,
-            )
+        dispatch_event = DispatchEvent(
+            id="evt-1",
+            alert_decision_id=decision_id,
+            dispatch_run_id="run-1",
+            target="file_preview",
+            status="pending",
+            decision_type="would_alert",
+            severity="CLEAN",
+            tier_label="T1",
+            attempted_at=NOW,
+            payload_ref="preview.txt",
+        )
+        dispatch_repo.create(dispatch_event)
+        dispatch_repo.update_status(
+            event_id="evt-1",
+            status="sent",
+            completed_at=LATER,
+            payload_ref="preview.txt",
+            error_message=None,
         )
         outcome_id = outcome_repo.insert(
             OutcomeWindow(
-                decision_id=decision_id,
+                alert_decision_id=decision_id,
                 token_address="token",
                 window_seconds=300,
                 window_start_time=NOW,
                 window_end_time=LATER,
-                entry_price=0.01,
+                alert_price=0.01,
+                alert_mcap=5000.0,
                 max_price=0.03,
+                max_mcap=15000.0,
+                max_observation_time=LATER,
+                min_price=0.01,
+                min_mcap=5000.0,
+                min_observation_time=NOW,
                 max_return_multiple=3.0,
+                max_return_pct=200.0,
+                min_return_multiple=1.0,
+                min_return_pct=0.0,
+                max_drawdown_from_peak_pct=0.0,
+                time_to_max_return_seconds=300.0,
                 hit_2x=True,
                 hit_3x=True,
                 hit_5x=False,
-                data_status=DataStatus.OK,
+                observations_count=2,
+                first_observation_time=NOW,
+                last_observation_time=LATER,
+                data_status=OutcomeWindowStatus.COMPLETE,
             )
         )
 
         fetched = decision_repo.get(decision_id)
         would_alerts = decision_repo.list_would_alert()
         dispatches = dispatch_repo.list_by_decision(decision_id)
-        outcomes = outcome_repo.list_by_decision(decision_id)
+        outcomes = outcome_repo.get_all_for_decision(decision_id)
 
     assert decision_id > 0
-    assert dispatch_id > 0
     assert outcome_id > 0
     assert fetched.filter_labels == {"fee_gate": "Normal"}
     assert fetched.key_feature_snapshot == {"liquidity_usd": 5000.0}
     assert would_alerts == [decision]
-    assert dispatches[0].metadata == {"path": "preview.txt"}
+    assert dispatches[0].id == "evt-1"
+    assert dispatches[0].status == "sent"
+    assert dispatches[0].payload_ref == "preview.txt"
+    assert dispatches[0].completed_at == LATER
     assert outcomes[0].hit_2x is True
     assert outcomes[0].hit_5x is False
+    assert outcomes[0].alert_price == 0.01
+    assert outcomes[0].max_return_multiple == 3.0
+    assert outcomes[0].observations_count == 2
+    assert outcomes[0].data_status == OutcomeWindowStatus.COMPLETE
 
 
 NOW_PLUS_60 = datetime(2026, 5, 8, 6, 1, tzinfo=timezone.utc)

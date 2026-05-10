@@ -7,6 +7,7 @@ venv/
 
 # Test artifacts
 PHX2/.test_tmp/
+PHX2/.test_tmp_pytest/
 .pytest_cache/
 
 # Coverage
@@ -36,6 +37,3 @@ Thumbs.db
 # Claude Code session metadata
 .claude/
 
-
-# Claude Code session metadata
-.claude/

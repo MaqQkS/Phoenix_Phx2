@@ -1268,3 +1268,44 @@ def test_exception_during_evaluation_records_error_audit_and_reraises():
             )
         finally:
             engine.field_features.get_latest_at_or_before = original  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# 32. Stage 9 support: AlertDecision rows expose current_price / current_mcap
+# ---------------------------------------------------------------------------
+
+
+def test_alert_decisions_current_price_and_mcap_populated_when_engine_has_them():
+    """Stage 9 reads ``alert_decisions.current_price`` directly as the canonical
+    forward-return denominator. The engine writes the same value it stores in
+    ``key_feature_snapshot`` so the column and the snapshot stay aligned.
+    """
+
+    with _engine_context() as (connection, engine):
+        _insert_eligible_state(connection, drawdown=0.60)
+        engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+
+        decisions = AlertDecisionRepository(connection).list_by_token(TOKEN)
+        assert len(decisions) == 1
+        decision = decisions[0]
+        # The fixture computes cur_price = ath_price * (1 - drawdown).
+        # ath_price=100, drawdown=0.60, so cur_price=40.
+        assert decision.current_price == 40.0
+        assert decision.current_mcap == 40000.0
+        # Same values in the snapshot — they must agree.
+        assert decision.key_feature_snapshot["current_price"] == 40.0
+        assert decision.key_feature_snapshot["current_mcap"] == 40000.0
+
+
+def test_alert_decisions_current_price_null_when_engine_lacks_observation():
+    """Token-not-found and missing-observation paths must leave the columns
+    NULL. The snapshot is not even consulted on these paths because no
+    PriceObservation exists.
+    """
+
+    with _engine_context() as (_connection, engine):
+        # No state inserted at all → token_not_found early exit.
+        decision = engine.evaluate_token(TOKEN, as_of_time=EVAL_TIME)
+        assert decision.decision_type == DecisionType.SKIP
+        assert decision.current_price is None
+        assert decision.current_mcap is None

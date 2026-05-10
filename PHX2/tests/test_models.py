@@ -141,6 +141,9 @@ def test_every_model_serializes_to_json_safe_dict():
 
 
 def test_missing_reasons_default_to_empty_lists():
+    # OutcomeWindow is intentionally absent: the Stage 9 model has no
+    # missing_reasons field. The persisted column was dropped and the strict
+    # 3-value OutcomeWindowStatus enum carries the entire result vocabulary.
     now = datetime(2026, 5, 8, 1, 30, tzinfo=timezone.utc)
     models = [
         TokenState(token_address="token"),
@@ -168,7 +171,6 @@ def test_missing_reasons_default_to_empty_lists():
         FieldFeatures(token_address="token"),
         ScoreFeatures(token_address="token"),
         ClockFeatures(token_address="token"),
-        OutcomeWindow(window_seconds=300),
     ]
 
     for model in models:

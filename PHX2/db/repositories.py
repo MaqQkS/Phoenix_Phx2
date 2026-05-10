@@ -10,7 +10,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Literal, Optional, Sequence
 
 from PHX2.models import (
     ATHConfidence,
@@ -29,12 +29,14 @@ from PHX2.models import (
     FilterResult,
     MigrationEvent,
     OutcomeWindow,
+    OutcomeWindowStatus,
     PriceCurvePoint,
     PriceObservation,
     RawPumpSwapEvent,
     ScoreFeatures,
     TokenState,
 )
+from PHX2.models.outcome_window import PERSISTABLE_OUTCOME_WINDOW_STATUSES
 from PHX2.models.serialization import to_json_safe
 
 
@@ -338,6 +340,30 @@ class PriceObservationRepository(RepositoryContract):
         rows = self._fetchall(sql, params)
         return [_price_observation_from_row(row) for row in rows]
 
+    def get_observations_in_range(
+        self,
+        token_address: str,
+        start_time: datetime,
+        end_time: datetime,
+    ) -> List[PriceObservation]:
+        """Return observations with start_time <= observed_at <= end_time, ASC.
+
+        Closed interval on both ends. Used by OutcomeTrackingService to gather
+        observations for a single forward-return window. Empty result is valid.
+        """
+
+        rows = self._fetchall(
+            """
+            SELECT * FROM price_observations
+            WHERE token_address = ?
+              AND observed_at >= ?
+              AND observed_at <= ?
+            ORDER BY observed_at ASC, id ASC
+            """,
+            (token_address, _to_db_value(start_time), _to_db_value(end_time)),
+        )
+        return [_price_observation_from_row(row) for row in rows]
+
 
 class ATHRepository(RepositoryContract):
     """Persistence for ATH current state and event log."""
@@ -609,6 +635,8 @@ class AlertDecisionRepository(RepositoryContract):
                 "price_age_seconds": payload["price_age_seconds"],
                 "pump_multiple": payload["pump_multiple"],
                 "drawdown_from_ath": payload["drawdown_from_ath"],
+                "current_price": payload["current_price"],
+                "current_mcap": payload["current_mcap"],
                 "filter_labels_json": _json_dict(payload["filter_labels"]),
                 "tier_context_json": _json_dict(payload["tier_context"]),
                 "key_feature_snapshot_json": _json_dict(payload["key_feature_snapshot"]),
@@ -649,17 +677,56 @@ class AlertDecisionRepository(RepositoryContract):
         )
         return [_alert_decision_from_row(row) for row in rows]
 
-    def list_would_alert(self, limit: int = 100) -> List[AlertDecision]:
+    def list_would_alert(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        order: Literal["asc", "desc"] = "desc",
+    ) -> List[AlertDecision]:
+        """Return WOULD_ALERT decisions, newest-first by default.
+
+        ``order="asc"`` returns oldest-first, used by OutcomeTrackingService for
+        deterministic backfill progression. ``offset`` enables paging through
+        large historical sets without re-reading processed rows.
+        """
+
+        if order not in ("asc", "desc"):
+            raise ValueError(f"order must be 'asc' or 'desc', got {order!r}")
+        direction = "ASC" if order == "asc" else "DESC"
+        rows = self._fetchall(
+            f"""
+            SELECT * FROM alert_decisions
+            WHERE would_alert = 1
+            ORDER BY evaluated_at {direction}, id {direction}
+            LIMIT ? OFFSET ?
+            """,
+            (_limit(limit), max(0, int(offset))),
+        )
+        return [_alert_decision_from_row(row) for row in rows]
+
+    def list_pending_would_alert_with_ids(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> List[tuple]:
+        """Return (id, AlertDecision) pairs for WOULD_ALERT decisions, oldest-first.
+
+        Stage 9 OutcomeTrackingService needs the row id to write outcome_windows
+        rows, but the AlertDecision dataclass does not currently expose its
+        primary key. This method returns the id alongside the hydrated row so
+        the service does not need to re-query by composite key.
+        """
+
         rows = self._fetchall(
             """
             SELECT * FROM alert_decisions
             WHERE would_alert = 1
-            ORDER BY evaluated_at DESC, id DESC
-            LIMIT ?
+            ORDER BY evaluated_at ASC, id ASC
+            LIMIT ? OFFSET ?
             """,
-            (_limit(limit),),
+            (_limit(limit), max(0, int(offset))),
         )
-        return [_alert_decision_from_row(row) for row in rows]
+        return [(int(row["id"]), _alert_decision_from_row(row)) for row in rows]
 
     def list_would_alerts_for_token(
         self,
@@ -1512,57 +1579,79 @@ class ClockFeatureRepository(RepositoryContract):
 
 
 class OutcomeWindowRepository(RepositoryContract):
-    """Persistence for outcome_windows."""
+    """Persistence for outcome_windows.
+
+    Stage 9 schema: insert-only. There is no update, delete, or recompute path
+    in v0; once a row is written for a (alert_decision_id, window_seconds)
+    pair it is terminal. Service-only statuses (PARTIAL, WINDOW_NOT_ELAPSED,
+    ALREADY_RECORDED) are rejected before the DB call as defense in depth
+    against the schema-level CHECK constraint.
+    """
 
     def insert(self, outcome: OutcomeWindow) -> int:
+        if outcome.data_status not in PERSISTABLE_OUTCOME_WINDOW_STATUSES:
+            raise ValueError(
+                "OutcomeWindow.data_status must be one of "
+                f"{sorted(s.value for s in PERSISTABLE_OUTCOME_WINDOW_STATUSES)}; "
+                f"got {outcome.data_status.value!r}. Service-only statuses are "
+                "never persisted."
+            )
         payload = _payload(outcome)
         return self._insert(
             "outcome_windows",
             {
-                "decision_id": payload["decision_id"],
-                "baseline_alert_id": payload["baseline_alert_id"],
+                "alert_decision_id": payload["alert_decision_id"],
                 "token_address": payload["token_address"],
                 "window_seconds": payload["window_seconds"],
                 "window_start_time": payload["window_start_time"],
                 "window_end_time": payload["window_end_time"],
-                "field_features_id": None,
-                "score_features_id": None,
-                "clock_features_id": None,
-                "entry_price": payload["entry_price"],
-                "entry_mcap": payload["entry_mcap"],
+                "alert_price": payload["alert_price"],
+                "alert_mcap": payload["alert_mcap"],
                 "max_price": payload["max_price"],
                 "max_mcap": payload["max_mcap"],
-                "max_return_multiple": payload["max_return_multiple"],
-                "time_to_max_return_s": payload["time_to_max_return_s"],
+                "max_observation_time": payload["max_observation_time"],
                 "min_price": payload["min_price"],
                 "min_mcap": payload["min_mcap"],
-                "max_drawdown_pct": payload["max_drawdown_pct"],
-                "time_to_max_drawdown_s": payload["time_to_max_drawdown_s"],
+                "min_observation_time": payload["min_observation_time"],
+                "max_return_multiple": payload["max_return_multiple"],
+                "max_return_pct": payload["max_return_pct"],
+                "min_return_multiple": payload["min_return_multiple"],
+                "min_return_pct": payload["min_return_pct"],
+                "max_drawdown_from_peak_pct": payload["max_drawdown_from_peak_pct"],
+                "time_to_max_return_seconds": payload["time_to_max_return_seconds"],
                 "hit_2x": payload["hit_2x"],
                 "hit_3x": payload["hit_3x"],
                 "hit_5x": payload["hit_5x"],
-                "time_to_2x_s": payload["time_to_2x_s"],
-                "time_to_3x_s": payload["time_to_3x_s"],
-                "time_to_5x_s": payload["time_to_5x_s"],
-                "last_observed_price": payload["last_observed_price"],
-                "last_observed_mcap": payload["last_observed_mcap"],
-                "last_observed_time": payload["last_observed_time"],
-                "activity_status": payload["activity_status"],
-                "death_label": payload["death_label"],
-                "created_at": _now_iso(),
+                "observations_count": payload["observations_count"],
+                "first_observation_time": payload["first_observation_time"],
+                "last_observation_time": payload["last_observation_time"],
                 "data_status": payload["data_status"],
-                "missing_reasons_json": _json_list(payload["missing_reasons"]),
+                "created_at": _now_iso(),
             },
         )
 
-    def list_by_decision(self, decision_id: int) -> List[OutcomeWindow]:
+    def get_by_decision_and_window(
+        self,
+        alert_decision_id: int,
+        window_seconds: int,
+    ) -> Optional[OutcomeWindow]:
+        row = self._fetchone(
+            """
+            SELECT * FROM outcome_windows
+            WHERE alert_decision_id = ? AND window_seconds = ?
+            """,
+            (alert_decision_id, window_seconds),
+        )
+        return _outcome_window_from_row(row) if row else None
+
+    def get_all_for_decision(self, alert_decision_id: int) -> List[OutcomeWindow]:
         rows = self._fetchall(
             """
             SELECT * FROM outcome_windows
-            WHERE decision_id = ?
+            WHERE alert_decision_id = ?
             ORDER BY window_seconds ASC, id ASC
             """,
-            (decision_id,),
+            (alert_decision_id,),
         )
         return [_outcome_window_from_row(row) for row in rows]
 
@@ -1866,6 +1955,8 @@ def _alert_decision_from_row(row: sqlite3.Row) -> AlertDecision:
         price_age_seconds=row["price_age_seconds"],
         pump_multiple=row["pump_multiple"],
         drawdown_from_ath=row["drawdown_from_ath"],
+        current_price=row["current_price"],
+        current_mcap=row["current_mcap"],
         filter_labels=_load_json(row["filter_labels_json"], {}),
         tier_context=_load_json(row["tier_context_json"], {}),
         key_feature_snapshot=_load_json(row["key_feature_snapshot_json"], {}),
@@ -2093,35 +2184,37 @@ def _clock_features_from_row(row: sqlite3.Row) -> ClockFeatures:
 
 def _outcome_window_from_row(row: sqlite3.Row) -> OutcomeWindow:
     return OutcomeWindow(
-        decision_id=row["decision_id"],
-        baseline_alert_id=row["baseline_alert_id"],
+        id=row["id"],
+        alert_decision_id=row["alert_decision_id"],
         token_address=row["token_address"],
         window_seconds=row["window_seconds"],
         window_start_time=_parse_datetime(row["window_start_time"]),
         window_end_time=_parse_datetime(row["window_end_time"]),
-        entry_price=row["entry_price"],
-        entry_mcap=row["entry_mcap"],
+        alert_price=row["alert_price"],
+        alert_mcap=row["alert_mcap"],
         max_price=row["max_price"],
         max_mcap=row["max_mcap"],
-        max_return_multiple=row["max_return_multiple"],
-        time_to_max_return_s=row["time_to_max_return_s"],
+        max_observation_time=_parse_datetime(row["max_observation_time"]),
         min_price=row["min_price"],
         min_mcap=row["min_mcap"],
-        max_drawdown_pct=row["max_drawdown_pct"],
-        time_to_max_drawdown_s=row["time_to_max_drawdown_s"],
+        min_observation_time=_parse_datetime(row["min_observation_time"]),
+        max_return_multiple=row["max_return_multiple"],
+        max_return_pct=row["max_return_pct"],
+        min_return_multiple=row["min_return_multiple"],
+        min_return_pct=row["min_return_pct"],
+        max_drawdown_from_peak_pct=row["max_drawdown_from_peak_pct"],
+        time_to_max_return_seconds=row["time_to_max_return_seconds"],
         hit_2x=_bool_value(row["hit_2x"]),
         hit_3x=_bool_value(row["hit_3x"]),
         hit_5x=_bool_value(row["hit_5x"]),
-        time_to_2x_s=row["time_to_2x_s"],
-        time_to_3x_s=row["time_to_3x_s"],
-        time_to_5x_s=row["time_to_5x_s"],
-        last_observed_price=row["last_observed_price"],
-        last_observed_mcap=row["last_observed_mcap"],
-        last_observed_time=_parse_datetime(row["last_observed_time"]),
-        activity_status=row["activity_status"],
-        death_label=row["death_label"],
-        data_status=_enum_value(DataStatus, row["data_status"], DataStatus.MISSING),
-        missing_reasons=_load_json(row["missing_reasons_json"], []),
+        observations_count=row["observations_count"],
+        first_observation_time=_parse_datetime(row["first_observation_time"]),
+        last_observation_time=_parse_datetime(row["last_observation_time"]),
+        data_status=_enum_value(
+            OutcomeWindowStatus,
+            row["data_status"],
+            OutcomeWindowStatus.NO_PRICE_DATA,
+        ),
     )
 
 
