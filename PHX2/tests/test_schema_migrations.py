@@ -19,6 +19,7 @@ from PHX2.db.migrations import (
     STAGE_9B_VERSION,
     STAGE_10A_VERSION,
     STAGE_10B_VERSION,
+    STAGE_11A_VERSION,
     apply_stage4_schema,
     apply_stage5a_schema,
     apply_stage5c1_schema,
@@ -28,6 +29,8 @@ from PHX2.db.migrations import (
     apply_stage10_field_features_extension,
     apply_stage10_filter_evaluations_recreate,
     apply_stage10_schema,
+    apply_stage11_decision_score_features,
+    apply_stage11_schema,
 )
 
 
@@ -1127,3 +1130,345 @@ def test_apply_stage10_schema_is_rerunnable():
     assert "event_count_5m" in field_columns
     assert STAGE_10A_VERSION in migrations
     assert STAGE_10B_VERSION in migrations
+
+
+# ----------------------------------------------------------------------
+# Stage 11 -- decision_score_features (DecisionFeatureSnapshotService)
+# ----------------------------------------------------------------------
+
+
+@contextmanager
+def _phx2_connection_stage11() -> Iterator[sqlite3.Connection]:
+    path = _temporary_phx2_db_path()
+    connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
+    try:
+        apply_stage11_schema(connection)
+        yield connection
+    finally:
+        connection.close()
+        _cleanup_temporary_phx2_db(path)
+
+
+_STAGE_11_REQUIRED_COLUMNS = {
+    "id",
+    "alert_decision_id",
+    "feature_version",
+    "schema_version",
+    "token_address",
+    "token_symbol",
+    "decision_time",
+    "as_of_time",
+    "tier_index",
+    "tier_name",
+    "alert_price",
+    "alert_market_cap",
+    "ath_price",
+    "ath_market_cap",
+    "ath_time",
+    "migration_price",
+    "migration_market_cap",
+    "migration_time",
+    "drop_from_ath",
+    "multiple_from_migration",
+    "time_since_migration_seconds",
+    "time_since_ath_seconds",
+    "time_from_migration_to_ath_seconds",
+    "liquidity_usd",
+    "event_count_5m",
+    "total_fee_5m",
+    "lp_fee_5m",
+    "protocol_fee_5m",
+    "creator_fee_5m",
+    "creator_fee_share_5m",
+    "lp_fee_share_5m",
+    "protocol_fee_share_5m",
+    "fee_per_event_5m",
+    "events_per_minute_5m",
+    "fees_per_minute_5m",
+    "source_snapshot_json",
+    "created_at",
+    "data_status",
+    "missing_reasons_json",
+}
+
+
+def _insert_decision_score_features_raw(
+    connection: sqlite3.Connection,
+    *,
+    alert_decision_id: int = 1,
+    feature_version: str = "decision_features_v0_observe_only",
+    schema_version: str = "schema_v0",
+    decision_time: str = "2026-05-10T14:30:00+00:00",
+    as_of_time: str = "2026-05-10T14:30:00+00:00",
+    created_at: str = "2026-05-10T14:30:01+00:00",
+    data_status: str = "ok",
+    token_address: str = "token-aaa",
+    extra_columns: dict = None,
+) -> None:
+    columns = {
+        "alert_decision_id": alert_decision_id,
+        "feature_version": feature_version,
+        "schema_version": schema_version,
+        "token_address": token_address,
+        "decision_time": decision_time,
+        "as_of_time": as_of_time,
+        "created_at": created_at,
+        "data_status": data_status,
+    }
+    if extra_columns:
+        columns.update(extra_columns)
+    column_names = ", ".join(columns)
+    placeholders = ", ".join("?" for _ in columns)
+    connection.execute(
+        f"INSERT INTO decision_score_features ({column_names}) "
+        f"VALUES ({placeholders})",
+        list(columns.values()),
+    )
+
+
+def test_stage11_creates_decision_score_features():
+    with _phx2_connection_stage11() as connection:
+        tables = _table_names(connection)
+        columns = _columns(connection, "decision_score_features")
+
+    assert "decision_score_features" in tables
+    assert _STAGE_11_REQUIRED_COLUMNS.issubset(set(columns))
+
+
+def test_stage11_records_stage11a_migration():
+    with _phx2_connection_stage11() as connection:
+        rows = connection.execute(
+            "SELECT version, stage, success FROM schema_migrations "
+            "WHERE stage = '11A'"
+        ).fetchall()
+
+    assert len(rows) == 1
+    assert rows[0]["version"] == STAGE_11A_VERSION
+    assert rows[0]["stage"] == "11A"
+    assert rows[0]["success"] == 1
+
+
+def test_stage11_migration_is_idempotent():
+    with _phx2_connection_stage11() as connection:
+        # Re-apply the Stage 11 sub-function. Must not raise, must not
+        # alter the table, must not duplicate the schema_migrations row.
+        apply_stage11_decision_score_features(connection)
+
+        columns = _columns(connection, "decision_score_features")
+        version_count = connection.execute(
+            "SELECT COUNT(*) AS count FROM schema_migrations WHERE version = ?",
+            (STAGE_11A_VERSION,),
+        ).fetchone()["count"]
+
+    assert _STAGE_11_REQUIRED_COLUMNS.issubset(set(columns))
+    assert version_count == 1
+
+
+def test_apply_stage11_schema_is_rerunnable():
+    """Calling ``apply_stage11_schema`` twice on the same DB must succeed.
+
+    Stage 11 sits at the end of the chain, so a second call traverses
+    all of Stages 4A-10B before reaching Stage 11A. The Stage 9B / 10B
+    rerun-safety hinges (S1 fix and the Stage 4B scaffold-index guard)
+    must not regress here.
+    """
+
+    path = _temporary_phx2_db_path()
+    connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
+    try:
+        apply_stage11_schema(connection)
+        apply_stage11_schema(connection)
+
+        columns = _columns(connection, "decision_score_features")
+        migrations = {
+            row["version"]
+            for row in connection.execute(
+                "SELECT version FROM schema_migrations"
+            )
+        }
+    finally:
+        connection.close()
+        _cleanup_temporary_phx2_db(path)
+
+    assert _STAGE_11_REQUIRED_COLUMNS.issubset(set(columns))
+    assert STAGE_11A_VERSION in migrations
+
+
+def test_stage11_unique_constraint_on_decision_and_version():
+    with _phx2_connection_stage11() as connection:
+        _insert_decision_score_features_raw(connection, alert_decision_id=42)
+        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+            _insert_decision_score_features_raw(
+                connection, alert_decision_id=42
+            )
+
+    assert "UNIQUE constraint failed" in str(exc_info.value)
+
+
+def test_stage11_unique_allows_different_feature_versions():
+    with _phx2_connection_stage11() as connection:
+        _insert_decision_score_features_raw(
+            connection,
+            alert_decision_id=42,
+            feature_version="decision_features_v0_observe_only",
+        )
+        # Same decision, different feature_version -> accepted.
+        _insert_decision_score_features_raw(
+            connection,
+            alert_decision_id=42,
+            feature_version="decision_features_v1_observe_only",
+        )
+
+        rows = connection.execute(
+            "SELECT feature_version FROM decision_score_features "
+            "WHERE alert_decision_id = 42 ORDER BY id"
+        ).fetchall()
+
+    assert [row["feature_version"] for row in rows] == [
+        "decision_features_v0_observe_only",
+        "decision_features_v1_observe_only",
+    ]
+
+
+def test_stage11_schema_version_alone_does_not_form_identity():
+    """L7 enforcement: a ``schema_version`` bump WITHOUT a coupled
+    ``feature_version`` bump must violate the UNIQUE constraint.
+
+    This is the machine-checked half of the L7 lock (the human half is
+    the "schema_version bumps must couple to feature_version bumps"
+    rule). Stage 11 cannot accidentally ship two snapshot shapes for
+    the same analytical version.
+    """
+
+    with _phx2_connection_stage11() as connection:
+        _insert_decision_score_features_raw(
+            connection,
+            alert_decision_id=99,
+            feature_version="decision_features_v0_observe_only",
+            schema_version="schema_v0",
+        )
+        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+            _insert_decision_score_features_raw(
+                connection,
+                alert_decision_id=99,
+                feature_version="decision_features_v0_observe_only",
+                schema_version="schema_v1_NEW_SHAPE",
+            )
+
+    assert "UNIQUE constraint failed" in str(exc_info.value)
+
+
+def test_stage11_fk_declaration_present_via_pragma_foreign_key_list():
+    with _phx2_connection_stage11() as connection:
+        rows = list(
+            connection.execute(
+                "PRAGMA foreign_key_list(decision_score_features)"
+            )
+        )
+
+    matching = [
+        row
+        for row in rows
+        if row["table"] == "alert_decisions"
+        and row["from"] == "alert_decision_id"
+    ]
+    assert len(matching) == 1, (
+        "Expected exactly one FK declaration on "
+        "decision_score_features.alert_decision_id referencing "
+        "alert_decisions(id); declaration is required even though "
+        "PRAGMA foreign_keys is OFF in Stage 11."
+    )
+
+
+def test_stage11_required_text_columns_not_null():
+    with _phx2_connection_stage11() as connection:
+        columns = _columns(connection, "decision_score_features")
+
+    for column_name in (
+        "feature_version",
+        "schema_version",
+        "token_address",
+        "decision_time",
+        "as_of_time",
+        "created_at",
+        "data_status",
+    ):
+        assert columns[column_name]["notnull"] == 1, (
+            f"Stage 11 column {column_name!r} must be NOT NULL"
+        )
+
+
+def test_stage11_measurement_columns_nullable():
+    """Every typed measurement column accepts NULL.
+
+    Mirrors Stage 10's MISSING-row pattern: rows are persisted with NULL
+    measurements when the upstream data is absent, with the gap recorded
+    in ``missing_reasons_json`` and ``data_status``.
+    """
+
+    with _phx2_connection_stage11() as connection:
+        columns = _columns(connection, "decision_score_features")
+
+    measurement_columns = [
+        "tier_index",
+        "tier_name",
+        "alert_price",
+        "alert_market_cap",
+        "ath_price",
+        "ath_market_cap",
+        "ath_time",
+        "migration_price",
+        "migration_market_cap",
+        "migration_time",
+        "drop_from_ath",
+        "multiple_from_migration",
+        "time_since_migration_seconds",
+        "time_since_ath_seconds",
+        "time_from_migration_to_ath_seconds",
+        "liquidity_usd",
+        "event_count_5m",
+        "total_fee_5m",
+        "lp_fee_5m",
+        "protocol_fee_5m",
+        "creator_fee_5m",
+        "creator_fee_share_5m",
+        "lp_fee_share_5m",
+        "protocol_fee_share_5m",
+        "fee_per_event_5m",
+        "events_per_minute_5m",
+        "fees_per_minute_5m",
+        "token_symbol",
+    ]
+    for column_name in measurement_columns:
+        assert columns[column_name]["notnull"] == 0, (
+            f"Stage 11 measurement column {column_name!r} must be nullable"
+        )
+
+
+def test_stage11_source_snapshot_json_has_default():
+    with _phx2_connection_stage11() as connection:
+        columns = _columns(connection, "decision_score_features")
+
+    # SQLite stores defaults as the literal SQL expression. The DDL uses
+    # the single-quoted '{}'.
+    assert columns["source_snapshot_json"]["dflt_value"] == "'{}'"
+
+
+def test_stage11_missing_reasons_json_has_default():
+    with _phx2_connection_stage11() as connection:
+        columns = _columns(connection, "decision_score_features")
+
+    assert columns["missing_reasons_json"]["dflt_value"] == "'[]'"
+
+
+def test_stage11_indexes_present():
+    expected_indexes = {
+        "idx_decision_score_features_token_time",
+        "idx_decision_score_features_alert_decision_id",
+        "idx_decision_score_features_feature_version",
+        "idx_decision_score_features_data_status",
+    }
+    with _phx2_connection_stage11() as connection:
+        index_names = _index_names(connection, "decision_score_features")
+
+    assert expected_indexes.issubset(index_names)

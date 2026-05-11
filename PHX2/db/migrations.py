@@ -20,6 +20,7 @@ STAGE_9A_VERSION = "stage_9a_alert_decision_current_price"
 STAGE_9B_VERSION = "stage_9b_outcome_windows_recreate"
 STAGE_10A_VERSION = "stage_10a_field_features_event_count_5m"
 STAGE_10B_VERSION = "stage_10b_filter_evaluations_extension"
+STAGE_11A_VERSION = "stage_11a_decision_score_features"
 
 
 CORE_TELEMETRY_SQL = """
@@ -990,11 +991,176 @@ def apply_stage10_schema(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+# ---------------------------------------------------------------------------
+# Stage 11 -- decision_score_features (DecisionFeatureSnapshotService)
+# ---------------------------------------------------------------------------
+#
+# Stage 11 adds one new table: ``decision_score_features``. It records a
+# decision-time typed snapshot of upstream feature state for every
+# WOULD_ALERT decision. The service that writes it
+# (``DecisionFeatureSnapshotService``) is the substrate for Stage 12's
+# ``alert_decisions x filter_evaluations x decision_score_features x
+# outcome_windows`` outcome-correlation join.
+#
+# Schema notes (see Stage 11 Locked Design Spec for rationale):
+#
+# * ``feature_version`` (semantic) and ``schema_version`` (payload shape) are
+#   stored together but identity is ``UNIQUE(alert_decision_id,
+#   feature_version)``. Any ``schema_version`` bump must couple to a
+#   ``feature_version`` bump (machine-enforced via the UNIQUE constraint:
+#   two rows with the same (decision, feature_version) but different
+#   schema_version still violate UNIQUE).
+# * Every measurement column is nullable so the row can be written with
+#   ``data_status='partial'`` or ``data_status='missing'`` when an upstream
+#   is absent. Only identity / versioning / audit columns are NOT NULL.
+# * ``token_symbol`` is denormalized from ``token_sequence_state.symbol`` at
+#   decision time and frozen on the row. This decouples the snapshot from
+#   subsequent token-state mutations (rebrands, symbol corrections) and
+#   matches the Stage 7 ``key_feature_snapshot`` freeze convention.
+# * ``liquidity_usd`` is reserved despite being NULL on every row today --
+#   the upstream column shape (``field_features.liquidity_usd``) is known
+#   and stable, so the snapshot table can absorb the value automatically
+#   when the LP price reader is wired without a schema change.
+# * The FK declaration to ``alert_decisions(id)`` is inert in Stage 11
+#   (PRAGMA foreign_keys is OFF globally; same as ``filter_evaluations``)
+#   but it documents the relationship and would activate cleanly if FK
+#   enforcement is later enabled.
+# * ``decision_score_features`` is a *measurement primitive snapshot*, NOT
+#   a scoring output. It is intentionally distinct from the legacy
+#   ``score_features`` table (Stage 4B scaffolded) which is reserved for
+#   a future scoring service. Do not confuse the two: Stage 11 stores no
+#   composite_score / risk_score / setup_score / participation_quality_score
+#   (per L9, L10, L11 in the locked design spec).
+STAGE_11_DECISION_SCORE_FEATURES_SQL = """
+CREATE TABLE decision_score_features (
+    id                                  INTEGER PRIMARY KEY,
+
+    -- Identity and versioning
+    alert_decision_id                   INTEGER NOT NULL,
+    feature_version                     TEXT    NOT NULL,
+    schema_version                      TEXT    NOT NULL,
+
+    -- Decision context (denormalized from alert_decisions for
+    -- self-contained reads)
+    token_address                       TEXT    NOT NULL,
+    token_symbol                        TEXT,
+    decision_time                       TEXT    NOT NULL,
+    as_of_time                          TEXT    NOT NULL,
+
+    tier_index                          INTEGER,
+    tier_name                           TEXT,
+    alert_price                         REAL,
+    alert_market_cap                    REAL,
+
+    -- Lifecycle state (ATH / migration)
+    ath_price                           REAL,
+    ath_market_cap                      REAL,
+    ath_time                            TEXT,
+    migration_price                     REAL,
+    migration_market_cap                REAL,
+    migration_time                      TEXT,
+
+    -- Neutral derived measurements (consumed from upstream Stage 7
+    -- computation; Stage 11 does not recompute them)
+    drop_from_ath                       REAL,
+    multiple_from_migration             REAL,
+
+    -- Clock primitives (consumed from clock_features)
+    time_since_migration_seconds        REAL,
+    time_since_ath_seconds              REAL,
+    time_from_migration_to_ath_seconds  REAL,
+
+    -- Field primitives, 5m typed only (other windows go in
+    -- source_snapshot_json.aux_windows)
+    liquidity_usd                       REAL,
+    event_count_5m                      INTEGER,
+    total_fee_5m                        REAL,
+    lp_fee_5m                           REAL,
+    protocol_fee_5m                     REAL,
+    creator_fee_5m                      REAL,
+    creator_fee_share_5m                REAL,
+    lp_fee_share_5m                     REAL,
+    protocol_fee_share_5m               REAL,
+    fee_per_event_5m                    REAL,
+    events_per_minute_5m                REAL,
+    fees_per_minute_5m                  REAL,
+
+    -- Consolidated provenance + non-5m windows + extras
+    source_snapshot_json                TEXT    NOT NULL DEFAULT '{}',
+
+    -- Audit
+    created_at                          TEXT    NOT NULL,
+    data_status                         TEXT    NOT NULL,
+    missing_reasons_json                TEXT    NOT NULL DEFAULT '[]',
+
+    UNIQUE (alert_decision_id, feature_version),
+    FOREIGN KEY (alert_decision_id) REFERENCES alert_decisions(id)
+);
+
+CREATE INDEX idx_decision_score_features_token_time
+    ON decision_score_features(token_address, decision_time);
+
+CREATE INDEX idx_decision_score_features_alert_decision_id
+    ON decision_score_features(alert_decision_id);
+
+CREATE INDEX idx_decision_score_features_feature_version
+    ON decision_score_features(feature_version);
+
+CREATE INDEX idx_decision_score_features_data_status
+    ON decision_score_features(data_status);
+"""
+
+
+def apply_stage11_decision_score_features(
+    connection: sqlite3.Connection,
+) -> None:
+    """Create ``decision_score_features`` on first run; no-op on re-run.
+
+    Stage 11 has no prior scaffold (no Stage 4B placeholder for this
+    table), so the four-case recreate guard used in Stages 9B and 10B is
+    not needed. A simple existence check via ``PRAGMA table_info`` is
+    sufficient: empty result means the table is absent and we run the
+    full DDL; non-empty result means an earlier Stage 11 application
+    already created it and we skip.
+
+    The version row is recorded via ``_record_migration``'s INSERT OR
+    IGNORE, so re-runs leave ``schema_migrations`` with exactly one
+    Stage 11A row regardless of how many times the migration is applied.
+    """
+
+    columns = {
+        row["name"]
+        for row in connection.execute(
+            "PRAGMA table_info(decision_score_features)"
+        )
+    }
+    if not columns:
+        connection.executescript(STAGE_11_DECISION_SCORE_FEATURES_SQL)
+    _record_migration(
+        connection,
+        version=STAGE_11A_VERSION,
+        stage="11A",
+        description="Decision-time feature snapshot table",
+    )
+
+
+def apply_stage11_schema(connection: sqlite3.Connection) -> None:
+    """Apply Stage 4 through Stage 11 schema in order.
+
+    Stage 11A: idempotently create ``decision_score_features`` (typed
+    snapshot of upstream feature state per alert decision).
+    """
+
+    apply_stage10_schema(connection)
+    apply_stage11_decision_score_features(connection)
+    connection.commit()
+
+
 def migrate_phx2_schema(settings: Union[PHX2Settings, PHX2DryRunDbSettings]) -> None:
     """Open the PHX2 dry-run DB and apply the current PHX2 schema."""
 
     connection = get_phx2_connection(settings)
     try:
-        apply_stage10_schema(connection)
+        apply_stage11_schema(connection)
     finally:
         connection.close()

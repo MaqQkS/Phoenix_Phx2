@@ -3,6 +3,10 @@
 from PHX2.models.alert_decision import AlertDecision, DecisionType
 from PHX2.models.ath_state import ATHConfidence, ATHEvent, ATHState, ATHStatus
 from PHX2.models.clock_features import ClockFeatures
+from PHX2.models.decision_feature_snapshot_result import (
+    DecisionFeatureSnapshotResult,
+)
+from PHX2.models.decision_score_features import DecisionScoreFeatures
 from PHX2.models.enums import (
     ATHEventType,
     DataStatus,
@@ -38,8 +42,10 @@ __all__ = [
     "BatchTrackingResult",
     "ClockFeatures",
     "DataStatus",
+    "DecisionFeatureSnapshotResult",
     "DecisionFilterEvaluationResult",
     "DecisionReason",
+    "DecisionScoreFeatures",
     "DecisionTrackingResult",
     "DecisionType",
     "DispatchEvent",

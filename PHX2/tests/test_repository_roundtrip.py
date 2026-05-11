@@ -11,11 +11,12 @@ import pytest
 
 from PHX2.config.settings import PHX2DryRunDbSettings
 from PHX2.db.connection import get_phx2_connection
-from PHX2.db.migrations import apply_stage9_schema
+from PHX2.db.migrations import apply_stage9_schema, apply_stage11_schema
 from PHX2.db.repositories import (
     ATHRepository,
     AlertDecisionRepository,
     ClockFeatureRepository,
+    DecisionScoreFeatureRepository,
     DispatchEventRepository,
     FeeWindowRepository,
     FieldFeatureRepository,
@@ -38,6 +39,7 @@ from PHX2.models import (
     ClockFeatures,
     DataStatus,
     DecisionReason,
+    DecisionScoreFeatures,
     DecisionType,
     DispatchEvent,
     FeeWindow,
@@ -80,6 +82,24 @@ def _repository_connection() -> Iterator[sqlite3.Connection]:
     connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
     try:
         apply_stage9_schema(connection)
+        yield connection
+    finally:
+        connection.close()
+        _cleanup_temporary_phx2_db(path)
+
+
+@contextmanager
+def _repository_connection_stage11() -> Iterator[sqlite3.Connection]:
+    """Connection with the full Stage 11 schema applied.
+
+    Used for the DecisionScoreFeatureRepository round-trip test, which
+    requires ``decision_score_features`` to exist.
+    """
+
+    path = _temporary_phx2_db_path()
+    connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
+    try:
+        apply_stage11_schema(connection)
         yield connection
     finally:
         connection.close()
@@ -1562,3 +1582,261 @@ def test_t3_9_score_check_constraint_rejects_out_of_range():
             repository.insert(
                 _stage10_filter_result(alert_decision_id=6, score=1.01)
             )
+
+
+# ----------------------------------------------------------------------
+# Stage 11 -- DecisionScoreFeatures round-trip
+# ----------------------------------------------------------------------
+
+
+def _full_decision_score_features(
+    alert_decision_id: int = 1,
+    feature_version: str = "decision_features_v0_observe_only",
+    schema_version: str = "schema_v0",
+) -> DecisionScoreFeatures:
+    return DecisionScoreFeatures(
+        alert_decision_id=alert_decision_id,
+        feature_version=feature_version,
+        schema_version=schema_version,
+        token_address="token-aaa",
+        token_symbol="TOK",
+        decision_time=NOW,
+        as_of_time=NOW,
+        tier_index=2,
+        tier_name="tier_2",
+        alert_price=0.0123,
+        alert_market_cap=12345.6,
+        ath_price=0.0500,
+        ath_market_cap=50000.0,
+        ath_time=NOW,
+        migration_price=0.001,
+        migration_market_cap=1000.0,
+        migration_time=NOW,
+        drop_from_ath=-0.75,
+        multiple_from_migration=12.3,
+        time_since_migration_seconds=300.0,
+        time_since_ath_seconds=60.0,
+        time_from_migration_to_ath_seconds=240.0,
+        liquidity_usd=5000.0,
+        event_count_5m=42,
+        total_fee_5m=0.6,
+        lp_fee_5m=0.2,
+        protocol_fee_5m=0.1,
+        creator_fee_5m=0.3,
+        creator_fee_share_5m=0.5,
+        lp_fee_share_5m=0.33,
+        protocol_fee_share_5m=0.17,
+        fee_per_event_5m=0.0143,
+        events_per_minute_5m=8.4,
+        fees_per_minute_5m=0.12,
+        source_snapshot={
+            "envelope": {"feature_version": feature_version},
+            "upstream_refs": {"alert_decision_id": alert_decision_id},
+            "ath_provenance": {"ath_status": "confirmed"},
+            "basis_flags": {"pump_multiple_basis": "mcap"},
+            "aux_windows": {"60s": {"event_count": 9}},
+            "clock_aux": {"sequence_phase": "pullback"},
+        },
+        created_at=LATER,
+        data_status=DataStatus.OK,
+        missing_reasons=("liquidity_usd_unpopulated",),
+    )
+
+
+def test_decision_score_features_roundtrip_full_row():
+    snapshot = _full_decision_score_features()
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        new_id = repository.insert(snapshot)
+        loaded = repository.get_by_id(new_id)
+
+    assert loaded is not None
+    assert loaded.id == new_id
+    # Compare every field by reconstructing the dataclass minus the
+    # service-assigned id (which the input had as None).
+    expected = DecisionScoreFeatures(
+        **{**snapshot.__dict__, "id": new_id}
+    )
+    assert loaded == expected
+
+
+def test_decision_score_features_roundtrip_partial_with_nulls():
+    """A PARTIAL snapshot with NULL measurements survives round-trip."""
+
+    snapshot = DecisionScoreFeatures(
+        alert_decision_id=2,
+        feature_version="decision_features_v0_observe_only",
+        schema_version="schema_v0",
+        token_address="token-bbb",
+        decision_time=NOW,
+        as_of_time=NOW,
+        # Every measurement column intentionally None.
+        source_snapshot={"envelope": {"note": "partial fixture"}},
+        created_at=LATER,
+        data_status=DataStatus.PARTIAL,
+        missing_reasons=("field_features_missing", "clock_features_missing"),
+    )
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        new_id = repository.insert(snapshot)
+        loaded = repository.get_by_id(new_id)
+
+    assert loaded is not None
+    assert loaded.alert_price is None
+    assert loaded.event_count_5m is None
+    assert loaded.total_fee_5m is None
+    assert loaded.tier_index is None
+    assert loaded.token_symbol is None
+    assert loaded.data_status == DataStatus.PARTIAL
+    assert loaded.missing_reasons == (
+        "field_features_missing",
+        "clock_features_missing",
+    )
+
+
+def test_decision_score_features_get_by_decision_and_version_returns_existing():
+    snapshot = _full_decision_score_features(alert_decision_id=11)
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        new_id = repository.insert(snapshot)
+        existing = repository.get_by_decision_and_version(
+            11, "decision_features_v0_observe_only"
+        )
+
+    assert existing is not None
+    assert existing.id == new_id
+
+
+def test_decision_score_features_get_by_decision_and_version_returns_none_when_absent():
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        result = repository.get_by_decision_and_version(
+            999, "decision_features_v0_observe_only"
+        )
+
+    assert result is None
+
+
+def test_decision_score_features_get_all_for_decision_orders_by_id_asc():
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        v0_id = repository.insert(
+            _full_decision_score_features(
+                alert_decision_id=7,
+                feature_version="decision_features_v0_observe_only",
+            )
+        )
+        v1_id = repository.insert(
+            _full_decision_score_features(
+                alert_decision_id=7,
+                feature_version="decision_features_v1_observe_only",
+            )
+        )
+        rows = repository.get_all_for_decision(7)
+
+    assert [row.id for row in rows] == [v0_id, v1_id]
+    assert [row.feature_version for row in rows] == [
+        "decision_features_v0_observe_only",
+        "decision_features_v1_observe_only",
+    ]
+
+
+def test_decision_score_features_list_by_token_chronological_capped():
+    earlier = NOW - timedelta(hours=2)
+    middle = NOW - timedelta(hours=1)
+    later = NOW
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        for index, when in enumerate((earlier, middle, later), start=1):
+            row = _full_decision_score_features(alert_decision_id=index)
+            repository.insert(
+                DecisionScoreFeatures(**{**row.__dict__, "decision_time": when})
+            )
+        recent = repository.list_by_token("token-aaa", limit=2)
+
+    assert len(recent) == 2
+    assert recent[0].decision_time == later
+    assert recent[1].decision_time == middle
+
+
+def test_decision_score_features_unique_race_raises_integrity_error():
+    """The repository surfaces the UNIQUE-constraint violation directly.
+
+    Stage 11's service layer (``DecisionFeatureSnapshotService``) catches
+    this, re-probes via ``get_by_decision_and_version``, and treats the
+    second insert as already_recorded. The repository itself does not
+    swallow the error.
+    """
+
+    snapshot = _full_decision_score_features(alert_decision_id=33)
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        repository.insert(snapshot)
+        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+            # Re-insert the same (decision, feature_version) -> duplicate.
+            repository.insert(
+                _full_decision_score_features(alert_decision_id=33)
+            )
+
+    assert "UNIQUE constraint failed" in str(exc_info.value)
+
+
+def test_decision_score_features_source_snapshot_json_round_trips_compact_sorted():
+    """The ``source_snapshot`` dict survives the JSON round-trip via the
+    standard ``_json_dict`` helper (which serializes with sorted keys
+    and ``(",", ":")`` separators).
+    """
+
+    snapshot = _full_decision_score_features(alert_decision_id=44)
+    with _repository_connection_stage11() as connection:
+        repository = DecisionScoreFeatureRepository(connection)
+        new_id = repository.insert(snapshot)
+        # Inspect the raw JSON to verify the on-disk shape.
+        raw_json = connection.execute(
+            "SELECT source_snapshot_json FROM decision_score_features "
+            "WHERE id = ?",
+            (new_id,),
+        ).fetchone()["source_snapshot_json"]
+        loaded = repository.get_by_id(new_id)
+
+    # Compact serialization: no whitespace.
+    assert " " not in raw_json
+    # Sorted keys at the top level (envelope < upstream_refs < ...).
+    assert raw_json.index('"envelope"') < raw_json.index('"upstream_refs"')
+    # The deserialized dict matches the input.
+    assert loaded is not None
+    assert loaded.source_snapshot == snapshot.source_snapshot
+
+
+def test_fee_window_get_by_id_returns_existing_row():
+    """The Stage 11 ride-along addition. Round-trip via id."""
+
+    with _repository_connection_stage11() as connection:
+        repository = FeeWindowRepository(connection)
+        new_id = repository.insert(
+            FeeWindow(
+                token_address="token",
+                as_of_time=LATER,
+                window_seconds=300,
+                pool_address="pool",
+                event_count=5,
+                total_fee_sol=0.5,
+                lp_fee_sol=0.2,
+                protocol_fee_sol=0.1,
+                creator_fee_sol=0.2,
+                avg_fee_per_event_sol=0.1,
+                events_per_min=1.0,
+                fees_per_min_sol=0.1,
+                data_status=DataStatus.OK,
+            )
+        )
+        loaded = repository.get_by_id(new_id)
+        missing = repository.get_by_id(99999)
+
+    assert loaded is not None
+    assert loaded.id == new_id
+    assert loaded.token_address == "token"
+    assert loaded.window_seconds == 300
+    assert loaded.event_count == 5
+    assert loaded.total_fee_sol == 0.5
+    assert missing is None

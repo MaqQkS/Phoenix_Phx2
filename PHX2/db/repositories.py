@@ -22,6 +22,7 @@ from PHX2.models import (
     ClockFeatures,
     DataStatus,
     DecisionReason,
+    DecisionScoreFeatures,
     DecisionType,
     DispatchEvent,
     FeeWindow,
@@ -970,6 +971,24 @@ class FeeWindowRepository(RepositoryContract):
         )
         return _fee_window_from_row(row) if row else None
 
+    def get_by_id(self, fee_window_id: int) -> Optional[FeeWindow]:
+        """Load fee_window row by primary key.
+
+        Stage 11 navigates ``field_features.fee_window_300s_id`` (and the
+        peer 60s/900s/1800s/3600s FKs) to load typed 5m amounts and the
+        non-5m aux-window snapshots. FK navigation by id is the cleaner
+        read than ``get(token, as_of, 300)``: it does not depend on the
+        invariant that field_features and fee_windows share the same
+        as_of_time. Mirrors ``AlertDecisionRepository.get`` and
+        ``FieldFeatureRepository.get_by_id`` shape.
+        """
+
+        row = self._fetchone(
+            "SELECT * FROM fee_windows WHERE id = ?",
+            (fee_window_id,),
+        )
+        return _fee_window_from_row(row) if row else None
+
     def list_by_token(self, token_address: str, limit: int = 100) -> List[FeeWindow]:
         rows = self._fetchall(
             """
@@ -1804,6 +1823,146 @@ class DispatchEventRepository(RepositoryContract):
         return [_dispatch_event_from_row(row) for row in rows]
 
 
+class DecisionScoreFeatureRepository(RepositoryContract):
+    """Persistence for decision_score_features (Stage 11).
+
+    Insert-only audit-log shape, matching ``OutcomeWindowRepository``
+    and ``FilterEvaluationRepository``. Idempotency is probed via
+    ``get_by_decision_and_version`` before insert; UNIQUE-constraint
+    races during insert are caught by the service layer
+    (``DecisionFeatureSnapshotService``) and resolved by re-probing.
+    No upsert path exists -- a snapshot row, once written, is
+    terminal under its (alert_decision_id, feature_version) identity.
+
+    Stage 11 writes only to ``decision_score_features``. This class
+    therefore exposes no methods that touch any other table.
+    """
+
+    def insert(self, snapshot: DecisionScoreFeatures) -> int:
+        """Insert one row. Returns the new id.
+
+        Raises ``sqlite3.IntegrityError`` on
+        ``UNIQUE(alert_decision_id, feature_version)`` violation. The
+        caller (``DecisionFeatureSnapshotService``) catches this case
+        and treats it as a UNIQUE-race after re-probing.
+        """
+
+        payload = _payload(snapshot)
+        return self._insert(
+            "decision_score_features",
+            {
+                "alert_decision_id": payload["alert_decision_id"],
+                "feature_version": payload["feature_version"],
+                "schema_version": payload["schema_version"],
+                "token_address": payload["token_address"],
+                "token_symbol": payload["token_symbol"],
+                "decision_time": payload["decision_time"],
+                "as_of_time": payload["as_of_time"],
+                "tier_index": payload["tier_index"],
+                "tier_name": payload["tier_name"],
+                "alert_price": payload["alert_price"],
+                "alert_market_cap": payload["alert_market_cap"],
+                "ath_price": payload["ath_price"],
+                "ath_market_cap": payload["ath_market_cap"],
+                "ath_time": payload["ath_time"],
+                "migration_price": payload["migration_price"],
+                "migration_market_cap": payload["migration_market_cap"],
+                "migration_time": payload["migration_time"],
+                "drop_from_ath": payload["drop_from_ath"],
+                "multiple_from_migration": payload["multiple_from_migration"],
+                "time_since_migration_seconds": payload[
+                    "time_since_migration_seconds"
+                ],
+                "time_since_ath_seconds": payload["time_since_ath_seconds"],
+                "time_from_migration_to_ath_seconds": payload[
+                    "time_from_migration_to_ath_seconds"
+                ],
+                "liquidity_usd": payload["liquidity_usd"],
+                "event_count_5m": payload["event_count_5m"],
+                "total_fee_5m": payload["total_fee_5m"],
+                "lp_fee_5m": payload["lp_fee_5m"],
+                "protocol_fee_5m": payload["protocol_fee_5m"],
+                "creator_fee_5m": payload["creator_fee_5m"],
+                "creator_fee_share_5m": payload["creator_fee_share_5m"],
+                "lp_fee_share_5m": payload["lp_fee_share_5m"],
+                "protocol_fee_share_5m": payload["protocol_fee_share_5m"],
+                "fee_per_event_5m": payload["fee_per_event_5m"],
+                "events_per_minute_5m": payload["events_per_minute_5m"],
+                "fees_per_minute_5m": payload["fees_per_minute_5m"],
+                "source_snapshot_json": _json_dict(payload["source_snapshot"]),
+                "created_at": payload["created_at"],
+                "data_status": payload["data_status"],
+                "missing_reasons_json": _json_list(payload["missing_reasons"]),
+            },
+        )
+
+    def get_by_id(self, snapshot_id: int) -> Optional[DecisionScoreFeatures]:
+        row = self._fetchone(
+            "SELECT * FROM decision_score_features WHERE id = ?",
+            (snapshot_id,),
+        )
+        return _decision_score_features_from_row(row) if row else None
+
+    def get_by_decision_and_version(
+        self,
+        alert_decision_id: int,
+        feature_version: str,
+    ) -> Optional[DecisionScoreFeatures]:
+        """Idempotency probe matching UNIQUE(alert_decision_id, feature_version).
+
+        Returns the existing row if present (Already-recorded branch in
+        the service), else None (proceed to insert).
+        """
+
+        row = self._fetchone(
+            """
+            SELECT * FROM decision_score_features
+            WHERE alert_decision_id = ? AND feature_version = ?
+            """,
+            (alert_decision_id, feature_version),
+        )
+        return _decision_score_features_from_row(row) if row else None
+
+    def get_all_for_decision(
+        self,
+        alert_decision_id: int,
+    ) -> List[DecisionScoreFeatures]:
+        """All snapshots across feature_versions for one decision.
+
+        Ordered by id ASC (insertion order). Stage 12 typically filters
+        the result down to one feature_version for cross-row
+        comparability.
+        """
+
+        rows = self._fetchall(
+            """
+            SELECT * FROM decision_score_features
+            WHERE alert_decision_id = ?
+            ORDER BY id ASC
+            """,
+            (alert_decision_id,),
+        )
+        return [_decision_score_features_from_row(row) for row in rows]
+
+    def list_by_token(
+        self,
+        token_address: str,
+        limit: int = 100,
+    ) -> List[DecisionScoreFeatures]:
+        """Chronological list (decision_time DESC) for one token."""
+
+        rows = self._fetchall(
+            """
+            SELECT * FROM decision_score_features
+            WHERE token_address = ?
+            ORDER BY decision_time DESC, id DESC
+            LIMIT ?
+            """,
+            (token_address, _limit(limit)),
+        )
+        return [_decision_score_features_from_row(row) for row in rows]
+
+
 @dataclass(frozen=True)
 class RepositoryRegistry:
     """Container for PHX2 repositories bound to one SQLite connection."""
@@ -1822,6 +1981,7 @@ class RepositoryRegistry:
     dispatch_events: Optional[DispatchEventRepository] = None
     raw_pumpswap_events: Optional[RawPumpSwapEventRepository] = None
     price_curve_points: Optional[PriceCurvePointRepository] = None
+    decision_score_features: Optional[DecisionScoreFeatureRepository] = None
 
 
 def repository_registry(connection: sqlite3.Connection) -> RepositoryRegistry:
@@ -1842,6 +2002,7 @@ def repository_registry(connection: sqlite3.Connection) -> RepositoryRegistry:
         dispatch_events=DispatchEventRepository(connection),
         raw_pumpswap_events=RawPumpSwapEventRepository(connection),
         price_curve_points=PriceCurvePointRepository(connection),
+        decision_score_features=DecisionScoreFeatureRepository(connection),
     )
 
 
@@ -2285,4 +2446,54 @@ def _dispatch_event_from_row(row: sqlite3.Row) -> DispatchEvent:
         completed_at=_parse_datetime(row["completed_at"]),
         payload_ref=row["payload_ref"],
         error_message=row["error_message"],
+    )
+
+
+def _decision_score_features_from_row(
+    row: sqlite3.Row,
+) -> DecisionScoreFeatures:
+    return DecisionScoreFeatures(
+        id=row["id"],
+        alert_decision_id=row["alert_decision_id"],
+        feature_version=row["feature_version"],
+        schema_version=row["schema_version"],
+        token_address=row["token_address"],
+        token_symbol=row["token_symbol"],
+        decision_time=_parse_datetime(row["decision_time"]),
+        as_of_time=_parse_datetime(row["as_of_time"]),
+        tier_index=row["tier_index"],
+        tier_name=row["tier_name"],
+        alert_price=row["alert_price"],
+        alert_market_cap=row["alert_market_cap"],
+        ath_price=row["ath_price"],
+        ath_market_cap=row["ath_market_cap"],
+        ath_time=_parse_datetime(row["ath_time"]),
+        migration_price=row["migration_price"],
+        migration_market_cap=row["migration_market_cap"],
+        migration_time=_parse_datetime(row["migration_time"]),
+        drop_from_ath=row["drop_from_ath"],
+        multiple_from_migration=row["multiple_from_migration"],
+        time_since_migration_seconds=row["time_since_migration_seconds"],
+        time_since_ath_seconds=row["time_since_ath_seconds"],
+        time_from_migration_to_ath_seconds=row[
+            "time_from_migration_to_ath_seconds"
+        ],
+        liquidity_usd=row["liquidity_usd"],
+        event_count_5m=row["event_count_5m"],
+        total_fee_5m=row["total_fee_5m"],
+        lp_fee_5m=row["lp_fee_5m"],
+        protocol_fee_5m=row["protocol_fee_5m"],
+        creator_fee_5m=row["creator_fee_5m"],
+        creator_fee_share_5m=row["creator_fee_share_5m"],
+        lp_fee_share_5m=row["lp_fee_share_5m"],
+        protocol_fee_share_5m=row["protocol_fee_share_5m"],
+        fee_per_event_5m=row["fee_per_event_5m"],
+        events_per_minute_5m=row["events_per_minute_5m"],
+        fees_per_minute_5m=row["fees_per_minute_5m"],
+        source_snapshot=_load_json(row["source_snapshot_json"], {}),
+        created_at=_parse_datetime(row["created_at"]),
+        data_status=_enum_value(
+            DataStatus, row["data_status"], DataStatus.MISSING
+        ),
+        missing_reasons=tuple(_load_json(row["missing_reasons_json"], [])),
     )
