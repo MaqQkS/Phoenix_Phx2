@@ -17,12 +17,17 @@ from PHX2.db.migrations import (
     STAGE_5C1_VERSION,
     STAGE_9A_VERSION,
     STAGE_9B_VERSION,
+    STAGE_10A_VERSION,
+    STAGE_10B_VERSION,
     apply_stage4_schema,
     apply_stage5a_schema,
     apply_stage5c1_schema,
     apply_stage9_alert_decision_extension,
     apply_stage9_outcome_windows_recreate,
     apply_stage9_schema,
+    apply_stage10_field_features_extension,
+    apply_stage10_filter_evaluations_recreate,
+    apply_stage10_schema,
 )
 
 
@@ -770,3 +775,319 @@ def test_stage9_outcome_windows_unique_index_prevents_duplicate_rows():
         connection.execute(sql, params)
         with pytest.raises(sqlite3.IntegrityError):
             connection.execute(sql, params)
+
+
+# ----------------------------------------------------------------------
+# Stage 10 -- filter_evaluations extension + field_features.event_count_5m
+# ----------------------------------------------------------------------
+
+
+@contextmanager
+def _phx2_connection_stage10() -> Iterator[sqlite3.Connection]:
+    path = _temporary_phx2_db_path()
+    connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
+    try:
+        apply_stage10_schema(connection)
+        yield connection
+    finally:
+        connection.close()
+        _cleanup_temporary_phx2_db(path)
+
+
+# T4.1
+def test_t4_1_filter_evaluations_has_threshold_version_and_output_reason_json():
+    with _phx2_connection_stage10() as connection:
+        columns = _columns(connection, "filter_evaluations")
+
+    assert "threshold_version" in columns
+    assert "output_reason_json" in columns
+
+
+# T4.2
+def test_t4_2_threshold_version_is_not_null():
+    with _phx2_connection_stage10() as connection:
+        columns = _columns(connection, "filter_evaluations")
+        threshold_version_col = columns["threshold_version"]
+
+    # PRAGMA table_info: notnull column == 1 means NOT NULL.
+    assert threshold_version_col["notnull"] == 1
+
+
+# T4.3
+def test_t4_3_output_reason_json_is_nullable():
+    with _phx2_connection_stage10() as connection:
+        columns = _columns(connection, "filter_evaluations")
+        output_reason_col = columns["output_reason_json"]
+
+    assert output_reason_col["notnull"] == 0
+
+
+def _insert_filter_evaluation_raw(
+    connection: sqlite3.Connection,
+    *,
+    label: str = "NORMAL",
+    score: float = 0.10,
+    alert_decision_id: int = 1,
+    filter_version: str = "fee_gate_v1_no_bribes",
+    threshold_version: str = "thresholds_v0_observe_only",
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO filter_evaluations (
+            token_address, as_of_time, alert_decision_id, filter_name,
+            filter_version, threshold_version, label, score, would_block,
+            policy_action, reason, input_snapshot_json, output_reason_json,
+            created_at, data_status, missing_reasons_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            "token",
+            "2026-05-10T14:30:00+00:00",
+            alert_decision_id,
+            "fee_gate",
+            filter_version,
+            threshold_version,
+            label,
+            score,
+            0,
+            "observe",
+            None,
+            "{}",
+            None,
+            "2026-05-10T14:30:00+00:00",
+            "ok",
+            "[]",
+        ),
+    )
+
+
+# T4.4
+def test_t4_4_label_check_accepts_five_values_and_rejects_others():
+    with _phx2_connection_stage10() as connection:
+        # Accept each of the five enum values.
+        for i, label in enumerate(
+            ["NORMAL", "ELEVATED", "SUSPICIOUS", "SCAM_LIKELY", "UNKNOWN"]
+        ):
+            _insert_filter_evaluation_raw(
+                connection, label=label, alert_decision_id=i + 1
+            )
+        # Reject a different label.
+        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+            _insert_filter_evaluation_raw(
+                connection, label="Normal", alert_decision_id=10
+            )
+
+    assert "CHECK constraint failed" in str(exc_info.value)
+
+
+# T4.5
+def test_t4_5_score_check_rejects_out_of_range_accepts_valid_and_null():
+    with _phx2_connection_stage10() as connection:
+        _insert_filter_evaluation_raw(connection, score=0.0, alert_decision_id=1)
+        _insert_filter_evaluation_raw(connection, score=0.5, alert_decision_id=2)
+        _insert_filter_evaluation_raw(connection, score=1.0, alert_decision_id=3)
+        # NULL score:
+        connection.execute(
+            """
+            INSERT INTO filter_evaluations (
+                token_address, as_of_time, alert_decision_id, filter_name,
+                filter_version, threshold_version, label, score, would_block,
+                policy_action, reason, input_snapshot_json, output_reason_json,
+                created_at, data_status, missing_reasons_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "token",
+                "2026-05-10T14:30:00+00:00",
+                4,
+                "fee_gate",
+                "fee_gate_v1_no_bribes",
+                "thresholds_v0_observe_only",
+                "UNKNOWN",
+                None,
+                0,
+                "observe",
+                None,
+                "{}",
+                None,
+                "2026-05-10T14:30:00+00:00",
+                "missing",
+                "[]",
+            ),
+        )
+
+        # Reject negative.
+        with pytest.raises(sqlite3.IntegrityError):
+            _insert_filter_evaluation_raw(
+                connection, score=-0.001, alert_decision_id=5
+            )
+        # Reject > 1.0.
+        with pytest.raises(sqlite3.IntegrityError):
+            _insert_filter_evaluation_raw(
+                connection, score=1.001, alert_decision_id=6
+            )
+
+
+# T4.6
+def test_t4_6_unique_constraint_on_four_tuple():
+    with _phx2_connection_stage10() as connection:
+        _insert_filter_evaluation_raw(connection, alert_decision_id=42)
+
+        # Same four-tuple -> rejected.
+        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+            _insert_filter_evaluation_raw(connection, alert_decision_id=42)
+
+        # Different threshold_version -> accepted.
+        _insert_filter_evaluation_raw(
+            connection,
+            alert_decision_id=42,
+            threshold_version="thresholds_other_v1",
+        )
+
+    assert "UNIQUE constraint failed" in str(exc_info.value)
+
+
+# T4.7 (unconditional per C1 -- declaration introspection only)
+def test_t4_7_fk_declaration_present_via_pragma_foreign_key_list():
+    with _phx2_connection_stage10() as connection:
+        rows = list(
+            connection.execute("PRAGMA foreign_key_list(filter_evaluations)")
+        )
+
+    matching = [
+        row
+        for row in rows
+        if row["table"] == "alert_decisions" and row["from"] == "alert_decision_id"
+    ]
+    assert len(matching) == 1, (
+        "Expected exactly one FK declaration on filter_evaluations.alert_decision_id "
+        "referencing alert_decisions(id); declaration is required even though "
+        "PRAGMA foreign_keys is OFF in Stage 10."
+    )
+
+
+# Stage 10 migration housekeeping tests
+
+
+def test_stage10_migration_records_stage10a_and_stage10b():
+    with _phx2_connection_stage10() as connection:
+        rows = connection.execute(
+            "SELECT version, stage, success FROM schema_migrations "
+            "WHERE stage IN ('10A', '10B') ORDER BY stage"
+        ).fetchall()
+
+    assert [(row["version"], row["stage"], row["success"]) for row in rows] == [
+        (STAGE_10A_VERSION, "10A", 1),
+        (STAGE_10B_VERSION, "10B", 1),
+    ]
+
+
+def test_stage10_migration_is_idempotent():
+    # Follows the Stage 9 pattern (test_stage9_migration_is_idempotent):
+    # re-apply the individual Stage 10 sub-functions on an already-migrated
+    # Stage 10 DB. Re-running the full apply_stage10_schema chain would
+    # transit INDEX_SQL over the renamed outcome_windows.alert_decision_id
+    # column -- a pre-existing apply_stage9_schema limitation also avoided
+    # by the Stage 9 idempotency test.
+    with _phx2_connection_stage10() as connection:
+        apply_stage10_field_features_extension(connection)
+        apply_stage10_filter_evaluations_recreate(connection)
+
+        rows = list(
+            connection.execute(
+                "SELECT stage, COUNT(*) AS n FROM schema_migrations "
+                "WHERE stage IN ('10A', '10B') GROUP BY stage ORDER BY stage"
+            )
+        )
+        columns = _columns(connection, "filter_evaluations")
+
+    assert [(row["stage"], row["n"]) for row in rows] == [("10A", 1), ("10B", 1)]
+    assert "threshold_version" in columns
+
+
+_STAGE_4_FILTER_EVALUATIONS_SQL = """
+DROP TABLE IF EXISTS filter_evaluations;
+CREATE TABLE filter_evaluations (
+    id INTEGER PRIMARY KEY,
+    token_address TEXT NOT NULL,
+    as_of_time TEXT NOT NULL,
+    alert_decision_id INTEGER,
+    filter_name TEXT NOT NULL,
+    filter_version TEXT NOT NULL,
+    label TEXT NOT NULL,
+    score REAL,
+    would_block INTEGER NOT NULL,
+    policy_action TEXT NOT NULL,
+    reason TEXT,
+    input_snapshot_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    data_status TEXT NOT NULL,
+    missing_reasons_json TEXT NOT NULL DEFAULT '[]'
+);
+"""
+
+
+def test_stage10_recreate_refuses_when_filter_evaluations_has_rows():
+    # Hand-build the pre-Stage-10 (Stage 4) shape -- no threshold_version
+    # column, no CHECK/UNIQUE/FK -- and seed it with one row. Then call the
+    # recreate function and assert it refuses with the safety-check error.
+    with _phx2_connection(migrate=False) as connection:
+        apply_stage9_schema(connection)
+        connection.executescript(_STAGE_4_FILTER_EVALUATIONS_SQL)
+        connection.execute(
+            """
+            INSERT INTO filter_evaluations (
+                token_address, as_of_time, alert_decision_id, filter_name,
+                filter_version, label, score, would_block, policy_action,
+                reason, input_snapshot_json, created_at, data_status,
+                missing_reasons_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "token",
+                "2026-05-10T14:30:00+00:00",
+                1,
+                "fee_gate",
+                "fee_gate_v0_placeholder",
+                "Normal",
+                0.0,
+                0,
+                "observe",
+                None,
+                "{}",
+                "2026-05-10T14:30:00+00:00",
+                "ok",
+                "[]",
+            ),
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            apply_stage10_filter_evaluations_recreate(connection)
+
+        # The original row must still be present (refusal did not drop).
+        count = connection.execute(
+            "SELECT COUNT(*) AS count FROM filter_evaluations"
+        ).fetchone()["count"]
+
+    assert "refused to drop filter_evaluations" in str(exc_info.value)
+    assert count == 1
+
+
+def test_stage10_field_features_event_count_5m_column_is_nullable():
+    with _phx2_connection_stage10() as connection:
+        columns = _columns(connection, "field_features")
+
+    assert "event_count_5m" in columns
+    assert columns["event_count_5m"]["notnull"] == 0
+
+
+def test_stage10_field_features_extension_is_idempotent():
+    with _phx2_connection_stage10() as connection:
+        apply_stage10_field_features_extension(connection)
+        apply_stage10_field_features_extension(connection)
+        columns = _columns(connection, "field_features")
+
+    assert "event_count_5m" in columns
+    # Idempotent: the column is not duplicated.
+    matching = [name for name in columns if name == "event_count_5m"]
+    assert len(matching) == 1

@@ -18,6 +18,8 @@ STAGE_5A_VERSION = "stage_5a_raw_pumpswap_events"
 STAGE_5C1_VERSION = "stage_5c1_price_curve_points"
 STAGE_9A_VERSION = "stage_9a_alert_decision_current_price"
 STAGE_9B_VERSION = "stage_9b_outcome_windows_recreate"
+STAGE_10A_VERSION = "stage_10a_field_features_event_count_5m"
+STAGE_10B_VERSION = "stage_10b_filter_evaluations_extension"
 
 
 CORE_TELEMETRY_SQL = """
@@ -176,18 +178,31 @@ CREATE TABLE IF NOT EXISTS filter_evaluations (
     id INTEGER PRIMARY KEY,
     token_address TEXT NOT NULL,
     as_of_time TEXT NOT NULL,
+    -- alert_decision_id:
+    --   NULL permitted at schema level for future free-standing filter
+    --   evaluations. Stage 10 v0 service requires non-NULL. The composite
+    --   UNIQUE constraint below treats NULL as distinct in SQLite; v0
+    --   relies on application-layer rejection of NULL.
+    --   FK declared but inert in Stage 10: PRAGMA foreign_keys is OFF
+    --   globally; a future stage owns enabling enforcement.
     alert_decision_id INTEGER,
     filter_name TEXT NOT NULL,
     filter_version TEXT NOT NULL,
+    threshold_version TEXT NOT NULL,
     label TEXT NOT NULL,
     score REAL,
     would_block INTEGER NOT NULL,
     policy_action TEXT NOT NULL,
     reason TEXT,
     input_snapshot_json TEXT NOT NULL DEFAULT '{}',
+    output_reason_json TEXT,
     created_at TEXT NOT NULL,
     data_status TEXT NOT NULL,
-    missing_reasons_json TEXT NOT NULL DEFAULT '[]'
+    missing_reasons_json TEXT NOT NULL DEFAULT '[]',
+    CHECK (label IN ('NORMAL', 'ELEVATED', 'SUSPICIOUS', 'SCAM_LIKELY', 'UNKNOWN')),
+    CHECK (score IS NULL OR (score >= 0.0 AND score <= 1.0)),
+    UNIQUE(alert_decision_id, filter_name, filter_version, threshold_version),
+    FOREIGN KEY (alert_decision_id) REFERENCES alert_decisions(id)
 );
 
 CREATE TABLE IF NOT EXISTS dispatch_events (
@@ -267,6 +282,7 @@ CREATE TABLE IF NOT EXISTS field_features (
     lp_fee_share_5m REAL,
     protocol_fee_share_5m REAL,
     buy_sell_ratio_5m REAL,
+    event_count_5m INTEGER,
     raw_snapshot_json TEXT NOT NULL DEFAULT '{}',
     feature_version TEXT NOT NULL,
     created_at TEXT NOT NULL,
@@ -413,6 +429,7 @@ CREATE INDEX IF NOT EXISTS idx_filter_evaluations_token_time ON filter_evaluatio
 CREATE INDEX IF NOT EXISTS idx_filter_evaluations_filter_label ON filter_evaluations(filter_name, label);
 CREATE INDEX IF NOT EXISTS idx_filter_evaluations_alert_decision_id ON filter_evaluations(alert_decision_id);
 CREATE INDEX IF NOT EXISTS idx_filter_evaluations_would_block ON filter_evaluations(would_block);
+CREATE INDEX IF NOT EXISTS idx_filter_evaluations_filter_version ON filter_evaluations(filter_name, filter_version, threshold_version);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_dispatch_events_idempotency
     ON dispatch_events(alert_decision_id, target)
@@ -781,11 +798,150 @@ def apply_stage9_schema(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
+STAGE_10_FILTER_EVALUATIONS_SQL = """
+CREATE TABLE filter_evaluations (
+    id INTEGER PRIMARY KEY,
+    token_address TEXT NOT NULL,
+    as_of_time TEXT NOT NULL,
+    alert_decision_id INTEGER,
+    filter_name TEXT NOT NULL,
+    filter_version TEXT NOT NULL,
+    threshold_version TEXT NOT NULL,
+    label TEXT NOT NULL,
+    score REAL,
+    would_block INTEGER NOT NULL,
+    policy_action TEXT NOT NULL,
+    reason TEXT,
+    input_snapshot_json TEXT NOT NULL DEFAULT '{}',
+    output_reason_json TEXT,
+    created_at TEXT NOT NULL,
+    data_status TEXT NOT NULL,
+    missing_reasons_json TEXT NOT NULL DEFAULT '[]',
+    CHECK (label IN ('NORMAL', 'ELEVATED', 'SUSPICIOUS', 'SCAM_LIKELY', 'UNKNOWN')),
+    CHECK (score IS NULL OR (score >= 0.0 AND score <= 1.0)),
+    UNIQUE(alert_decision_id, filter_name, filter_version, threshold_version),
+    FOREIGN KEY (alert_decision_id) REFERENCES alert_decisions(id)
+);
+
+CREATE INDEX idx_filter_evaluations_token_time ON filter_evaluations(token_address, as_of_time);
+CREATE INDEX idx_filter_evaluations_filter_label ON filter_evaluations(filter_name, label);
+CREATE INDEX idx_filter_evaluations_alert_decision_id ON filter_evaluations(alert_decision_id);
+CREATE INDEX idx_filter_evaluations_would_block ON filter_evaluations(would_block);
+CREATE INDEX idx_filter_evaluations_filter_version ON filter_evaluations(filter_name, filter_version, threshold_version);
+"""
+
+
+def apply_stage10_field_features_extension(connection: sqlite3.Connection) -> None:
+    """Add nullable event_count_5m column to field_features.
+
+    Idempotent: re-running on a DB that already has the column is a no-op.
+    Stage 10's Fee Gate filter consumes ``field_features.event_count_5m``
+    as a proxy for Phoenix1's ``tx_count`` primitive; FieldFeatureService
+    populates it from the 300s fee window's ``event_count``.
+    """
+
+    columns = {
+        row["name"] for row in connection.execute("PRAGMA table_info(field_features)")
+    }
+    if "event_count_5m" not in columns:
+        connection.execute(
+            "ALTER TABLE field_features ADD COLUMN event_count_5m INTEGER"
+        )
+    _record_migration(
+        connection,
+        version=STAGE_10A_VERSION,
+        stage="10A",
+        description="Add event_count_5m to field_features",
+    )
+
+
+def apply_stage10_filter_evaluations_recreate(connection: sqlite3.Connection) -> None:
+    """Recreate the filter_evaluations table with the Stage 10 schema.
+
+    Operationally idempotent. Four cases:
+
+    1. Table does not exist (unexpected — apply_stage9_schema should have
+       created the Stage 4 shape first) → create with Stage 10 schema.
+    2. Table already has the Stage 10 shape (``threshold_version`` column
+       present) → no-op. Existing rows are preserved untouched. The
+       version row is re-recorded via INSERT OR IGNORE.
+    3. Table has the Stage 4 scaffold shape and is empty → drop and
+       recreate with Stage 10 schema (plus indexes).
+    4. Table has the Stage 4 scaffold shape and is non-empty → refuse
+       with RuntimeError. The new schema is incompatible with the
+       scaffolding shape and any real evaluation data must be preserved
+       through a separately-authored backfill.
+
+    The Stage 10 vs Stage 4 discrimination is by column signature:
+    ``threshold_version`` exists only in the Stage 10 schema.
+    """
+
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(filter_evaluations)")
+    }
+
+    if not columns:
+        connection.executescript(STAGE_10_FILTER_EVALUATIONS_SQL)
+        _record_migration(
+            connection,
+            version=STAGE_10B_VERSION,
+            stage="10B",
+            description="Recreate filter_evaluations with Stage 10 schema",
+        )
+        return
+
+    if "threshold_version" in columns:
+        _record_migration(
+            connection,
+            version=STAGE_10B_VERSION,
+            stage="10B",
+            description="Recreate filter_evaluations with Stage 10 schema",
+        )
+        return
+
+    count_row = connection.execute(
+        "SELECT COUNT(*) AS count FROM filter_evaluations"
+    ).fetchone()
+    existing_rows = int(count_row["count"]) if count_row is not None else 0
+    if existing_rows > 0:
+        raise RuntimeError(
+            "Stage 10 migration safety check refused to drop filter_evaluations: "
+            f"table has {existing_rows} row(s). Stage 10 expects an empty "
+            "scaffolded table (Stage 7 engine writes none). Backfill or "
+            "archive existing rows before re-running this migration."
+        )
+
+    connection.execute("DROP TABLE filter_evaluations")
+    connection.executescript(STAGE_10_FILTER_EVALUATIONS_SQL)
+    _record_migration(
+        connection,
+        version=STAGE_10B_VERSION,
+        stage="10B",
+        description="Recreate filter_evaluations with Stage 10 schema",
+    )
+
+
+def apply_stage10_schema(connection: sqlite3.Connection) -> None:
+    """Apply Stage 4 through Stage 10 schema in order.
+
+    Stage 10A: idempotently add ``field_features.event_count_5m``.
+    Stage 10B: drop + recreate ``filter_evaluations`` with the Stage 10
+    schema (new columns, CHECKs, UNIQUE, FK declaration). The recreate
+    refuses if pre-existing rows are present.
+    """
+
+    apply_stage9_schema(connection)
+    apply_stage10_field_features_extension(connection)
+    apply_stage10_filter_evaluations_recreate(connection)
+    connection.commit()
+
+
 def migrate_phx2_schema(settings: Union[PHX2Settings, PHX2DryRunDbSettings]) -> None:
     """Open the PHX2 dry-run DB and apply the current PHX2 schema."""
 
     connection = get_phx2_connection(settings)
     try:
-        apply_stage9_schema(connection)
+        apply_stage10_schema(connection)
     finally:
         connection.close()

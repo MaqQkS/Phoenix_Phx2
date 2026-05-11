@@ -106,6 +106,7 @@ class FieldFeatureService:
             buy_sell_ratio_5m=(
                 source_300s.buy_sell_count_ratio if source_300s else None
             ),
+            event_count_5m=source_300s.event_count if source_300s else None,
             raw_snapshot=self._raw_snapshot(windows),
             feature_version=feature_version,
             data_status=self._data_status_for_300s_window(source_300s),

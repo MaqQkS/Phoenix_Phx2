@@ -38,6 +38,7 @@ class FieldFeatures(SerializableDataclass):
     lp_fee_share_5m: Optional[float] = None
     protocol_fee_share_5m: Optional[float] = None
     buy_sell_ratio_5m: Optional[float] = None
+    event_count_5m: Optional[int] = None
     raw_snapshot: Dict[str, Any] = field(default_factory=dict)
     feature_version: str = "field_v0_placeholder"
     data_status: DataStatus = DataStatus.MISSING

@@ -317,3 +317,97 @@ def test_field_feature_service_makes_no_network_calls(monkeypatch):
 
     assert features.as_of_time == FALLBACK_NOW
     assert features.data_status == DataStatus.MISSING
+
+
+# ----------------------------------------------------------------------
+# Stage 10 -- event_count_5m wiring
+# ----------------------------------------------------------------------
+
+
+# T6.1
+def test_t6_1_field_features_schema_has_event_count_5m_column():
+    with _service_context() as (connection, _):
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(field_features)")
+        }
+
+    assert "event_count_5m" in columns
+
+
+# T6.2 -- handled by Layer 5 model tests and dataclass annotation; this test
+# documents the binding from the service-test perspective.
+def test_t6_2_field_features_dataclass_has_event_count_5m_field():
+    from PHX2.models import FieldFeatures
+    from dataclasses import fields
+
+    field_names = {f.name for f in fields(FieldFeatures)}
+
+    assert "event_count_5m" in field_names
+
+
+# T6.3
+def test_t6_3_build_field_features_populates_event_count_5m_from_300s_window():
+    with _service_context() as (connection, service):
+        # Build the standard set then overwrite the 300s window with an
+        # explicit event_count so the test does not rely on the helper's
+        # internal default. The helper does NOT pass event_count for the
+        # 300s window, so we replace it.
+        repository = FeeWindowRepository(connection)
+        for window_seconds in [60, 900, 1800, 3600]:
+            repository.insert(_fee_window(window_seconds))
+        repository.upsert(
+            FeeWindow(
+                token_address="token",
+                as_of_time=AS_OF_TIME,
+                window_seconds=300,
+                event_count=480,
+                buy_count=240,
+                sell_count=240,
+                total_fee_sol=0.10,
+                lp_fee_sol=0.05,
+                protocol_fee_sol=0.03,
+                creator_fee_sol=0.02,
+                creator_fee_share=0.20,
+                lp_fee_share=0.50,
+                protocol_fee_share=0.30,
+                events_per_min=2.0,
+                fees_per_min_sol=0.05,
+                buy_sell_count_ratio=1.0,
+                data_status=DataStatus.OK,
+            )
+        )
+
+        features = service.build_field_features("token", AS_OF_TIME)
+
+    assert features.event_count_5m == 480
+
+
+def test_t6_3_build_field_features_event_count_5m_is_none_when_300s_window_absent():
+    with _service_context() as (_, service):
+        features = service.build_field_features("token", AS_OF_TIME)
+
+    assert features.event_count_5m is None
+    assert features.data_status == DataStatus.MISSING
+
+
+# T6.4 -- existing field_features round-trip continues to function with
+# the new column included; covered by the schema and roundtrip suites that
+# already insert and read FieldFeatures rows.
+def test_t6_4_existing_field_features_roundtrip_carries_event_count_5m():
+    from PHX2.models import FieldFeatures
+
+    with _service_context() as (connection, _):
+        repository = FieldFeatureRepository(connection)
+        repository.insert(
+            FieldFeatures(
+                token_address="token",
+                as_of_time=AS_OF_TIME,
+                event_count_5m=321,
+                data_status=DataStatus.OK,
+            )
+        )
+        latest = repository.get_latest("token")
+
+    assert latest is not None
+    assert latest.event_count_5m == 321

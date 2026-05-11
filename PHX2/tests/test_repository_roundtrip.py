@@ -42,6 +42,7 @@ from PHX2.models import (
     DispatchEvent,
     FeeWindow,
     FieldFeatures,
+    FilterLabel,
     FilterResult,
     MigrationEvent,
     OutcomeWindow,
@@ -198,7 +199,7 @@ def test_event_observation_and_feature_repositories_roundtrip_json_fields():
                 token_address="token",
                 as_of_time=LATER,
                 filter_name="fee_gate",
-                label="Normal",
+                label=FilterLabel.NORMAL,
                 input_snapshot={"event_count": 3},
                 data_status=DataStatus.OK,
             )
@@ -1309,3 +1310,255 @@ def test_get_state_at_or_before_non_raise_event_only_yields_unknown_state():
     # data_status / missing_reasons come from the FIRST event.
     assert result.data_status == DataStatus.ERROR
     assert result.missing_reasons == ["price_invalid"]
+
+
+# ----------------------------------------------------------------------
+# Stage 10 -- FilterEvaluationRepository extensions
+# ----------------------------------------------------------------------
+
+
+def _foreign_keys_enabled(connection) -> bool:
+    row = connection.execute("PRAGMA foreign_keys").fetchone()
+    if row is None:
+        return False
+    value = row[0]
+    return bool(value) if value is not None else False
+
+
+def _stage10_filter_result(
+    *,
+    alert_decision_id: int = 1001,
+    filter_name: str = "fee_gate",
+    filter_version: str = "fee_gate_v1_no_bribes",
+    threshold_version: str = "thresholds_v0_observe_only",
+    label: FilterLabel = FilterLabel.NORMAL,
+    score: Optional[float] = 0.20,
+    output_reason: Optional[dict] = None,
+) -> FilterResult:
+    return FilterResult(
+        token_address="token",
+        filter_name=filter_name,
+        as_of_time=NOW,
+        filter_version=filter_version,
+        threshold_version=threshold_version,
+        label=label,
+        score=score,
+        would_block=False,
+        policy_action="observe",
+        reason="round-trip",
+        input_snapshot={"payload": {"creator_fee_share_5m": 0.55}},
+        output_reason=output_reason if output_reason is not None else {
+            "score_components": {"R1_creator_dominance": 0.20},
+            "raw_score": 0.20,
+            "normalized_score": 0.20,
+            "reason_codes": ["CREATOR_FEE_SHARE_ELEVATED"],
+            "known_limitations": ["BRIBES_SIGNAL_UNAVAILABLE"],
+        },
+        data_status=DataStatus.OK,
+        missing_reasons=[],
+        alert_decision_id=alert_decision_id,
+    )
+
+
+# T3.1
+def test_t3_1_insert_round_trip_with_threshold_version_and_output_reason_json():
+    with _repository_connection() as connection:
+        repository = FilterEvaluationRepository(connection)
+        repository.insert(_stage10_filter_result())
+        fetched = repository.list_by_token("token")
+
+    assert len(fetched) == 1
+    row = fetched[0]
+    assert row.threshold_version == "thresholds_v0_observe_only"
+    assert row.label == FilterLabel.NORMAL
+    assert row.output_reason is not None
+    assert row.output_reason["reason_codes"] == ["CREATOR_FEE_SHARE_ELEVATED"]
+
+
+# T3.2
+def test_t3_2_get_by_decision_returns_all_rows_for_decision():
+    with _repository_connection() as connection:
+        repository = FilterEvaluationRepository(connection)
+        repository.insert(
+            _stage10_filter_result(filter_name="fee_gate", alert_decision_id=42)
+        )
+        repository.insert(
+            _stage10_filter_result(
+                filter_name="other_filter",
+                filter_version="other_v1",
+                threshold_version="thresholds_other_v1",
+                alert_decision_id=42,
+            )
+        )
+        repository.insert(
+            _stage10_filter_result(filter_name="fee_gate", alert_decision_id=43)
+        )
+
+        rows = repository.get_by_decision(42)
+
+    assert len(rows) == 2
+    assert {r.filter_name for r in rows} == {"fee_gate", "other_filter"}
+
+
+# T3.3
+def test_t3_3_get_by_decision_returns_empty_for_decision_with_no_rows():
+    with _repository_connection() as connection:
+        repository = FilterEvaluationRepository(connection)
+        repository.insert(_stage10_filter_result(alert_decision_id=42))
+
+        rows = repository.get_by_decision(99)
+
+    assert rows == []
+
+
+# T3.4
+def test_t3_4_exists_for_decision_true_case():
+    with _repository_connection() as connection:
+        repository = FilterEvaluationRepository(connection)
+        repository.insert(_stage10_filter_result(alert_decision_id=42))
+
+        present = repository.exists_for_decision(
+            42, "fee_gate", "fee_gate_v1_no_bribes", "thresholds_v0_observe_only"
+        )
+
+    assert present is True
+
+
+# T3.5
+def test_t3_5_exists_for_decision_false_cases_for_each_varied_component():
+    with _repository_connection() as connection:
+        repository = FilterEvaluationRepository(connection)
+        repository.insert(_stage10_filter_result(alert_decision_id=42))
+
+        assert (
+            repository.exists_for_decision(
+                99,
+                "fee_gate",
+                "fee_gate_v1_no_bribes",
+                "thresholds_v0_observe_only",
+            )
+            is False
+        )
+        assert (
+            repository.exists_for_decision(
+                42,
+                "other_filter",
+                "fee_gate_v1_no_bribes",
+                "thresholds_v0_observe_only",
+            )
+            is False
+        )
+        assert (
+            repository.exists_for_decision(
+                42,
+                "fee_gate",
+                "other_v1",
+                "thresholds_v0_observe_only",
+            )
+            is False
+        )
+        assert (
+            repository.exists_for_decision(
+                42,
+                "fee_gate",
+                "fee_gate_v1_no_bribes",
+                "thresholds_other_v1",
+            )
+            is False
+        )
+
+
+# T3.6
+def test_t3_6_unique_constraint_enforced_at_db_level():
+    with _repository_connection() as connection:
+        repository = FilterEvaluationRepository(connection)
+        repository.insert(_stage10_filter_result(alert_decision_id=42))
+
+        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+            repository.insert(_stage10_filter_result(alert_decision_id=42))
+
+    assert "UNIQUE constraint failed" in str(exc_info.value)
+
+
+# T3.7 (conditional on PRAGMA foreign_keys per C1)
+def test_t3_7_fk_runtime_enforcement_if_pragma_on():
+    with _repository_connection() as connection:
+        if not _foreign_keys_enabled(connection):
+            pytest.skip(
+                "PRAGMA foreign_keys is OFF for Stage 10 per locked design "
+                "(C1). FK on filter_evaluations.alert_decision_id is "
+                "declared but inert; this test enables only when enforcement "
+                "is enabled by a future stage."
+            )
+        repository = FilterEvaluationRepository(connection)
+        with pytest.raises(sqlite3.IntegrityError):
+            repository.insert(_stage10_filter_result(alert_decision_id=999_999))
+
+
+# T3.8
+def test_t3_8_label_check_constraint_rejects_invalid_label():
+    with _repository_connection() as connection:
+        # Bypass the dataclass enum constraint by inserting raw SQL.
+        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+            connection.execute(
+                """
+                INSERT INTO filter_evaluations (
+                    token_address, as_of_time, alert_decision_id, filter_name,
+                    filter_version, threshold_version, label, score, would_block,
+                    policy_action, reason, input_snapshot_json,
+                    output_reason_json, created_at, data_status,
+                    missing_reasons_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    "token",
+                    NOW.isoformat(),
+                    1,
+                    "fee_gate",
+                    "fee_gate_v1_no_bribes",
+                    "thresholds_v0_observe_only",
+                    "not_a_real_label",
+                    0.1,
+                    0,
+                    "observe",
+                    None,
+                    "{}",
+                    None,
+                    NOW.isoformat(),
+                    "ok",
+                    "[]",
+                ),
+            )
+
+    assert "CHECK constraint failed" in str(exc_info.value)
+
+
+# T3.9
+def test_t3_9_score_check_constraint_rejects_out_of_range():
+    with _repository_connection() as connection:
+        repository = FilterEvaluationRepository(connection)
+
+        # Accept NULL.
+        repository.insert(
+            _stage10_filter_result(alert_decision_id=1, score=None)
+        )
+        # Accept 0.0, 0.5, 1.0.
+        repository.insert(
+            _stage10_filter_result(alert_decision_id=2, score=0.0)
+        )
+        repository.insert(
+            _stage10_filter_result(alert_decision_id=3, score=0.5)
+        )
+        repository.insert(
+            _stage10_filter_result(alert_decision_id=4, score=1.0)
+        )
+
+        # Reject out-of-range.
+        with pytest.raises(sqlite3.IntegrityError):
+            repository.insert(
+                _stage10_filter_result(alert_decision_id=5, score=-0.01)
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            repository.insert(
+                _stage10_filter_result(alert_decision_id=6, score=1.01)
+            )

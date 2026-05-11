@@ -26,6 +26,7 @@ from PHX2.models import (
     DispatchEvent,
     FeeWindow,
     FieldFeatures,
+    FilterLabel,
     FilterResult,
     MigrationEvent,
     OutcomeWindow,
@@ -778,6 +779,7 @@ class FilterEvaluationRepository(RepositoryContract):
 
     def insert(self, result: FilterResult) -> int:
         payload = _payload(result)
+        output_reason = payload["output_reason"]
         return self._insert(
             "filter_evaluations",
             {
@@ -786,12 +788,16 @@ class FilterEvaluationRepository(RepositoryContract):
                 "alert_decision_id": payload["alert_decision_id"],
                 "filter_name": payload["filter_name"],
                 "filter_version": payload["filter_version"],
+                "threshold_version": payload["threshold_version"],
                 "label": payload["label"],
                 "score": payload["score"],
                 "would_block": payload["would_block"],
                 "policy_action": payload["policy_action"],
                 "reason": payload["reason"],
                 "input_snapshot_json": _json_dict(payload["input_snapshot"]),
+                "output_reason_json": (
+                    _json_dict(output_reason) if output_reason is not None else None
+                ),
                 "created_at": _now_iso(),
                 "data_status": payload["data_status"],
                 "missing_reasons_json": _json_list(payload["missing_reasons"]),
@@ -809,6 +815,37 @@ class FilterEvaluationRepository(RepositoryContract):
             (token_address, _limit(limit)),
         )
         return [_filter_result_from_row(row) for row in rows]
+
+    def get_by_decision(self, alert_decision_id: int) -> List[FilterResult]:
+        rows = self._fetchall(
+            """
+            SELECT * FROM filter_evaluations
+            WHERE alert_decision_id = ?
+            ORDER BY id ASC
+            """,
+            (alert_decision_id,),
+        )
+        return [_filter_result_from_row(row) for row in rows]
+
+    def exists_for_decision(
+        self,
+        alert_decision_id: int,
+        filter_name: str,
+        filter_version: str,
+        threshold_version: str,
+    ) -> bool:
+        row = self._fetchone(
+            """
+            SELECT 1 FROM filter_evaluations
+            WHERE alert_decision_id = ?
+              AND filter_name = ?
+              AND filter_version = ?
+              AND threshold_version = ?
+            LIMIT 1
+            """,
+            (alert_decision_id, filter_name, filter_version, threshold_version),
+        )
+        return row is not None
 
 
 class FeeWindowRepository(RepositoryContract):
@@ -1248,6 +1285,7 @@ class FieldFeatureRepository(RepositoryContract):
             "lp_fee_share_5m": payload["lp_fee_share_5m"],
             "protocol_fee_share_5m": payload["protocol_fee_share_5m"],
             "buy_sell_ratio_5m": payload["buy_sell_ratio_5m"],
+            "event_count_5m": payload["event_count_5m"],
             "raw_snapshot_json": _json_dict(payload["raw_snapshot"]),
             "feature_version": payload["feature_version"],
             "created_at": _now_iso(),
@@ -1264,8 +1302,8 @@ class FieldFeatureRepository(RepositoryContract):
                 ante_label_5m, ante_label_20sw, ghost_label, holder_label,
                 event_pace_5m, fee_pace_5m_sol, creator_fee_share_5m,
                 lp_fee_share_5m, protocol_fee_share_5m, buy_sell_ratio_5m,
-                raw_snapshot_json, feature_version, created_at, data_status,
-                missing_reasons_json
+                event_count_5m, raw_snapshot_json, feature_version,
+                created_at, data_status, missing_reasons_json
             )
             VALUES (
                 :token_address, :as_of_time, :fee_window_60s_id,
@@ -1276,8 +1314,8 @@ class FieldFeatureRepository(RepositoryContract):
                 :ghost_label, :holder_label, :event_pace_5m,
                 :fee_pace_5m_sol, :creator_fee_share_5m, :lp_fee_share_5m,
                 :protocol_fee_share_5m, :buy_sell_ratio_5m,
-                :raw_snapshot_json, :feature_version, :created_at,
-                :data_status, :missing_reasons_json
+                :event_count_5m, :raw_snapshot_json, :feature_version,
+                :created_at, :data_status, :missing_reasons_json
             )
             ON CONFLICT(token_address, as_of_time, feature_version) DO UPDATE SET
                 fee_window_60s_id = excluded.fee_window_60s_id,
@@ -1300,6 +1338,7 @@ class FieldFeatureRepository(RepositoryContract):
                 lp_fee_share_5m = excluded.lp_fee_share_5m,
                 protocol_fee_share_5m = excluded.protocol_fee_share_5m,
                 buy_sell_ratio_5m = excluded.buy_sell_ratio_5m,
+                event_count_5m = excluded.event_count_5m,
                 raw_snapshot_json = excluded.raw_snapshot_json,
                 created_at = excluded.created_at,
                 data_status = excluded.data_status,
@@ -1973,17 +2012,22 @@ def _alert_decision_from_row(row: sqlite3.Row) -> AlertDecision:
 
 
 def _filter_result_from_row(row: sqlite3.Row) -> FilterResult:
+    output_reason_json = row["output_reason_json"]
     return FilterResult(
         token_address=row["token_address"],
         as_of_time=_parse_datetime(row["as_of_time"]),
         filter_name=row["filter_name"],
         filter_version=row["filter_version"],
-        label=row["label"],
+        threshold_version=row["threshold_version"],
+        label=_enum_value(FilterLabel, row["label"], FilterLabel.UNKNOWN),
         score=row["score"],
         would_block=bool(row["would_block"]),
         policy_action=row["policy_action"],
         reason=row["reason"],
         input_snapshot=_load_json(row["input_snapshot_json"], {}),
+        output_reason=(
+            _load_json(output_reason_json, None) if output_reason_json is not None else None
+        ),
         data_status=_enum_value(DataStatus, row["data_status"], DataStatus.MISSING),
         missing_reasons=_load_json(row["missing_reasons_json"], []),
         alert_decision_id=row["alert_decision_id"],
@@ -2049,6 +2093,7 @@ def _field_features_from_row(row: sqlite3.Row) -> FieldFeatures:
         lp_fee_share_5m=row["lp_fee_share_5m"],
         protocol_fee_share_5m=row["protocol_fee_share_5m"],
         buy_sell_ratio_5m=row["buy_sell_ratio_5m"],
+        event_count_5m=row["event_count_5m"],
         raw_snapshot=_load_json(row["raw_snapshot_json"], {}),
         feature_version=row["feature_version"],
         data_status=_enum_value(DataStatus, row["data_status"], DataStatus.MISSING),

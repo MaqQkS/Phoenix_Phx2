@@ -13,12 +13,14 @@ from PHX2.models import (
     AlertDecision,
     ClockFeatures,
     DataStatus,
+    DecisionFilterEvaluationResult,
     DecisionReason,
     DecisionType,
     DispatchEvent,
     DispatchMode,
     FeeWindow,
     FieldFeatures,
+    FilterLabel,
     FilterResult,
     MigrationEvent,
     OutcomeWindow,
@@ -318,3 +320,84 @@ def test_alert_decision_constructs_with_audit_fields_set():
     assert decision.ath_event_id == 20
     assert decision.data_status == DataStatus.OK
     assert decision.missing_reasons == ["price_missing"]
+
+
+# ----------------------------------------------------------------------
+# Stage 10 -- FilterLabel + FilterResult + DecisionFilterEvaluationResult
+# ----------------------------------------------------------------------
+
+
+# T5.1
+def test_t5_1_filter_result_default_label_is_filter_label_unknown():
+    result = FilterResult(token_address="token", filter_name="fee_gate")
+
+    assert result.label == FilterLabel.UNKNOWN
+
+
+# T5.2
+def test_t5_2_filter_result_serialization_round_trip_includes_new_fields():
+    result = FilterResult(
+        token_address="token",
+        filter_name="fee_gate",
+        filter_version="fee_gate_v1_no_bribes",
+        threshold_version="thresholds_v0_observe_only",
+        label=FilterLabel.SUSPICIOUS,
+        score=0.55,
+        would_block=False,
+        policy_action="observe",
+        reason="test",
+        input_snapshot={"creator_fee_share_5m": 0.7},
+        output_reason={"reason_codes": ["CREATOR_FEE_SHARE_HIGH"]},
+        data_status=DataStatus.OK,
+        alert_decision_id=42,
+    )
+    payload = result.to_dict()
+
+    assert payload["threshold_version"] == "thresholds_v0_observe_only"
+    assert payload["label"] == "SUSPICIOUS"
+    assert payload["output_reason"] == {
+        "reason_codes": ["CREATOR_FEE_SHARE_HIGH"]
+    }
+    assert payload["alert_decision_id"] == 42
+
+
+# T5.3
+def test_t5_3_filter_label_has_exactly_five_values():
+    assert [label.value for label in FilterLabel] == [
+        "NORMAL",
+        "ELEVATED",
+        "SUSPICIOUS",
+        "SCAM_LIKELY",
+        "UNKNOWN",
+    ]
+
+
+# T5.4
+def test_t5_4_decision_filter_evaluation_result_constructs_with_defaults():
+    now = datetime(2026, 5, 10, 14, 30, tzinfo=timezone.utc)
+    result = DecisionFilterEvaluationResult(
+        alert_decision_id=42,
+        evaluated_at=now,
+    )
+
+    assert result.alert_decision_id == 42
+    assert result.evaluated_at == now
+    assert result.results == []
+    assert result.total_filters == 0
+    assert result.completed_count == 0
+    assert result.missing_inputs_count == 0
+    assert result.error_count == 0
+    assert result.already_recorded_count == 0
+    assert result.error is None
+
+
+def test_t5_4_decision_filter_evaluation_result_carries_error_string():
+    now = datetime(2026, 5, 10, 14, 30, tzinfo=timezone.utc)
+    result = DecisionFilterEvaluationResult(
+        alert_decision_id=42,
+        evaluated_at=now,
+        error="alert_decision_not_found",
+    )
+
+    assert result.error == "alert_decision_not_found"
+    assert result.results == []

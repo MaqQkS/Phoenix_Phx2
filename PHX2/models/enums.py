@@ -101,3 +101,17 @@ class DispatchMode(str, Enum):
     TELEGRAM_LIVE = "telegram_live"
     DISCORD_LIVE = "discord_live"
     MULTI = "multi"
+
+
+class FilterLabel(str, Enum):
+    """Filter verdict label written to filter_evaluations.label.
+
+    The five values are enforced by a CHECK constraint on the column.
+    UNKNOWN is used for MISSING and ERROR rows.
+    """
+
+    NORMAL = "NORMAL"
+    ELEVATED = "ELEVATED"
+    SUSPICIOUS = "SUSPICIOUS"
+    SCAM_LIKELY = "SCAM_LIKELY"
+    UNKNOWN = "UNKNOWN"

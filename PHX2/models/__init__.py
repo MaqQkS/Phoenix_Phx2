@@ -8,10 +8,12 @@ from PHX2.models.enums import (
     DataStatus,
     DecisionReason,
     DispatchMode,
+    FilterLabel,
 )
 from PHX2.models.dispatch_event import DispatchEvent
 from PHX2.models.fee_window import FeeWindow
 from PHX2.models.field_features import FieldFeatures
+from PHX2.models.filter_evaluation_result import DecisionFilterEvaluationResult
 from PHX2.models.filter_result import FilterResult
 from PHX2.models.migration_event import MigrationEvent
 from PHX2.models.outcome_tracking_result import (
@@ -36,6 +38,7 @@ __all__ = [
     "BatchTrackingResult",
     "ClockFeatures",
     "DataStatus",
+    "DecisionFilterEvaluationResult",
     "DecisionReason",
     "DecisionTrackingResult",
     "DecisionType",
@@ -43,6 +46,7 @@ __all__ = [
     "DispatchMode",
     "FeeWindow",
     "FieldFeatures",
+    "FilterLabel",
     "FilterResult",
     "MigrationEvent",
     "OutcomeWindow",
