@@ -1091,3 +1091,39 @@ def test_stage10_field_features_extension_is_idempotent():
     # Idempotent: the column is not duplicated.
     matching = [name for name in columns if name == "event_count_5m"]
     assert len(matching) == 1
+
+
+def test_apply_stage10_schema_is_rerunnable():
+    """Calling apply_stage10_schema() twice on the same DB must succeed.
+
+    S1 fix: the migration chain transits INDEX_SQL via apply_stage4_schema
+    on every entry. On a second call, outcome_windows has already been
+    recreated to the Stage 9B shape, which lacks decision_id /
+    baseline_alert_id / death_label. Pre-S1, INDEX_SQL would fail at the
+    first stale outcome_windows DDL on the rebuilt table. Post-S1, those
+    three DDLs live in _apply_outcome_windows_scaffold_indexes which
+    skips any whose referenced column is absent.
+    """
+
+    path = _temporary_phx2_db_path()
+    connection = get_phx2_connection(PHX2DryRunDbSettings(path=str(path)))
+    try:
+        apply_stage10_schema(connection)
+        apply_stage10_schema(connection)
+
+        filter_columns = _columns(connection, "filter_evaluations")
+        field_columns = _columns(connection, "field_features")
+        migrations = {
+            row["version"]
+            for row in connection.execute(
+                "SELECT version FROM schema_migrations"
+            )
+        }
+    finally:
+        connection.close()
+        _cleanup_temporary_phx2_db(path)
+
+    assert "threshold_version" in filter_columns
+    assert "event_count_5m" in field_columns
+    assert STAGE_10A_VERSION in migrations
+    assert STAGE_10B_VERSION in migrations

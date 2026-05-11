@@ -369,3 +369,73 @@ def test_t1_7_filter_identity_metadata_is_stable():
     assert f.filter_version == FILTER_VERSION
     assert f.threshold_version == THRESHOLD_VERSION
     assert f.known_limitations == list(KNOWN_LIMITATIONS)
+
+
+# ----------------------------------------------------------------------
+# M1 -- MISSING-row payload shape (spec Section 7.6)
+# ----------------------------------------------------------------------
+
+
+def test_missing_row_payload_omits_unavailable_primitives():
+    """Section 7.6: MISSING-row input_snapshot.payload contains only
+    available primitives. The missing primitive's name appears in
+    missing_reasons, not in the payload.
+    """
+
+    result = _evaluate(_features(creator_fee_share_5m=None))
+
+    assert result.data_status == DataStatus.MISSING
+    assert "creator_fee_share_5m" in result.missing_reasons
+    payload = result.input_snapshot["payload"]
+    assert "creator_fee_share_5m" not in payload
+    # Other available primitives still surface in the payload.
+    assert payload["lp_fee_share_5m"] == 0.80
+    assert payload["event_count_5m"] == R3_EVENT_COUNT_MIN + 10
+    assert payload["fee_pace_5m_sol"] == 0.05
+
+
+def test_missing_row_payload_omits_all_none_primitives_when_multiple_missing():
+    """When several required primitives are None, none of their names
+    appear in payload; payload contains only the values that are present.
+    """
+
+    result = _evaluate(
+        _features(
+            creator_fee_share_5m=None,
+            lp_fee_share_5m=None,
+            event_count_5m=None,
+        )
+    )
+
+    assert result.data_status == DataStatus.MISSING
+    payload = result.input_snapshot["payload"]
+    assert "creator_fee_share_5m" not in payload
+    assert "lp_fee_share_5m" not in payload
+    assert "event_count_5m" not in payload
+    # protocol_fee_share_5m, event_pace_5m, fee_pace_5m_sol,
+    # buy_sell_ratio_5m remain populated from the benign default.
+    assert payload["protocol_fee_share_5m"] == 0.10
+    assert payload["fee_pace_5m_sol"] == 0.05
+
+
+def test_ok_row_payload_retains_full_shape_including_none_event_pace():
+    """OK rows keep the full payload shape, including event_pace_5m=None
+    (informational R4-cannot-fire signal, not a missing-input condition).
+    """
+
+    result = _evaluate(_features(event_pace_5m=None))
+
+    assert result.data_status == DataStatus.OK
+    payload = result.input_snapshot["payload"]
+    # Full payload: every key present, including the None.
+    assert "event_pace_5m" in payload
+    assert payload["event_pace_5m"] is None
+    # All other primitives present and non-None on the benign default.
+    for required_name in (
+        "creator_fee_share_5m",
+        "lp_fee_share_5m",
+        "event_count_5m",
+        "fee_pace_5m_sol",
+    ):
+        assert required_name in payload
+        assert payload[required_name] is not None

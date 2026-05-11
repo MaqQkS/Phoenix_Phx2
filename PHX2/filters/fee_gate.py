@@ -219,6 +219,13 @@ def _build_envelope(
 
 
 def _build_payload(features: Optional[FieldFeatures]) -> Dict[str, Any]:
+    """Full payload — every primitive, including Nones, for OK rows.
+
+    Used on OK rows where ``event_pace_5m`` being None is informational
+    (R4 simply does not fire) rather than a missing-input condition.
+    The full shape preserves auditability of what the filter saw.
+    """
+
     if features is None:
         return {}
     return {
@@ -229,6 +236,26 @@ def _build_payload(features: Optional[FieldFeatures]) -> Dict[str, Any]:
         "fee_pace_5m_sol": features.fee_pace_5m_sol,
         "buy_sell_ratio_5m": features.buy_sell_ratio_5m,
         "event_count_5m": features.event_count_5m,
+    }
+
+
+def _build_partial_payload(features: Optional[FieldFeatures]) -> Dict[str, Any]:
+    """Payload for MISSING rows: omit primitives whose values are None.
+
+    Per spec Section 7.6: ``MISSING rows: payload contains only available
+    primitives; missing names go in missing_reasons_json``. Filtering by
+    None covers both required-primitive absence (the cause of the
+    MISSING row) and incidental optional-primitive absence; the
+    ``missing_reasons`` list on the row remains the authoritative record
+    of which required inputs were unavailable.
+    """
+
+    if features is None:
+        return {}
+    return {
+        name: value
+        for name, value in _build_payload(features).items()
+        if value is not None
     }
 
 
@@ -260,7 +287,7 @@ def _build_missing_result(
         reason=None,
         input_snapshot={
             "envelope": _build_envelope(context, context.field_features),
-            "payload": _build_payload(context.field_features),
+            "payload": _build_partial_payload(context.field_features),
         },
         output_reason=None,
         data_status=DataStatus.MISSING,

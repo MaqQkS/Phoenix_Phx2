@@ -461,14 +461,66 @@ CREATE INDEX IF NOT EXISTS idx_score_features_risk_score ON score_features(risk_
 CREATE INDEX IF NOT EXISTS idx_clock_features_token_time ON clock_features(token_address, as_of_time);
 CREATE INDEX IF NOT EXISTS idx_clock_features_sequence_phase ON clock_features(sequence_phase);
 
-CREATE UNIQUE INDEX IF NOT EXISTS ux_outcome_windows_decision_window ON outcome_windows(decision_id, window_seconds) WHERE decision_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS ux_outcome_windows_baseline_window ON outcome_windows(baseline_alert_id, window_seconds) WHERE baseline_alert_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_outcome_windows_token_window ON outcome_windows(token_address, window_seconds);
 CREATE INDEX IF NOT EXISTS idx_outcome_windows_hit_2x ON outcome_windows(hit_2x);
 CREATE INDEX IF NOT EXISTS idx_outcome_windows_hit_3x ON outcome_windows(hit_3x);
 CREATE INDEX IF NOT EXISTS idx_outcome_windows_hit_5x ON outcome_windows(hit_5x);
-CREATE INDEX IF NOT EXISTS idx_outcome_windows_death_label ON outcome_windows(death_label);
 """
+
+
+# Outcome-windows indexes that depend on the Stage 4B scaffold-only columns
+# ``decision_id``, ``baseline_alert_id``, and ``death_label``. Stage 9B's
+# recreate drops these columns (and the indexes along with the table); after
+# Stage 9B the DDL below cannot run because the referenced columns no
+# longer exist. The conditional creation in
+# ``_apply_outcome_windows_scaffold_indexes`` keeps the migration chain
+# re-runnable: apply_stage10_schema -> apply_stage4_schema can be called
+# again on a post-Stage-9 DB without raising. On a fresh DB the scaffold
+# still has the columns, so all three indexes are created exactly as
+# before; ``test_critical_indexes_are_present`` continues to observe them
+# at Stage 4.
+_OUTCOME_WINDOWS_SCAFFOLD_INDEXES = (
+    (
+        "decision_id",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_outcome_windows_decision_window "
+        "ON outcome_windows(decision_id, window_seconds) "
+        "WHERE decision_id IS NOT NULL",
+    ),
+    (
+        "baseline_alert_id",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_outcome_windows_baseline_window "
+        "ON outcome_windows(baseline_alert_id, window_seconds) "
+        "WHERE baseline_alert_id IS NOT NULL",
+    ),
+    (
+        "death_label",
+        "CREATE INDEX IF NOT EXISTS idx_outcome_windows_death_label "
+        "ON outcome_windows(death_label)",
+    ),
+)
+
+
+def _apply_outcome_windows_scaffold_indexes(
+    connection: sqlite3.Connection,
+) -> None:
+    """Create scaffold-only outcome_windows indexes when columns are present.
+
+    Called once from ``apply_stage4_schema`` immediately after INDEX_SQL.
+    Each DDL is skipped if its referenced column no longer exists, which
+    is the post-Stage-9B state. This is the rerun-safety hinge: it lets
+    ``apply_stage10_schema`` (which delegates to ``apply_stage9_schema``
+    which delegates back through ``apply_stage4_schema``) be called twice
+    on the same DB without ``sqlite3.OperationalError`` from these stale
+    DDLs.
+    """
+
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(outcome_windows)")
+    }
+    for required_column, ddl in _OUTCOME_WINDOWS_SCAFFOLD_INDEXES:
+        if required_column in columns:
+            connection.execute(ddl)
 
 
 RAW_PUMPSWAP_EVENTS_SQL = """
@@ -607,6 +659,7 @@ def apply_stage4_schema(connection: sqlite3.Connection) -> None:
 
     connection.executescript(RESEARCH_SCHEMA_SQL)
     connection.executescript(INDEX_SQL)
+    _apply_outcome_windows_scaffold_indexes(connection)
     _record_migration(
         connection,
         version=STAGE_4B_VERSION,
