@@ -28,6 +28,9 @@ data/*.db-*
 PHX2/analysis/output/*
 !PHX2/analysis/output/.gitkeep
 
+# Stage 13 policy-review output (immutable run artifacts, never committed)
+PHX2/stage13_runs/
+
 # OS / IDE
 Thumbs.db
 .DS_Store
