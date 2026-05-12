@@ -24,6 +24,10 @@ logs/
 data/*.db
 data/*.db-*
 
+# Stage 12 analysis output (immutable run artifacts, never committed)
+PHX2/analysis/output/*
+!PHX2/analysis/output/.gitkeep
+
 # OS / IDE
 Thumbs.db
 .DS_Store
