@@ -31,6 +31,13 @@ PHX2/analysis/output/*
 # Stage 13 policy-review output (immutable run artifacts, never committed)
 PHX2/stage13_runs/
 
+# Stage 16A observe-only runtime policy output (immutable run artifacts)
+PHX2/stage16a_runs/
+stage16a_runs/
+
+# Local pytest --basetemp dir (used to bypass system temp ACL issues)
+.pytest_basetmp/
+
 # OS / IDE
 Thumbs.db
 .DS_Store
