@@ -713,3 +713,84 @@ def test_builder_raises_when_required_n_censored_missing(tmp_path: Path) -> None
     bundle.filter_label_by_tier[0]["n_censored"] = "garbage"
     with pytest.raises(Stage13ValidationError):
         build_recommendations(bundle, _T)
+
+
+# ---------------------------------------------------------------------------
+# Schema 1.1: filter-identity columns on candidate rows.
+# Filter-label rows expose filter_name/filter_version/filter_label/
+# threshold_version standalone; primitive_bucket_cohort rows leave them
+# None so Stage 14 cannot mistake a primitive cohort for a filter cohort.
+# ---------------------------------------------------------------------------
+
+
+def test_filter_identity_columns_populated_on_filter_label_blocking_rows(
+    tmp_path: Path,
+) -> None:
+    run = write_stage12_run(
+        tmp_path / "run",
+        baseline_rows=_baseline_rows(),
+        filter_overall_rows=[
+            FilterOverallRow(
+                filter_label="scam_likely",
+                n_complete=250, hit_2x_24h_count=10, hit_2x_24h_rate=0.04,
+                hit_2x_24h_ci_low=0.02, hit_2x_24h_ci_high=0.07,
+            ),
+        ],
+        filter_by_tier_rows=[
+            FilterByTierRow(
+                tier_index=1, tier_name="T1", filter_label="scam_likely",
+                n_complete=100, hit_2x_24h_count=5, hit_2x_24h_rate=0.05,
+                hit_2x_24h_ci_low=0.02, hit_2x_24h_ci_high=0.10,
+            ),
+        ],
+    )
+    bundle = load_stage12_csvs(run)
+    rows = build_recommendations(bundle, _T)
+    per_tier = _find(
+        rows,
+        cohort_id="fee_gate_v1@v1[threshold=v1]:scam_likely",
+        tier_scope="T1",
+    )
+    overall = _find(
+        rows,
+        cohort_id="fee_gate_v1@v1[threshold=v1]:scam_likely",
+        tier_scope="overall",
+    )
+    for row in (per_tier, overall):
+        assert row.policy_surface == "filter_label_blocking"
+        assert row.filter_name == "fee_gate_v1"
+        assert row.filter_version == "v1"
+        assert row.filter_label == "scam_likely"
+        assert row.threshold_version == "v1"
+        # cohort_id encodes the exact same four parts (back-compat).
+        assert row.cohort_id == (
+            f"{row.filter_name}@{row.filter_version}"
+            f"[threshold={row.threshold_version}]:{row.filter_label}"
+        )
+
+
+def test_primitive_bucket_rows_leave_filter_identity_columns_none(
+    tmp_path: Path,
+) -> None:
+    run = write_stage12_run(
+        tmp_path / "run",
+        baseline_rows=_baseline_rows(),
+        filter_overall_rows=[],
+        filter_by_tier_rows=[],
+        primitive_bucket_rows=[
+            PrimitiveBucketRow(
+                tier_index=1, tier_name="T1",
+                primitive_name="buy_pressure_5m", bucket_label="Q1",
+                n_complete=60, hit_2x_24h_count=3, hit_2x_24h_rate=0.05,
+                hit_2x_24h_ci_low=0.02, hit_2x_24h_ci_high=0.10,
+            ),
+        ],
+    )
+    bundle = load_stage12_csvs(run)
+    rows = build_recommendations(bundle, _T)
+    row = _find(rows, cohort_id="buy_pressure_5m:Q1", tier_scope="T1")
+    assert row.policy_surface == "primitive_bucket_cohort"
+    assert row.filter_name is None
+    assert row.filter_version is None
+    assert row.filter_label is None
+    assert row.threshold_version is None

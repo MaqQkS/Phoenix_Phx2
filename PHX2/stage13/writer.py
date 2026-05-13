@@ -42,6 +42,10 @@ MARKDOWN_FILENAME = "stage13_policy_review.md"
 CSV_COLUMNS: tuple[str, ...] = (
     "policy_surface",
     "cohort_id",
+    "filter_name",
+    "filter_version",
+    "filter_label",
+    "threshold_version",
     "tier_scope",
     "action_class",
     "direction",

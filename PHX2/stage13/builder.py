@@ -432,6 +432,23 @@ def _classify_single_row(
         if evidence == "strong":
             evidence = "moderate"
 
+    # Schema 1.1 filter-identity columns. cohort_id continues to encode
+    # the same four parts for filter_label_blocking rows; surfacing them
+    # as standalone columns lets Stage 14 join against Stage 12 long-CSV
+    # rows by tuple instead of by cohort_id string parsing. For the
+    # primitive_bucket_cohort surface the fields are not applicable, so
+    # they stay None rather than being faked.
+    if policy_surface == "filter_label_blocking":
+        filter_name_value = row.get("filter_name")
+        filter_version_value = row.get("filter_version")
+        filter_label_value = row.get("filter_label")
+        threshold_version_value = row.get("threshold_version")
+    else:
+        filter_name_value = None
+        filter_version_value = None
+        filter_label_value = None
+        threshold_version_value = None
+
     return RecommendationRow(
         policy_surface=policy_surface,  # type: ignore[arg-type]
         cohort_id=cohort_id,
@@ -458,6 +475,10 @@ def _classify_single_row(
         loosen_capped_flag=loosen_capped_flag,
         confidence_ceiling_applied=ceiling_applied,
         notes=notes,
+        filter_name=filter_name_value,
+        filter_version=filter_version_value,
+        filter_label=filter_label_value,
+        threshold_version=threshold_version_value,
     )
 
 

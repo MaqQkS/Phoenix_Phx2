@@ -235,3 +235,43 @@ def test_null_formatting_empty_string(tmp_path: Path) -> None:
     cells = body.split(",")
     # cohort_rate cell should be empty.
     assert cells[idx] == ""
+
+
+# ---------------------------------------------------------------------------
+# Schema 1.1: filter-identity columns appear in the locked CSV schema and
+# are rendered correctly for populated and None values.
+# ---------------------------------------------------------------------------
+
+
+def test_filter_identity_columns_present_in_locked_schema() -> None:
+    for column in ("filter_name", "filter_version", "filter_label", "threshold_version"):
+        assert column in CSV_COLUMNS
+
+
+def test_filter_identity_columns_rendered_when_populated(tmp_path: Path) -> None:
+    row = _sample_row()
+    row.filter_name = "fee_gate_v1"
+    row.filter_version = "v1"
+    row.filter_label = "scam_likely"
+    row.threshold_version = "v1"
+    path = write_candidate_csv(tmp_path, [row])
+    cells = path.read_text(encoding="utf-8").splitlines()[1].split(",")
+    assert cells[CSV_COLUMNS.index("filter_name")] == "fee_gate_v1"
+    assert cells[CSV_COLUMNS.index("filter_version")] == "v1"
+    assert cells[CSV_COLUMNS.index("filter_label")] == "scam_likely"
+    assert cells[CSV_COLUMNS.index("threshold_version")] == "v1"
+
+
+def test_filter_identity_columns_render_empty_when_none(tmp_path: Path) -> None:
+    # A primitive cohort row leaves all four identity fields None; the
+    # CSV must show empty cells (NOT the literal string "None") so a
+    # downstream consumer can detect missing-vs-present cleanly.
+    row = _sample_row()
+    row.filter_name = None
+    row.filter_version = None
+    row.filter_label = None
+    row.threshold_version = None
+    path = write_candidate_csv(tmp_path, [row])
+    cells = path.read_text(encoding="utf-8").splitlines()[1].split(",")
+    for column in ("filter_name", "filter_version", "filter_label", "threshold_version"):
+        assert cells[CSV_COLUMNS.index(column)] == ""

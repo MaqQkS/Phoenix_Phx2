@@ -36,7 +36,12 @@ from PHX2.stage13.writer import (
 
 
 STAGE13_VERSION = "0.1.0"
-STAGE13_SCHEMA_VERSION = "1.0"
+STAGE13_SCHEMA_VERSION = "1.1"
+"""Schema 1.1 (Stage 13.1 patch): candidate_recommendations.csv adds
+filter_name / filter_version / filter_label / threshold_version columns
+populated for the filter_label_blocking surface and left empty for
+primitive_bucket_cohort rows. cohort_id, classification logic, and the
+``safe_for_live_policy_consumption=false`` invariant are unchanged."""
 PRIMARY_OUTCOME_METRIC = "hit_2x_24h"
 SAFE_FOR_LIVE_POLICY_CONSUMPTION = False
 """Spec L11: hardcoded false in every Stage 13 manifest. Stage 14 must

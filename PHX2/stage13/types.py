@@ -156,3 +156,14 @@ class RecommendationRow:
     loosen_capped_flag: bool = False
     confidence_ceiling_applied: bool = False
     notes: list[str] = field(default_factory=list)
+    # Schema 1.1 filter-identity columns. Populated from the raw Stage 12
+    # cohort row for policy_surface == "filter_label_blocking"; left None
+    # for "primitive_bucket_cohort" rows. cohort_id continues to encode
+    # the same four parts as `filter_name@filter_version[threshold=
+    # threshold_version]:filter_label` for back-compat traceability;
+    # these standalone columns exist so Stage 14 can tuple-match against
+    # Stage 12 decision_filter_outcome_long.csv without parsing cohort_id.
+    filter_name: str | None = None
+    filter_version: str | None = None
+    filter_label: str | None = None
+    threshold_version: str | None = None
