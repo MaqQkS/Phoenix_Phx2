@@ -35,8 +35,12 @@ PHX2/stage13_runs/
 PHX2/stage16a_runs/
 stage16a_runs/
 
-# Local pytest --basetemp dir (used to bypass system temp ACL issues)
-.pytest_basetmp/
+# Local pytest --basetemp dirs (used to bypass system temp ACL issues).
+# Stages that create fresh basetemp paths per phase
+# (e.g. .pytest_basetmp_stage16b_p1, .pytest_basetmp_stage16b_p2)
+# accumulate these on Windows; ignore every variant.
+.pytest_basetmp*
+.pytest_basetmp*/
 
 # OS / IDE
 Thumbs.db

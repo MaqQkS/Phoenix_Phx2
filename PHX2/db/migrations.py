@@ -6,10 +6,17 @@ modules, mutate Phoenix1 tables, implement strategy logic, or send messages.
 
 import sqlite3
 from datetime import datetime, timezone
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
-from PHX2.config.settings import PHX2DryRunDbSettings, PHX2Settings
-from PHX2.db.connection import get_phx2_connection
+# PHX2.config.settings and PHX2.db.connection are deferred to inside
+# ``migrate_phx2_schema`` so that importing this module does NOT
+# transitively load PHX2.config.settings (which imports
+# PHX2.models.enums) at module load time. Stage 16B's sidecar boundary
+# re-exports the Stage 16B apply functions from this module, so this
+# deferral is required to keep ``import PHX2.stage16b.*`` free of the
+# forbidden PHX2.config / PHX2.models surface.
+if TYPE_CHECKING:  # type-checker-only resolution of the function annotation
+    from PHX2.config.settings import PHX2DryRunDbSettings, PHX2Settings
 
 
 STAGE_4A_VERSION = "stage_4a_core_telemetry"
@@ -21,6 +28,7 @@ STAGE_9B_VERSION = "stage_9b_outcome_windows_recreate"
 STAGE_10A_VERSION = "stage_10a_field_features_event_count_5m"
 STAGE_10B_VERSION = "stage_10b_filter_evaluations_extension"
 STAGE_11A_VERSION = "stage_11a_decision_score_features"
+STAGE_16B_VERSION = "stage_16b_observe_only_policy_evaluations"
 
 
 CORE_TELEMETRY_SQL = """
@@ -1156,11 +1164,385 @@ def apply_stage11_schema(connection: sqlite3.Connection) -> None:
     connection.commit()
 
 
-def migrate_phx2_schema(settings: Union[PHX2Settings, PHX2DryRunDbSettings]) -> None:
+# ---------------------------------------------------------------------------
+# Stage 16B -- observe_only_policy_evaluations (sidecar telemetry)
+# ---------------------------------------------------------------------------
+#
+# Stage 16B adds one new table: ``observe_only_policy_evaluations``. It is
+# the append-only telemetry sink for the Stage 16B sidecar observer, which
+# evaluates already-committed WOULD_ALERT alert decisions against a Stage
+# 16A observe-only runtime policy via Stage 16A's pure evaluator. Stage
+# 16B never participates in alert eligibility or dispatch -- this table is
+# read by analysis tooling only.
+#
+# Schema notes:
+#
+# * Identity is ``UNIQUE(alert_decision_id, policy_hash, rule_id)``: one
+#   row per (decision, policy, rule). Re-running the observer on the same
+#   policy is idempotent via ``INSERT OR IGNORE``.
+# * Three columns (``matched``, ``would_have_blocked``, ``evaluation_status``)
+#   are constrained by a single compound CHECK to the three valid postures:
+#     MATCHED      -> matched=1, would_have_blocked=1, reason IS NULL
+#     NOT_MATCHED  -> matched=0, would_have_blocked=0, reason IS NULL
+#     UNEVALUABLE  -> matched=0, would_have_blocked=0, reason IS NOT NULL
+#   The compound CHECK is what makes the row's posture self-consistent on
+#   disk; Stage 16B's row builder produces only these three shapes.
+# * ``would_have_blocked`` mirrors ``matched`` today (1 iff the matched
+#   rule's ``intended_action`` would have fired). Because Stage 16A
+#   policies are ``LOG_WOULD_BLOCK`` for every rule
+#   (``hard_block_allowed=False``), a MATCHED rule always implies
+#   ``would_have_blocked=1``; the column is kept distinct so the schema
+#   accommodates future intended-action shapes without an ALTER.
+# * The FK declaration to ``alert_decisions(id)`` is inert at runtime
+#   (``PRAGMA foreign_keys`` is OFF globally; same posture as
+#   ``filter_evaluations`` and ``decision_score_features``) but documents
+#   the relationship and would activate cleanly if FK enforcement is later
+#   enabled.
+STAGE_16B_OBSERVE_ONLY_POLICY_EVALUATIONS_SQL = """
+CREATE TABLE IF NOT EXISTS observe_only_policy_evaluations (
+    id INTEGER PRIMARY KEY,
+    alert_decision_id INTEGER NOT NULL,
+    tier_name_snapshot TEXT,
+    policy_hash TEXT NOT NULL,
+    rule_id TEXT NOT NULL,
+    evaluation_status TEXT NOT NULL,
+    matched INTEGER NOT NULL,
+    would_have_blocked INTEGER NOT NULL,
+    unevaluable_reason TEXT,
+    predicate_snapshot_json TEXT NOT NULL,
+    evaluated_at_utc TEXT NOT NULL,
+    created_at_utc TEXT NOT NULL,
+
+    CHECK (evaluation_status IN ('MATCHED', 'NOT_MATCHED', 'UNEVALUABLE')),
+    CHECK (matched IN (0, 1)),
+    CHECK (would_have_blocked IN (0, 1)),
+    CHECK (
+        (evaluation_status = 'MATCHED'
+            AND matched = 1
+            AND would_have_blocked = 1
+            AND unevaluable_reason IS NULL)
+        OR
+        (evaluation_status = 'NOT_MATCHED'
+            AND matched = 0
+            AND would_have_blocked = 0
+            AND unevaluable_reason IS NULL)
+        OR
+        (evaluation_status = 'UNEVALUABLE'
+            AND matched = 0
+            AND would_have_blocked = 0
+            AND unevaluable_reason IS NOT NULL)
+    ),
+    UNIQUE(alert_decision_id, policy_hash, rule_id),
+    FOREIGN KEY (alert_decision_id) REFERENCES alert_decisions(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_observe_only_policy_eval_decision
+    ON observe_only_policy_evaluations(alert_decision_id);
+
+CREATE INDEX IF NOT EXISTS idx_observe_only_policy_eval_policy_rule_time
+    ON observe_only_policy_evaluations(policy_hash, rule_id, evaluated_at_utc);
+
+CREATE INDEX IF NOT EXISTS idx_observe_only_policy_eval_status
+    ON observe_only_policy_evaluations(evaluation_status);
+"""
+
+
+# ---------------------------------------------------------------------------
+# Stage 16B locked schema invariants -- validated by the hardened migration
+# when ``observe_only_policy_evaluations`` already exists from a prior run.
+# ---------------------------------------------------------------------------
+
+
+# (column_name, declared_type, notnull) in declaration order.
+EXPECTED_STAGE_16B_COLUMNS: tuple[tuple[str, str, int], ...] = (
+    ("id", "INTEGER", 0),
+    ("alert_decision_id", "INTEGER", 1),
+    ("tier_name_snapshot", "TEXT", 0),
+    ("policy_hash", "TEXT", 1),
+    ("rule_id", "TEXT", 1),
+    ("evaluation_status", "TEXT", 1),
+    ("matched", "INTEGER", 1),
+    ("would_have_blocked", "INTEGER", 1),
+    ("unevaluable_reason", "TEXT", 0),
+    ("predicate_snapshot_json", "TEXT", 1),
+    ("evaluated_at_utc", "TEXT", 1),
+    ("created_at_utc", "TEXT", 1),
+)
+
+
+EXPECTED_STAGE_16B_UNIQUE_COLUMNS: tuple[str, ...] = (
+    "alert_decision_id",
+    "policy_hash",
+    "rule_id",
+)
+
+
+EXPECTED_STAGE_16B_FOREIGN_KEY: tuple[str, str, str] = (
+    "alert_decisions",
+    "alert_decision_id",
+    "id",
+)
+
+
+EXPECTED_STAGE_16B_INDEXES: dict[str, tuple[str, ...]] = {
+    "idx_observe_only_policy_eval_decision": ("alert_decision_id",),
+    "idx_observe_only_policy_eval_policy_rule_time": (
+        "policy_hash", "rule_id", "evaluated_at_utc",
+    ),
+    "idx_observe_only_policy_eval_status": ("evaluation_status",),
+}
+
+
+class Stage16BMigrationError(RuntimeError):
+    """Raised when an existing ``observe_only_policy_evaluations`` table
+    diverges from the locked Stage 16B schema and cannot be repaired
+    in-place.
+
+    Drift in column shape, the UNIQUE constraint, or the FK declaration
+    is a hard refuse: those are baked into the table at CREATE time and
+    cannot be added without a full table recreate, which Stage 16B
+    deliberately does not perform (the table is append-only telemetry
+    and recreate would silently nuke prior runs' rows).
+
+    Missing indexes are NOT a refuse condition -- they are recreated
+    idempotently via ``CREATE INDEX IF NOT EXISTS``.
+    """
+
+
+def _existing_stage_16b_columns(
+    connection: sqlite3.Connection,
+) -> tuple[tuple[str, str, int], ...]:
+    rows = list(connection.execute(
+        "PRAGMA table_info(observe_only_policy_evaluations)"
+    ))
+    return tuple((row["name"], row["type"], row["notnull"]) for row in rows)
+
+
+def _existing_stage_16b_unique_constraint_columns(
+    connection: sqlite3.Connection,
+) -> list[tuple[str, ...]]:
+    """Return the column tuple of every UNIQUE constraint (origin='u') on
+    the Stage 16B table. PRIMARY KEY (origin='pk') is excluded; named
+    CREATE INDEX (origin='c') is excluded."""
+
+    results: list[tuple[str, ...]] = []
+    for idx_row in connection.execute(
+        "PRAGMA index_list(observe_only_policy_evaluations)"
+    ):
+        if idx_row["unique"] == 1 and idx_row["origin"] == "u":
+            cols = tuple(
+                r["name"]
+                for r in connection.execute(
+                    f"PRAGMA index_info({idx_row['name']})"
+                )
+            )
+            results.append(cols)
+    return results
+
+
+def _existing_stage_16b_foreign_key_present(
+    connection: sqlite3.Connection,
+) -> bool:
+    for fk in connection.execute(
+        "PRAGMA foreign_key_list(observe_only_policy_evaluations)"
+    ):
+        if (
+            fk["table"] == EXPECTED_STAGE_16B_FOREIGN_KEY[0]
+            and fk["from"] == EXPECTED_STAGE_16B_FOREIGN_KEY[1]
+            and fk["to"] == EXPECTED_STAGE_16B_FOREIGN_KEY[2]
+        ):
+            return True
+    return False
+
+
+def _validate_observe_only_table_shape(
+    connection: sqlite3.Connection,
+) -> None:
+    """Validate the existing table against the locked Stage 16B schema.
+
+    Raises ``Stage16BMigrationError`` on drift in column shape, UNIQUE
+    constraint, or FK declaration. Missing indexes are NOT validated
+    here -- they are repaired idempotently by
+    ``_ensure_observe_only_indexes`` after this check passes.
+    """
+
+    actual_columns = _existing_stage_16b_columns(connection)
+    if actual_columns != EXPECTED_STAGE_16B_COLUMNS:
+        raise Stage16BMigrationError(
+            "observe_only_policy_evaluations columns drift from the locked "
+            f"Stage 16B shape: expected {EXPECTED_STAGE_16B_COLUMNS!r}, "
+            f"got {actual_columns!r}"
+        )
+
+    unique_columns = _existing_stage_16b_unique_constraint_columns(connection)
+    if EXPECTED_STAGE_16B_UNIQUE_COLUMNS not in unique_columns:
+        raise Stage16BMigrationError(
+            "observe_only_policy_evaluations is missing the locked UNIQUE "
+            f"constraint on {EXPECTED_STAGE_16B_UNIQUE_COLUMNS!r}; "
+            f"present UNIQUE constraints: {unique_columns!r}"
+        )
+
+    if not _existing_stage_16b_foreign_key_present(connection):
+        raise Stage16BMigrationError(
+            "observe_only_policy_evaluations is missing the locked FOREIGN "
+            f"KEY declaration {EXPECTED_STAGE_16B_FOREIGN_KEY!r}"
+        )
+
+
+def _existing_observe_only_table_indexes(
+    connection: sqlite3.Connection,
+) -> dict[str, tuple[str, ...]]:
+    """Return ``{index_name: (col1, col2, ...)}`` for every named
+    ``CREATE INDEX`` (``origin='c'``) on ``observe_only_policy_evaluations``.
+
+    Excludes auto-created indexes for PRIMARY KEY (``origin='pk'``) and
+    UNIQUE constraints (``origin='u'``); only Stage 16B's own CREATE
+    INDEX entries are returned. Used by index-shape validation.
+    """
+
+    indexes: dict[str, tuple[str, ...]] = {}
+    for idx_row in connection.execute(
+        "PRAGMA index_list(observe_only_policy_evaluations)"
+    ):
+        if idx_row["origin"] != "c":
+            continue
+        cols = tuple(
+            r["name"]
+            for r in connection.execute(
+                f"PRAGMA index_info({idx_row['name']})"
+            )
+        )
+        indexes[idx_row["name"]] = cols
+    return indexes
+
+
+def _validate_observe_only_indexes(connection: sqlite3.Connection) -> None:
+    """Validate existing Stage 16B indexes match the locked column tuples.
+
+    Audit re-finding MEDIUM: ``CREATE INDEX IF NOT EXISTS`` is a no-op
+    when an index of the same name exists -- a same-name index with
+    drifted columns would silently survive a "repair" attempt. This
+    validation closes the gap: for each locked Stage 16B index name,
+    if an index with that name already exists on
+    ``observe_only_policy_evaluations``, its indexed-column tuple MUST
+    match the locked tuple; otherwise raise ``Stage16BMigrationError``.
+
+    Missing indexes are NOT a refuse condition -- they are repaired
+    idempotently by ``_ensure_observe_only_indexes`` (called after this
+    validation when the table itself is compatible).
+    """
+
+    existing_indexes = _existing_observe_only_table_indexes(connection)
+    for index_name, expected_columns in EXPECTED_STAGE_16B_INDEXES.items():
+        if index_name not in existing_indexes:
+            # Missing -- will be repaired by _ensure_observe_only_indexes.
+            continue
+        actual_columns = existing_indexes[index_name]
+        if actual_columns != expected_columns:
+            raise Stage16BMigrationError(
+                f"observe_only_policy_evaluations index {index_name!r} has "
+                f"drifted columns: expected {expected_columns!r}, got "
+                f"{actual_columns!r}"
+            )
+
+
+def _ensure_observe_only_indexes(connection: sqlite3.Connection) -> None:
+    """Idempotently (re-)create the three Stage 16B indexes.
+
+    ``CREATE INDEX IF NOT EXISTS`` is a no-op when an index of the same
+    name already exists, so this is safe to call regardless of the
+    starting state. ``_validate_observe_only_indexes`` MUST be called
+    BEFORE this function on re-runs so that a same-name-but-drifted
+    index is rejected up-front; otherwise the IF NOT EXISTS DDL here
+    would silently preserve the drifted index instead of repairing it.
+    """
+
+    for index_name, columns in EXPECTED_STAGE_16B_INDEXES.items():
+        column_list = ", ".join(columns)
+        connection.execute(
+            f"CREATE INDEX IF NOT EXISTS {index_name} "
+            f"ON observe_only_policy_evaluations({column_list})"
+        )
+
+
+def apply_stage16b_observe_only_policy_evaluations(
+    connection: sqlite3.Connection,
+) -> None:
+    """Create ``observe_only_policy_evaluations`` on first run; validate the
+    existing table on re-run.
+
+    First run (table absent): execute
+    ``STAGE_16B_OBSERVE_ONLY_POLICY_EVALUATIONS_SQL`` to create the
+    table + three indexes per the locked DDL, then record the migration.
+
+    Re-run (table present): validate the table's column shape, UNIQUE
+    constraint, and FK declaration against the locked schema. If any
+    drift, raise ``Stage16BMigrationError`` and DO NOT record the
+    migration as successful. If the table is compatible, repair any
+    missing indexes idempotently via ``CREATE INDEX IF NOT EXISTS`` and
+    record the migration via ``INSERT OR IGNORE`` (so re-runs leave
+    ``schema_migrations`` with exactly one Stage 16B row).
+    """
+
+    actual_columns = _existing_stage_16b_columns(connection)
+
+    if not actual_columns:
+        # First run -- create from locked DDL.
+        connection.executescript(STAGE_16B_OBSERVE_ONLY_POLICY_EVALUATIONS_SQL)
+        _record_migration(
+            connection,
+            version=STAGE_16B_VERSION,
+            stage="16B",
+            description="Observe-only policy evaluations table",
+        )
+        return
+
+    # Re-run: validate first. A drift here raises Stage16BMigrationError
+    # before _record_migration so a malformed pre-existing table never
+    # produces a spurious "16B applied" row in schema_migrations.
+    _validate_observe_only_table_shape(connection)
+
+    # Validate index shapes BEFORE the repair pass: a same-name index
+    # with drifted columns would otherwise survive
+    # ``CREATE INDEX IF NOT EXISTS`` silently. Audit re-finding MEDIUM.
+    _validate_observe_only_indexes(connection)
+
+    # Compatible existing table -- repair missing indexes idempotently
+    # and record the migration via INSERT OR IGNORE.
+    _ensure_observe_only_indexes(connection)
+    _record_migration(
+        connection,
+        version=STAGE_16B_VERSION,
+        stage="16B",
+        description="Observe-only policy evaluations table",
+    )
+
+
+def apply_stage16b_schema(connection: sqlite3.Connection) -> None:
+    """Apply Stage 4 through Stage 16B schema in order.
+
+    Stage 16B: idempotently create ``observe_only_policy_evaluations``,
+    the append-only telemetry sink written by the Stage 16B sidecar
+    observer. The observer reuses Stage 16A's loader and evaluator and
+    never participates in alert eligibility or dispatch.
+    """
+
+    apply_stage11_schema(connection)
+    apply_stage16b_observe_only_policy_evaluations(connection)
+    connection.commit()
+
+
+def migrate_phx2_schema(
+    settings: "Union[PHX2Settings, PHX2DryRunDbSettings]",
+) -> None:
     """Open the PHX2 dry-run DB and apply the current PHX2 schema."""
+
+    # Deferred imports: see module-level note about the Stage 16B sidecar
+    # boundary.
+    from PHX2.db.connection import get_phx2_connection
 
     connection = get_phx2_connection(settings)
     try:
-        apply_stage11_schema(connection)
+        apply_stage16b_schema(connection)
     finally:
         connection.close()
