@@ -34,6 +34,7 @@ PHX2/stage13_runs/
 # Stage 16A observe-only runtime policy output (immutable run artifacts)
 PHX2/stage16a_runs/
 stage16a_runs/
+PHX2/stage17_runs/
 
 # Local pytest --basetemp dirs (used to bypass system temp ACL issues).
 # Stages that create fresh basetemp paths per phase
