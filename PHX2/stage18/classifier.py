@@ -50,6 +50,7 @@ from __future__ import annotations
 from typing import Mapping, NamedTuple, Optional, Sequence
 
 from PHX2.stage18.constants import (
+    ACCEPTED_STAGE17_LABELS,
     MAX_INCOMPLETE_OUTCOME_RATIO,
     MAX_UNEVALUABLE_RATE,
     MIN_EVALUABLE_COUNT,
@@ -107,6 +108,57 @@ _LABEL_TO_REVIEW: Mapping[str, str] = {
     STAGE17_LABEL_MIXED_BY_TIER: REVIEW_LABEL_MIXED_BY_TIER,
     STAGE17_LABEL_INSUFFICIENT_SAMPLE: REVIEW_LABEL_INSUFFICIENT_SAMPLE,
 }
+
+
+def _validate_descriptive_label(label: str, *, source: str) -> None:
+    """Raise ``Stage18Error("B03")`` if ``label`` is outside the
+    accepted Stage 17 label set.
+
+    Centralising the check keeps both per-row (``classify_row``)
+    and bulk (``validate_stage17_labels``) call sites consistent;
+    ``source`` is embedded into the error detail so the operator
+    can locate the offending row.
+    """
+
+    if label not in ACCEPTED_STAGE17_LABELS:
+        raise Stage18Error(
+            "B03",
+            (
+                f"unknown Stage 17 descriptive_label in {source}: "
+                f"{label!r} (expected one of "
+                f"{sorted(ACCEPTED_STAGE17_LABELS)})"
+            ),
+        )
+
+
+def validate_stage17_labels(
+    coarse_rows: Sequence[Mapping[str, str]],
+    headline_rows: Sequence[Mapping[str, str]],
+) -> None:
+    """Validate every ``descriptive_label`` cell across the coarse
+    and headline rows of a Stage 17 input bundle.
+
+    Raises ``Stage18Error("B03")`` on the first unknown label
+    encountered, with a row reference in the detail.
+
+    The CLI calls this once, immediately after the input bundle
+    loads and before any classification dispatch, so that an
+    unknown label *anywhere* in the input is caught before any
+    Stage 18 artifact is written. ``classify_row`` performs an
+    additional defensive per-row check so direct callers (tests,
+    future scripts) cannot bypass the contract either.
+    """
+
+    for idx, row in enumerate(coarse_rows, start=1):
+        _validate_descriptive_label(
+            row["descriptive_label"],
+            source=f"coarse_summary.csv data row {idx}",
+        )
+    for idx, row in enumerate(headline_rows, start=1):
+        _validate_descriptive_label(
+            row["descriptive_label"],
+            source=f"headline_metrics.csv data row {idx}",
+        )
 
 
 class ClassificationResult(NamedTuple):
@@ -200,6 +252,16 @@ def classify_row(
     n_with_complete_outcome = int(coarse_row["n_with_complete_outcome"])
     stage17_label = coarse_row["descriptive_label"]
 
+    # Validate the descriptive_label IMMEDIATELY, before any gate
+    # evaluation. Without this early check, a gate trip would
+    # short-circuit the no-gate branch that performs label
+    # validation and let an unknown label flow into
+    # ``stage17_label_preserved`` and onward into the output
+    # artifacts. The defence here applies even when the caller is
+    # bypassing the bulk ``validate_stage17_labels`` (e.g. a unit
+    # test invoking ``classify_row`` directly).
+    _validate_descriptive_label(stage17_label, source="coarse row")
+
     # Derived metrics.
     unevaluable_rate = compute_unevaluable_rate(headline_rows_for_slice)
     incomplete_outcome_ratio = compute_incomplete_outcome_ratio(
@@ -263,15 +325,9 @@ def classify_row(
     elif data_block_reason:
         classification = REVIEW_LABEL_DATA_BLOCKED
     else:
-        if stage17_label not in _LABEL_TO_REVIEW:
-            raise Stage18Error(
-                "B03",
-                (
-                    f"unknown Stage 17 descriptive_label: "
-                    f"{stage17_label!r} (expected one of "
-                    f"{sorted(_LABEL_TO_REVIEW.keys())})"
-                ),
-            )
+        # ``stage17_label`` is guaranteed valid by the early
+        # ``_validate_descriptive_label`` call above, so the
+        # dict lookup below cannot KeyError.
         classification = _LABEL_TO_REVIEW[stage17_label]
 
     return ClassificationResult(
@@ -289,4 +345,5 @@ def classify_row(
 __all__ = [
     "ClassificationResult",
     "classify_row",
+    "validate_stage17_labels",
 ]

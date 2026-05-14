@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import Optional
 
 from PHX2.stage18._git import get_git_commit
-from PHX2.stage18.classifier import classify_row
+from PHX2.stage18.classifier import classify_row, validate_stage17_labels
 from PHX2.stage18.constants import (
     REVIEW_LABEL_DATA_BLOCKED,
     REVIEW_LABEL_HARMFUL,
@@ -215,9 +215,105 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
         return EXIT_INPUT_ERROR
 
-    # --- Provision output dir (B04 / B05) -------------------------
+    # --- Resolve both paths now so the output_dir invariant checks
+    #     below operate on absolute, symlink-resolved paths.
+    #     ``Path.resolve()`` succeeds for not-yet-existent paths
+    #     (output_dir), returning the absolute form. -----------------
+    stage17_input_dir = stage17_input_dir.resolve()
+    output_dir = output_dir.resolve()
+
+    # --- Reject output_dir == stage17_input_dir (B05) -------------
+    if output_dir == stage17_input_dir:
+        _stderr(
+            f"error: [B05] {MESSAGE_TEMPLATES['B05']}: "
+            f"--output-dir must not equal --stage17-input-dir: "
+            f"{output_dir}"
+        )
+        return EXIT_RUNTIME_ERROR
+
+    # --- Reject output_dir inside stage17_input_dir (B05) ---------
+    # Keeping the input directory strictly read-only is the whole
+    # point of Stage 18. A nested output dir would otherwise blur
+    # the "Stage 17 input is untouched" invariant the non-mutation
+    # tests enforce.
     try:
-        output_dir.mkdir(parents=True, exist_ok=False)
+        output_dir.relative_to(stage17_input_dir)
+        output_inside_input = True
+    except ValueError:
+        output_inside_input = False
+    if output_inside_input:
+        _stderr(
+            f"error: [B05] {MESSAGE_TEMPLATES['B05']}: "
+            f"--output-dir must not be inside --stage17-input-dir: "
+            f"{output_dir}"
+        )
+        return EXIT_RUNTIME_ERROR
+
+    # --- Reject output_dir whose parent does not exist (B05) ------
+    # Stage 18 refuses to silently create intermediate directories
+    # outside ``--output-dir``; using ``mkdir(parents=False)`` below
+    # would already error, but checking explicitly gives a clearer
+    # message and keeps the rejection sequence linear.
+    if not output_dir.parent.exists():
+        _stderr(
+            f"error: [B05] {MESSAGE_TEMPLATES['B05']}: "
+            f"parent of --output-dir does not exist: "
+            f"{output_dir.parent}"
+        )
+        return EXIT_RUNTIME_ERROR
+
+    # --- Early B04 check: output_dir must not already exist ------
+    # Caught here before any bundle I/O so we don't load Stage 17
+    # input just to abandon it. The ``exist_ok=False`` on the
+    # later mkdir guards against the race window between this
+    # check and the actual provisioning.
+    if output_dir.exists():
+        _stderr(
+            f"error: [B04] {MESSAGE_TEMPLATES['B04']}: {output_dir}"
+        )
+        return EXIT_RUNTIME_ERROR
+
+    # --- Load Stage 17 inputs BEFORE output_dir is provisioned ---
+    # Pre-mkdir loading enforces the non-mutation contract on
+    # every input-contract failure: if any required artifact is
+    # missing or any CSV/JSON is malformed, ``output_dir`` is
+    # never created and no stage18_run.log is left behind. The
+    # trade-off is that B01 / B02 / B07 / B08 errors from the
+    # reader no longer leave a diagnostic log on disk -- the
+    # error message on stderr carries the full closed-set code
+    # and detail, which is the only diagnostic Stage 18 emits on
+    # input-contract failures.
+    try:
+        bundle = load_stage17_input_dir(stage17_input_dir)
+    except Stage18Error as exc:
+        _stderr(f"error: {exc}")
+        return _exit_code_for(exc.code)
+
+    # --- Validate Stage 17 descriptive_label cells (B03) ---------
+    # Bulk validation across both coarse and headline rows, also
+    # BEFORE ``output_dir`` is provisioned. An unknown label
+    # anywhere in the input fails the run without leaving any
+    # on-disk artifact (no review CSVs, no log). The
+    # ``classify_row`` per-row check below is preserved as
+    # defence in depth for direct callers that bypass this bulk
+    # validator.
+    try:
+        validate_stage17_labels(
+            bundle.coarse_rows, bundle.headline_rows
+        )
+    except Stage18Error as exc:
+        _stderr(f"error: {exc}")
+        return _exit_code_for(exc.code)
+
+    # --- Provision output dir (B04 race / B05) -------------------
+    # ``parents=False`` keeps Stage 18 honest: every write lands
+    # under the caller-supplied path, never in a directory Stage
+    # 18 created on its behalf above ``--output-dir``. The
+    # ``exist_ok=False`` here guards against a race where another
+    # process created ``output_dir`` between the early check
+    # above and this call.
+    try:
+        output_dir.mkdir(parents=False, exist_ok=False)
     except FileExistsError:
         _stderr(
             f"error: [B04] {MESSAGE_TEMPLATES['B04']}: {output_dir}"
@@ -240,30 +336,30 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     run_started_utc = _utc_now_iso()
 
+    # ``inputs_loaded`` is logged here (rather than next to the
+    # load call) because the log file does not exist until after
+    # the mkdir above.
+    log_events.append(make_log_event(
+        "inputs_loaded",
+        headline=len(bundle.headline_rows),
+        coarse=len(bundle.coarse_rows),
+        unevaluable=len(bundle.unevaluable_rows),
+        data_quality=len(bundle.data_quality_rows),
+    ))
+
     try:
-        # --- Load Stage 17 inputs (B01/B02/B07/B08) ----------------
-        try:
-            bundle = load_stage17_input_dir(stage17_input_dir)
-        except Stage18Error as exc:
-            _stderr(f"error: {exc}")
-            log_events.append(
-                make_log_event("inputs_loaded_error", code=exc.code)
-            )
-            _try_write_log()
-            return _exit_code_for(exc.code)
-
-        log_events.append(make_log_event(
-            "inputs_loaded",
-            headline=len(bundle.headline_rows),
-            coarse=len(bundle.coarse_rows),
-            unevaluable=len(bundle.unevaluable_rows),
-            data_quality=len(bundle.data_quality_rows),
-        ))
-
-        # --- Classify rows (may raise B03) -------------------------
-        policy_hash_filter: Optional[frozenset[str]] = None
-        if args.policy_hash:
-            policy_hash_filter = frozenset(args.policy_hash)
+        # --- Classify rows (may raise B03 defensively) -------------
+        # Build a sorted, deduplicated filter list once; both the
+        # classifier dispatch and the manifest / run_id derivation
+        # see the same shape.
+        policy_hash_filter_list: list[str] = sorted(
+            set(args.policy_hash or [])
+        )
+        policy_hash_filter: Optional[frozenset[str]] = (
+            frozenset(policy_hash_filter_list)
+            if policy_hash_filter_list
+            else None
+        )
 
         try:
             classified = _classify_all_rows(bundle, policy_hash_filter)
@@ -343,6 +439,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             stage17_run_id=stage17_run_id,
             stage17_input_basename=stage17_input_dir.name,
             input_row_counts=bundle.input_row_counts,
+            policy_hash_filter=policy_hash_filter_list,
         )
         git_commit = get_git_commit()
         run_finished_utc = _utc_now_iso()
@@ -351,13 +448,14 @@ def main(argv: Optional[list[str]] = None) -> int:
             run_id=run_id,
             run_started_utc=run_started_utc,
             run_finished_utc=run_finished_utc,
-            stage17_input_dir=str(stage17_input_dir.resolve()),
-            output_dir=str(output_dir.resolve()),
+            stage17_input_dir=str(stage17_input_dir),
+            output_dir=str(output_dir),
             stage17_manifest=bundle.manifest,
             input_row_counts=bundle.input_row_counts,
             output_row_counts=output_row_counts,
             classification_counts=counts,
             git_commit=git_commit,
+            policy_hash_filter=policy_hash_filter_list,
         )
 
         try:

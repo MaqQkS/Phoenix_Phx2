@@ -28,8 +28,18 @@ run_id derivation (locked):
         "stage17_input_basename": <basename of input dir>,
         "stage18_version":        STAGE18_VERSION,
         "gates":                  <five constants verbatim>,
-        "input_row_counts":       <four CSV files -> row count>
+        "input_row_counts":       <four CSV files -> row count>,
+        "policy_hash_filter":     <sorted, deduplicated list of
+                                   --policy-hash values; empty
+                                   list when no filter is active>
     }))[:16]
+
+``policy_hash_filter`` participates in the canonical input set so
+two runs against the same Stage 17 directory with different
+``--policy-hash`` arguments produce distinct run ids (the emitted
+artifact scope differs). The list is sorted and deduplicated, so
+``--policy-hash A --policy-hash B`` and
+``--policy-hash B --policy-hash A`` yield the same id.
 """
 
 from __future__ import annotations
@@ -38,7 +48,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 from PHX2.stage18.constants import (
     MANIFEST_SCHEMA_VERSION,
@@ -70,9 +80,16 @@ def compute_run_id(
     stage17_run_id: str,
     stage17_input_basename: str,
     input_row_counts: Mapping[str, int],
+    policy_hash_filter: Sequence[str] = (),
 ) -> str:
     """Derive the 16-hex-char Stage 18 run id from the canonical
-    input set. Pure function of its arguments."""
+    input set. Pure function of its arguments.
+
+    ``policy_hash_filter`` is sorted and deduplicated before
+    being folded into the canonical JSON, so call-order does not
+    affect the derived id. An unfiltered run passes an empty
+    sequence (the default).
+    """
 
     canonical = json.dumps(
         {
@@ -81,6 +98,7 @@ def compute_run_id(
             "stage18_version": STAGE18_VERSION,
             "gates": dict(GATES_SNAPSHOT),
             "input_row_counts": dict(input_row_counts),
+            "policy_hash_filter": sorted(set(policy_hash_filter)),
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -102,8 +120,16 @@ def build_manifest(
     output_row_counts: Mapping[str, int],
     classification_counts: Mapping[str, int],
     git_commit: str,
+    policy_hash_filter: Sequence[str] = (),
 ) -> dict[str, Any]:
-    """Assemble the Stage 18 manifest dict (does not write it)."""
+    """Assemble the Stage 18 manifest dict (does not write it).
+
+    ``policy_hash_filter`` is sorted and deduplicated before
+    being embedded, mirroring the convention used by
+    ``compute_run_id``. The field is always present in the
+    manifest: an unfiltered run records an empty list, a filtered
+    run records the sorted set of filter values.
+    """
 
     return {
         "schema_version": MANIFEST_SCHEMA_VERSION,
@@ -118,6 +144,7 @@ def build_manifest(
         "input_row_counts": dict(input_row_counts),
         "output_row_counts": dict(output_row_counts),
         "classification_counts": dict(classification_counts),
+        "policy_hash_filter": sorted(set(policy_hash_filter)),
         "git_commit": git_commit,
     }
 

@@ -120,12 +120,13 @@ SEVERITY_ORDER: tuple[str, ...] = (
 _CLASSIFICATION_EXPLANATIONS: Mapping[str, str] = {
     REVIEW_LABEL_PROMISING: (
         "Rule-matched decisions are associated with better outcomes "
-        "than not-matched. Deserves human review. Does not imply promotion."
+        "than not-matched. Review evidence only; no operational "
+        "action implied."
     ),
     REVIEW_LABEL_HARMFUL: (
         "Rule-matched decisions are associated with worse outcomes "
-        "than not-matched. Deserves human review. Does not imply rule "
-        "removal."
+        "than not-matched. Review evidence only; no operational "
+        "action implied."
     ),
     REVIEW_LABEL_WEAK: (
         "Rule-matched and not-matched outcomes show no clear separation. "
@@ -547,9 +548,10 @@ Stage 18 reads ``coarse_summary.csv`` from a completed Stage 17
 run, classifies each (policy_hash, rule_id, window_seconds) row
 into one of six review buckets, and writes seven output artifacts
 to ``--output-dir``. Stage 18 itself performs no DB I/O, no
-migrations, no enforcement, no promotion, no scoring, no
-scheduler, no dispatch (Discord/Telegram/API), and no policy
-mutation.
+migrations, no scoring, no scheduler, no dispatch
+(Discord/Telegram/API), no live alert-flow changes, and no
+policy mutation. The output is a human review packet only --
+nothing in it changes live behavior.
 
 ## Artifacts in this directory
 
@@ -575,11 +577,11 @@ mutation.
 ## What each classification means
 
 * PROMISING_REVIEW -- Rule-matched decisions are associated with
-  better outcomes than not-matched. Deserves human review. Does
-  not imply promotion.
+  better outcomes than not-matched. Review evidence only; no
+  operational action implied.
 * HARMFUL_REVIEW -- Rule-matched decisions are associated with
-  worse outcomes than not-matched. Deserves human review. Does
-  not imply rule removal.
+  worse outcomes than not-matched. Review evidence only; no
+  operational action implied.
 * WEAK_REVIEW -- Rule-matched and not-matched outcomes show no
   clear separation. No further action implied.
 * MIXED_BY_TIER_REVIEW -- Per-tier deltas disagree in sign. The
@@ -643,10 +645,11 @@ Every metric in this packet derives from the Stage 17 artifacts:
 
 ## This is observe-only
 
-Do not enforce, promote, or tune based on this packet alone. The
-classification labels are explicitly framed as "deserves human
-review" rather than as actioning decisions; the operator's job
-is to read the evidence, not to apply it directly.
+Do not change live behavior, modify policy thresholds, or apply
+rule-level decisions based on this packet alone. The
+classification labels are association-oriented evidence framed as
+"deserves human review"; the operator's job is to read the
+evidence, not to apply it directly.
 """
 
 

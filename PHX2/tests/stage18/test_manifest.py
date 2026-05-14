@@ -242,3 +242,111 @@ def test_write_manifest_two_calls_produce_byte_identical_output(
     write_manifest(manifest, a)
     write_manifest(manifest, b)
     assert a.read_bytes() == b.read_bytes()
+
+
+# ---------------------------------------------------------------------------
+# policy_hash_filter participation in compute_run_id / build_manifest
+# (audit remediation: filter scope must contribute to run_id and
+# be visible in the manifest)
+# ---------------------------------------------------------------------------
+
+
+def test_compute_run_id_default_policy_hash_filter_is_empty() -> None:
+    """Omitting policy_hash_filter must produce the same id as
+    explicitly passing an empty sequence."""
+
+    a = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+    )
+    b = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+        policy_hash_filter=(),
+    )
+    assert a == b
+
+
+def test_compute_run_id_changes_when_policy_hash_filter_changes() -> None:
+    unfiltered = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+    )
+    filtered = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+        policy_hash_filter=("p1",),
+    )
+    assert unfiltered != filtered
+
+
+def test_compute_run_id_is_order_invariant_for_policy_hash_filter() -> None:
+    """``--policy-hash A --policy-hash B`` and ``--policy-hash B
+    --policy-hash A`` must produce the same run_id."""
+
+    a = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+        policy_hash_filter=("p1", "p2"),
+    )
+    b = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+        policy_hash_filter=("p2", "p1"),
+    )
+    assert a == b
+
+
+def test_compute_run_id_deduplicates_policy_hash_filter() -> None:
+    a = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+        policy_hash_filter=("p1", "p2"),
+    )
+    b = compute_run_id(
+        stage17_run_id="abc",
+        stage17_input_basename="run",
+        input_row_counts={"a": 1},
+        policy_hash_filter=("p1", "p2", "p1"),
+    )
+    assert a == b
+
+
+def test_build_manifest_records_empty_policy_hash_filter_by_default() -> None:
+    manifest = build_manifest(
+        run_id="r1",
+        run_started_utc="x",
+        run_finished_utc="y",
+        stage17_input_dir="/in",
+        output_dir="/out",
+        stage17_manifest={},
+        input_row_counts={},
+        output_row_counts={},
+        classification_counts={},
+        git_commit="unknown",
+    )
+    assert manifest["policy_hash_filter"] == []
+
+
+def test_build_manifest_records_sorted_policy_hash_filter() -> None:
+    manifest = build_manifest(
+        run_id="r1",
+        run_started_utc="x",
+        run_finished_utc="y",
+        stage17_input_dir="/in",
+        output_dir="/out",
+        stage17_manifest={},
+        input_row_counts={},
+        output_row_counts={},
+        classification_counts={},
+        git_commit="unknown",
+        policy_hash_filter=("p2", "p1", "p2"),  # unordered + dup
+    )
+    assert manifest["policy_hash_filter"] == ["p1", "p2"]

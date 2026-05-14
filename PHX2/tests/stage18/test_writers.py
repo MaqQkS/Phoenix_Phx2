@@ -639,3 +639,134 @@ def test_readme_content_has_no_run_specific_data(tmp_path: Path) -> None:
     assert not re.search(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}", content)
     # No 16-hex run ids embedded in body (very rough check).
     assert not re.search(r"run_id=[0-9a-f]{16}", content)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden-language scan (audit remediation: Stage 18 artifacts
+# must not surface action-oriented vocabulary)
+# ---------------------------------------------------------------------------
+
+
+# Case-insensitive regex patterns derived from the locked
+# forbidden-terms list in the Stage 18 spec. Word-boundary anchors
+# (``\b``) keep ``promote`` from matching e.g. ``promising`` while
+# still catching exact-word occurrences in any case.
+_FORBIDDEN_LANGUAGE_PATTERNS: tuple[str, ...] = (
+    r"\bpromote\b",
+    r"\bpromotion\b",
+    r"\benforce\b",
+    r"\benforcement\b",
+    r"\bshould block\b",
+    r"\bshould allow\b",
+    r"\bcorrect block\b",
+    r"\bcorrect allow\b",
+    r"\btune to\b",
+    r"\bready for production\b",
+    r"\bapproved\b",
+    r"\brejected\b",
+)
+
+
+def _assert_no_forbidden_language(content: str, source: str) -> None:
+    """Assert that none of the locked forbidden audit patterns
+    appear in ``content`` (case-insensitive)."""
+
+    import re
+
+    lower = content.lower()
+    matched: list[str] = []
+    for pattern in _FORBIDDEN_LANGUAGE_PATTERNS:
+        if re.search(pattern, lower):
+            matched.append(pattern)
+    assert not matched, (
+        f"{source} contains forbidden audit pattern(s): {matched!r}"
+    )
+
+
+def test_classification_explanations_contain_no_forbidden_language() -> None:
+    """Every value in the in-memory bucket-explanation table must
+    be free of forbidden audit vocabulary."""
+
+    from PHX2.stage18.writers import _CLASSIFICATION_EXPLANATIONS
+
+    for label, text in _CLASSIFICATION_EXPLANATIONS.items():
+        _assert_no_forbidden_language(text, f"explanation[{label}]")
+
+
+def test_readme_artifact_contains_no_forbidden_language(
+    tmp_path: Path,
+) -> None:
+    out_path = tmp_path / "README.md"
+    write_readme(out_path)
+    _assert_no_forbidden_language(
+        out_path.read_text(encoding="utf-8"), "README.md"
+    )
+
+
+def test_rule_review_cards_artifact_contains_no_forbidden_language(
+    tmp_path: Path,
+) -> None:
+    """Build a card for every bucket so every explanation string is
+    emitted into the rendered markdown, then scan the file."""
+
+    rows = []
+    bucket_setups = [
+        (REVIEW_LABEL_PROMISING, "PROMISING", "", ""),
+        (REVIEW_LABEL_WEAK, "WEAK", "", ""),
+        (REVIEW_LABEL_HARMFUL, "HARMFUL", "", ""),
+        (
+            REVIEW_LABEL_MIXED_BY_TIER, "MIXED_BY_TIER", "", "",
+        ),
+        (
+            REVIEW_LABEL_INSUFFICIENT_SAMPLE, "PROMISING",
+            "G1", "",
+        ),
+        (
+            REVIEW_LABEL_DATA_BLOCKED, "PROMISING",
+            "", "G4",
+        ),
+    ]
+    for idx, (cls, s17, isr, dbr) in enumerate(bucket_setups):
+        rows.append(_row(
+            _coarse(
+                policy_hash=f"ph_{idx}aaaaaaaaaaaa",
+                rule_id=f"rule_{idx}",
+                descriptive_label=s17,
+            ),
+            _result(
+                classification=cls,
+                stage17_label_preserved=s17,
+                insufficient_sample_reason=isr,
+                data_block_reason=dbr,
+                gate_trips_all=(isr or dbr),
+            ),
+        ))
+    out_path = tmp_path / "rule_review_cards.md"
+    write_rule_review_cards(rows, out_path, stage17_run_id="r1")
+    _assert_no_forbidden_language(
+        out_path.read_text(encoding="utf-8"), "rule_review_cards.md"
+    )
+
+
+def test_log_artifact_contains_no_forbidden_language(tmp_path: Path) -> None:
+    """A realistic log event sequence must not contain forbidden
+    audit vocabulary in any step name or field value."""
+
+    events = [
+        make_log_event("start"),
+        make_log_event(
+            "inputs_loaded",
+            headline=1, coarse=1, unevaluable=0, data_quality=4,
+        ),
+        make_log_event(
+            "classification_complete",
+            harmful=1, promising=0, blocked=0,
+            mixed=0, weak=0, insufficient=0,
+        ),
+        make_log_event("done"),
+    ]
+    out_path = tmp_path / "stage18_run.log"
+    write_log(events, out_path)
+    _assert_no_forbidden_language(
+        out_path.read_text(encoding="utf-8"), "stage18_run.log"
+    )

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from PHX2.stage18.classifier import classify_row
+from PHX2.stage18.classifier import classify_row, validate_stage17_labels
 from PHX2.stage18.constants import (
     REVIEW_LABEL_DATA_BLOCKED,
     REVIEW_LABEL_HARMFUL,
@@ -517,3 +517,148 @@ def test_tier_coverage_propagated_to_classifier_output() -> None:
         data_quality_rows_for_slice=[],
     )
     assert none.tier_coverage == TIER_COVERAGE_NO_HEADLINE_ROWS
+
+
+# ---------------------------------------------------------------------------
+# B03 early validation across every gate-trip path
+# (audit remediation: unknown labels must raise B03 even when a
+# gate would otherwise trip and short-circuit the no-gate branch
+# that performs label validation)
+# ---------------------------------------------------------------------------
+
+
+def test_b03_raised_when_g1_would_trip_with_unknown_label() -> None:
+    with pytest.raises(Stage18Error) as exc_info:
+        classify_row(
+            coarse_row=_coarse(n_matched=5, descriptive_label="BANANA"),
+            headline_rows_for_slice=[_headline()],
+            data_quality_rows_for_slice=[],
+        )
+    assert exc_info.value.code == "B03"
+    assert "BANANA" in str(exc_info.value)
+
+
+def test_b03_raised_when_g2_would_trip_with_unknown_label() -> None:
+    with pytest.raises(Stage18Error) as exc_info:
+        classify_row(
+            coarse_row=_coarse(n_not_matched=5, descriptive_label="CHERRY"),
+            headline_rows_for_slice=[_headline()],
+            data_quality_rows_for_slice=[],
+        )
+    assert exc_info.value.code == "B03"
+
+
+def test_b03_raised_when_g3_would_trip_with_unknown_label() -> None:
+    with pytest.raises(Stage18Error) as exc_info:
+        classify_row(
+            coarse_row=_coarse(
+                n_in_scope=20,
+                n_matched=10,
+                n_not_matched=10,
+                n_with_complete_outcome=20,
+                descriptive_label="DATE",
+            ),
+            headline_rows_for_slice=[_headline(n_in_scope=20)],
+            data_quality_rows_for_slice=[],
+        )
+    assert exc_info.value.code == "B03"
+
+
+def test_b03_raised_when_g4_would_trip_with_unknown_label() -> None:
+    with pytest.raises(Stage18Error) as exc_info:
+        classify_row(
+            coarse_row=_coarse(descriptive_label="ELDERBERRY"),
+            # 30/100 = 0.30 > 0.25 -> G4 would trip
+            headline_rows_for_slice=[
+                _headline(n_in_scope=100, n_unevaluable=30),
+            ],
+            data_quality_rows_for_slice=[],
+        )
+    assert exc_info.value.code == "B03"
+
+
+def test_b03_raised_when_g5_ratio_would_trip_with_unknown_label() -> None:
+    with pytest.raises(Stage18Error) as exc_info:
+        classify_row(
+            coarse_row=_coarse(descriptive_label="FIG"),
+            headline_rows_for_slice=[_headline()],
+            # 60/100 = 0.60 > 0.50 -> G5 would trip
+            data_quality_rows_for_slice=[_dq_row(metric_value=60)],
+        )
+    assert exc_info.value.code == "B03"
+
+
+def test_b03_raised_when_g5_complete_outcome_zero_would_trip_with_unknown_label() -> None:
+    with pytest.raises(Stage18Error) as exc_info:
+        classify_row(
+            coarse_row=_coarse(
+                n_with_complete_outcome=0,  # G5:complete_outcome_zero
+                descriptive_label="GRAPE",
+            ),
+            headline_rows_for_slice=[_headline()],
+            data_quality_rows_for_slice=[],
+        )
+    assert exc_info.value.code == "B03"
+
+
+def test_b03_raised_when_g6_would_trip_with_unknown_label() -> None:
+    with pytest.raises(Stage18Error) as exc_info:
+        classify_row(
+            coarse_row=_coarse(descriptive_label="HONEYDEW"),
+            headline_rows_for_slice=[],  # G6 would trip
+            data_quality_rows_for_slice=[],
+        )
+    assert exc_info.value.code == "B03"
+
+
+# ---------------------------------------------------------------------------
+# validate_stage17_labels (bulk validation across an input bundle)
+# ---------------------------------------------------------------------------
+
+
+def test_validate_stage17_labels_accepts_all_five_known_labels() -> None:
+    coarse_rows = [
+        {"descriptive_label": "PROMISING"},
+        {"descriptive_label": "WEAK"},
+        {"descriptive_label": "HARMFUL"},
+        {"descriptive_label": "MIXED_BY_TIER"},
+        {"descriptive_label": "INSUFFICIENT_SAMPLE"},
+    ]
+    headline_rows = [
+        {"descriptive_label": "PROMISING"},
+        {"descriptive_label": "WEAK"},
+        {"descriptive_label": "HARMFUL"},
+        {"descriptive_label": "INSUFFICIENT_SAMPLE"},
+    ]
+    # Must not raise.
+    validate_stage17_labels(coarse_rows, headline_rows)
+
+
+def test_validate_stage17_labels_raises_b03_on_unknown_coarse_label() -> None:
+    coarse_rows = [
+        {"descriptive_label": "PROMISING"},
+        {"descriptive_label": "MELON"},
+    ]
+    with pytest.raises(Stage18Error) as exc_info:
+        validate_stage17_labels(coarse_rows, [])
+    assert exc_info.value.code == "B03"
+    assert "MELON" in str(exc_info.value)
+    assert "coarse_summary.csv" in str(exc_info.value)
+
+
+def test_validate_stage17_labels_raises_b03_on_unknown_headline_label() -> None:
+    coarse_rows = [{"descriptive_label": "PROMISING"}]
+    headline_rows = [
+        {"descriptive_label": "HARMFUL"},
+        {"descriptive_label": "PEACH"},
+    ]
+    with pytest.raises(Stage18Error) as exc_info:
+        validate_stage17_labels(coarse_rows, headline_rows)
+    assert exc_info.value.code == "B03"
+    assert "PEACH" in str(exc_info.value)
+    assert "headline_metrics.csv" in str(exc_info.value)
+
+
+def test_validate_stage17_labels_accepts_empty_inputs() -> None:
+    # Must not raise.
+    validate_stage17_labels([], [])
