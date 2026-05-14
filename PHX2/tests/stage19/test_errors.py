@@ -42,6 +42,8 @@ _EXPECTED_E_CODES: tuple[str, ...] = (
     "E17",
     "E18",
     "E19",
+    "E20",
+    "E21",
 )
 
 
@@ -65,6 +67,8 @@ _EXPECTED_CODE_NAMES: dict[str, str] = {
     "E17": "prior_ledger_schema_version_mismatch",
     "E18": "prior_ledger_bad_row",
     "E19": "bad_run_timestamp_format",
+    "E20": "bad_stage18_review_matrix_header",
+    "E21": "bad_stage18_review_matrix_row",
 }
 
 
@@ -90,6 +94,11 @@ _EXPECTED_MESSAGE_SUBSTRINGS: dict[str, tuple[str, ...]] = {
     "E17": ("stage19_schema_version", "stage19_ledger_v1"),
     "E18": ("prior ledger CSV row", "malformed"),
     "E19": ("--run-timestamp", "YYYY-MM-DDTHH:MM:SSZ"),
+    "E20": (
+        "Stage 18 review_matrix.csv header",
+        "STAGE18_REVIEW_MATRIX_EXPECTED_COLUMNS",
+    ),
+    "E21": ("Stage 18 review_matrix.csv row", "malformed"),
 }
 
 
@@ -101,8 +110,8 @@ _E_CODE_PATTERN = re.compile(r"^E\d{2}$")
 # ---------------------------------------------------------------------------
 
 
-def test_e_codes_count_is_19() -> None:
-    assert len(E.E_CODES) == 19
+def test_e_codes_count_is_21() -> None:
+    assert len(E.E_CODES) == 21
 
 
 def test_e_codes_match_expected_sequence() -> None:

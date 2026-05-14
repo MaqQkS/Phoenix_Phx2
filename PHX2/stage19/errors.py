@@ -72,6 +72,20 @@ Code table (locked, source order):
     E19 bad_run_timestamp_format
         -- --run-timestamp not in "YYYY-MM-DDTHH:MM:SSZ" form.
 
+  Stage 18 review_matrix structural validation (E20..E21,
+  added in a Phase 19.1 amendment to close a coverage gap left
+  between E03 (review_matrix.csv missing) and the cross-validation
+  layer; E05 covers manifest schema mismatch and is intentionally
+  not reused for review_matrix structural failures)
+    E20 bad_stage18_review_matrix_header
+        -- Stage 18 review_matrix.csv header does not match
+           STAGE18_REVIEW_MATRIX_EXPECTED_COLUMNS.
+    E21 bad_stage18_review_matrix_row
+        -- Stage 18 review_matrix.csv row malformed, including
+           wrong column count, unparseable/non-positive
+           window_seconds, or invalid Stage 18 classification
+           value.
+
 Phase 19.1 defines the closed set; the readers/validators/ledger
 (Phase 19.2) and the writers/manifest/CLI (Phase 19.3) raise
 specific codes against the table above.
@@ -107,6 +121,8 @@ E_CODES: tuple[str, ...] = (
     "E17",
     "E18",
     "E19",
+    "E20",
+    "E21",
 )
 
 
@@ -133,6 +149,8 @@ CODE_NAMES: Mapping[str, str] = {
     "E17": "prior_ledger_schema_version_mismatch",
     "E18": "prior_ledger_bad_row",
     "E19": "bad_run_timestamp_format",
+    "E20": "bad_stage18_review_matrix_header",
+    "E21": "bad_stage18_review_matrix_row",
 }
 
 
@@ -184,6 +202,15 @@ MESSAGE_TEMPLATES: Mapping[str, str] = {
     ),
     "E18": "prior ledger CSV row malformed",
     "E19": "--run-timestamp not in \"YYYY-MM-DDTHH:MM:SSZ\" form",
+    "E20": (
+        "Stage 18 review_matrix.csv header does not match "
+        "STAGE18_REVIEW_MATRIX_EXPECTED_COLUMNS"
+    ),
+    "E21": (
+        "Stage 18 review_matrix.csv row malformed (column count, "
+        "unparseable/non-positive window_seconds, or invalid Stage 18 "
+        "classification value)"
+    ),
 }
 
 

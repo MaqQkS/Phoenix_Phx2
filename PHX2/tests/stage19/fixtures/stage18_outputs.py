@@ -145,8 +145,9 @@ def write_review_matrix(
     columns: Sequence[str] = _STAGE18_REVIEW_MATRIX_COLUMNS,
 ) -> None:
     """Write a Stage 18 review_matrix.csv with the locked 17-column
-    header (or a caller-supplied alternative for E07 negatives) and
-    the supplied data rows."""
+    header (or a caller-supplied alternative for E20 header
+    negatives) and the supplied data rows (which may be malformed
+    to trigger E21 row negatives)."""
 
     _write_csv(path, columns, rows)
 
@@ -154,8 +155,8 @@ def write_review_matrix(
 def write_review_matrix_with_header(
     path: Path, header: Sequence[str]
 ) -> None:
-    """Write a header-only review_matrix.csv (used for E07 / shape
-    negatives)."""
+    """Write a header-only review_matrix.csv (used for E20
+    header-shape negatives)."""
 
     line = ",".join(header) + "\n"
     path.write_text(line, encoding="utf-8", newline="")
