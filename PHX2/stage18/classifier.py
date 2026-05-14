@@ -92,6 +92,10 @@ _GATE_G6: str = "G6"
 # the bare ``"G5"`` label; the zero-denominator path carries the
 # ``:complete_outcome_zero`` suffix so the operator can tell the
 # two apart from ``data_block_reason`` alone.
+#
+# ``gate_trips_all`` is a separate convention: it always uses
+# plain gate IDs (``"G5"``), never the colon-suffix form, so the
+# trip list stays grep-friendly across sub-reasons.
 _G5_COMPLETE_OUTCOME_ZERO: str = "G5:complete_outcome_zero"
 
 
@@ -116,6 +120,33 @@ class ClassificationResult(NamedTuple):
     gates trip, sample-gate precedence applies and
     ``data_block_reason`` is cleared (the gate is still listed in
     ``gate_trips_all`` for diagnostic transparency).
+
+    Locked value formats:
+
+      ``data_block_reason``:
+        * ``"G4"`` -- ``unevaluable_rate > MAX_UNEVALUABLE_RATE``.
+        * ``"G5"`` -- ``incomplete_outcome_ratio >
+          MAX_INCOMPLETE_OUTCOME_RATIO``.
+        * ``"G5:complete_outcome_zero"`` --
+          ``n_with_complete_outcome == 0`` and the ratio is
+          undefined. The colon-suffix encoding keeps the field
+          self-describing without introducing a separate
+          sub-reason column in the output CSVs.
+        * ``"G6"`` -- no headline rows for this slice.
+        * ``""`` -- this row is not DATA_BLOCKED_REVIEW, OR
+          sample-gate precedence cleared the bucket.
+
+      ``insufficient_sample_reason``:
+        Always one of ``{"", "G1", "G2", "G3"}``. No sub-reasons.
+
+      ``gate_trips_all``:
+        Plain gate IDs only -- ``"G1"``, ``"G2"``, ``"G3"``,
+        ``"G4"``, ``"G5"``, ``"G6"`` -- semicolon-joined in
+        evaluation order. Even when ``data_block_reason`` carries
+        a sub-reason such as ``"G5:complete_outcome_zero"``, the
+        corresponding entry in ``gate_trips_all`` is the plain
+        ``"G5"``. Sub-reasons live exclusively on
+        ``data_block_reason``.
     """
 
     classification: str

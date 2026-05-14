@@ -242,7 +242,13 @@ def test_data_blocked_review_from_g5_ratio() -> None:
 def test_data_blocked_review_from_g5_complete_outcome_zero() -> None:
     """When n_with_complete_outcome is zero the ratio is
     undefined; G5 trips with the ``complete_outcome_zero``
-    sub-reason."""
+    sub-reason.
+
+    Asserts the locked encoding: ``data_block_reason`` carries
+    the colon-suffix sub-reason while ``gate_trips_all`` records
+    only the plain ``"G5"`` gate id (see
+    ``ClassificationResult`` docstring for the full convention).
+    """
 
     result = classify_row(
         coarse_row=_coarse(
@@ -254,7 +260,9 @@ def test_data_blocked_review_from_g5_complete_outcome_zero() -> None:
     )
     assert result.classification == REVIEW_LABEL_DATA_BLOCKED
     assert result.data_block_reason == "G5:complete_outcome_zero"
-    assert "G5" in result.gate_trips_all
+    # gate_trips_all uses the plain gate ID; the sub-reason
+    # encoding lives only on ``data_block_reason``.
+    assert result.gate_trips_all == "G5"
     assert result.incomplete_outcome_ratio is None
 
 

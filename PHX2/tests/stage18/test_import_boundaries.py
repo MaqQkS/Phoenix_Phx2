@@ -18,16 +18,20 @@ from any of these prefixes:
   * any third-party package not in the standard library
   * sqlite3 (Stage 18 has no DB access of any kind)
 
-Phase-specific extra restriction (Phase 18.1 only): no Stage 18
-production file may import ``subprocess``. The optional
-``git rev-parse`` helper introduced in Phase 18.3 will be the
-first legitimate user of subprocess; until then the presence of
-subprocess anywhere in stage18 source indicates an unintended
-escape hatch.
+Subprocess restriction (Phase 18.3 onward): ``subprocess`` is
+allowed **only** in ``PHX2/stage18/_git.py``, which owns the
+single ``git rev-parse`` helper that captures HEAD into the
+manifest. Every other Stage 18 production file must remain
+subprocess-free; presence of ``subprocess`` anywhere else
+indicates an unintended escape hatch.
+
+Production-file set also includes ``PHX2/scripts/run_stage18_review.py``
+(the thin script shim) so the boundary policy reaches the entry
+point operators actually invoke.
 
 Verified two ways:
   1. Static AST check across every ``*.py`` under
-     ``PHX2/stage18/``.
+     ``PHX2/stage18/`` and the Stage 18 script.
   2. Runtime check that spawns a fresh Python interpreter and
      imports each Stage 18 surface module, then asserts no
      forbidden module ended up in ``sys.modules``.
@@ -46,6 +50,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 STAGE18_DIR = REPO_ROOT / "PHX2" / "stage18"
+STAGE18_SCRIPT = REPO_ROOT / "PHX2" / "scripts" / "run_stage18_review.py"
 
 
 # Standard-library modules permitted by Stage 18 source. Keep this
@@ -66,7 +71,9 @@ ALLOWED_STDLIB_MODULES: frozenset[str] = frozenset({
     "math",
     "os",
     "pathlib",
+    "re",          # _git.py SHA-format check (Phase 18.3)
     "statistics",
+    "subprocess",  # _git.py only (enforced by the per-file check)
     "sys",
     "traceback",
     "typing",
@@ -96,12 +103,10 @@ GLOBALLY_FORBIDDEN_MODULES: frozenset[str] = frozenset({
 })
 
 
-# Phase-18.1-only: subprocess is forbidden in Stage 18 source.
-# Will be relaxed once Phase 18.3 introduces the optional git
-# rev-parse helper.
-PHASE18_1_FORBIDDEN_MODULES: frozenset[str] = frozenset({
-    "subprocess",
-})
+# Phase-18.3 subprocess policy: subprocess is allowed only in the
+# dedicated ``_git.py`` helper. Every other Stage 18 source file
+# must remain subprocess-free.
+SUBPROCESS_ALLOWED_IN: frozenset[str] = frozenset({"_git.py"})
 
 
 ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
@@ -110,7 +115,10 @@ ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
 
 
 def _stage18_production_files() -> list[Path]:
-    return sorted(STAGE18_DIR.rglob("*.py"))
+    files = sorted(STAGE18_DIR.rglob("*.py"))
+    if STAGE18_SCRIPT.exists():
+        files.append(STAGE18_SCRIPT)
+    return files
 
 
 def _collect_imports(py_file: Path) -> list[str]:
@@ -166,17 +174,22 @@ def test_per_file_has_no_globally_forbidden_imports(
 
 
 @pytest.mark.parametrize("py_file", _stage18_production_files())
-def test_per_file_phase_18_1_no_subprocess(py_file: Path) -> None:
-    """Phase 18.1 production files must not import subprocess."""
+def test_per_file_subprocess_only_in_git_helper(py_file: Path) -> None:
+    """``subprocess`` must appear in at most one Stage 18 source
+    file: ``PHX2/stage18/_git.py``. The script shim
+    ``run_stage18_review.py`` is also subprocess-free; it just
+    delegates to ``PHX2.stage18.cli.main``."""
 
-    violations: list[str] = []
-    for module in _collect_imports(py_file):
-        top = module.split(".")[0]
-        if top in PHASE18_1_FORBIDDEN_MODULES:
-            violations.append(module)
-    assert not violations, (
-        f"{py_file.relative_to(REPO_ROOT)} imports {violations!r}; "
-        f"subprocess is not permitted in Phase 18.1 source."
+    imports_subprocess = any(
+        module.split(".")[0] == "subprocess"
+        for module in _collect_imports(py_file)
+    )
+    if py_file.name in SUBPROCESS_ALLOWED_IN:
+        return
+    assert not imports_subprocess, (
+        f"{py_file.relative_to(REPO_ROOT)} imports subprocess; "
+        f"subprocess is allowed only in: "
+        f"{sorted(SUBPROCESS_ALLOWED_IN)}"
     )
 
 
@@ -271,6 +284,10 @@ _RUNTIME_PROBE = textwrap.dedent(
     import PHX2.stage18.readers
     import PHX2.stage18.metrics
     import PHX2.stage18.classifier
+    import PHX2.stage18._git
+    import PHX2.stage18.writers
+    import PHX2.stage18.manifest
+    import PHX2.stage18.cli
 
     forbidden = {forbidden!r}
     leaked = sorted(m for m in forbidden if m in sys.modules)
@@ -310,6 +327,10 @@ def test_runtime_imports_do_not_load_forbidden_modules() -> None:
         "PHX2.stage18.readers",
         "PHX2.stage18.metrics",
         "PHX2.stage18.classifier",
+        "PHX2.stage18._git",
+        "PHX2.stage18.writers",
+        "PHX2.stage18.manifest",
+        "PHX2.stage18.cli",
     ],
 )
 def test_runtime_import_of_single_module_is_clean(module_name: str) -> None:
