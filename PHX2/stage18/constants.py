@@ -184,8 +184,58 @@ ACCEPTED_STAGE17_LABELS: frozenset[str] = frozenset({
 })
 
 
+# ---------------------------------------------------------------------------
+# Stage 18 review-label vocabulary (six-bucket taxonomy)
+# ---------------------------------------------------------------------------
+#
+# These are the exact string literals Stage 18 emits in the
+# ``classification`` column of every output row. They wrap the
+# Stage 17 descriptive_label values (Group A), and on override
+# they replace them while preserving the original Stage 17 label
+# in the ``stage17_label_preserved`` field (Groups B / C). Defined
+# centrally so the classifier (Phase 18.2) and the writers
+# (Phase 18.3) share one source of truth.
+
+
+REVIEW_LABEL_PROMISING: str = "PROMISING_REVIEW"
+REVIEW_LABEL_WEAK: str = "WEAK_REVIEW"
+REVIEW_LABEL_HARMFUL: str = "HARMFUL_REVIEW"
+REVIEW_LABEL_MIXED_BY_TIER: str = "MIXED_BY_TIER_REVIEW"
+REVIEW_LABEL_INSUFFICIENT_SAMPLE: str = "INSUFFICIENT_SAMPLE_REVIEW"
+REVIEW_LABEL_DATA_BLOCKED: str = "DATA_BLOCKED_REVIEW"
+
+
+ALL_REVIEW_LABELS: frozenset[str] = frozenset({
+    REVIEW_LABEL_PROMISING,
+    REVIEW_LABEL_WEAK,
+    REVIEW_LABEL_HARMFUL,
+    REVIEW_LABEL_MIXED_BY_TIER,
+    REVIEW_LABEL_INSUFFICIENT_SAMPLE,
+    REVIEW_LABEL_DATA_BLOCKED,
+})
+
+
+# ---------------------------------------------------------------------------
+# Tier-coverage flag values (non-blocking diagnostic on every row)
+# ---------------------------------------------------------------------------
+
+
+TIER_COVERAGE_NO_HEADLINE_ROWS: str = "no_headline_rows"
+TIER_COVERAGE_SINGLE_TIER_ONLY: str = "single_tier_only"
+TIER_COVERAGE_MULTI_TIER: str = "multi_tier"
+
+
+ALL_TIER_COVERAGE_VALUES: frozenset[str] = frozenset({
+    TIER_COVERAGE_NO_HEADLINE_ROWS,
+    TIER_COVERAGE_SINGLE_TIER_ONLY,
+    TIER_COVERAGE_MULTI_TIER,
+})
+
+
 __all__ = [
     "ACCEPTED_STAGE17_LABELS",
+    "ALL_REVIEW_LABELS",
+    "ALL_TIER_COVERAGE_VALUES",
     "COARSE_COLUMNS",
     "COARSE_FILENAME",
     "DATA_QUALITY_COLUMNS",
@@ -200,6 +250,12 @@ __all__ = [
     "MIN_RULE_NEGATIVE_COUNT",
     "MIN_RULE_POSITIVE_COUNT",
     "REQUIRED_INPUT_FILES",
+    "REVIEW_LABEL_DATA_BLOCKED",
+    "REVIEW_LABEL_HARMFUL",
+    "REVIEW_LABEL_INSUFFICIENT_SAMPLE",
+    "REVIEW_LABEL_MIXED_BY_TIER",
+    "REVIEW_LABEL_PROMISING",
+    "REVIEW_LABEL_WEAK",
     "STAGE17_LABEL_HARMFUL",
     "STAGE17_LABEL_INSUFFICIENT_SAMPLE",
     "STAGE17_LABEL_MIXED_BY_TIER",
@@ -207,6 +263,9 @@ __all__ = [
     "STAGE17_LABEL_WEAK",
     "STAGE17_MANIFEST_SCHEMA_VERSION",
     "STAGE18_VERSION",
+    "TIER_COVERAGE_MULTI_TIER",
+    "TIER_COVERAGE_NO_HEADLINE_ROWS",
+    "TIER_COVERAGE_SINGLE_TIER_ONLY",
     "UNEVALUABLE_BREAKDOWN_FILENAME",
     "UNEVALUABLE_COLUMNS",
 ]

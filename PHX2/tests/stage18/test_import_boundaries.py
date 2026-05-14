@@ -269,6 +269,8 @@ _RUNTIME_PROBE = textwrap.dedent(
     import PHX2.stage18.constants
     import PHX2.stage18.errors
     import PHX2.stage18.readers
+    import PHX2.stage18.metrics
+    import PHX2.stage18.classifier
 
     forbidden = {forbidden!r}
     leaked = sorted(m for m in forbidden if m in sys.modules)
@@ -306,6 +308,8 @@ def test_runtime_imports_do_not_load_forbidden_modules() -> None:
         "PHX2.stage18.constants",
         "PHX2.stage18.errors",
         "PHX2.stage18.readers",
+        "PHX2.stage18.metrics",
+        "PHX2.stage18.classifier",
     ],
 )
 def test_runtime_import_of_single_module_is_clean(module_name: str) -> None:
