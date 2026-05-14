@@ -91,6 +91,7 @@ ALLOWED_STDLIB_MODULES: frozenset[str] = frozenset({
     "os",
     "pathlib",
     "re",          # _git.py SHA-format check (Phase 19.3)
+    "shutil",      # cli.py partial-output cleanup (Phase 19.3)
     "statistics",
     "string",      # printable-char validation (Phase 19.2)
     "subprocess",  # _git.py only (enforced by the per-file check)
