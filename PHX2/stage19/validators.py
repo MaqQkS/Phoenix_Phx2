@@ -162,18 +162,44 @@ def validate_output_dir(path: Path) -> None:
     """Validate the ``--output-dir`` CLI scalar.
 
     Accepts:
-      * a non-existent path (Phase 19.3 writers will create it)
+      * a non-existent path whose parent IS an existing directory
+        (Phase 19.3 writers will create the leaf only)
       * an existing empty directory
 
-    Does NOT create the directory.
+    Does NOT create the directory. The Stage 19 CLI uses
+    ``os.mkdir`` (not ``os.makedirs``) for the leaf, so it will
+    NOT create intermediate parent directories; the parent must
+    already exist as a directory before the run, and this
+    validator enforces that invariant up front.
 
     Raises Stage19ValidationError with E15 for:
+      * path's parent directory does not exist on disk
+      * path's parent exists but is not a directory (e.g. it is
+        a regular file)
       * path exists as a regular file (not a directory)
       * path exists as a directory and contains at least one
         entry
       * path exists as something other than file or directory
         (symlink to non-existent target, special file, etc.)
     """
+
+    parent = path.parent
+    if not parent.exists():
+        raise Stage19ValidationError(
+            "E15",
+            detail=(
+                f"output_dir {path} parent directory does not exist: "
+                f"{parent}"
+            ),
+        )
+    if not parent.is_dir():
+        raise Stage19ValidationError(
+            "E15",
+            detail=(
+                f"output_dir {path} parent exists but is not a "
+                f"directory: {parent}"
+            ),
+        )
 
     if not path.exists():
         return

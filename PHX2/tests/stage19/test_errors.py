@@ -89,7 +89,7 @@ _EXPECTED_MESSAGE_SUBSTRINGS: dict[str, tuple[str, ...]] = {
     "E12": ("duplicate", "operator_id"),
     "E13": ("review_notes", "2000"),
     "E14": ("--operator-id",),
-    "E15": ("--output-dir",),
+    "E15": ("--output-dir", "parent directory does not exist"),
     "E16": ("--prior-ledger-dir", "operator_review_ledger.csv"),
     "E17": ("stage19_schema_version", "stage19_ledger_v1"),
     "E18": ("prior ledger CSV row", "malformed"),

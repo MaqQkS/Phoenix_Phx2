@@ -320,12 +320,13 @@ def main(argv: list[str] | None = None) -> int:
 
         # Step 18: create the output directory (only after every
         # read, validation, hash, and in-memory build succeeded).
-        # validate_output_dir accepted either non-existent or
-        # existing-empty; only call os.makedirs for the
-        # non-existent case so existing-empty does not trip
-        # exist_ok=False.
+        # validate_output_dir accepted either non-existent (with
+        # an existing parent directory) or existing-empty. Use
+        # os.mkdir (not os.makedirs) so the parent-must-exist
+        # invariant validated above is enforced at creation time
+        # too -- no intermediate parents will be silently created.
         if not args.output_dir.exists():
-            os.makedirs(args.output_dir, exist_ok=False)
+            os.mkdir(args.output_dir)
         output_dir_created = True
 
         log_entries = _build_log_entries(manifest, label_counts)

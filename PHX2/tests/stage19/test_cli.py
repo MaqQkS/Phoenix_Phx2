@@ -405,6 +405,25 @@ class TestCliECodePathsE14_E15:
         rc = cli.main(_argv_happy(s18, op, out))
         assert rc == 10
 
+    def test_e15_output_dir_parent_does_not_exist(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture
+    ) -> None:
+        """F01 regression: ``--output-dir`` whose parent directory
+        does not exist on disk must be rejected with exit code 10
+        and an [E15] error surfaced on stderr. Stage 19 must not
+        create the missing parent."""
+
+        s18, op, _ = _build_happy_inputs(tmp_path)
+        missing_parent = tmp_path / "no_such_parent"
+        out = missing_parent / "stage19_out"
+        assert not missing_parent.exists()
+        rc = cli.main(_argv_happy(s18, op, out))
+        assert rc == 10
+        captured = capsys.readouterr()
+        assert "E15" in captured.err
+        assert not missing_parent.exists()
+        assert not out.exists()
+
 
 class TestCliECodePathsE16_E18:
     def test_e16_missing_prior_ledger_files(self, tmp_path: Path) -> None:

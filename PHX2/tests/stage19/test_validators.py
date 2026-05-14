@@ -198,6 +198,33 @@ class TestValidateOutputDir:
             validators.validate_output_dir(f)
         assert excinfo.value.code == "E15"
 
+    def test_rejects_when_parent_does_not_exist_e15(
+        self, tmp_path: Path
+    ) -> None:
+        """F01 regression: ``--output-dir`` whose parent directory
+        does not exist on disk must be rejected. Stage 19 only
+        creates the leaf directory (os.mkdir, not os.makedirs),
+        so the parent-must-exist invariant is enforced here."""
+
+        target = tmp_path / "missing_parent" / "stage19_out"
+        assert not (tmp_path / "missing_parent").exists()
+        with pytest.raises(Stage19ValidationError) as excinfo:
+            validators.validate_output_dir(target)
+        assert excinfo.value.code == "E15"
+
+    def test_rejects_when_parent_is_a_file_e15(
+        self, tmp_path: Path
+    ) -> None:
+        """F01 regression: parent path exists but is a regular
+        file rather than a directory."""
+
+        parent_as_file = tmp_path / "parent_is_a_file"
+        parent_as_file.write_text("not a directory")
+        target = parent_as_file / "stage19_out"
+        with pytest.raises(Stage19ValidationError) as excinfo:
+            validators.validate_output_dir(target)
+        assert excinfo.value.code == "E15"
+
 
 # ===========================================================================
 # validate_against_review_matrix

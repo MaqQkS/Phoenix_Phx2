@@ -1,4 +1,4 @@
-"""Stage 19 closed-set error codes (E01..E19) and exception type.
+"""Stage 19 closed-set error codes (E01..E21) and exception type.
 
 Mirrors the Stage 17 / Stage 18 error pattern: a flat closed set
 of E-codes, each with a stable snake_case name and a fixed
@@ -189,8 +189,9 @@ MESSAGE_TEMPLATES: Mapping[str, str] = {
     ),
     "E14": "--operator-id fails validation",
     "E15": (
-        "--output-dir exists and is not empty, or exists as a file rather "
-        "than a directory"
+        "--output-dir exists and is not empty, exists as a file rather "
+        "than a directory, or its parent directory does not exist or is "
+        "not a directory"
     ),
     "E16": (
         "--prior-ledger-dir missing operator_review_ledger.csv or "
@@ -217,7 +218,7 @@ MESSAGE_TEMPLATES: Mapping[str, str] = {
 class Stage19ValidationError(Exception):
     """Raised on any Stage 19 closed-set validation failure.
 
-    Carries an E01..E19 code in ``.code`` and an optional context
+    Carries an E01..E21 code in ``.code`` and an optional context
     string in ``.detail``. Callers (CLI exit-code dispatcher,
     tests) match on ``.code`` rather than inspecting the formatted
     message string. Subclassing per-code is intentionally avoided

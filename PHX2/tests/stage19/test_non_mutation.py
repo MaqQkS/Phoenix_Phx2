@@ -230,3 +230,34 @@ class TestNoLeakageOutsideOutputDir:
             # On Windows the separator may be \, normalize
             normalized = added_path.replace("\\", "/")
             assert normalized.startswith(f"{out_rel}/"), normalized
+
+
+# ===========================================================================
+# F01 regression: missing parent directory must not be created
+# ===========================================================================
+
+
+class TestNoParentDirectoryCreation:
+    def test_missing_parent_dir_not_created_on_e15(
+        self, tmp_path: Path
+    ) -> None:
+        """F01 regression: when --output-dir's parent does not
+        exist on disk, Stage 19 must reject with E15 and must NOT
+        create the parent directory. Stage 19 only creates the
+        leaf via os.mkdir (not os.makedirs), so no intermediate
+        parents are silently materialized outside the operator-
+        supplied location."""
+
+        s18 = tmp_path / "s18"
+        stage18_outputs.write_minimal_valid_stage18_output(s18)
+        op = tmp_path / "op.csv"
+        operator_inputs.write_minimal_valid_operator_input(op)
+
+        missing_parent = tmp_path / "missing_parent"
+        target = missing_parent / "stage19_out"
+        assert not missing_parent.exists()
+
+        rc = cli.main(_argv(s18, op, target))
+        assert rc == 10
+        assert not missing_parent.exists()
+        assert not target.exists()
