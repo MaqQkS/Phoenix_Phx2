@@ -38,6 +38,13 @@ from typing import Mapping
 
 
 STAGE20_VERSION: str = "stage20_v0_observe_only"
+# Minor version axis introduced at Stage 20.2 per operator decision
+# B2-c. Both STAGE20_VERSION and STAGE20_MINOR_VERSION are mixed
+# into every ID derivation (stage20_run_id, candidate_id,
+# decision_id) and both are emitted on the manifest. Bumping either
+# axis invalidates the cache; bumping STAGE20_VERSION is a stage
+# break, bumping STAGE20_MINOR_VERSION is a within-stage iteration.
+STAGE20_MINOR_VERSION: str = "20.2"
 CONSUMER_CONTRACT_VERSION: str = "stage20_to_stage21_v0"
 MAPPING_VERSION: str = "v0"
 
@@ -346,15 +353,217 @@ REASON_CODE_DISPATCH_SAFETY_DISABLED: str = "DISPATCH_SAFETY_DISABLED"
 REASON_CODE_FILTER_OBSERVE_ONLY_PASSTHROUGH: str = "FILTER_OBSERVE_ONLY_PASSTHROUGH"
 
 
+# ---------------------------------------------------------------------------
+# Stage 20.2 — decision-chain vocabularies
+# ---------------------------------------------------------------------------
+#
+# DEFAULT chain (4 steps per candidate, used in 20.2):
+#     0: slice_resolved       (state: passed)
+#     1: mapping_applied      (state: passed)
+#     2: staleness_evaluated  (state: passed)
+#     3: terminal             (state: terminal, terminating=true,
+#                              decision_outcome = candidate.preview_state)
+#
+# FALLBACK chain (2 steps; preserved for shape reference only --
+# 20.2 ships the 4-step chain per operator approval):
+#     0: mapping_applied      (state: passed)
+#     1: terminal             (state: terminal, terminating=true)
+
+
+DECISION_STEP_NAMES_4: tuple[str, ...] = (
+    "slice_resolved",
+    "mapping_applied",
+    "staleness_evaluated",
+    "terminal",
+)
+
+DECISION_STEP_NAMES_2: tuple[str, ...] = (
+    "mapping_applied",
+    "terminal",
+)
+
+DECISION_STEP_STATES: tuple[str, ...] = (
+    "entered",
+    "passed",
+    "failed",
+    "terminal",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 20.2 — output CSV column tuples (LOCKED ORDER)
+# ---------------------------------------------------------------------------
+#
+# Both CSV writers iterate over the locked column tuple, NOT over
+# the NamedTuple._fields of PreviewCandidate / DecisionStep. The
+# model classes may carry additional fields (e.g. 20.1-era fields
+# preserved by additive extension); they are not emitted unless
+# their name appears in the column tuple below.
+#
+# preview_candidates.csv -- 18 columns (operator-historical preview
+# eligibility per (slice, operator) pair). Sort: review_timestamp_utc
+# ASC, candidate_id ASC. Header always written, even on empty data.
+
+
+PREVIEW_CANDIDATES_CSV_COLUMNS: tuple[str, ...] = (
+    "candidate_id",
+    "stage20_run_id",
+    "stage18_run_id",
+    "stage19_run_id",
+    "source_ledger_row_id",
+    "policy_hash",
+    "rule_id",
+    "window_seconds",
+    "operator_id",
+    "review_timestamp_utc",
+    "review_label",
+    "preview_state",
+    "mapping_version",
+    "tier_hint",
+    "review_age_days",
+    "review_stale",
+    "multiple_operators_for_slice",
+    "notes",
+)
+
+
+# alert_eligibility_decisions.csv -- 10 columns (ordered audit trail
+# per PreviewCandidate documenting how the terminal preview_state was
+# reached). Sort: candidate_id ASC, decision_step_index ASC. Header
+# always written.
+
+ALERT_ELIGIBILITY_DECISIONS_CSV_COLUMNS: tuple[str, ...] = (
+    "decision_id",
+    "candidate_id",
+    "stage20_run_id",
+    "decision_step_index",
+    "decision_step_name",
+    "decision_step_state",
+    "decision_step_terminating",
+    "decision_outcome",
+    "evidence_code",
+    "evidence_detail",
+)
+
+
+# ---------------------------------------------------------------------------
+# CSV column -> NamedTuple field aliases (centralized per operator
+# Phase B constraint #1)
+# ---------------------------------------------------------------------------
+#
+# Each map records the model field name a given CSV column reads
+# from. The Phase B model additions added the 20.2-aligned alias
+# fields directly to PreviewCandidate and DecisionStep so every
+# CSV column now maps 1:1 to a model field with the same name -- the
+# alias maps below are empty. They are kept (frozen via
+# MappingProxyType) as a single source of truth so that any future
+# divergence between CSV name and model field name is registered in
+# exactly one place rather than scattered across the builder and
+# the writer.
+#
+# Convention: if a CSV column name is absent from the alias map,
+# the model field name is the CSV column name verbatim.
+
+
+PREVIEW_CANDIDATES_CSV_COLUMN_TO_FIELD: Mapping[str, str] = MappingProxyType({})
+
+ALERT_ELIGIBILITY_DECISIONS_CSV_COLUMN_TO_FIELD: Mapping[str, str] = (
+    MappingProxyType({})
+)
+
+
+def csv_column_to_model_field(
+    csv_column: str,
+    alias_map: Mapping[str, str],
+) -> str:
+    """Resolve a CSV column name to its source model field.
+
+    Reads the alias map first; falls back to the column name itself
+    when the map carries no entry. The two locked alias maps live
+    in this module so callers (builder + writer) never embed a
+    branching alias check inline.
+    """
+
+    return alias_map.get(csv_column, csv_column)
+
+
+# ---------------------------------------------------------------------------
+# Stage 20.2 -- run-log event sequence (locked, in this exact order)
+# ---------------------------------------------------------------------------
+#
+# Every run emits these 9 events into stage20_run.log in order. The
+# log writer asserts the produced event sequence matches this tuple
+# before serializing.
+
+STAGE20_RUN_LOG_EVENT_SEQUENCE: tuple[str, ...] = (
+    "run_started",
+    "inputs_validated",
+    "slices_resolved",
+    "candidates_built",
+    "decisions_built",
+    "warnings_emitted",
+    "artifacts_written",
+    "manifest_written",
+    "run_completed",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 20.2 -- manifest key groups (used by manifest shape validator)
+# ---------------------------------------------------------------------------
+
+PREVIEW_STATE_COUNT_KEYS: tuple[str, ...] = (
+    "PREVIEW_ELIGIBLE",
+    "PREVIEW_OBSERVE_ONLY",
+    "PREVIEW_NEEDS_MORE_DATA",
+    "PREVIEW_EXCLUDED",
+)
+
+MANIFEST_REQUIRED_INPUT_HASH_KEYS: tuple[str, ...] = (
+    "stage18_manifest_sha256",
+    "stage18_review_matrix_sha256",
+    "stage19_ledger_sha256",
+    "stage19_manifest_sha256",
+)
+
+MANIFEST_REQUIRED_OUTPUT_HASH_KEYS: tuple[str, ...] = (
+    "preview_candidates_csv_sha256",
+    "alert_eligibility_decisions_csv_sha256",
+    "readme_md_sha256",
+    "stage20_run_log_sha256",
+)
+
+MANIFEST_WARNING_KEYS: tuple[str, ...] = (
+    "W2001_run_median_staleness_exceeded",
+    "W2002_preview_eligible_count_zero",
+    "W2003_tier_hint_missing_count",
+    "W2004_multiple_operators_per_review_slice_count",
+    "W2005_stage18_evidence_missing_for_review_count",
+    "W2006_candidate_review_stale_count",
+    "W2007_eligibility_mapping_drift_detected",
+)
+
+
 __all__ = [
+    "ALERT_ELIGIBILITY_DECISIONS_CSV_COLUMNS",
+    "ALERT_ELIGIBILITY_DECISIONS_CSV_COLUMN_TO_FIELD",
     "CODES_ACTIVE_IN_STAGE_20_1",
     "CODES_DEFERRED_IN_STAGE_20_1",
     "CONSUMER_CONTRACT_VERSION",
+    "DECISION_STEP_NAMES_2",
+    "DECISION_STEP_NAMES_4",
+    "DECISION_STEP_STATES",
     "ERROR_CODE_NAMES",
     "EligibilityErrorCode",
     "EligibilityWarningCode",
     "LABEL_TO_STATE_MAPPING_V0",
+    "MANIFEST_REQUIRED_INPUT_HASH_KEYS",
+    "MANIFEST_REQUIRED_OUTPUT_HASH_KEYS",
+    "MANIFEST_WARNING_KEYS",
     "MAPPING_VERSION",
+    "PREVIEW_CANDIDATES_CSV_COLUMNS",
+    "PREVIEW_CANDIDATES_CSV_COLUMN_TO_FIELD",
+    "PREVIEW_STATE_COUNT_KEYS",
     "PreviewEligibilityState",
     "REASON_CODE_DISPATCH_SAFETY_DISABLED",
     "REASON_CODE_FILTER_OBSERVE_ONLY_PASSTHROUGH",
@@ -379,9 +588,12 @@ __all__ = [
     "STAGE19_REVIEW_LABELS",
     "STAGE19_SUMMARY_EXPECTED_COLUMNS",
     "STAGE19_SUMMARY_FILENAME",
+    "STAGE20_MINOR_VERSION",
+    "STAGE20_RUN_LOG_EVENT_SEQUENCE",
     "STAGE20_VERSION",
     "STALENESS_THRESHOLD_DAYS",
     "WARNINGS_ACTIVE_IN_STAGE_20_1",
     "WARNINGS_DEFERRED_IN_STAGE_20_1",
     "WARNING_CODE_NAMES",
+    "csv_column_to_model_field",
 ]

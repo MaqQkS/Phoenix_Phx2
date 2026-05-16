@@ -22,7 +22,11 @@ def test_preview_candidate_construction_requires_all_fields():
 
 
 def test_preview_candidate_field_set():
-    expected = {
+    # Stage 20.2 extends PreviewCandidate additively (operator
+    # decision: additive extension, no rename of 20.1 fields). The
+    # expected set therefore covers BOTH the original 16 fields and
+    # the 7 fields appended at 20.2.
+    expected_stage20_1 = {
         "candidate_id",
         "stage18_run_id",
         "stage19_run_id",
@@ -40,11 +44,37 @@ def test_preview_candidate_field_set():
         "tier_hint",
         "reason_code",
     }
-    assert set(PreviewCandidate._fields) == expected
+    expected_stage20_2_additive = {
+        "stage20_run_id",
+        "source_ledger_row_id",
+        "mapping_version",
+        "review_age_days",
+        "review_stale",
+        "multiple_operators_for_slice",
+        "notes",
+        # Phase B alias field (operator constraint #2): mirrors
+        # ``eligibility_state`` so the 20.1 legacy field and the
+        # 20.2-named CSV column field both exist on the model.
+        "preview_state",
+    }
+    expected = expected_stage20_1 | expected_stage20_2_additive
+    actual = set(PreviewCandidate._fields)
+    # Original 20.1 fields must still be present (no rename).
+    assert expected_stage20_1.issubset(actual), (
+        f"20.1 fields lost: {expected_stage20_1 - actual}"
+    )
+    # Full 20.2 expected shape is the strict equality.
+    assert actual == expected
 
 
 def test_decision_step_field_set():
-    expected = {
+    # Stage 20.2 extends DecisionStep additively (operator decision:
+    # additive extension, no rename of 20.1 fields). The CSV column
+    # names (decision_step_index, decision_step_name, etc.) intentionally
+    # differ from the 20.1 model field names (step_index, step_name,
+    # ...); the locked column tuple performs the translation at write
+    # time so the 20.1 model fields remain unchanged.
+    expected_stage20_1 = {
         "candidate_id",
         "step_index",
         "step_name",
@@ -53,7 +83,26 @@ def test_decision_step_field_set():
         "is_terminating",
         "reason_code",
     }
-    assert set(DecisionStep._fields) == expected
+    expected_stage20_2_additive = {
+        "decision_id",
+        "stage20_run_id",
+        "decision_step_state",
+        "decision_outcome",
+        "evidence_code",
+        "evidence_detail",
+        # Phase B alias fields (operator constraint #3): each pairs
+        # with its 20.1 counterpart and ``build_decision_sequence``
+        # populates them with identical values.
+        "decision_step_index",
+        "decision_step_name",
+        "decision_step_terminating",
+    }
+    expected = expected_stage20_1 | expected_stage20_2_additive
+    actual = set(DecisionStep._fields)
+    assert expected_stage20_1.issubset(actual), (
+        f"20.1 fields lost: {expected_stage20_1 - actual}"
+    )
+    assert actual == expected
 
 
 def test_filter_result_field_set():
