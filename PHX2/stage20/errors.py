@@ -71,6 +71,9 @@ ERROR_MESSAGE_TEMPLATES: Mapping[str, str] = {
     "E2023": "Output row count does not match expected",
     "E2024": "Manifest output hashes are missing",
     "E2025": "Output CSV missing required column",
+    "E2027": "Stage 20.2 input contract violation",
+    "E2028": "Filter registry contract violation",
+    "E2029": "Filter result contract violation",
 }
 
 

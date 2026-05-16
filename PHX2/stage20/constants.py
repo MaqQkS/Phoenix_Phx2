@@ -226,6 +226,12 @@ class EligibilityErrorCode(str, Enum):
     E2023 = "E2023"
     E2024 = "E2024"
     E2025 = "E2025"
+    # Stage 20.3 additions (additive only; the E20xx slot before
+    # E2027 is intentionally skipped to preserve the banned-token
+    # absence asserted by test_no_forbidden_artifacts).
+    E2027 = "E2027"
+    E2028 = "E2028"
+    E2029 = "E2029"
 
 
 class EligibilityWarningCode(str, Enum):
@@ -275,6 +281,9 @@ ERROR_CODE_NAMES: Mapping[str, str] = MappingProxyType({
     "E2023": "output_row_count_mismatch",
     "E2024": "manifest_output_hashes_missing",
     "E2025": "output_csv_missing_required_column",
+    "E2027": "stage20_2_input_contract_violation",
+    "E2028": "filter_registry_contract_violation",
+    "E2029": "filter_result_contract_violation",
 })
 
 WARNING_CODE_NAMES: Mapping[str, str] = MappingProxyType({
@@ -544,6 +553,44 @@ MANIFEST_WARNING_KEYS: tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 20.3 additions (additive only)
+# ---------------------------------------------------------------------------
+#
+# Empty filter interface scaffolding. v0 registers zero filters and
+# evaluates zero filters. Real filters arrive in a later stage with
+# their own design lock.
+
+STAGE20_3_MINOR_VERSION: str = "20.3"
+
+FILTER_INTERFACE_VERSION: str = "filter_interface_v0_empty"
+FILTER_REGISTRY_CONTRACT_VERSION: str = "filter_registry_contract_v0"
+FILTER_RESULT_CONTRACT_VERSION: str = "filter_result_contract_v0"
+FILTER_MODE_VALUES_V0: tuple[str, ...] = ("DISABLED", "OBSERVE_ONLY")
+
+FILTER_INTERFACE_REGISTRY_COLUMNS: tuple[str, ...] = (
+    "filter_id",
+    "filter_name",
+    "filter_version",
+    "threshold_version",
+    "mode",
+    "contract_version",
+)
+
+FILTER_INTERFACE_RESULTS_COLUMNS: tuple[str, ...] = (
+    "candidate_id",
+    "filter_id",
+    "filter_name",
+    "filter_version",
+    "threshold_version",
+    "mode",
+    "evaluation_status",
+    "observation_label",
+    "observation_detail_json",
+    "contract_version",
+)
+
+
 __all__ = [
     "ALERT_ELIGIBILITY_DECISIONS_CSV_COLUMNS",
     "ALERT_ELIGIBILITY_DECISIONS_CSV_COLUMN_TO_FIELD",
@@ -556,6 +603,12 @@ __all__ = [
     "ERROR_CODE_NAMES",
     "EligibilityErrorCode",
     "EligibilityWarningCode",
+    "FILTER_INTERFACE_REGISTRY_COLUMNS",
+    "FILTER_INTERFACE_RESULTS_COLUMNS",
+    "FILTER_INTERFACE_VERSION",
+    "FILTER_MODE_VALUES_V0",
+    "FILTER_REGISTRY_CONTRACT_VERSION",
+    "FILTER_RESULT_CONTRACT_VERSION",
     "LABEL_TO_STATE_MAPPING_V0",
     "MANIFEST_REQUIRED_INPUT_HASH_KEYS",
     "MANIFEST_REQUIRED_OUTPUT_HASH_KEYS",
@@ -588,6 +641,7 @@ __all__ = [
     "STAGE19_REVIEW_LABELS",
     "STAGE19_SUMMARY_EXPECTED_COLUMNS",
     "STAGE19_SUMMARY_FILENAME",
+    "STAGE20_3_MINOR_VERSION",
     "STAGE20_MINOR_VERSION",
     "STAGE20_RUN_LOG_EVENT_SEQUENCE",
     "STAGE20_VERSION",

@@ -70,6 +70,9 @@ def test_eligibility_error_code_enum_contains_all_locked_codes():
         "E2010", "E2011", "E2012", "E2013", "E2014", "E2015",
         "E2016", "E2017",
         "E2020", "E2021", "E2022", "E2023", "E2024", "E2025",
+        # Stage 20.3 additions (the slot before E2027 is intentionally
+        # skipped and asserted absent by test_no_forbidden_artifacts).
+        "E2027", "E2028", "E2029",
     }
     actual = {member.value for member in EligibilityErrorCode}
     assert actual == expected
