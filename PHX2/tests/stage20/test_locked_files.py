@@ -96,15 +96,39 @@ def _find_main_blocks() -> list[tuple[str, int]]:
     return hits
 
 
+# Stage 20.4 closure layer has a sanctioned operator-facing CLI entry point
+# per locked Stage 20.4 Section C.2:
+#   python -m PHX2.stage20.closure.run_orchestrator <config.json>
+# The exclusion is limited to PHX2/stage20/closure/.
+# Stage 20.1/20.2/20.3 modules remain bound by the no-CLI constraint.
+_NO_CLI_BLOCK_EXCLUDED_SUBTREE = pathlib.Path("PHX2/stage20/closure")
+
+
 def test_no_cli_main_block_in_stage20_production():
     """Hard Constraint #5: no CLI entry point.
 
     AST-walk PHX2/stage20/**/*.py for ``if __name__ ==
-    "__main__":`` blocks. Stage 20 is library-only.
+    "__main__":`` blocks. Stage 20.1/20.2/20.3 modules remain
+    library-only.
+
+    Phase 6 exemption (locked Stage 20.4 Section C.2): files under
+    ``PHX2/stage20/closure/`` are allowed to carry a ``__main__``
+    block because the closure layer is the only sanctioned
+    operator-facing CLI entry point in Stage 20
+    (``python -m PHX2.stage20.closure.run_orchestrator <config>``).
+    The exemption is narrow: it covers only the closure subtree.
     """
 
     hits = _find_main_blocks()
-    assert hits == [], (
-        "CLI __main__ block(s) found under PHX2/stage20/:\n"
-        + "\n".join(f"  {p}:{ln}" for p, ln in hits)
+    excluded_str = str(_NO_CLI_BLOCK_EXCLUDED_SUBTREE)
+    unexpected = [
+        (p, ln) for (p, ln) in hits
+        if not p.replace("\\", "/").startswith(
+            excluded_str.replace("\\", "/") + "/"
+        )
+    ]
+    assert unexpected == [], (
+        "CLI __main__ block(s) found under PHX2/stage20/ "
+        "outside the sanctioned Stage 20.4 closure exemption:\n"
+        + "\n".join(f"  {p}:{ln}" for p, ln in unexpected)
     )

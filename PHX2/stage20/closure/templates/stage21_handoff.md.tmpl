@@ -1,0 +1,131 @@
+# PHX2 Stage 21 Handoff Contract
+
+**Contract version**: {{contract_version}}
+
+**Closure run ID**: {{run_id}}
+
+**Generated at (UTC)**: {{generated_at_utc}}
+
+**Source commits**:
+- Stage 20.1: {{stage20_1_commit_sha}}
+- Stage 20.2: {{stage20_2_commit_sha}}
+- Stage 20.3: {{stage20_3_commit_sha}}
+
+## Section A -- What Stage 21 may consume from Stage 20
+
+Stage 21 may read the following Stage 20.2 / Stage 20.3 artifacts
+as deterministic, lineage-validated inputs:
+
+- Stage 20.2: manifest.json, preview_candidates.csv,
+  alert_eligibility_decisions.csv, README.md, stage20_run.log
+- Stage 20.3: stage20_3_manifest.json,
+  filter_interface_registry.csv, filter_interface_results.csv,
+  README.md, stage20_3_run.log
+
+The closure attestation in stage20_closure_manifest.json pins
+each artifact's SHA-256 at the moment of closure. Stage 21 must
+not mutate any of these files.
+
+## Section B -- What Stage 21 must build fresh
+
+Stage 21 introduces the first real private-preview ping path.
+It must build its own:
+
+- Provider clients (if any).
+- Renderer / formatter for the preview message.
+- Routing decision logic (which channel each preview goes to).
+- Dispatch sink (Discord webhook, Telegram bot, etc.), bound to
+  operator-controlled private channels only.
+
+Stage 21 must NOT re-derive Stage 20.2 / Stage 20.3 outputs at
+runtime; it consumes them as immutable inputs.
+
+## Section C -- Private preview boundary
+
+All Stage 21 outputs route to private operator-controlled channel(s)
+only. No subscriber routing, no public channel routing, no paid-signal
+routing.
+
+Every Stage 21 preview ping must carry an explicit, visible dry-run /
+private-preview marker that makes the message's non-actionable status
+unambiguous to the reader. The exact rendered phrasing is a Stage 21
+decision and should align with prior PHX2 internal-preview conventions
+(see Stage 8C if applicable). Stage 20.4 does not lock the exact text.
+
+The marker requirement is non-negotiable. The exact text is a Stage 21
+design call.
+
+## Section D -- Hard rules Stage 21 inherits
+
+Phoenix1 isolation (locked).
+
+Stage 21 must not import Phoenix1 code, and must not depend on Phoenix1
+runtime state as its live provider path. Any Phoenix1 comparison/replay
+must remain offline and separately scoped (see Stage 16 for the
+replay/comparison stage, when implemented).
+
+Concretely:
+- No `import phoenix1` or any submodule thereof in Stage 21 modules.
+- No reads from a live Phoenix1 database connection in Stage 21 runtime.
+- Phoenix1 may only be used by separately-scoped offline tools
+  (Stage 16 replay/comparator), running outside the Stage 21 live
+  preview pipeline.
+
+## Section E -- Stage 21 starting line
+
+Operator-recorded pytest snapshot at closure time:
+
+- test_command: `{{operator_test_command}}`
+- run1 passed: {{operator_run1_passed}}
+- run2 passed: {{operator_run2_passed}}
+- both runs match: {{operator_both_runs_match}}
+- all green: {{operator_all_green}}
+
+This is a baseline snapshot, not an authoritative count. Stage 21
+must run the full Stage 20 suite itself and verify a clean green
+before its own work proceeds.
+
+## Section F -- Stage 21 must explicitly define separately
+
+The following surfaces are NOT inherited from Stage 20.4 and must
+be designed and locked separately in Stage 21:
+
+- Real (non-empty) filter implementations.
+- Threshold tuning per filter mode.
+- Live dispatch authorization gates. The closure manifest pins
+  live_dispatch_ready to the literal Python False. Stage 21 must
+  define how and when that gate flips.
+- Operator-facing dashboard or observability surface.
+
+## Section G -- Forbidden in Stage 21 v0
+
+- Any safety-flag flip to a true value in source. The closure
+  auditor will reject any such hit on the next closure run.
+- Network calls outside operator-controlled private channels.
+- Phoenix1 imports (see Section D).
+- Reading any environment variable that contains an API key or
+  webhook URL into the live preview path. Load such values via
+  a separately scoped, attestable mechanism instead.
+
+## Section H -- Closure attestations + manual tag recommendation
+
+Closure attestations recorded in stage20_closure_manifest.json.
+
+NEXT STEPS (manual, in order):
+
+  1. Review stage21_handoff.md and stage20_closure_manifest.json.
+  2. Stage explicit Stage 20.4 paths only (no `git add .`):
+       PHX2/stage20/closure/
+       PHX2/tests/stage20/closure/
+       PHX2/stage20/closure/templates/
+       .gitignore
+     Do NOT stage stage20_closure_runs/.
+  3. Commit with subject:
+       phx2 stage 20.4: closure audit + stage 21 handoff
+  4. Run Codex read-only audit against Stage 20.4 in a separate fresh
+     session.
+  5. After Codex pass and any remediations committed, the operator MAY
+     create the annotated tag manually:
+       git tag -a stage-20-closed -m "PHX2 Stage 20 closed after 20.4 audit"
+     Stage 20.4 will not create this tag.
+  6. Do NOT push without explicit approval.

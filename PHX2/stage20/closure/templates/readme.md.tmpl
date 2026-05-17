@@ -1,0 +1,40 @@
+# Stage 20.4 Closure Run
+
+This directory holds Stage 20.4 output: a deterministic closure
+audit + Stage 21 handoff packet produced from Stage 20.2 / Stage
+20.3 input run directories.
+
+## Identity
+
+- Closure run ID: {{run_id}}
+- Generated at (UTC): {{generated_at_utc}}
+- Stage 20.4 minor version: {{stage20_4_minor_version}}
+- Handoff contract version: {{handoff_contract_version}}
+
+## Closure status
+
+- closure_status: {{closure_status}}
+- safe_for_live_dispatch: false (hardcoded; never operator-overridable)
+- live_dispatch_ready: false (hardcoded; never operator-overridable)
+
+## Artifacts in this directory
+
+- stage20_closure_manifest.json -- top-level closure record
+- stage20_closure_checklist.csv -- 28-row pass/fail/warning checklist
+- codebase_audit_report.json -- per-file audit hits
+- stage20_2_lineage.json -- Stage 20.2 artifact hashes recorded by closure
+- stage20_3_lineage.json -- Stage 20.3 artifact hashes + crosscheck result
+- stage21_handoff.md -- contract for Stage 21
+- stage20_4_run.log -- JSON-lines event log of this closure run
+
+## What Stage 20.4 will NOT do
+
+- Run pytest (operator supplies test results)
+- Invoke git (no subprocess, no shell-out)
+- Create the stage-20-closed tag (manual operator step)
+- Touch network, env vars, providers, Discord, Telegram, sqlite
+- Mutate Stage 20.2 or Stage 20.3 run directories
+
+## Next steps
+
+See stage21_handoff.md Section H for the manual operator workflow.

@@ -37,6 +37,7 @@ stage16a_runs/
 PHX2/stage17_runs/
 PHX2/stage18_runs/
 PHX2/stage19_runs/
+stage20_closure_runs/
 
 # Local pytest --basetemp dirs (used to bypass system temp ACL issues).
 # Stages that create fresh basetemp paths per phase

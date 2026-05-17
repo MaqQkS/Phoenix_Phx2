@@ -1,0 +1,1 @@
+candidate_id,stage20_run_id,stage18_run_id,stage19_run_id,source_ledger_row_id,policy_hash,rule_id,window_seconds,operator_id,review_timestamp_utc,review_label,preview_state,mapping_version,tier_hint,review_age_days,review_stale,multiple_operators_for_slice,notes
