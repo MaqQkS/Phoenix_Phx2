@@ -1,4 +1,4 @@
-"""Stage 21 errors tests."""
+"""Stage 21 errors tests (covers sanitize_detail per AUDIT-003)."""
 
 from __future__ import annotations
 
@@ -18,13 +18,20 @@ from PHX2.stage21.errors import (
     Stage21SecretError,
     Stage21TelemetryError,
     Stage21TransportContractError,
+    sanitize_detail,
     warning_name_for,
 )
+
+
+# ---------------------------------------------------------------------------
+# Code-family acceptance and rejection
+# ---------------------------------------------------------------------------
 
 
 def test_base_error_accepts_any_known_code():
     err = Stage21Error(Stage21ErrorCode.E2100, detail="something")
     assert err.code == "E2100"
+    # "something" is a safe identifier shape and passes through.
     assert err.detail == "something"
     name = STAGE21_ERROR_CODE_NAMES["E2100"]
     assert f"[E2100] {name}: something" == str(err)
@@ -124,17 +131,122 @@ def test_every_subclass_inherits_stage21_error():
         assert isinstance(instance, Stage21Error)
 
 
-def test_error_message_carries_no_secret_payload():
-    # The error constructor's detail string is the only operator-
-    # supplied content in the formatted message. We verify the
-    # detail does not echo back the code's snake-case name (that
-    # is supplied by the registry, not the caller) so a malformed
-    # caller cannot smuggle a payload via the detail string.
+# ---------------------------------------------------------------------------
+# sanitize_detail (AUDIT-003)
+# ---------------------------------------------------------------------------
+
+
+def test_sanitize_detail_preserves_short_safe_text():
+    out = sanitize_detail("raw secret should never appear here")
+    # Each word is shorter than the candidate threshold (8) so
+    # nothing is touched.
+    assert out == "raw secret should never appear here"
+
+
+def test_sanitize_detail_preserves_screaming_snake_case():
+    out = sanitize_detail("env var PHX2_STAGE21_PROVIDER_API_KEY missing")
+    assert "PHX2_STAGE21_PROVIDER_API_KEY" in out
+    assert "missing" in out
+
+
+def test_sanitize_detail_preserves_snake_case_identifier():
+    out = sanitize_detail("compute_fingerprint expected Optional[str] got int")
+    assert "compute_fingerprint" in out
+    assert "Optional" in out
+
+
+def test_sanitize_detail_preserves_pascal_case():
+    out = sanitize_detail("attestation_from_secret_ref got NoneType")
+    assert "NoneType" in out
+    assert "attestation_from_secret_ref" in out
+
+
+def test_sanitize_detail_redacts_url():
+    out = sanitize_detail("webhook=https://example.invalid/abc?secret=xyz")
+    assert "https://" not in out
+    assert "example.invalid" not in out
+    assert "<redacted-url>" in out
+
+
+def test_sanitize_detail_redacts_mixed_case_secret_like_token():
+    secret = "PHX2_TEST_FAKE_API_KEY_zz0011aaBBccDDee"
+    out = sanitize_detail(f"slot value={secret}")
+    assert secret not in out
+    assert "<redacted-token>" in out
+
+
+def test_sanitize_detail_redacts_short_marker_in_mixed_case_token():
+    marker = "zz0011aaBBccDDee"  # 16 chars, mixed case + digits
+    out = sanitize_detail(f"marker is {marker} here")
+    assert marker not in out
+    assert "<redacted-token>" in out
+
+
+def test_sanitize_detail_redacts_pure_hex_token():
+    digest = "0123456789abcdef0123456789abcdef"  # 32 hex chars
+    out = sanitize_detail(f"digest={digest}")
+    assert digest not in out
+    assert "<redacted-token>" in out
+
+
+def test_sanitize_detail_redacts_uppercase_hex_token():
+    digest = "DEADBEEFCAFEBABEDEADBEEFCAFEBABE"
+    out = sanitize_detail(f"hash={digest}")
+    assert digest not in out
+    assert "<redacted-token>" in out
+
+
+def test_sanitize_detail_redacts_base64_like_token():
+    token = "aB1234567890abcdefghijKLMNOP+/=xyz"
+    out = sanitize_detail(f"k={token}")
+    assert token not in out
+    assert "<redacted-token>" in out
+
+
+def test_sanitize_detail_drops_newlines_and_control_chars():
+    out = sanitize_detail("line one\nline two\r\nline three\ttab")
+    assert "\n" not in out
+    assert "\r" not in out
+    assert "\t" not in out
+
+
+def test_sanitize_detail_truncates_overlong_input():
+    long = "x" * 500
+    out = sanitize_detail(long, max_length=64)
+    assert out.endswith("...")
+    assert len(out) <= 64 + 3
+
+
+def test_sanitize_detail_coerces_non_string_input():
+    out = sanitize_detail(None)
+    # None coerces to "None" -- below the candidate threshold, no
+    # redaction.
+    assert "None" in out
+
+
+def test_sanitize_detail_does_not_leak_through_exception_str():
+    secret = "PHX2_TEST_FAKE_BOT_TOKEN_zz0011aaBBccDDee"
     err = Stage21SecretError(
         Stage21ErrorCode.E2103,
-        detail="raw secret should never appear here",
+        detail=f"slot value={secret}",
     )
-    assert "raw secret should never appear here" in str(err)
-    # The detail is preserved verbatim; the test merely pins that
-    # behavior so the secret-leak test in test_no_secret_leaks.py
-    # can rely on the absence of any real env-value substring.
+    assert secret not in str(err)
+    assert "<redacted-token>" in str(err)
+    # The stored detail is the sanitized form.
+    assert secret not in err.detail
+
+
+def test_sanitize_detail_handles_hyphenated_lowercase_phrases():
+    out = sanitize_detail("round-trip well-known should survive")
+    assert "round-trip" in out
+    assert "well-known" in out
+
+
+def test_sanitize_detail_empty_string_returns_empty():
+    assert sanitize_detail("") == ""
+
+
+def test_error_message_format_omits_detail_section_when_empty():
+    err = Stage21Error(Stage21ErrorCode.E2100)
+    name = STAGE21_ERROR_CODE_NAMES["E2100"]
+    assert str(err) == f"[E2100] {name}"

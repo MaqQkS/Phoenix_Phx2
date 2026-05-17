@@ -414,16 +414,31 @@ STAGE21_FORBIDDEN_ROUTING_TOKENS: tuple[str, ...] = (
     # Public / paid routing is forever forbidden in Stage 21.
     "public_channel",
     "public_signal",
+    "public_dispatch",
     "paid_signal",
     "paid_signals",
     "paid_channel",
+    "paid_dispatch",
 )
-# NB: ``public_dispatch`` and ``paid_dispatch`` are deliberately
-# NOT in the forbidden set because the Stage 21 invariant name
-# ``safe_for_public_dispatch`` legitimately contains
-# ``public_dispatch`` as a substring. The forbidden-token check is
-# substring-based; including those compound tokens would produce a
-# false positive on the locked invariant.
+# AUDIT-004: ``public_dispatch`` and ``paid_dispatch`` are
+# restored to the forbidden set. The earlier exclusion was
+# substring-based and produced a false positive on the locked
+# Stage 21 invariant name ``safe_for_public_dispatch``. The new
+# identifier-aware scanner in
+# ``PHX2/tests/stage21/test_no_public_routing.py`` extracts
+# identifiers (not raw substrings) and explicitly allows the
+# invariant name via ``STAGE21_EXPLICIT_ROUTING_ALLOWED_IDENTIFIERS``
+# while still flagging any real ``public_dispatch`` /
+# ``paid_dispatch`` symbol.
+
+# Locked explicit-allow set: identifiers that legitimately contain
+# a forbidden routing token as a sub-component. The scanner
+# whitelist is the ONLY way to allow a hit; adding to this tuple
+# requires a STAGE21_VERSION bump and an operator review.
+STAGE21_EXPLICIT_ROUTING_ALLOWED_IDENTIFIERS: tuple[str, ...] = (
+    "safe_for_public_dispatch",
+    "SAFE_FOR_PUBLIC_DISPATCH",
+)
 
 
 __all__ = [
@@ -453,6 +468,7 @@ __all__ = [
     "SinkModeName",
     "STAGE21_CONSUMER_CONTRACT_VERSION",
     "STAGE21_ERROR_CODE_NAMES",
+    "STAGE21_EXPLICIT_ROUTING_ALLOWED_IDENTIFIERS",
     "STAGE21_FORBIDDEN_ROUTING_TOKENS",
     "STAGE21_MINOR_VERSION",
     "STAGE21_NON_SECRET_ENV_VARS",

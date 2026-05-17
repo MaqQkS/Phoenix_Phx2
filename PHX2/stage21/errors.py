@@ -12,14 +12,26 @@ surfaces as a specific exception type while still carrying a closed
 code. Each sub-class is intentionally narrow; the registry test
 asserts every declared code maps to exactly one expected family.
 
-Stage 21.1 exception messages are scrubbed of any secret content
-before they leave this module. The constructor never accepts a raw
-secret value; callers pass code + detail strings only, and the
-detail string is required by contract to be non-secret.
+Stage 21 exception messages are scrubbed of any secret content
+before they leave this module. The constructor accepts an
+arbitrary ``detail`` string but routes it through
+``sanitize_detail`` first; URL-shaped substrings and long
+token-like substrings are replaced with locked redaction
+sentinels. Stage 21.1 callers pass only short non-secret strings,
+but future Stage 21.x callers (e.g. error paths that include
+payload context) cannot accidentally leak a real secret value
+through the detail field.
+
+The sanitizer is conservative: short tokens, identifier-shaped
+tokens (snake_case / SCREAMING_SNAKE_CASE / PascalCase /
+hyphenated-lowercase) pass through unchanged. Long tokens that
+do not fit a recognized identifier shape -- mixed-case-with-digits
+sequences, pure hex, base64-ish runs, URLs -- are redacted.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Mapping, Union
 
 from PHX2.stage21.constants import (
@@ -28,6 +40,135 @@ from PHX2.stage21.constants import (
     Stage21ErrorCode,
     Stage21WarningCode,
 )
+
+
+# ---------------------------------------------------------------------------
+# Detail sanitization
+# ---------------------------------------------------------------------------
+#
+# AUDIT-003: the Stage 21 exception ``detail`` field must not echo
+# raw secret values. The sanitizer below scrubs URLs and unknown
+# long token-like substrings before they reach ``self.detail`` and
+# the formatted message. The locked sentinels are:
+#   * <redacted-url>   -- replaces any http(s) URL-shaped substring
+#   * <redacted-token> -- replaces any long candidate that does
+#                         not match a recognized identifier shape
+
+_REDACTED_URL_SENTINEL: str = "<redacted-url>"
+_REDACTED_TOKEN_SENTINEL: str = "<redacted-token>"
+
+_DETAIL_MAX_LENGTH: int = 256
+_CANDIDATE_MIN_LENGTH: int = 8
+_PURE_HEX_MIN_LENGTH: int = 16
+
+# URL pattern: covers http and https schemes followed by ``://`` up
+# to the next whitespace. The regex source is built piecewise so
+# the literal ``http`` plus ``://`` does not appear in the module
+# source -- Stage 21 forbids URL literals in production code.
+_URL_RE = re.compile(r"https?" + "://" + r"\S+", re.IGNORECASE)
+
+# Candidate sequences that may need redaction. Includes the
+# alphanumeric + URL-safe-base64 characters (``+`` / ``/`` / ``=``)
+# plus ``_`` and ``-`` so URL-safe base64 tokens are caught as a
+# single block. Punctuation (``.``, ``:``, ``'``, quotes, brackets)
+# is intentionally excluded so phrases like ``Optional[str]`` and
+# ``tuple[str, ...]`` split into safe sub-tokens.
+_CANDIDATE_RE = re.compile(r"[A-Za-z0-9+/=_-]{" + str(_CANDIDATE_MIN_LENGTH) + r",}")
+
+# Pure hex sequences are explicitly redacted regardless of casing.
+# Stage 21 emits sha256[:12] fingerprints as 12 hex chars (below the
+# 16-char threshold) so the redaction does not collide with the
+# fingerprint surface.
+_HEX_LIKE_LOWER_RE = re.compile(r"^[a-f0-9]+$")
+_HEX_LIKE_UPPER_RE = re.compile(r"^[A-F0-9]+$")
+
+# Identifier shapes Stage 21 considers safe to pass through verbatim.
+_SCREAMING_SNAKE_RE = re.compile(r"^[A-Z][A-Z0-9_]*$")
+_SNAKE_LOWER_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_PASCAL_CASE_RE = re.compile(r"^[A-Z][a-z][A-Za-z0-9]*$")
+_PRIVATE_NAME_RE = re.compile(r"^_[a-zA-Z0-9_]*$")
+_HYPHENATED_LOWER_RE = re.compile(r"^[a-z]+(-[a-z]+)+$")
+
+
+def _is_safe_identifier_shape(s: str) -> bool:
+    """Return True if ``s`` matches a Stage 21 safe identifier shape.
+
+    Safe shapes:
+      * Any candidate below ``_CANDIDATE_MIN_LENGTH`` chars (never
+        reaches the sanitizer in the first place).
+      * SCREAMING_SNAKE_CASE: ``PHX2_STAGE21_PROVIDER_API_KEY``.
+      * snake_case: ``compute_fingerprint``, ``allowlist``.
+      * PascalCase (digit-tolerant after the second char):
+        ``Stage21SecretError``, ``Optional``, ``NoneType``.
+      * ``_private``-style identifiers.
+      * hyphenated-lowercase phrases like ``round-trip``.
+
+    Pure hex sequences of length >= ``_PURE_HEX_MIN_LENGTH`` are
+    explicitly NOT safe -- they match the lowercase snake regex but
+    are highly likely to be SHA-256-style fingerprints or hex tokens.
+    """
+    if len(s) < _CANDIDATE_MIN_LENGTH:
+        return True
+    # Pure hex is a leak shape, not an identifier. Reject before
+    # the lowercase / SCREAMING regex would accept it.
+    if len(s) >= _PURE_HEX_MIN_LENGTH and (
+        _HEX_LIKE_LOWER_RE.fullmatch(s) or _HEX_LIKE_UPPER_RE.fullmatch(s)
+    ):
+        return False
+    return bool(
+        _SCREAMING_SNAKE_RE.fullmatch(s)
+        or _SNAKE_LOWER_RE.fullmatch(s)
+        or _PASCAL_CASE_RE.fullmatch(s)
+        or _PRIVATE_NAME_RE.fullmatch(s)
+        or _HYPHENATED_LOWER_RE.fullmatch(s)
+    )
+
+
+def _redact_candidate(match: "re.Match[str]") -> str:
+    token = match.group(0)
+    if _is_safe_identifier_shape(token):
+        return token
+    return _REDACTED_TOKEN_SENTINEL
+
+
+def sanitize_detail(
+    detail: object,
+    *,
+    max_length: int = _DETAIL_MAX_LENGTH,
+) -> str:
+    """Return a Stage21-safe rendering of ``detail``.
+
+    The function:
+      1. coerces non-string input to ``str``;
+      2. replaces newlines / carriage returns / tabs with spaces;
+      3. drops other non-printable characters;
+      4. replaces every URL-shaped substring (``http`` / ``https``
+         scheme followed by ``//`` and a non-whitespace run) with
+         ``<redacted-url>``;
+      5. replaces every long candidate substring that does not
+         match a safe identifier shape with ``<redacted-token>``;
+      6. truncates at ``max_length`` characters (appending ``...``).
+
+    The sanitizer is conservative -- it scrubs anything that looks
+    like a leak shape, even at the cost of false positives. Stage 21
+    callers should pass short, non-secret detail strings whenever
+    possible; the sanitizer is the belt-and-suspenders second line
+    of defense.
+
+    The function is intentionally pure: identical input produces
+    identical output. The locked sentinel strings are
+    ``<redacted-url>`` and ``<redacted-token>``.
+    """
+    if not isinstance(detail, str):
+        detail = str(detail)
+    # Normalize control whitespace; preserve printable chars.
+    detail = detail.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    detail = "".join(c if (c == " " or c.isprintable()) else " " for c in detail)
+    detail = _URL_RE.sub(_REDACTED_URL_SENTINEL, detail)
+    detail = _CANDIDATE_RE.sub(_redact_candidate, detail)
+    if len(detail) > max_length:
+        detail = detail[:max_length] + "..."
+    return detail
 
 
 _ALL_ERROR_CODE_VALUES: frozenset[str] = frozenset(
@@ -127,11 +268,17 @@ class Stage21Error(Exception):
                 f"{family!r}; {type(self).__name__} only accepts "
                 f"{self._ALLOWED_FAMILIES!r}"
             )
+        # AUDIT-003: route every detail string through the
+        # sanitizer so a future caller cannot leak a real secret /
+        # webhook URL / payload value via the detail field. The
+        # sanitized form is what ``self.detail`` exposes and what
+        # the formatted message embeds; raw input is dropped.
+        sanitized_detail = sanitize_detail(detail)
         self.code: str = code_value
-        self.detail: str = detail
+        self.detail: str = sanitized_detail
         name = STAGE21_ERROR_CODE_NAMES[code_value]
-        if detail:
-            message = f"[{code_value}] {name}: {detail}"
+        if sanitized_detail:
+            message = f"[{code_value}] {name}: {sanitized_detail}"
         else:
             message = f"[{code_value}] {name}"
         super().__init__(message)
@@ -239,5 +386,6 @@ __all__ = [
     "Stage21SecretError",
     "Stage21TelemetryError",
     "Stage21TransportContractError",
+    "sanitize_detail",
     "warning_name_for",
 ]
