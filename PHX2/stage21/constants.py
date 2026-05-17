@@ -175,6 +175,23 @@ class Stage21ErrorCode(str, Enum):
                    full retry/dedupe belongs to Stage 22):
         E2140  local_ledger_duplicate_run_id
         E2141  local_ledger_record_invalid_shape
+
+    21.2 remediation (safe-content predicate + capture-time hash
+                      assert; added by the Stage 21.2 pre-commit
+                      remediation; one code per real violation
+                      category):
+        E2150  safe_string_violation_empty
+        E2151  safe_string_violation_too_long
+        E2152  safe_string_violation_disallowed_chars
+        E2153  safe_string_violation_forbidden_substring
+        E2154  safe_string_violation_control_char
+        E2155  safe_string_violation_invalid_base58
+        E2156  payload_too_deeply_nested
+        E2157  payload_too_many_nodes
+        E2158  payload_unsupported_value_type
+        E2170  payload_hash_mismatch_at_capture
+
+    (E2160..E2169 is reserved for future content-axis violations.)
     """
 
     # 21.1 active
@@ -201,6 +218,17 @@ class Stage21ErrorCode(str, Enum):
     # 21.5 reserved
     E2140 = "E2140"
     E2141 = "E2141"
+    # 21.2 remediation (safe-content predicate + capture-time hash assert)
+    E2150 = "E2150"
+    E2151 = "E2151"
+    E2152 = "E2152"
+    E2153 = "E2153"
+    E2154 = "E2154"
+    E2155 = "E2155"
+    E2156 = "E2156"
+    E2157 = "E2157"
+    E2158 = "E2158"
+    E2170 = "E2170"
 
 
 class Stage21WarningCode(str, Enum):
@@ -264,6 +292,17 @@ STAGE21_ERROR_CODE_NAMES: Mapping[str, str] = MappingProxyType({
     "E2132": "transport_rejected_dispatch_safety_false",
     "E2140": "local_ledger_duplicate_run_id",
     "E2141": "local_ledger_record_invalid_shape",
+    # 21.2 remediation (safe-content predicate + capture-time hash)
+    "E2150": "safe_string_violation_empty",
+    "E2151": "safe_string_violation_too_long",
+    "E2152": "safe_string_violation_disallowed_chars",
+    "E2153": "safe_string_violation_forbidden_substring",
+    "E2154": "safe_string_violation_control_char",
+    "E2155": "safe_string_violation_invalid_base58",
+    "E2156": "payload_too_deeply_nested",
+    "E2157": "payload_too_many_nodes",
+    "E2158": "payload_unsupported_value_type",
+    "E2170": "payload_hash_mismatch_at_capture",
 })
 
 
@@ -310,6 +349,38 @@ CODES_RESERVED_FOR_LATER_STAGE_21: frozenset[str] = frozenset({
     # 21.5
     "E2140",
     "E2141",
+    # 21.2 remediation (declared during pre-commit remediation;
+    # actively raised by the safe_content predicate and the
+    # fake-transport capture-time hash assert added in Stage 21.2
+    # remediation phases R1..R6).
+    "E2150",
+    "E2151",
+    "E2152",
+    "E2153",
+    "E2154",
+    "E2155",
+    "E2156",
+    "E2157",
+    "E2158",
+    "E2170",
+})
+
+# Explicit named set of the codes the Stage 21.2 remediation
+# introduced. Documentary only; the partition test uses
+# ``CODES_ACTIVE_IN_STAGE_21_1 | CODES_RESERVED_FOR_LATER_STAGE_21``
+# to cover the closed set. Having this set named separately gives
+# the audit reader a clear reference to the remediation surface.
+CODES_ACTIVE_IN_STAGE_21_2_REMEDIATION: frozenset[str] = frozenset({
+    "E2150",
+    "E2151",
+    "E2152",
+    "E2153",
+    "E2154",
+    "E2155",
+    "E2156",
+    "E2157",
+    "E2158",
+    "E2170",
 })
 
 WARNINGS_ACTIVE_IN_STAGE_21_1: frozenset[str] = frozenset({
@@ -441,8 +512,59 @@ STAGE21_EXPLICIT_ROUTING_ALLOWED_IDENTIFIERS: tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 21.2 remediation: locked forbidden-substring set
+# ---------------------------------------------------------------------------
+#
+# Stage 21.2 remediation introduces a shared safe-content predicate
+# (see ``PHX2/stage21/safe_content.py``) that rejects any string
+# value containing one of the locked substrings below. The set is
+# narrower than the prior Stage 21.2 ``_SECRET_LIKE_KEY_SUBSTRINGS``
+# tuple in ``normalized_events.py``; the normalizer retains its
+# wider supplemental list on top of this set so prior test coverage
+# is preserved. See ``PHX2/stage21/safe_content.py`` for the full
+# adjudication trail.
+
+
+# URL-scheme fragments are constructed via string concatenation so
+# the literal scheme prefixes never appear in this production
+# source file. The Stage 21 boundary test
+# ``test_no_url_literals_in_production_source`` enforces that
+# invariant (matches the existing pattern in
+# ``PHX2/stage21/errors.py``).
+_COLON_SLASH_SLASH: str = ":" + "//"
+_HTTP_SCHEME: str = "http" + _COLON_SLASH_SLASH
+_HTTPS_SCHEME: str = "https" + _COLON_SLASH_SLASH
+
+
+FORBIDDEN_SUBSTRINGS: tuple[str, ...] = (
+    _HTTP_SCHEME,
+    _HTTPS_SCHEME,
+    _COLON_SLASH_SLASH,
+    "webhook",
+    "api_key",
+    "secret",
+    "password",
+    "credential",
+    "public_dispatch",
+    "paid_dispatch",
+    "subscriber",
+)
+
+
+# Known-safe domain key names that legitimately contain "token" as
+# a substring of their key. The shared predicate uses this set to
+# distinguish credential-like ``token``/``auth_token``/etc. keys
+# from chain-domain ``token_address``/``token_mint`` keys.
+KNOWN_SAFE_DOMAIN_TOKEN_KEYS: tuple[str, ...] = (
+    "token_address",
+    "token_mint",
+)
+
+
 __all__ = [
     "CODES_ACTIVE_IN_STAGE_21_1",
+    "CODES_ACTIVE_IN_STAGE_21_2_REMEDIATION",
     "CODES_RESERVED_FOR_LATER_STAGE_21",
     "DEFAULT_DRY_RUN",
     "DEFAULT_LIVE_PRIVATE",
@@ -457,6 +579,8 @@ __all__ = [
     "ENV_VAR_SINK_MODE",
     "ENV_VAR_TELEGRAM_BOT_TOKEN",
     "ENV_VAR_TELEGRAM_CHAT_ID",
+    "FORBIDDEN_SUBSTRINGS",
+    "KNOWN_SAFE_DOMAIN_TOKEN_KEYS",
     "PRIVATE_PREVIEW_BANNER_TEXT",
     "PRIVATE_PREVIEW_DO_NOT_FORWARD_TEXT",
     "PRIVATE_PREVIEW_OPERATOR_ONLY_TEXT",

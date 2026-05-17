@@ -220,6 +220,23 @@ _CODE_TO_FAMILY: Mapping[str, str] = {
     "E2132": "transport_contract",
     "E2140": "telemetry",
     "E2141": "telemetry",
+    # 21.2 remediation codes: every safe-content predicate
+    # violation and the capture-time hash mismatch map to the
+    # telemetry family. Stage21Error (base) accepts any code;
+    # Stage21TelemetryError will also accept these. Stage 21.2
+    # callers in PHX2/stage21/safe_content.py raise the base
+    # Stage21Error directly so the violation surface stays
+    # minimal.
+    "E2150": "telemetry",
+    "E2151": "telemetry",
+    "E2152": "telemetry",
+    "E2153": "telemetry",
+    "E2154": "telemetry",
+    "E2155": "telemetry",
+    "E2156": "telemetry",
+    "E2157": "telemetry",
+    "E2158": "telemetry",
+    "E2170": "telemetry",
 }
 
 
