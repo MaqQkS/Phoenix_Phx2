@@ -29,6 +29,17 @@ What Stage 20.4 checklist_builder will NOT do:
   * No file I/O.
   * No git / subprocess / env reads / network.
   * No template rendering (handoff_writer owns markdown).
+
+Known limitations
+-----------------
+  * Checklist row order is hardcoded in
+    ``PHX2.stage20.closure.constants.CHECKLIST_ROW_ORDER``;
+    adding a row requires updating the locked row/code definitions
+    (constant tuple + checklist builder branch + tests) together.
+  * Checklist statuses are derived from fixed Stage 20.4 inputs
+    (input validation errors, audit result, artifact validation
+    result, two orchestrator-supplied flags). There is no
+    operator-supplied custom status override layer.
 """
 
 from __future__ import annotations

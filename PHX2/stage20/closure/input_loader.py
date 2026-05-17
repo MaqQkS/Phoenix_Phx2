@@ -414,7 +414,10 @@ def _validate_output_root_precondition(raw_value) -> Path:
 
     output_root failures are infrastructure preconditions: if it
     is invalid there is nowhere safe to write a closure manifest.
-    See operator decision on E2049 / no E2050 allocation.
+    Stage 20.4 v0 deliberately does NOT allocate a dedicated
+    E20xx code for this category. E2049 remains reserved/unused
+    in v0; any future structured output_root domain error code
+    is reserved for v1+ and is not named here.
     """
 
     if not isinstance(raw_value, str):

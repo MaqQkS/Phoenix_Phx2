@@ -42,6 +42,19 @@ What this module does NOT do:
 Phoenix1 departure note: this module imports no Phoenix1 code.
 
 Boundary discipline: imports only stdlib + closure subtree.
+
+Known limitations
+-----------------
+  * Writes eight artifacts in a fixed order; if the process is
+    interrupted mid-write, the operator must remove the partial
+    run directory before retrying. There is no resume / partial-
+    re-emit path; E2046 guards against overwriting on retry.
+  * Serialization is pinned to deterministic JSON / CSV / JSONL
+    settings (``sort_keys=True, indent=2, ensure_ascii=False`` for
+    JSON; ``lineterminator="\\n", QUOTE_MINIMAL`` for CSV;
+    JSON-lines per event for the run log). The implementation
+    assumes the text-mode CSV writer does not transform line
+    endings (relies on ``newline=""`` at ``open()``).
 """
 
 from __future__ import annotations

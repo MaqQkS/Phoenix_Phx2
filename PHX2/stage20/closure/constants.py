@@ -33,6 +33,25 @@ What Stage 20.4 will NOT do (relevant here):
     and are not operator-overridable.
   * No constants for any Stage 21 surface; Stage 21 is out of
     scope.
+
+Known limitations
+-----------------
+  * E2049 is reserved and unused in v0; activating it later
+    requires adding the code to ``ERROR_CODES`` /
+    ``ERROR_CODE_NAMES``, defining its trigger conditions in the
+    appropriate phase module, and adding tests. The reservation
+    is intentional, not a placeholder for an unfinished feature.
+  * Forbidden token checks (``BLOCKING_TOKEN_REGEXES`` /
+    ``WARNING_TOKEN_REGEXES``) are regex-based source scans and
+    are NOT a substitute for AST or semantic review of obfuscated
+    runtime construction (e.g. dynamic dict assembly or
+    ``setattr`` of a safety-flag-named attribute).
+  * Hand-duplicated Stage 20.2 / Stage 20.3 lineage field
+    mappings (``STAGE20_2_LINEAGE_HASH_FIELDS`` and the artifact
+    filename tuples) must stay in sync with any future Stage 20.2
+    / Stage 20.3 artifact-set changes; the duplication is the
+    contract, and drift produces a loud Stage 20.4 error rather
+    than silent re-aliasing.
 """
 
 from __future__ import annotations

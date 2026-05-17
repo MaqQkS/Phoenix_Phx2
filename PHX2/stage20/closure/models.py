@@ -25,6 +25,20 @@ What Stage 20.4 will NOT do (relevant to this module):
   * No runtime mutation of tuples; collections are immutable by
     construction.
   * No re-export of upstream Stage 20.1 / 20.2 / 20.3 models.
+
+Known limitations
+-----------------
+  * NamedTuples are immutable containers, but nested values passed
+    into fields are NOT deep-copied. Callers are responsible for
+    using immutable nested values (tuples of NamedTuples, frozen
+    dicts via ``MappingProxyType`` at the boundary, etc.) where
+    determinism matters. A caller that mutates a mutable nested
+    object after constructing a NamedTuple will see the mutation.
+  * Models do not enforce every closure domain invariant at
+    construction time (e.g. ``closure_status`` is typed as
+    ``str`` rather than restricted to the two locked values).
+    Validators, the orchestrator pipeline, and the locked tests
+    enforce the domain rules; the model layer is structural only.
 """
 
 from __future__ import annotations

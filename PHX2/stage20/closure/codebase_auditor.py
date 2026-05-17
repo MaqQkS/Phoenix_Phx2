@@ -55,8 +55,11 @@ Bucket mapping for the locked ``CodebaseAuditResult`` fields:
                                       field distinguishes the
                                       subcategory.
   - ``forbidden_phoenix1_imports`` -- phoenix1 / Phoenix1 / phx1.
-  - ``cross_stage_violations``     -- PHX2.stage17/18/19 (outer
-                                      scope only).
+  - ``cross_stage_violations``     -- PHX2.stage17/18/19
+                                      (BOTH inner closure scope AND
+                                      outer stage20 scope; closure
+                                      code must not reach into prior
+                                      pipeline stages either).
   - ``env_reads_in_closure``       -- os.environ / os.getenv
                                       (inner scope only).
   - ``subprocess_uses_in_closure`` -- subprocess (inner scope

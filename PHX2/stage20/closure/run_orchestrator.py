@@ -71,6 +71,23 @@ Phoenix1 departure note: this module imports no Phoenix1 code.
 Boundary discipline: imports only stdlib + the closure subtree.
 The orchestrator is the single integration point with Phase 1-5
 modules.
+
+Known limitations
+-----------------
+  * The CLI supports exactly one positional argument (the JSON
+    config path). There are no flags, no environment-variable
+    overrides, no interactive prompts, and no alternate input
+    modes. Operators wanting different inputs must edit the JSON
+    config file.
+  * Pre-run-dir failures exit before any artifacts are written;
+    no closure run directory is created and no log file is
+    produced. Operators must inspect stderr (and the operator's
+    own shell capture, if any) for the structured E20xx /
+    InputFormatError diagnostics.
+  * ``output_root_override`` is a test-only seam exposed for the
+    Phase 6 determinism harness. It is NOT an operator-facing
+    interface and is not accessible via the CLI; production
+    invocations always use the config's declared ``output_root``.
 """
 
 from __future__ import annotations

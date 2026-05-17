@@ -27,6 +27,18 @@ What this module does NOT do:
 Phoenix1 departure note: this module imports no Phoenix1 code.
 The handoff template references Phoenix1 as a forbidden import
 target in Stage 21 (Section D's locked text).
+
+Known limitations
+-----------------
+  * Template rendering uses simple ``{{placeholder}}`` exact-key
+    substitution; nested placeholders (e.g. a placeholder whose
+    value contains another ``{{key}}``) are not supported, and
+    placeholder values must be string-coercible scalars.
+  * Section text is template-locked. Wording changes (Section A
+    through Section H, the manual-tag recommendation, the
+    locked next-steps numbering) require editing the template
+    files under ``PHX2/stage20/closure/templates/``; they cannot
+    be altered via config or runtime input.
 """
 
 from __future__ import annotations
