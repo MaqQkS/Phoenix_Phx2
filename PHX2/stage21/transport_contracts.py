@@ -1,9 +1,14 @@
 """Stage 21 transport contract types.
 
-Stage 21 will eventually dispatch private-preview pings to one or
-more operator-controlled targets (Discord webhook / Telegram bot
-/ ...). Stage 21.1 ships the contract types only. The concrete
-transport adapter is Stage 21.4 scope.
+Stage 21 dispatches private-preview pings to one or more
+operator-controlled targets (Discord webhook / Telegram bot /
+...). Stage 21.1 shipped the contract types only. The concrete
+private transport adapter lands in Stage 21.3C
+(``PHX2/stage21/discord_private_transport.py``) as an
+offline-only boundary that gates an injected webhook client
+through dispatch-safety, live-readiness, SecretRef presence,
+and the operator allowlist. Stage 21.4 wires the runner / first
+private smoke ping on top of the Stage 21.3C boundary.
 
 Key invariants:
   * The contract is fakeable. Tests implement ``Stage21Transport``
@@ -17,8 +22,8 @@ Key invariants:
     Implementations MUST reject any send when the caller's
     ``safe_for_public_dispatch`` is true. The check is encoded as
     a contract assertion (``assert_transport_dispatch_safety``);
-    Stage 21.1 surfaces the helper but does not wire a real
-    sender.
+    Stage 21.1 surfaces the helper, Stage 21.3C wires it into the
+    private transport, and Stage 21.4 brings the real sender.
 """
 
 from __future__ import annotations

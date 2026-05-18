@@ -67,11 +67,17 @@ PROVIDER_ADAPTER_HELIUS_PATH: Path = (
 
 # Forbidden Stage 21.3B production filenames. These cover the
 # stages explicitly out of scope for 21.3B per the operator
-# prompt: Discord transport (21.3C), runner / orchestrator /
-# live_run (21.4), retry / backoff / dedupe / archive (Stage
-# 22), plus the Stage 21.3 manifest writer (deferred).
+# prompt: runner / orchestrator / live_run (21.4), retry /
+# backoff / dedupe / archive (Stage 22), plus the Stage 21.3
+# manifest writer (deferred).
+#
+# NOTE: ``discord_private_transport.py`` was on this list during
+# Stage 21.3B but has now landed as the Stage 21.3C boundary. The
+# Stage 21.3C boundary test
+# (``test_stage_21_3c_boundaries.py``) owns the new file's
+# invariants; this 21.3B list is narrowed accordingly so the
+# Stage 21.3C landing does not re-fail Stage 21.3B's scope check.
 _FORBIDDEN_21_3B_FILE_NAMES: tuple[str, ...] = (
-    "discord_private_transport.py",
     "stage21_3_manifest.py",
     "runner.py",
     "orchestrator.py",
