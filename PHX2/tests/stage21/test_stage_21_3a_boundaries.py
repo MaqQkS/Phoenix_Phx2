@@ -47,8 +47,13 @@ LIVE_SECRETS_BOUNDARY_PATH: Path = STAGE21_ROOT / "live_secrets_boundary.py"
 PROVIDER_EVENT_DECODER_PATH: Path = STAGE21_ROOT / "provider_event_decoder.py"
 
 
+# Stage 21.3A scope was contracts / config / live-gate / readiness
+# + decoder ONLY. ``provider_adapter_helius.py`` was forbidden in
+# 21.3A and landed in Stage 21.3B; this 21.3A boundary test no
+# longer flags it. The remaining two filenames stay forbidden in
+# 21.3A AND in 21.3B -- the Stage 21.3B boundary test re-pins
+# them so removing them here does not loosen the overall scope.
 _FORBIDDEN_21_3A_FILE_NAMES: tuple[str, ...] = (
-    "provider_adapter_helius.py",
     "discord_private_transport.py",
     "stage21_3_manifest.py",
 )
