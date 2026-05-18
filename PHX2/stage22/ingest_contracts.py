@@ -213,10 +213,17 @@ class IngestEventKey(NamedTuple):
                                   TAMPER-DETECTION field: catches
                                   "same id, different content" drift.
 
-    The future ledger MUST treat the full tuple as the unique
-    key, not just ``event_id``. The composite shape lets a
-    ledger detect the rare but important case where a malicious
-    or buggy provider re-uses an event_id with mutated content.
+    The full tuple is preserved on every record for audit /
+    correlation. Stage 22.2+ dedupe implementations are free to
+    project the key to a logical dedupe identity for
+    send-suppression lookup. The Stage 22.2 ledger uses
+    ``(provider_id, chain, event_id)`` as that identity:
+    ``provider_event_id`` and ``raw_event_hash`` are NOT part
+    of send-suppression identity, so a provider that mutates
+    either field cannot defeat dedupe by re-emitting the same
+    logical event. Detection of "same logical id but different
+    audit fields" drift is a Stage 22.3+ capture / audit
+    concern.
     """
 
     provider_id: str

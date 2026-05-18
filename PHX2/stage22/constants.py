@@ -30,7 +30,7 @@ from __future__ import annotations
 
 STAGE22_VERSION: str = "stage22_v0_ingest_hardening_foundation"
 # Minor version axis. Bump on every sub-stage merge: 22.1 -> 22.2 -> ...
-STAGE22_MINOR_VERSION: str = "22.1"
+STAGE22_MINOR_VERSION: str = "22.2"
 
 # Stage 22 consumes Stage 21 normalized event records as input.
 # The Stage 22 -> Stage 23 contract version is reserved here but
@@ -352,4 +352,71 @@ STAGE22_FORBIDDEN_VOCABULARY: tuple[str, ...] = (
     "axiom",
     "jito",
     "eligibility",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 22.2 -- dedupe ledger record schema (JSONL)
+# ---------------------------------------------------------------------------
+#
+# Stage 22.2 introduces the JSONL dedupe ledger record family.
+# The schema version is per-record (not per-file) so a future
+# bump can migrate without a file-header dance. The two record
+# types model the two state transitions of the seen/dispatched
+# state machine the future bounded runner will drive.
+#
+# A "seen" record is appended on the first ``check_and_record``
+# observation of a given logical key. A "dispatched" record is
+# appended on ``mark_dispatched`` for that key. Duplicate seen
+# or duplicate dispatched lines on replay are tolerated (the
+# state machine is idempotent on those transitions). A
+# "dispatched" record for a key that has not been "seen" first
+# is a corrupt ledger and is rejected with
+# ``Stage22LedgerContractError``.
+
+
+STAGE22_LEDGER_RECORD_SCHEMA_VERSION: str = "stage22_v0_ledger"
+
+
+LEDGER_RECORD_TYPE_SEEN: str = "seen"
+LEDGER_RECORD_TYPE_DISPATCHED: str = "dispatched"
+
+
+LEDGER_RECORD_TYPES: tuple[str, ...] = (
+    LEDGER_RECORD_TYPE_SEEN,
+    LEDGER_RECORD_TYPE_DISPATCHED,
+)
+
+
+# Required fields on every JSONL ledger record. The values are
+# all non-secret short strings; the schema version is a closed
+# constant; the record type is a closed-set token; the
+# remaining five fields are the ``IngestEventKey`` projection.
+# ``provider_event_id`` may be the empty string (audit-only)
+# while the rest must be non-empty.
+
+
+LEDGER_REQUIRED_RECORD_FIELDS: tuple[str, ...] = (
+    "schema_version",
+    "record_type",
+    "provider_id",
+    "chain",
+    "event_id",
+    "provider_event_id",
+    "raw_event_hash",
+)
+
+
+# Record fields that must be non-empty on replay (the dedupe
+# identity components plus the canonical correlation hash).
+# ``provider_event_id`` is intentionally excluded -- it may be
+# the empty string per the Stage 22.1 ``MalformedEventRecord``
+# convention and remains audit-only.
+
+
+LEDGER_REQUIRED_NON_EMPTY_FIELDS: tuple[str, ...] = (
+    "provider_id",
+    "chain",
+    "event_id",
+    "raw_event_hash",
 )

@@ -20,7 +20,7 @@ def test_stage22_version_is_locked():
 
 
 def test_stage22_minor_version_is_locked():
-    assert c.STAGE22_MINOR_VERSION == "22.1"
+    assert c.STAGE22_MINOR_VERSION == "22.2"
 
 
 def test_stage22_consumer_contract_version_is_locked():
@@ -316,3 +316,99 @@ def test_stage22_forbidden_vocabulary_omits_legitimate_22_vocabulary():
         f"Stage 22 forbidden vocabulary illegally includes legitimate "
         f"Stage 22 vocabulary: {sorted(overlap)}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Stage 22.2 ledger record schema constants
+# ---------------------------------------------------------------------------
+
+
+def test_stage22_ledger_record_schema_version_is_locked():
+    assert c.STAGE22_LEDGER_RECORD_SCHEMA_VERSION == "stage22_v0_ledger"
+
+
+def test_ledger_record_type_seen_token_value():
+    assert c.LEDGER_RECORD_TYPE_SEEN == "seen"
+
+
+def test_ledger_record_type_dispatched_token_value():
+    assert c.LEDGER_RECORD_TYPE_DISPATCHED == "dispatched"
+
+
+def test_ledger_record_types_match_locked_two_token_tuple():
+    assert c.LEDGER_RECORD_TYPES == (
+        "seen",
+        "dispatched",
+    )
+
+
+def test_ledger_record_types_has_no_duplicates():
+    assert len(c.LEDGER_RECORD_TYPES) == len(set(c.LEDGER_RECORD_TYPES))
+
+
+def test_ledger_record_types_tokens_are_shape_safe():
+    for token in c.LEDGER_RECORD_TYPES:
+        assert isinstance(token, str)
+        assert token != ""
+        assert token == token.strip()
+        assert len(token) <= 64
+        for ch in token:
+            assert (
+                ch.isdigit()
+                or (ch.isalpha() and ch.islower() and ch.isascii())
+                or ch == "_"
+            ), f"LEDGER_RECORD_TYPES token {token!r} has bad char {ch!r}"
+
+
+def test_ledger_required_record_fields_match_locked_tuple():
+    assert c.LEDGER_REQUIRED_RECORD_FIELDS == (
+        "schema_version",
+        "record_type",
+        "provider_id",
+        "chain",
+        "event_id",
+        "provider_event_id",
+        "raw_event_hash",
+    )
+
+
+def test_ledger_required_non_empty_fields_match_locked_tuple():
+    assert c.LEDGER_REQUIRED_NON_EMPTY_FIELDS == (
+        "provider_id",
+        "chain",
+        "event_id",
+        "raw_event_hash",
+    )
+
+
+def test_ledger_required_non_empty_fields_is_a_subset_of_required_record_fields():
+    assert set(c.LEDGER_REQUIRED_NON_EMPTY_FIELDS) <= set(
+        c.LEDGER_REQUIRED_RECORD_FIELDS
+    )
+
+
+def test_ledger_required_record_fields_carry_no_secret_bearing_substring():
+    forbidden = (
+        "api_key",
+        "apikey",
+        "webhook",
+        "rpc_url",
+        "raw_response",
+        "response_body",
+        "exception_message",
+        "exception_repr",
+        "exception_args",
+        "authorization",
+        "bearer",
+        "password",
+        "secret",
+        "credential",
+        "private_key",
+    )
+    for field in c.LEDGER_REQUIRED_RECORD_FIELDS:
+        lower = field.lower()
+        for bad in forbidden:
+            assert bad not in lower, (
+                f"LEDGER_REQUIRED_RECORD_FIELDS entry {field!r} contains "
+                f"forbidden secret-bearing substring {bad!r}"
+            )

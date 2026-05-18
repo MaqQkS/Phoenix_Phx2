@@ -43,21 +43,27 @@ STAGE22_ROOT: Path = Path(__file__).parent.parent.parent / "stage22"
 # ---------------------------------------------------------------------------
 
 
+# Stage 22 production scope -- updated each sub-stage. 22.2 adds
+# ``dedupe_ledger.py`` (in-memory + JSONL ledger implementations
+# behind the locked Stage 22.1 ``DedupeLedger`` Protocol). The
+# filename in this file is historical ("22.1") but the locked set
+# is the rolling Stage 22 production tree.
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
     "__init__.py",
     "constants.py",
     "errors.py",
     "ingest_contracts.py",
     "failure_classification.py",
+    "dedupe_ledger.py",
 })
 
 
-# Filenames that MUST NOT exist under PHX2/stage22/ in 22.1.
-# Each name corresponds to behaviour reserved for Stage 22.2+
-# or strictly later.
+# Filenames that MUST NOT exist under PHX2/stage22/. Each name
+# corresponds to behaviour reserved for a later Stage 22 sub-stage
+# or strictly later stage. Entries removed at 22.2 because the
+# corresponding module landed: ``dedupe_ledger.py``.
 _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
-    # Ledger implementations
-    "dedupe_ledger.py",
+    # Ledger implementations beyond the single 22.2 module
     "dedupe_ledger_jsonl.py",
     "dedupe_ledger_sqlite.py",
     "dedupe_ledger_in_memory.py",
@@ -145,17 +151,30 @@ _FORBIDDEN_CLI_OR_SLEEP_TOP_LEVEL_MODULES: frozenset[str] = frozenset({
 })
 
 
-# File-persistence modules a Stage 22.1 production module must NEVER
+# File-persistence modules a Stage 22 production module must NEVER
 # import. ``json`` is whitelisted at the import level because the
-# classifier mapping table is in-memory only; no production module
-# in 22.1 actually imports json yet, but the import is harmless if
-# a future classifier helper needs it for hashing. (sqlite3 /
-# sqlalchemy are caught by the import-boundary scanner separately.)
+# classifier mapping table is in-memory only and the Stage 22.2
+# JSONL dedupe ledger legitimately consumes it. ``pathlib`` is in
+# this forbidden set but is per-file allowlisted for the Stage
+# 22.2 dedupe ledger module via ``_PATHLIB_ALLOWED_FILES`` below;
+# every other production module still cannot import it.
+# (sqlite3 / sqlalchemy are caught by the import-boundary scanner
+# separately.)
 _FORBIDDEN_FILE_PERSISTENCE_TOP_LEVEL_MODULES: frozenset[str] = frozenset({
     "pathlib",
     "shutil",
     "tempfile",
     "csv",
+})
+
+
+# Per-file allowlist for the otherwise-forbidden ``pathlib``
+# import. Stage 22.2 ships ``dedupe_ledger.py`` containing the
+# JSONL ledger implementation, which legitimately needs
+# ``pathlib.Path`` for operator-supplied ledger paths. No other
+# Stage 22 production module may import ``pathlib``.
+_PATHLIB_ALLOWED_FILES: frozenset[str] = frozenset({
+    "dedupe_ledger.py",
 })
 
 
@@ -367,10 +386,13 @@ def test_no_production_module_imports_cli_or_sleep_libs():
 def test_no_production_module_imports_file_persistence_libs():
     for py_file in _iter_production_modules():
         tree = ast.parse(_read_source(py_file))
+        allow_pathlib = py_file.name in _PATHLIB_ALLOWED_FILES
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     top = alias.name.split(".")[0]
+                    if top == "pathlib" and allow_pathlib:
+                        continue
                     assert (
                         top
                         not in _FORBIDDEN_FILE_PERSISTENCE_TOP_LEVEL_MODULES
@@ -381,6 +403,8 @@ def test_no_production_module_imports_file_persistence_libs():
             elif isinstance(node, ast.ImportFrom):
                 mod = node.module or ""
                 top = mod.split(".")[0]
+                if top == "pathlib" and allow_pathlib:
+                    continue
                 assert (
                     top
                     not in _FORBIDDEN_FILE_PERSISTENCE_TOP_LEVEL_MODULES
