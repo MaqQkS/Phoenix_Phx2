@@ -22,6 +22,7 @@ from PHX2.stage21.live_secrets_boundary import (
     ENV_VAR_LIVE_SMOKE_MODE,
     ENV_VAR_PROVIDER_ID,
     ENV_VAR_SAFE_FOR_LIVE_DISPATCH,
+    HELIUS_PROVIDER_ID,
     LIVE_SAFETY_ACKNOWLEDGEMENT_V1,
     LIVE_SMOKE_MODE_TOKEN,
     PLACEHOLDER_PROVIDER_ID_21_3B,
@@ -40,6 +41,7 @@ from PHX2.stage21.live_secrets_boundary import (
     ReadinessResult,
     STAGE21_3A_NEW_ENV_VAR_NAMES,
     STAGE21_3A_READINESS_REASON_TOKENS,
+    SUPPORTED_PROVIDER_IDS,
     Stage21LiveReadinessConfig,
     evaluate_live_readiness,
     load_live_readiness_config_from_env,
@@ -262,9 +264,11 @@ def test_uppercase_live_smoke_mode_does_not_match_enabling_token():
             REASON_MISSING_PROVIDER_ID,
         ),
         (
-            # A real provider name like ``"helius"`` is rejected
-            # in Stage 21.3A; the real vocabulary lands in 21.3B+.
-            {ENV_VAR_PROVIDER_ID: "helius"},
+            # Stage 21.4 widened the supported set to also accept
+            # ``"helius"``. Any other real provider name (e.g.
+            # ``"birdeye"``) is still rejected; the widening was
+            # explicitly narrow.
+            {ENV_VAR_PROVIDER_ID: "birdeye"},
             REASON_UNSUPPORTED_PROVIDER_ID,
         ),
         (
@@ -335,9 +339,12 @@ def test_empty_provider_id_yields_missing_reason():
     assert REASON_UNSUPPORTED_PROVIDER_ID not in result.reasons
 
 
-def test_real_provider_id_helius_yields_unsupported_reason_and_not_ready():
+def test_real_provider_id_birdeye_yields_unsupported_reason_and_not_ready():
+    # Stage 21.4 widened ``SUPPORTED_PROVIDER_IDS`` to add
+    # ``"helius"`` only. ``"birdeye"`` remains unsupported and
+    # surfaces ``unsupported_provider_id``.
     env = _fully_ready_env()
-    env[ENV_VAR_PROVIDER_ID] = "helius"
+    env[ENV_VAR_PROVIDER_ID] = "birdeye"
     cfg = load_live_readiness_config_from_env(env)
     result = evaluate_live_readiness(cfg)
     assert result.ready is False
@@ -347,13 +354,18 @@ def test_real_provider_id_helius_yields_unsupported_reason_and_not_ready():
 
 @pytest.mark.parametrize(
     "candidate_real_provider_id",
-    ["helius", "birdeye", "jupiter", "shyft", "quicknode", "rpcmania"],
+    ["birdeye", "jupiter", "shyft", "quicknode", "rpcmania"],
 )
-def test_known_real_provider_id_candidates_are_all_rejected_in_21_3a(
+def test_known_real_provider_id_candidates_outside_supported_set_are_rejected(
     candidate_real_provider_id: str,
 ):
-    # Stage 21.3A locks the gate to the placeholder. Any plausible
-    # real provider name is rejected with ``unsupported_provider_id``.
+    # Stage 21.4 widened the supported set to
+    # ``{PLACEHOLDER_PROVIDER_ID_21_3B, HELIUS_PROVIDER_ID}``.
+    # Any plausible real provider name outside that set is rejected
+    # with ``unsupported_provider_id``. ``"helius"`` is intentionally
+    # excluded from this panel because it is now an accepted
+    # provider id (see
+    # ``test_helius_provider_id_passes_the_gate_after_21_4_widening``).
     env = _fully_ready_env()
     env[ENV_VAR_PROVIDER_ID] = candidate_real_provider_id
     cfg = load_live_readiness_config_from_env(env)
@@ -372,6 +384,52 @@ def test_placeholder_provider_id_passes_the_gate():
     # result with empty reasons.
     assert result.ready is True
     assert result.reasons == ()
+
+
+def test_helius_provider_id_passes_the_gate_after_21_4_widening():
+    # Stage 21.4 widened ``SUPPORTED_PROVIDER_IDS`` to also accept
+    # ``HELIUS_PROVIDER_ID``. With the rest of the fully-ready env
+    # the readiness gate now evaluates ready=True for an operator
+    # using a real Helius adapter.
+    env = _fully_ready_env()
+    env[ENV_VAR_PROVIDER_ID] = HELIUS_PROVIDER_ID
+    cfg = load_live_readiness_config_from_env(env)
+    result = evaluate_live_readiness(cfg)
+    assert result.ready is True
+    assert result.reasons == ()
+
+
+def test_helius_provider_id_constant_is_helius_lowercase():
+    # Locked operator decision: the Helius provider id is the bare
+    # lowercase string. Any casing variant (``"Helius"`` /
+    # ``"HELIUS"``) is intentionally NOT accepted at the gate
+    # because the readiness check is exact-membership.
+    assert HELIUS_PROVIDER_ID == "helius"
+
+
+def test_supported_provider_ids_locked_to_two_values_exactly():
+    # Stage 21.4 lock: the supported set is exactly the placeholder
+    # plus ``HELIUS_PROVIDER_ID``. Adding a third id requires an
+    # explicit operator decision; this assertion surfaces any
+    # drift immediately.
+    assert SUPPORTED_PROVIDER_IDS == frozenset({
+        PLACEHOLDER_PROVIDER_ID_21_3B,
+        HELIUS_PROVIDER_ID,
+    })
+    assert len(SUPPORTED_PROVIDER_IDS) == 2
+
+
+def test_helius_casing_variants_are_rejected_unsupported():
+    # The check is exact membership against the locked set; case
+    # variants of ``"helius"`` are not members and must surface
+    # ``unsupported_provider_id``.
+    for variant in ("Helius", "HELIUS", "heliUS", " helius", "helius "):
+        env = _fully_ready_env()
+        env[ENV_VAR_PROVIDER_ID] = variant
+        cfg = load_live_readiness_config_from_env(env)
+        result = evaluate_live_readiness(cfg)
+        assert result.ready is False, variant
+        assert REASON_UNSUPPORTED_PROVIDER_ID in result.reasons, variant
 
 
 def test_unsupported_provider_id_reason_does_not_leak_raw_value():

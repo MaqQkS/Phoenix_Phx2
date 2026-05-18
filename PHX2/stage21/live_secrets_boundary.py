@@ -99,14 +99,34 @@ LIVE_SMOKE_MODE_TOKEN: str = "live_smoke"
 
 
 # Locked Stage 21.3A placeholder ``provider_id``. The real
-# provider-id vocabulary is reserved for Stage 21.3B+; Stage
-# 21.3A's readiness gate accepts ONLY this exact placeholder
-# string. An operator-typed ``provider_id`` that matches a real
-# provider name (e.g. ``"helius"``) is rejected at the readiness
-# gate with reason ``unsupported_provider_id`` so a partial
-# Stage 21.3A roll-out cannot accidentally lift the placeholder
-# in advance of the concrete adapter landing.
+# provider-id vocabulary lands incrementally: Stage 21.3A
+# accepted ONLY this placeholder; Stage 21.4 added
+# ``HELIUS_PROVIDER_ID`` to the supported set so a real Helius
+# live smoke ping can satisfy the readiness gate without forcing
+# the operator to type a misleading placeholder. Any other
+# operator-typed ``provider_id`` is still rejected at the
+# readiness gate with reason ``unsupported_provider_id``.
 PLACEHOLDER_PROVIDER_ID_21_3B: str = "reserved_for_21_3b"
+
+
+# Stage 21.4 locked Helius provider id. Added so a real Helius
+# live smoke ping can satisfy the readiness gate while keeping
+# the supported set narrow. The placeholder remains accepted so
+# existing operator setups and the Stage 21.3A test panel keep
+# passing. Adding any further provider id requires an explicit
+# operator decision plus a paired test update.
+HELIUS_PROVIDER_ID: str = "helius"
+
+
+# Locked closed set of accepted ``provider_id`` values. Stage 21.4
+# widened this from ``{PLACEHOLDER_PROVIDER_ID_21_3B}`` to also
+# accept ``HELIUS_PROVIDER_ID``. The set is read by
+# ``evaluate_live_readiness`` via membership; equality against the
+# placeholder alone is no longer the gate.
+SUPPORTED_PROVIDER_IDS: frozenset[str] = frozenset({
+    PLACEHOLDER_PROVIDER_ID_21_3B,
+    HELIUS_PROVIDER_ID,
+})
 
 
 # Locked safety-acknowledgement V1 token. The operator must type
@@ -297,12 +317,13 @@ def evaluate_live_readiness(
       * base.sink_mode is SinkModeName.PRIVATE_PREVIEW
       * base.live_private is True
       * base.safe_for_public_dispatch is False
-      * provider_id is non-empty AND exactly equals
-        PLACEHOLDER_PROVIDER_ID_21_3B. A missing / empty value
+      * provider_id is non-empty AND a member of
+        ``SUPPORTED_PROVIDER_IDS``. The set is locked at
+        ``{PLACEHOLDER_PROVIDER_ID_21_3B, HELIUS_PROVIDER_ID}``
+        (Stage 21.4 widening). A missing / empty value
         contributes ``missing_provider_id``; a present but
-        non-placeholder value (e.g. a real provider name like
-        ``"helius"``) contributes ``unsupported_provider_id``.
-        The real provider-id vocabulary lands in Stage 21.3B+.
+        unsupported value (any provider name outside the
+        locked set) contributes ``unsupported_provider_id``.
       * base.provider_api_key.present
       * base.provider_rpc_url.present
       * base.discord_webhook_url.present
@@ -328,7 +349,7 @@ def evaluate_live_readiness(
         reasons.append(REASON_BASE_PUBLIC_FLAG_NOT_FALSE)
     if not config.provider_id:
         reasons.append(REASON_MISSING_PROVIDER_ID)
-    elif config.provider_id != PLACEHOLDER_PROVIDER_ID_21_3B:
+    elif config.provider_id not in SUPPORTED_PROVIDER_IDS:
         reasons.append(REASON_UNSUPPORTED_PROVIDER_ID)
     if not base.provider_api_key.present:
         reasons.append(REASON_PROVIDER_API_KEY_MISSING)
@@ -349,6 +370,7 @@ __all__ = [
     "ENV_VAR_LIVE_SMOKE_MODE",
     "ENV_VAR_PROVIDER_ID",
     "ENV_VAR_SAFE_FOR_LIVE_DISPATCH",
+    "HELIUS_PROVIDER_ID",
     "LIVE_SAFETY_ACKNOWLEDGEMENT_V1",
     "LIVE_SMOKE_MODE_TOKEN",
     "PLACEHOLDER_PROVIDER_ID_21_3B",
@@ -367,6 +389,7 @@ __all__ = [
     "ReadinessResult",
     "STAGE21_3A_NEW_ENV_VAR_NAMES",
     "STAGE21_3A_READINESS_REASON_TOKENS",
+    "SUPPORTED_PROVIDER_IDS",
     "Stage21LiveReadinessConfig",
     "evaluate_live_readiness",
     "load_live_readiness_config_from_env",
