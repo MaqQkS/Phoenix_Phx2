@@ -48,9 +48,14 @@ STAGE22_ROOT: Path = Path(__file__).parent.parent.parent / "stage22"
 # behind the locked Stage 22.1 ``DedupeLedger`` Protocol). 22.3
 # adds ``raw_capture.py`` (in-memory + JSONL raw capture writer
 # implementations behind the locked Stage 22.1
-# ``RawCaptureWriter`` Protocol). The filename in this file is
-# historical ("22.1") but the locked set is the rolling Stage 22
-# production tree.
+# ``RawCaptureWriter`` Protocol). 22.4 adds
+# ``failure_handling.py`` (pure batch isolation helper:
+# provider failure + malformed event handling on top of the
+# locked Stage 22.1 contract surface; injected decode +
+# classify callables, capture-fatal semantics, deterministic
+# malformed-event raw_event_hash derivation). The filename in
+# this file is historical ("22.1") but the locked set is the
+# rolling Stage 22 production tree.
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
     "__init__.py",
     "constants.py",
@@ -59,6 +64,7 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
     "failure_classification.py",
     "dedupe_ledger.py",
     "raw_capture.py",
+    "failure_handling.py",
 })
 
 
@@ -67,7 +73,10 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
 # or strictly later stage. Entries removed at 22.2 because the
 # corresponding module landed: ``dedupe_ledger.py``. 22.3 keeps
 # the alternate capture writer filenames forbidden because the
-# stage shipped ``raw_capture.py`` instead.
+# stage shipped ``raw_capture.py`` instead. 22.4 keeps the
+# bounded-runner / retry / reconnect / adapter / transport
+# filenames forbidden because Stage 22.4 ships only the pure
+# batch isolation helper (``failure_handling.py``).
 _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # Ledger implementations beyond the single 22.2 module
     "dedupe_ledger_jsonl.py",
@@ -81,6 +90,12 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     "capture_writer.py",
     "raw_capture_in_memory.py",
     "raw_capture_jsonl.py",
+    # Batch-isolation alternate filenames beyond the single 22.4 module
+    "batch_handling.py",
+    "batch_isolation.py",
+    "provider_failure_handler.py",
+    "malformed_event_handler.py",
+    "decode_isolation.py",
     # Runner / orchestrator
     "ingest_runner.py",
     "bounded_runner.py",

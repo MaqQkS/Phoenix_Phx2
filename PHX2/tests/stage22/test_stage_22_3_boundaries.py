@@ -112,8 +112,8 @@ def _collect_identifiers() -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_stage22_minor_version_is_22_3():
-    assert c.STAGE22_MINOR_VERSION == "22.3"
+def test_stage22_minor_version_is_22_4():
+    assert c.STAGE22_MINOR_VERSION == "22.4"
 
 
 def test_capture_record_type_normalized_event_is_locked_value():

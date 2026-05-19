@@ -30,7 +30,7 @@ from __future__ import annotations
 
 STAGE22_VERSION: str = "stage22_v0_ingest_hardening_foundation"
 # Minor version axis. Bump on every sub-stage merge: 22.1 -> 22.2 -> ...
-STAGE22_MINOR_VERSION: str = "22.3"
+STAGE22_MINOR_VERSION: str = "22.4"
 
 # Stage 22 consumes Stage 21 normalized event records as input.
 # The Stage 22 -> Stage 23 contract version is reserved here but

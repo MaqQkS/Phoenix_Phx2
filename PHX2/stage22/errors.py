@@ -19,14 +19,18 @@ The hierarchy:
     ├── Stage22CaptureContractError
     ├── Stage22ClassifierContractError
     ├── Stage22RetryContractError
-    └── Stage22RunnerContractError
+    ├── Stage22RunnerContractError
+    └── Stage22BatchHandlingContractError
 
 Each subclass is raised by a specific Stage 22 contract surface
 on a hard contract violation (e.g. ``classify_failure`` called
 with an out-of-set ``status_class`` value). Stage 22.1 itself
-raises only ``Stage22ClassifierContractError`` -- the other
-subclasses are reserved for the future Stage 22 ledger / capture
-writer / retry policy / bounded runner.
+raises only ``Stage22ClassifierContractError``; Stage 22.4
+additionally raises ``Stage22BatchHandlingContractError`` from
+the pure ``handle_provider_batch`` helper for input-coherence
+violations. The other subclasses remain reserved for the
+future Stage 22 ledger / capture writer / retry policy /
+bounded runner.
 """
 
 from __future__ import annotations
@@ -108,14 +112,43 @@ class Stage22RunnerContractError(Stage22ContractError):
     """Raised when bounded-runner construction violates the contract.
 
     Stage 22.1 ships no runner; this exception is reserved for
-    the future Stage 22 bounded runner (Stage 22.2+) at
+    the future Stage 22 bounded runner (Stage 22.5+) at
     construction-time argument validation -- analogous to the
     Stage 21.4 ``Stage21RunnerError`` but in the Stage 22
-    ingest-runner context.
+    ingest-runner context. NOT raised in Stage 22.4.
+    """
+
+
+class Stage22BatchHandlingContractError(Stage22ContractError):
+    """Raised when the Stage 22.4 pure batch helper receives an
+    incoherent input or an injected callable returns an out-of-
+    contract value.
+
+    Active in Stage 22.4. The ``handle_provider_batch`` helper
+    raises this exception when:
+
+      * ``fetch_outcome.ok`` is False but ``fetch_outcome.responses``
+        is non-empty (a failed fetch cannot also carry events).
+      * ``fetch_outcome.ok`` is True but ``fetch_outcome.status_class``
+        is not ``"success"``.
+      * ``decode_event_fn`` returns a value that is not a
+        ``NormalizedLiveEvent``.
+      * A successfully decoded event's ``chain`` does not match the
+        caller-supplied chain (provenance mismatch).
+      * ``classify_decode_error_fn`` returns a value outside
+        ``MALFORMED_EVENT_REASONS``.
+      * The malformed raw payload cannot satisfy the safe
+        ``MalformedEventRecord`` builder contract for any field
+        other than the fields the helper itself derives.
+
+    The detail string is a short non-secret label. Raw exception
+    material, raw payload values, and provider-supplied URLs /
+    headers / API keys NEVER reach this surface.
     """
 
 
 __all__ = [
+    "Stage22BatchHandlingContractError",
     "Stage22CaptureContractError",
     "Stage22ClassifierContractError",
     "Stage22ContractError",

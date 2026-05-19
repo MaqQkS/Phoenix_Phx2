@@ -20,7 +20,7 @@ def test_stage22_version_is_locked():
 
 
 def test_stage22_minor_version_is_locked():
-    assert c.STAGE22_MINOR_VERSION == "22.3"
+    assert c.STAGE22_MINOR_VERSION == "22.4"
 
 
 def test_stage22_consumer_contract_version_is_locked():

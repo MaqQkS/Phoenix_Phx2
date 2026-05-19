@@ -20,6 +20,7 @@ import pytest
 
 from PHX2.stage21.errors import Stage21Error
 from PHX2.stage22.errors import (
+    Stage22BatchHandlingContractError,
     Stage22CaptureContractError,
     Stage22ClassifierContractError,
     Stage22ContractError,
@@ -35,6 +36,7 @@ _STAGE22_SUBCLASSES: tuple[type[Stage22ContractError], ...] = (
     Stage22ClassifierContractError,
     Stage22RetryContractError,
     Stage22RunnerContractError,
+    Stage22BatchHandlingContractError,
 )
 
 
