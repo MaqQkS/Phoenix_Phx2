@@ -20,7 +20,7 @@ def test_stage22_version_is_locked():
 
 
 def test_stage22_minor_version_is_locked():
-    assert c.STAGE22_MINOR_VERSION == "22.4"
+    assert c.STAGE22_MINOR_VERSION == "22.5"
 
 
 def test_stage22_consumer_contract_version_is_locked():
@@ -776,3 +776,95 @@ def test_capture_forbidden_secret_key_substrings_has_no_duplicates():
     assert len(c.CAPTURE_FORBIDDEN_SECRET_KEY_SUBSTRINGS) == len(
         set(c.CAPTURE_FORBIDDEN_SECRET_KEY_SUBSTRINGS)
     )
+
+
+# ---------------------------------------------------------------------------
+# Stage 22.5 bounded private ingest runner constants
+# ---------------------------------------------------------------------------
+
+
+def test_stage22_dispatch_outcome_dispatched_token_value():
+    assert c.STAGE22_DISPATCH_OUTCOME_DISPATCHED == "dispatched"
+
+
+def test_stage22_retryable_failure_labels_match_locked_subset():
+    assert c.STAGE22_RETRYABLE_FAILURE_LABELS == (
+        "provider_fetch_timeout",
+        "provider_fetch_rate_limited",
+        "provider_fetch_5xx",
+        "provider_fetch_connection",
+    )
+
+
+def test_stage22_retryable_failure_labels_are_subset_of_provider_failure_labels():
+    assert set(c.STAGE22_RETRYABLE_FAILURE_LABELS) <= set(
+        c.PROVIDER_FAILURE_LABELS
+    )
+
+
+def test_stage22_retryable_failure_labels_have_no_duplicates():
+    assert len(c.STAGE22_RETRYABLE_FAILURE_LABELS) == len(
+        set(c.STAGE22_RETRYABLE_FAILURE_LABELS)
+    )
+
+
+def test_stage22_retryable_failure_labels_excludes_non_retryable_labels():
+    non_retryable = (
+        "provider_fetch_4xx",
+        "provider_fetch_auth",
+        "provider_fetch_other",
+        "provider_returned_malformed",
+    )
+    for label in non_retryable:
+        assert label not in c.STAGE22_RETRYABLE_FAILURE_LABELS, (
+            f"label {label!r} should not be retryable in Stage 22.5/22.6"
+        )
+
+
+def test_stage22_private_ping_body_max_len_is_locked():
+    assert c.STAGE22_PRIVATE_PING_BODY_MAX_LEN == 384
+    assert isinstance(c.STAGE22_PRIVATE_PING_BODY_MAX_LEN, int)
+    assert not isinstance(c.STAGE22_PRIVATE_PING_BODY_MAX_LEN, bool)
+
+
+def test_stage22_private_ping_safe_field_names_match_locked_set():
+    assert c.STAGE22_PRIVATE_PING_SAFE_FIELD_NAMES == (
+        "provider_id",
+        "chain",
+        "event_type",
+        "mint",
+        "slot",
+        "event_id",
+    )
+
+
+def test_stage22_private_ping_safe_field_names_have_no_duplicates():
+    assert len(c.STAGE22_PRIVATE_PING_SAFE_FIELD_NAMES) == len(
+        set(c.STAGE22_PRIVATE_PING_SAFE_FIELD_NAMES)
+    )
+
+
+def test_stage22_private_ping_safe_field_names_carry_no_secret_substring():
+    forbidden = (
+        "api_key",
+        "apikey",
+        "webhook",
+        "rpc_url",
+        "raw_response",
+        "response_body",
+        "exception_message",
+        "exception_repr",
+        "authorization",
+        "bearer",
+        "password",
+        "secret",
+        "credential",
+        "private_key",
+    )
+    for field in c.STAGE22_PRIVATE_PING_SAFE_FIELD_NAMES:
+        lower = field.lower()
+        for bad in forbidden:
+            assert bad not in lower, (
+                f"STAGE22_PRIVATE_PING_SAFE_FIELD_NAMES entry "
+                f"{field!r} contains forbidden substring {bad!r}"
+            )

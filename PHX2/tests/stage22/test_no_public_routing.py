@@ -131,8 +131,19 @@ def test_forbidden_routing_tokens_only_appear_in_locked_constants_tuple():
     mentioned in documentation prose).
 
     Every other production file must contain none of the
-    forbidden tokens at the source-text level.
+    forbidden tokens at the source-text level, EXCEPT where the
+    token appears as part of an explicit-allow identifier
+    (``STAGE22_EXPLICIT_ROUTING_ALLOWED_IDENTIFIERS``). The
+    identifier-position scanner above already allows that
+    identifier; the source-text scan strips those identifier
+    spellings from the input before scanning so a legitimate
+    ``safe_for_public_dispatch=False`` kwarg on a Stage 21
+    ``TransportPayload`` construction does not trip the scan.
     """
+    from PHX2.stage22.constants import (
+        STAGE22_EXPLICIT_ROUTING_ALLOWED_IDENTIFIERS,
+    )
+
     allowed_files = {
         STAGE22_ROOT / "constants.py",
         STAGE22_ROOT / "__init__.py",
@@ -141,6 +152,12 @@ def test_forbidden_routing_tokens_only_appear_in_locked_constants_tuple():
         if py_file in allowed_files:
             continue
         source = py_file.read_text(encoding="utf-8")
+        # Strip every explicit-allow identifier spelling before
+        # the source-text scan. The identifier-position scanner
+        # already permits these; the source-text scan must not
+        # re-flag them.
+        for allowed in STAGE22_EXPLICIT_ROUTING_ALLOWED_IDENTIFIERS:
+            source = source.replace(allowed, "")
         for token in STAGE22_FORBIDDEN_ROUTING_TOKENS:
             assert token not in source, (
                 f"{py_file}: forbidden routing token {token!r} appears "

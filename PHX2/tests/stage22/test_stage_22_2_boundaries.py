@@ -8,7 +8,7 @@ read, etc.) on every Stage 22 production module including the
 new ``dedupe_ledger.py``. This file pins the 22.2-specific
 properties of that module:
 
-  * ``STAGE22_MINOR_VERSION`` is ``"22.2"``.
+  * ``STAGE22_MINOR_VERSION`` is ``"22.5"`` (rolling minor-version axis).
   * The dedupe ledger record-type closed set and schema
     version constants are present and well-formed.
   * The module's import set is exactly the locked allowlist.
@@ -118,8 +118,8 @@ def _collect_identifiers() -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_stage22_minor_version_is_22_4():
-    assert c.STAGE22_MINOR_VERSION == "22.4"
+def test_stage22_minor_version_is_22_5():
+    assert c.STAGE22_MINOR_VERSION == "22.5"
 
 
 def test_ledger_record_type_seen_is_locked_value():

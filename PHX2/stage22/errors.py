@@ -20,7 +20,8 @@ The hierarchy:
     ├── Stage22ClassifierContractError
     ├── Stage22RetryContractError
     ├── Stage22RunnerContractError
-    └── Stage22BatchHandlingContractError
+    ├── Stage22BatchHandlingContractError
+    └── Stage22RunnerError
 
 Each subclass is raised by a specific Stage 22 contract surface
 on a hard contract violation (e.g. ``classify_failure`` called
@@ -28,9 +29,15 @@ with an out-of-set ``status_class`` value). Stage 22.1 itself
 raises only ``Stage22ClassifierContractError``; Stage 22.4
 additionally raises ``Stage22BatchHandlingContractError`` from
 the pure ``handle_provider_batch`` helper for input-coherence
-violations. The other subclasses remain reserved for the
-future Stage 22 ledger / capture writer / retry policy /
-bounded runner.
+violations. Stage 22.5 introduces ``Stage22RunnerError`` for
+runner-level argument / config / composition violations
+detected at the bounded private ingest runner boundary, plus
+the live composition private-ping body builder. The remaining
+subclasses (``Stage22LedgerContractError``,
+``Stage22CaptureContractError``, ``Stage22RetryContractError``,
+``Stage22RunnerContractError``) remain reserved for downstream
+ledger / capture writer / retry policy / future runner-contract
+surfaces.
 """
 
 from __future__ import annotations
@@ -147,6 +154,38 @@ class Stage22BatchHandlingContractError(Stage22ContractError):
     """
 
 
+class Stage22RunnerError(Stage22ContractError):
+    """Raised by the Stage 22.5 bounded private ingest runner and its
+    live composition helpers on runner-level argument / config /
+    composition violations.
+
+    Active in Stage 22.5. The bounded runner raises this
+    exception when:
+
+      * ``max_provider_attempts`` is not the locked value ``1`` in
+        22.5 (retry execution is deferred to Stage 22.6).
+      * ``max_events`` is provided and is not a strict positive
+        int (``bool`` rejected; ``<= 0`` rejected).
+      * ``max_dispatches`` is provided and is not a strict
+        positive int (``bool`` rejected; ``<= 0`` rejected).
+      * ``provider_id`` / ``chain`` are not non-empty strings.
+      * Any required keyword-only collaborator is missing or
+        ``None``.
+      * The live composition private-ping body builder produces
+        a body that exceeds the locked length cap or that
+        contains a forbidden URL / secret-bearing substring.
+
+    The detail string is a short non-secret label. Raw exception
+    material, raw payload values, and provider-supplied URLs /
+    headers / API keys NEVER reach this surface. This type
+    deliberately mirrors the Stage 21 runner-style error pattern
+    (``Stage21RunnerError``) at the Stage 22 bounded-runner
+    boundary; the older ``Stage22RunnerContractError`` remains
+    reserved for runner-contract construction surfaces and is
+    NOT raised by the Stage 22.5 runner.
+    """
+
+
 __all__ = [
     "Stage22BatchHandlingContractError",
     "Stage22CaptureContractError",
@@ -155,4 +194,5 @@ __all__ = [
     "Stage22LedgerContractError",
     "Stage22RetryContractError",
     "Stage22RunnerContractError",
+    "Stage22RunnerError",
 ]

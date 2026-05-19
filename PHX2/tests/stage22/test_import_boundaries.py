@@ -64,21 +64,27 @@ _FORBIDDEN_PHX2_RUNTIME_PREFIXES: tuple[str, ...] = (
 
 
 # Forbidden Stage 21 neighbour modules. Stage 22.1 production
-# code does NOT import any of these:
+# code does NOT import any of these. Stage 22.5 lifts the
+# forbidden status for a specific allowlisted subset on
+# ``live_composition.py`` ONLY -- see
+# ``_LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES`` below. Every other
+# Stage 22 production module remains forbidden from importing any
+# entry in this tuple.
 #
 #   * fake_provider / fake_transport / live_path_simulator:
 #     the Stage 21.2 fake-path boundary.
-#   * provider_adapter_helius: Stage 22 contracts must not bind
-#     to the Helius adapter directly; the bounded runner will
-#     receive the adapter via dependency injection.
-#   * discord_private_transport: same -- the runner will receive
-#     the transport via injection.
+#   * provider_adapter_helius: live composition wraps this; every
+#     other Stage 22 file is forbidden.
+#   * discord_private_transport: live composition wraps this;
+#     every other Stage 22 file is forbidden.
 #   * private_smoke_runner: the Stage 21.4 single-shot runner;
-#     Stage 22 builds its own bounded runner in a later sub-stage.
-#   * config: the Stage 21 env-read seam. Stage 22.1 has no
+#     Stage 22.5 ships its own bounded runner.
+#   * config: the Stage 21 env-read seam. Stage 22 has no
 #     env-reading module.
 #   * live_secrets_boundary: the Stage 21.3A readiness gate.
-#     Future Stage 22 runner consumes its own typed config.
+#     Live composition uses the offline helpers
+#     (``load_live_readiness_config_from_env`` / ``evaluate_live_readiness``);
+#     every other Stage 22 file is forbidden.
 _FORBIDDEN_STAGE21_NEIGHBOUR_MODULES: tuple[str, ...] = (
     "PHX2.stage21.fake_provider",
     "PHX2.stage21.fake_transport",
@@ -89,6 +95,28 @@ _FORBIDDEN_STAGE21_NEIGHBOUR_MODULES: tuple[str, ...] = (
     "PHX2.stage21.config",
     "PHX2.stage21.live_secrets_boundary",
 )
+
+
+# Stage 22.5 live composition allowlist. ``live_composition.py``
+# is the SINGLE Stage 22 production seam permitted to import
+# from the Stage 21 live-path family. The set is locked: any
+# addition requires a Stage 22.5+ design decision plus a paired
+# test update. The bounded private ingest runner
+# (``bounded_live_runner.py``) imports NOTHING from Stage 21;
+# the runner's Stage 21 dependency surface fans through
+# ``live_composition.py`` only.
+_LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES: frozenset[str] = frozenset({
+    "PHX2.stage21.live_secrets_boundary",
+    "PHX2.stage21.provider_adapter_helius",
+    "PHX2.stage21.provider_event_decoder",
+    "PHX2.stage21.discord_private_transport",
+    "PHX2.stage21.transport_contracts",
+    "PHX2.stage21.allowlist",
+    "PHX2.stage21.secret_redaction",
+})
+
+
+_LIVE_COMPOSITION_FILE_NAME: str = "live_composition.py"
 
 
 _FORBIDDEN_RUNTIME_MODULE_PATTERNS: tuple[str, ...] = (
@@ -250,9 +278,15 @@ def test_no_phx2_runtime_layer_imports():
 
 def test_no_forbidden_stage21_neighbour_imports():
     for py_file in _iter_production_modules():
+        is_live_composition = py_file.name == _LIVE_COMPOSITION_FILE_NAME
         modules = _collect_modules(py_file)
         for module in modules:
             for forbidden in _FORBIDDEN_STAGE21_NEIGHBOUR_MODULES:
+                if (
+                    is_live_composition
+                    and module in _LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES
+                ):
+                    continue
                 assert module != forbidden, (
                     f"{py_file}: forbidden Stage 21 neighbour import "
                     f"{module!r}"
@@ -262,9 +296,20 @@ def test_no_forbidden_stage21_neighbour_imports():
 def test_no_forbidden_runtime_module_patterns():
     # Module-paths only -- identifier names imported FROM a Stage 22
     # module must not be substring-checked against runtime library
-    # patterns.
+    # patterns. ``live_composition.py`` is allowed to import a
+    # locked subset of Stage 21 modules whose names contain the
+    # ``helius`` / ``discord`` substrings; those imports are
+    # exempt from the substring scan because the underlying
+    # modules are Stage 21 boundaries, not external runtime
+    # libraries.
     for py_file in _iter_production_modules():
+        is_live_composition = py_file.name == _LIVE_COMPOSITION_FILE_NAME
         for module in _collect_modules(py_file):
+            if (
+                is_live_composition
+                and module in _LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES
+            ):
+                continue
             lower = module.lower()
             for pattern in _FORBIDDEN_RUNTIME_MODULE_PATTERNS:
                 assert pattern not in lower, (
@@ -287,35 +332,66 @@ def test_no_bot_db_reference_anywhere_in_stage22_source():
 
 
 def test_stage22_production_only_imports_safe_stage21_modules():
-    """Stage 22.1 production code may import from PHX2.stage21 ONLY:
+    """Stage 22 production code may import from PHX2.stage21 ONLY:
 
       * ``PHX2.stage21.normalized_events`` -- for ``NormalizedLiveEvent``.
       * ``PHX2.stage21.safe_content``      -- optional safe-content
-                                              predicate helpers (not
-                                              currently used in 22.1
-                                              but allowed pre-emptively).
+                                              predicate helpers.
 
-    Every other ``PHX2.stage21.*`` import is forbidden in 22.1
-    production code.
+    Stage 22.5 lifts this restriction for ONE file:
+    ``live_composition.py`` may additionally import the locked
+    subset in ``_LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES``.
+    Every other ``PHX2.stage21.*`` import is forbidden in Stage
+    22 production code.
     """
     allowed_stage21_prefixes: tuple[str, ...] = (
         "PHX2.stage21.normalized_events",
         "PHX2.stage21.safe_content",
     )
     for py_file in _iter_production_modules():
+        is_live_composition = py_file.name == _LIVE_COMPOSITION_FILE_NAME
         modules = _collect_modules(py_file)
         for module in modules:
             if not module.startswith("PHX2.stage21"):
                 continue
-            assert any(
+            allowed_by_prefix = any(
                 module == prefix or module.startswith(prefix + ".")
                 for prefix in allowed_stage21_prefixes
-            ), (
-                f"{py_file}: disallowed Stage 21 import {module!r}; "
-                "Stage 22.1 production code may only import "
-                "PHX2.stage21.normalized_events or "
-                "PHX2.stage21.safe_content"
             )
+            allowed_by_live_composition = (
+                is_live_composition
+                and module in _LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES
+            )
+            assert allowed_by_prefix or allowed_by_live_composition, (
+                f"{py_file}: disallowed Stage 21 import {module!r}; "
+                "Stage 22 production code may only import "
+                "PHX2.stage21.normalized_events or "
+                "PHX2.stage21.safe_content (plus the live_composition "
+                "allowlist for that one file)"
+            )
+
+
+def test_live_composition_is_only_stage22_file_importing_locked_stage21_modules():
+    """Stage 22.5 invariant: the live composition seam
+    (``live_composition.py``) is the SINGLE Stage 22 production
+    file that imports any module in
+    ``_LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES``. Every other
+    Stage 22 production module must avoid the entire allowlisted
+    set so the Stage 21 dependency surface fans through one seam.
+    """
+    for py_file in _iter_production_modules():
+        if py_file.name == _LIVE_COMPOSITION_FILE_NAME:
+            continue
+        modules = _collect_modules(py_file)
+        leaked = sorted(
+            modules & _LIVE_COMPOSITION_ALLOWED_STAGE21_MODULES
+        )
+        assert not leaked, (
+            f"{py_file}: Stage 22 production module imports "
+            f"live-composition-only Stage 21 modules {leaked!r}; the "
+            f"Stage 22 production tree must fan its Stage 21 "
+            f"dependency surface through live_composition.py only"
+        )
 
 
 # ---------------------------------------------------------------------------

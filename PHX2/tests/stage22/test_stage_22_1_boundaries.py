@@ -53,9 +53,17 @@ STAGE22_ROOT: Path = Path(__file__).parent.parent.parent / "stage22"
 # provider failure + malformed event handling on top of the
 # locked Stage 22.1 contract surface; injected decode +
 # classify callables, capture-fatal semantics, deterministic
-# malformed-event raw_event_hash derivation). The filename in
-# this file is historical ("22.1") but the locked set is the
-# rolling Stage 22 production tree.
+# malformed-event raw_event_hash derivation). 22.5 adds two
+# files: ``bounded_live_runner.py`` (one-shot bounded private
+# ingest runner with dependency-injected provider fetch /
+# decode / classifier / capture writer / dedupe ledger /
+# private transport) and ``live_composition.py`` (the single
+# Stage 22 production seam permitted to import Stage 21 modules
+# so a live composition can wire the Helius adapter / Stage
+# 21.3A decoder / Stage 21.3C Discord private transport /
+# Stage 21.3A readiness gate into Stage 22.5 runner deps).
+# The filename in this file is historical ("22.1") but the
+# locked set is the rolling Stage 22 production tree.
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
     "__init__.py",
     "constants.py",
@@ -65,6 +73,8 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
     "dedupe_ledger.py",
     "raw_capture.py",
     "failure_handling.py",
+    "bounded_live_runner.py",
+    "live_composition.py",
 })
 
 
@@ -77,6 +87,13 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
 # bounded-runner / retry / reconnect / adapter / transport
 # filenames forbidden because Stage 22.4 ships only the pure
 # batch isolation helper (``failure_handling.py``).
+#
+# 22.5 ships the bounded one-shot private ingest runner as
+# ``bounded_live_runner.py`` (NOT ``bounded_runner.py`` /
+# ``runner.py`` / ``ingest_runner.py``), and the live
+# composition seam as ``live_composition.py`` (NOT
+# ``private_ping_renderer.py`` / ``renderer.py``). The
+# previously-shipped alternate filenames remain forbidden.
 _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # Ledger implementations beyond the single 22.2 module
     "dedupe_ledger_jsonl.py",
@@ -96,7 +113,8 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     "provider_failure_handler.py",
     "malformed_event_handler.py",
     "decode_isolation.py",
-    # Runner / orchestrator
+    # Runner / orchestrator (22.5 ships bounded_live_runner.py,
+    # NOT any of these alternate filenames)
     "ingest_runner.py",
     "bounded_runner.py",
     "runner.py",
@@ -104,6 +122,10 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     "daemon.py",
     "orchestrator.py",
     "run_loop.py",
+    # Live composition alternate filenames (22.5 ships
+    # live_composition.py, NOT any of these alternates)
+    "private_ping_renderer.py",
+    "renderer.py",
     # Retry execution
     "retry_policy.py",
     "backoff.py",
@@ -113,7 +135,8 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     "provider_adapter_helius.py",
     "transport.py",
     "discord_transport.py",
-    # Config / env-read seam (22.1 has none)
+    # Config / env-read seam (22.5 has none -- env mapping is
+    # caller-supplied to live_composition.py's helpers)
     "config.py",
     "live_secrets_boundary.py",
     # Manifest writers (22.1 has none)

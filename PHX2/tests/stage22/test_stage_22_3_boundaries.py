@@ -6,7 +6,7 @@ production-tree scope on every Stage 22 production module
 including the new ``raw_capture.py``. This file pins the
 22.3-specific properties of that module:
 
-  * ``STAGE22_MINOR_VERSION`` is ``"22.3"``.
+  * ``STAGE22_MINOR_VERSION`` is ``"22.5"`` (rolling minor-version axis).
   * The raw capture record-type closed set and schema version
     constants are present and well-formed.
   * The module's import set is exactly the locked allowlist.
@@ -112,8 +112,8 @@ def _collect_identifiers() -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_stage22_minor_version_is_22_4():
-    assert c.STAGE22_MINOR_VERSION == "22.4"
+def test_stage22_minor_version_is_22_5():
+    assert c.STAGE22_MINOR_VERSION == "22.5"
 
 
 def test_capture_record_type_normalized_event_is_locked_value():

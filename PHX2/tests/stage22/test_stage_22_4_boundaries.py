@@ -6,7 +6,7 @@ production-tree scope on every Stage 22 production module
 including the new ``failure_handling.py``. This file pins the
 22.4-specific properties of that module:
 
-  * ``STAGE22_MINOR_VERSION`` is ``"22.4"``.
+  * ``STAGE22_MINOR_VERSION`` is ``"22.5"`` (rolling minor-version axis).
   * The module's import set is exactly the locked allowlist.
   * The module performs no env reads.
   * The module uses no forbidden filesystem mutators
@@ -117,8 +117,8 @@ def _collect_identifiers() -> set[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_stage22_minor_version_is_22_4():
-    assert c.STAGE22_MINOR_VERSION == "22.4"
+def test_stage22_minor_version_is_22_5():
+    assert c.STAGE22_MINOR_VERSION == "22.5"
 
 
 # ---------------------------------------------------------------------------

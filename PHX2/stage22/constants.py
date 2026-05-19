@@ -30,7 +30,7 @@ from __future__ import annotations
 
 STAGE22_VERSION: str = "stage22_v0_ingest_hardening_foundation"
 # Minor version axis. Bump on every sub-stage merge: 22.1 -> 22.2 -> ...
-STAGE22_MINOR_VERSION: str = "22.4"
+STAGE22_MINOR_VERSION: str = "22.5"
 
 # Stage 22 consumes Stage 21 normalized event records as input.
 # The Stage 22 -> Stage 23 contract version is reserved here but
@@ -672,4 +672,91 @@ CAPTURE_FORBIDDEN_SECRET_KEY_SUBSTRINGS: tuple[str, ...] = (
     "credentials",
     "private_key",
     "privatekey",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 22.5 -- bounded private ingest runner constants
+# ---------------------------------------------------------------------------
+#
+# Stage 22.5 ships the bounded one-shot private ingest runner and
+# the live composition module that wires Stage 21 helius / decoder
+# / Discord / readiness pieces into the Stage 22 runner deps. The
+# constants below are the locked surface those modules consume.
+#
+# IMPORTANT: Stage 22.5 does NOT execute retries. The
+# ``STAGE22_RETRYABLE_FAILURE_LABELS`` tuple is locked here for
+# the future Stage 22.6 retry policy. The 22.5 runner validates
+# ``max_provider_attempts == 1`` and never invokes the retry
+# vocabulary at runtime.
+
+
+# Single private-dispatch outcome token. Stage 22.5 does NOT add
+# new ``INGEST_RUNNER_OUTCOMES`` tokens; the runner returns the
+# Stage 22.1 ``INGEST_RUNNER_OUTCOMES`` token surface unchanged.
+# This constant is the single closed-set token for the boolean
+# ``dispatched=True`` axis on a ``Stage22DispatchOutcome``. It
+# parallels the Stage 21.3C ``"dispatched"`` outcome shape on
+# ``TransportResult`` without re-using any Stage 21 identifier.
+
+
+STAGE22_DISPATCH_OUTCOME_DISPATCHED: str = "dispatched"
+
+
+# Locked subset of ``PROVIDER_FAILURE_LABELS`` that the future
+# Stage 22.6 retry policy will treat as retryable. Stage 22.5
+# does NOT consume this set at runtime -- the runner pins
+# ``max_provider_attempts == 1`` -- but the set is locked now
+# so the 22.6 policy can land additively without churning the
+# constant surface.
+#
+# Locking choices:
+#   * timeout / rate_limited / 5xx / connection: transient
+#     provider-side failures that a backoff retry can plausibly
+#     resolve.
+#   * 4xx / auth / returned_malformed: persistent failures that
+#     a retry would not resolve (auth slot wrong, request shape
+#     wrong, upstream contract broken).
+#   * other: catch-all kept non-retryable until the operator can
+#     classify a concrete instance.
+#
+# Drift requires an explicit operator decision plus a paired
+# Stage 22 test update.
+
+
+STAGE22_RETRYABLE_FAILURE_LABELS: tuple[str, ...] = (
+    PROVIDER_FAILURE_LABEL_FETCH_TIMEOUT,
+    PROVIDER_FAILURE_LABEL_FETCH_RATE_LIMITED,
+    PROVIDER_FAILURE_LABEL_FETCH_5XX,
+    PROVIDER_FAILURE_LABEL_FETCH_CONNECTION,
+)
+
+
+# Private ping body length cap. The live composition module's
+# private-ping body builder rejects any body that exceeds this
+# limit; the runner-level error type is ``Stage22RunnerError``.
+# 384 chars is large enough for the locked safe-field projection
+# (``provider_id``, ``chain``, ``event_type``, ``mint``, ``slot``,
+# ``event_id``) plus a small fixed banner, and small enough to
+# stay well under any plausible upstream message size limit. The
+# value is locked at 22.5; a future renderer revision that needs
+# more space must pair an explicit operator decision with a
+# Stage 22 test update.
+
+
+STAGE22_PRIVATE_PING_BODY_MAX_LEN: int = 384
+
+
+# Closed set of safe field names the live composition private
+# ping body builder may project from an envelope. Adding or
+# removing an entry requires a Stage 22 test update.
+
+
+STAGE22_PRIVATE_PING_SAFE_FIELD_NAMES: tuple[str, ...] = (
+    "provider_id",
+    "chain",
+    "event_type",
+    "mint",
+    "slot",
+    "event_id",
 )

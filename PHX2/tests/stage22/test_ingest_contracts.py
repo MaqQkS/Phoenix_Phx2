@@ -30,7 +30,9 @@ from PHX2.stage22.ingest_contracts import (
     RawCaptureWriter,
     RetryCap,
     RetryDecision,
+    Stage22DispatchOutcome,
     Stage22IngestResult,
+    Stage22PrivateTransport,
 )
 
 
@@ -437,6 +439,7 @@ _ALL_RECORD_TYPES = (
     RetryCap,
     RetryDecision,
     Stage22IngestResult,
+    Stage22DispatchOutcome,
 )
 
 
@@ -449,3 +452,75 @@ def test_no_record_field_name_is_secret_bearing():
                     f"{cls.__name__}.{field} contains forbidden "
                     f"secret-bearing substring {forbidden!r}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# Stage 22.5: Stage22DispatchOutcome NamedTuple + Stage22PrivateTransport
+# ---------------------------------------------------------------------------
+
+
+def test_stage22_dispatch_outcome_fields_are_locked():
+    assert Stage22DispatchOutcome._fields == (
+        "dispatched",
+        "rejection_reason",
+    )
+
+
+def test_stage22_dispatch_outcome_is_immutable():
+    out = Stage22DispatchOutcome(dispatched=True, rejection_reason="")
+    with pytest.raises(AttributeError):
+        out.dispatched = False  # type: ignore[misc]
+
+
+def test_stage22_private_transport_is_a_protocol():
+    assert "Protocol" in _class_bases_from_ast("Stage22PrivateTransport")
+
+
+def test_stage22_private_transport_is_a_protocol_via_runtime_metadata():
+    assert getattr(Stage22PrivateTransport, "_is_protocol", False), (
+        "Stage22PrivateTransport must subclass typing.Protocol"
+    )
+
+
+def test_stage22_private_transport_dispatch_signature_is_kwonly():
+    positional, kwonly, return_name = _function_signature(
+        "Stage22PrivateTransport", "dispatch"
+    )
+    assert positional == ["self"]
+    assert kwonly == ["envelope"]
+    assert return_name == "Stage22DispatchOutcome"
+
+
+def test_stage22_private_transport_protocol_accepts_a_structural_fake():
+    seen: list[IngestEventEnvelope] = []
+
+    class _FakeTransport:
+        def dispatch(
+            self, *, envelope: IngestEventEnvelope
+        ) -> Stage22DispatchOutcome:
+            seen.append(envelope)
+            return Stage22DispatchOutcome(
+                dispatched=True, rejection_reason=""
+            )
+
+    fake: Stage22PrivateTransport = _FakeTransport()  # type: ignore[assignment]
+    key = IngestEventKey(
+        provider_id="helius",
+        chain="solana_mainnet",
+        event_id="evt_0123456789abcdef01234567",
+        provider_event_id="prov-abc",
+        raw_event_hash="0" * 64,
+    )
+    # The Stage22DispatchOutcome smoke does not need a real
+    # NormalizedLiveEvent value to be plausible; the Protocol
+    # surface accepts any IngestEventEnvelope shape.
+    envelope = IngestEventEnvelope(
+        event=None,  # type: ignore[arg-type]
+        ingest_key=key,
+        received_at_utc="2026-05-18T00:00:00Z",
+        provider_attempt_index=0,
+    )
+    outcome = fake.dispatch(envelope=envelope)
+    assert outcome.dispatched is True
+    assert outcome.rejection_reason == ""
+    assert seen == [envelope]

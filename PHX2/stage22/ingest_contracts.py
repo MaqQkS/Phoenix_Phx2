@@ -7,20 +7,22 @@ here -- this is the contract surface only.
 
 Records:
 
-  * ``ProviderFetchOutcome``  -- per-attempt provider fetch result
-  * ``ProviderFailureRecord`` -- audit-safe provider failure record
-  * ``MalformedEventRecord``  -- audit-safe per-event decode-failure record
-  * ``IngestEventKey``        -- composite dedupe key
-  * ``IngestEventEnvelope``   -- normalized event + ingest metadata
-  * ``DedupeOutcome``         -- ledger check outcome
-  * ``RetryCap``              -- retry attempt cap
-  * ``RetryDecision``         -- retry decision token + provenance
-  * ``Stage22IngestResult``   -- top-level Stage 22 ingest run summary
+  * ``ProviderFetchOutcome``    -- per-attempt provider fetch result
+  * ``ProviderFailureRecord``   -- audit-safe provider failure record
+  * ``MalformedEventRecord``    -- audit-safe per-event decode-failure record
+  * ``IngestEventKey``          -- composite dedupe key
+  * ``IngestEventEnvelope``     -- normalized event + ingest metadata
+  * ``DedupeOutcome``           -- ledger check outcome
+  * ``RetryCap``                -- retry attempt cap
+  * ``RetryDecision``           -- retry decision token + provenance
+  * ``Stage22IngestResult``     -- top-level Stage 22 ingest run summary
+  * ``Stage22DispatchOutcome``  -- Stage 22.5 private transport outcome
 
 Protocols:
 
-  * ``DedupeLedger``      -- check_and_record + mark_dispatched
-  * ``RawCaptureWriter``  -- capture + capture_malformed + capture_provider_failure
+  * ``DedupeLedger``             -- check_and_record + mark_dispatched
+  * ``RawCaptureWriter``         -- capture + capture_malformed + capture_provider_failure
+  * ``Stage22PrivateTransport``  -- Stage 22.5 private dispatch boundary
 
 Field-shape invariants (locked at 22.1):
 
@@ -472,6 +474,91 @@ class RawCaptureWriter(Protocol):
     ) -> None: ...
 
 
+# ---------------------------------------------------------------------------
+# Stage22DispatchOutcome
+# ---------------------------------------------------------------------------
+
+
+class Stage22DispatchOutcome(NamedTuple):
+    """Outcome of a single ``Stage22PrivateTransport.dispatch`` call.
+
+    Stage 22.5 record. Carries only the boolean ``dispatched``
+    flag plus a short non-secret ``rejection_reason``. The
+    rejection-reason vocabulary is intentionally NOT closed-set
+    at the Stage 22.1 contract level: the Stage 22.5 live
+    composition adapter maps Stage 21.3C transport-result
+    refusals (a closed Stage 21 set) into rejection strings, and
+    a fake transport in the offline test suite is free to use
+    short non-secret tokens of its own choosing.
+
+    Fields:
+
+      * ``dispatched``       -- True iff the transport accepted the
+                                envelope and the upstream side
+                                returned success. False on any
+                                refusal path. The bounded runner
+                                only calls ``mark_dispatched`` on
+                                the dedupe ledger when this is
+                                True.
+      * ``rejection_reason`` -- short non-secret string describing
+                                why ``dispatched`` is False. Empty
+                                string when ``dispatched`` is True.
+                                NEVER carries raw exception
+                                material, raw response bodies,
+                                URLs, API keys, or webhook URLs.
+    """
+
+    dispatched: bool
+    rejection_reason: str
+
+
+# ---------------------------------------------------------------------------
+# Stage22PrivateTransport Protocol
+# ---------------------------------------------------------------------------
+
+
+class Stage22PrivateTransport(Protocol):
+    """Stage 22.5 private dispatch contract.
+
+    Implementations supply a single ``dispatch`` method. The
+    Stage 22.5 bounded runner calls ``dispatch`` exactly once per
+    surviving normalized envelope. Tests construct fakes by
+    writing a simple class with a matching method signature -- no
+    inheritance required, no network / HTTP / Discord library
+    required, no Stage 21 import required.
+
+    Contract semantics:
+
+      * ``dispatch`` MUST NOT raise on a normal refusal path:
+        every refusal surfaces as
+        ``Stage22DispatchOutcome(dispatched=False, ...)``.
+        Hard contract violations MAY raise; the bounded runner
+        treats any raised exception as a fatal contract
+        violation and propagates it.
+      * ``dispatch`` MUST be private-only. Implementations MUST
+        NOT route into any non-private sink (the Stage 22
+        forbidden-routing token tuple is locked in
+        ``constants.py``). The Stage 22.5 live composition
+        adapter wraps the Stage 21.3C
+        ``DiscordPrivateTransport`` which already encodes the
+        Stage 21 private-only invariant; the adapter never
+        relaxes the dispatch-safety flag on the underlying
+        ``TransportPayload``.
+      * The injected transport NEVER receives a raw webhook URL,
+        API key, RPC URL, or any other secret material. The
+        Stage 22.5 live composition module is the seam that
+        constructs the underlying Stage 21 transport from a
+        ``SecretRef`` snapshot; the Stage 22 runner sees only
+        the Protocol surface.
+    """
+
+    def dispatch(
+        self,
+        *,
+        envelope: IngestEventEnvelope,
+    ) -> Stage22DispatchOutcome: ...
+
+
 __all__ = [
     "DedupeLedger",
     "DedupeOutcome",
@@ -483,5 +570,7 @@ __all__ = [
     "RawCaptureWriter",
     "RetryCap",
     "RetryDecision",
+    "Stage22DispatchOutcome",
     "Stage22IngestResult",
+    "Stage22PrivateTransport",
 ]

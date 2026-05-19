@@ -27,6 +27,7 @@ from PHX2.stage22.errors import (
     Stage22LedgerContractError,
     Stage22RetryContractError,
     Stage22RunnerContractError,
+    Stage22RunnerError,
 )
 
 
@@ -37,6 +38,7 @@ _STAGE22_SUBCLASSES: tuple[type[Stage22ContractError], ...] = (
     Stage22RetryContractError,
     Stage22RunnerContractError,
     Stage22BatchHandlingContractError,
+    Stage22RunnerError,
 )
 
 
@@ -87,3 +89,19 @@ def test_each_subclass_has_a_distinct_class_object():
     assert len(set(classes)) == len(classes), (
         "Stage 22 error subclasses must each be distinct types"
     )
+
+
+def test_stage22_runner_error_is_distinct_from_runner_contract_error():
+    """Stage 22.5 ``Stage22RunnerError`` is the runner-input-validation
+    exception (mirrors Stage 21's ``Stage21RunnerError`` pattern).
+    The older ``Stage22RunnerContractError`` remains reserved for
+    runner-contract construction surfaces. The two classes must be
+    distinct types so a caller can match on either independently.
+    """
+    assert Stage22RunnerError is not Stage22RunnerContractError
+    assert not issubclass(Stage22RunnerError, Stage22RunnerContractError)
+    assert not issubclass(Stage22RunnerContractError, Stage22RunnerError)
+
+
+def test_stage22_runner_error_subclasses_stage22_contract_error():
+    assert issubclass(Stage22RunnerError, Stage22ContractError)
