@@ -12,6 +12,9 @@ filter implementations exercise.
 
 Stage 23.2 adds the holder-snapshot payload-summary builders
 used by the holder-concentration filter tests.
+
+Stage 23.3 adds the launch-structure payload-summary builders
+used by the launch-structure filter tests.
 """
 
 from __future__ import annotations
@@ -37,6 +40,25 @@ from PHX2.stage23.holder_concentration import (
     PRIMITIVE_TOP_20_HOLDER_PCT,
     PRIMITIVE_TOP_50_HOLDER_PCT,
     PRIMITIVE_UNIQUE_HOLDER_COUNT,
+)
+from PHX2.stage23.launch_structure import (
+    LAUNCH_PRIMITIVE_KIND_UNSUPPORTED,
+    PAYLOAD_MARKER_LAUNCH_PRIMITIVE_KIND,
+    PRIMITIVE_BUYER_SOURCE_CLUSTER_COUNT,
+    PRIMITIVE_FIRST_N_BUYERS_COUNT,
+    PRIMITIVE_FIRST_N_EVENTS_OBSERVED,
+    PRIMITIVE_FIRST_N_HOLDER_CONCENTRATION_PCT,
+    PRIMITIVE_FIRST_N_UNIQUE_BUYERS,
+    PRIMITIVE_FIRST_N_UNIQUE_FUNDERS,
+    PRIMITIVE_LARGEST_BUYER_CLUSTER_PCT,
+    PRIMITIVE_LARGEST_FUNDER_CLUSTER_PCT,
+    PRIMITIVE_LAUNCH_SLOT,
+    PRIMITIVE_LAUNCH_WINDOW_SECONDS,
+    PRIMITIVE_NEAR_SLOT_BUYER_COUNT,
+    PRIMITIVE_OBSERVED_SLOT_SPAN,
+    PRIMITIVE_REPEATED_BUYER_WALLET_COUNT,
+    PRIMITIVE_REPEATED_SOURCE_WALLET_COUNT,
+    PRIMITIVE_SAME_SLOT_BUYER_COUNT,
 )
 from PHX2.stage23.models import (
     Stage23FilterInput,
@@ -213,6 +235,123 @@ def make_holder_filter_input(
     )
 
 
+# ---------------------------------------------------------------------------
+# Launch-structure synthetic snapshots (Stage 23.3)
+# ---------------------------------------------------------------------------
+
+
+def make_launch_payload_summary(
+    *,
+    first_n_buyers_count: int | None = 20,
+    first_n_unique_buyers: int | None = 18,
+    first_n_unique_funders: int | None = 15,
+    same_slot_buyer_count: int | None = 1,
+    near_slot_buyer_count: int | None = 2,
+    buyer_source_cluster_count: int | None = 12,
+    largest_buyer_cluster_pct: float | None = 0.10,
+    largest_funder_cluster_pct: float | None = 0.10,
+    first_n_holder_concentration_pct: float | None = 0.20,
+    repeated_source_wallet_count: int | None = 0,
+    repeated_buyer_wallet_count: int | None = 0,
+    launch_window_seconds: float | None = 120.0,
+    launch_slot: int | None = 1000,
+    observed_slot_span: int | None = 60,
+    first_n_events_observed: int | None = 20,
+    launch_primitive_kind: str | None = None,
+) -> Mapping[str, object]:
+    """Build a deterministic synthetic launch-structure payload_summary.
+
+    Each primitive defaults to a value inside the
+    ``NORMAL``-verdict band; tests override individual fields
+    to exercise other labels. Pass ``None`` for a primitive to
+    omit it from the payload (the filter then treats it as a
+    missing primitive). Pass ``launch_primitive_kind`` to
+    inject the optional unsupported-marker key.
+    """
+    pairs: tuple[tuple[str, object | None], ...] = (
+        (PRIMITIVE_FIRST_N_BUYERS_COUNT, first_n_buyers_count),
+        (PRIMITIVE_FIRST_N_UNIQUE_BUYERS, first_n_unique_buyers),
+        (PRIMITIVE_FIRST_N_UNIQUE_FUNDERS, first_n_unique_funders),
+        (PRIMITIVE_SAME_SLOT_BUYER_COUNT, same_slot_buyer_count),
+        (PRIMITIVE_NEAR_SLOT_BUYER_COUNT, near_slot_buyer_count),
+        (PRIMITIVE_BUYER_SOURCE_CLUSTER_COUNT, buyer_source_cluster_count),
+        (PRIMITIVE_LARGEST_BUYER_CLUSTER_PCT, largest_buyer_cluster_pct),
+        (PRIMITIVE_LARGEST_FUNDER_CLUSTER_PCT, largest_funder_cluster_pct),
+        (
+            PRIMITIVE_FIRST_N_HOLDER_CONCENTRATION_PCT,
+            first_n_holder_concentration_pct,
+        ),
+        (
+            PRIMITIVE_REPEATED_SOURCE_WALLET_COUNT,
+            repeated_source_wallet_count,
+        ),
+        (
+            PRIMITIVE_REPEATED_BUYER_WALLET_COUNT,
+            repeated_buyer_wallet_count,
+        ),
+        (PRIMITIVE_LAUNCH_WINDOW_SECONDS, launch_window_seconds),
+        (PRIMITIVE_LAUNCH_SLOT, launch_slot),
+        (PRIMITIVE_OBSERVED_SLOT_SPAN, observed_slot_span),
+        (PRIMITIVE_FIRST_N_EVENTS_OBSERVED, first_n_events_observed),
+    )
+    body: dict[str, object] = {}
+    for key, value in pairs:
+        if value is None:
+            continue
+        body[key] = value
+    if launch_primitive_kind is not None:
+        body[PAYLOAD_MARKER_LAUNCH_PRIMITIVE_KIND] = launch_primitive_kind
+    return MappingProxyType(body)
+
+
+def make_unsupported_launch_payload_summary() -> Mapping[str, object]:
+    """Build a launch payload_summary marked unsupported.
+
+    Some upstream sources may not be able to deliver
+    launch-structure primitives at all (chain, provider, or
+    token kind doesn't support it). The marker is the locked
+    ``LAUNCH_PRIMITIVE_KIND_UNSUPPORTED`` token.
+    """
+    return MappingProxyType(
+        {
+            PAYLOAD_MARKER_LAUNCH_PRIMITIVE_KIND: (
+                LAUNCH_PRIMITIVE_KIND_UNSUPPORTED
+            ),
+        }
+    )
+
+
+def make_launch_filter_input(
+    *,
+    payload_summary: Mapping[str, object] | None = None,
+    token_mint: str = "MintFixture111",
+    provider_id: str = "fake_provider",
+    event_id: str = "evt_abcdef0123456789abcdef01",
+    captured_event_id: str = "captured_launch_001",
+    observed_at_utc: str = FIXED_CLOCK_UTC,
+    slot: int = 1000,
+    signature: str = "sig_launch_001",
+    missing_fields: tuple[str, ...] = (),
+) -> Stage23FilterInput:
+    """Build a ``Stage23FilterInput`` carrying a launch payload_summary."""
+    payload: Mapping[str, object]
+    if payload_summary is None:
+        payload = make_launch_payload_summary()
+    else:
+        payload = payload_summary
+    return make_filter_input(
+        token_mint=token_mint,
+        provider_id=provider_id,
+        event_id=event_id,
+        captured_event_id=captured_event_id,
+        observed_at_utc=observed_at_utc,
+        slot=slot,
+        signature=signature,
+        payload_summary=payload,
+        missing_fields=missing_fields,
+    )
+
+
 __all__ = [
     "FIXED_CLOCK_UTC",
     "empty_payload_summary",
@@ -220,5 +359,8 @@ __all__ = [
     "make_filter_result",
     "make_holder_filter_input",
     "make_holder_payload_summary",
+    "make_launch_filter_input",
+    "make_launch_payload_summary",
     "make_unsupported_holder_payload_summary",
+    "make_unsupported_launch_payload_summary",
 ]
