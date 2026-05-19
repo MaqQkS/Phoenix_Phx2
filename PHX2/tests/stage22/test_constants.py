@@ -20,7 +20,7 @@ def test_stage22_version_is_locked():
 
 
 def test_stage22_minor_version_is_locked():
-    assert c.STAGE22_MINOR_VERSION == "22.2"
+    assert c.STAGE22_MINOR_VERSION == "22.3"
 
 
 def test_stage22_consumer_contract_version_is_locked():
@@ -412,3 +412,367 @@ def test_ledger_required_record_fields_carry_no_secret_bearing_substring():
                 f"LEDGER_REQUIRED_RECORD_FIELDS entry {field!r} contains "
                 f"forbidden secret-bearing substring {bad!r}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Stage 22.3 raw capture record schema constants
+# ---------------------------------------------------------------------------
+
+
+def test_stage22_capture_record_schema_version_is_locked():
+    assert c.STAGE22_CAPTURE_RECORD_SCHEMA_VERSION == "stage22_v0_capture"
+
+
+def test_capture_record_type_normalized_event_token_value():
+    assert c.CAPTURE_RECORD_TYPE_NORMALIZED_EVENT == "normalized_event"
+
+
+def test_capture_record_type_malformed_event_token_value():
+    assert c.CAPTURE_RECORD_TYPE_MALFORMED_EVENT == "malformed_event"
+
+
+def test_capture_record_type_provider_failure_token_value():
+    assert c.CAPTURE_RECORD_TYPE_PROVIDER_FAILURE == "provider_failure"
+
+
+def test_capture_record_types_match_locked_three_token_tuple():
+    assert c.CAPTURE_RECORD_TYPES == (
+        "normalized_event",
+        "malformed_event",
+        "provider_failure",
+    )
+
+
+def test_capture_record_types_has_no_duplicates():
+    assert len(c.CAPTURE_RECORD_TYPES) == len(set(c.CAPTURE_RECORD_TYPES))
+
+
+def test_capture_record_types_tokens_are_shape_safe():
+    for token in c.CAPTURE_RECORD_TYPES:
+        assert isinstance(token, str)
+        assert token != ""
+        assert token == token.strip()
+        assert len(token) <= 64
+        for ch in token:
+            assert (
+                ch.isdigit()
+                or (ch.isalpha() and ch.islower() and ch.isascii())
+                or ch == "_"
+            ), f"CAPTURE_RECORD_TYPES token {token!r} has bad char {ch!r}"
+
+
+# ---------------------------------------------------------------------------
+# Per-record-type required-field tuples
+# ---------------------------------------------------------------------------
+
+
+def test_capture_normalized_event_required_fields_match_locked_tuple():
+    assert c.CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS == (
+        "schema_version",
+        "record_type",
+        "provider_id",
+        "chain",
+        "event_id",
+        "provider_event_id",
+        "raw_event_hash",
+        "received_at_utc",
+        "provider_attempt_index",
+        "event_type",
+        "source_kind",
+        "mint",
+        "slot",
+        "signature",
+        "payload_summary",
+    )
+
+
+def test_capture_malformed_event_required_fields_match_locked_tuple():
+    assert c.CAPTURE_MALFORMED_EVENT_REQUIRED_FIELDS == (
+        "schema_version",
+        "record_type",
+        "provider_id",
+        "provider_event_id",
+        "reason",
+        "failed_at_utc",
+        "raw_event_hash",
+    )
+
+
+def test_capture_provider_failure_required_fields_match_locked_tuple():
+    assert c.CAPTURE_PROVIDER_FAILURE_REQUIRED_FIELDS == (
+        "schema_version",
+        "record_type",
+        "provider_id",
+        "failure_label",
+        "status_class",
+        "upstream_error_type",
+        "provider_attempt_index",
+        "observed_at_utc",
+    )
+
+
+def test_capture_required_field_tuples_have_no_duplicates_within_tuple():
+    for name, fields in (
+        (
+            "CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS",
+            c.CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS,
+        ),
+        (
+            "CAPTURE_MALFORMED_EVENT_REQUIRED_FIELDS",
+            c.CAPTURE_MALFORMED_EVENT_REQUIRED_FIELDS,
+        ),
+        (
+            "CAPTURE_PROVIDER_FAILURE_REQUIRED_FIELDS",
+            c.CAPTURE_PROVIDER_FAILURE_REQUIRED_FIELDS,
+        ),
+    ):
+        assert len(fields) == len(set(fields)), (
+            f"{name} contains duplicate field names"
+        )
+
+
+def test_capture_normalized_event_required_fields_drops_instruction_kind():
+    """Stage 22.3 deliberately does NOT capture ``instruction_kind`` --
+    the field does not exist on ``NormalizedLiveEvent``; it is a
+    Stage 23+ on-chain-filter vocabulary item.
+    """
+    assert "instruction_kind" not in c.CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS
+
+
+def test_capture_normalized_event_required_fields_drops_normalized_schema_version():
+    """Stage 22.3 does not duplicate the Stage 21 event-side
+    schema_version into the capture record; the capture record
+    has its own ``schema_version`` axis.
+    """
+    assert (
+        "normalized_schema_version"
+        not in c.CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS
+    )
+
+
+def test_capture_required_tuples_carry_no_secret_bearing_substring():
+    forbidden = (
+        "api_key",
+        "apikey",
+        "webhook",
+        "rpc_url",
+        "raw_response",
+        "response_body",
+        "exception_message",
+        "exception_repr",
+        "exception_args",
+        "authorization",
+        "bearer",
+        "password",
+        "credential",
+        "private_key",
+    )
+    for fields in (
+        c.CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS,
+        c.CAPTURE_MALFORMED_EVENT_REQUIRED_FIELDS,
+        c.CAPTURE_PROVIDER_FAILURE_REQUIRED_FIELDS,
+    ):
+        for field in fields:
+            lower = field.lower()
+            for bad in forbidden:
+                assert bad not in lower, (
+                    f"capture required field {field!r} contains "
+                    f"forbidden secret-bearing substring {bad!r}"
+                )
+
+
+# ---------------------------------------------------------------------------
+# Per-record-type required non-empty-string and int field tuples
+# ---------------------------------------------------------------------------
+
+
+def test_capture_normalized_event_required_non_empty_string_fields_match_locked_tuple():
+    assert c.CAPTURE_NORMALIZED_EVENT_REQUIRED_NON_EMPTY_STRING_FIELDS == (
+        "schema_version",
+        "record_type",
+        "provider_id",
+        "chain",
+        "event_id",
+        "raw_event_hash",
+        "received_at_utc",
+        "event_type",
+        "source_kind",
+        "mint",
+        "signature",
+    )
+
+
+def test_capture_malformed_event_required_non_empty_string_fields_match_locked_tuple():
+    assert c.CAPTURE_MALFORMED_EVENT_REQUIRED_NON_EMPTY_STRING_FIELDS == (
+        "schema_version",
+        "record_type",
+        "provider_id",
+        "reason",
+        "failed_at_utc",
+        "raw_event_hash",
+    )
+
+
+def test_capture_provider_failure_required_non_empty_string_fields_match_locked_tuple():
+    assert c.CAPTURE_PROVIDER_FAILURE_REQUIRED_NON_EMPTY_STRING_FIELDS == (
+        "schema_version",
+        "record_type",
+        "provider_id",
+        "failure_label",
+        "status_class",
+        "upstream_error_type",
+        "observed_at_utc",
+    )
+
+
+def test_capture_normalized_event_required_int_fields_match_locked_tuple():
+    assert c.CAPTURE_NORMALIZED_EVENT_REQUIRED_INT_FIELDS == (
+        "provider_attempt_index",
+        "slot",
+    )
+
+
+def test_capture_provider_failure_required_int_fields_match_locked_tuple():
+    assert c.CAPTURE_PROVIDER_FAILURE_REQUIRED_INT_FIELDS == (
+        "provider_attempt_index",
+    )
+
+
+def test_capture_required_non_empty_string_fields_are_subset_of_required_fields():
+    pairs = (
+        (
+            c.CAPTURE_NORMALIZED_EVENT_REQUIRED_NON_EMPTY_STRING_FIELDS,
+            c.CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS,
+        ),
+        (
+            c.CAPTURE_MALFORMED_EVENT_REQUIRED_NON_EMPTY_STRING_FIELDS,
+            c.CAPTURE_MALFORMED_EVENT_REQUIRED_FIELDS,
+        ),
+        (
+            c.CAPTURE_PROVIDER_FAILURE_REQUIRED_NON_EMPTY_STRING_FIELDS,
+            c.CAPTURE_PROVIDER_FAILURE_REQUIRED_FIELDS,
+        ),
+    )
+    for non_empty, all_fields in pairs:
+        assert set(non_empty) <= set(all_fields)
+
+
+def test_capture_required_int_fields_are_subset_of_required_fields():
+    pairs = (
+        (
+            c.CAPTURE_NORMALIZED_EVENT_REQUIRED_INT_FIELDS,
+            c.CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS,
+        ),
+        (
+            c.CAPTURE_PROVIDER_FAILURE_REQUIRED_INT_FIELDS,
+            c.CAPTURE_PROVIDER_FAILURE_REQUIRED_FIELDS,
+        ),
+    )
+    for int_fields, all_fields in pairs:
+        assert set(int_fields) <= set(all_fields)
+
+
+def test_capture_required_non_empty_string_fields_and_int_fields_are_disjoint():
+    pairs = (
+        (
+            c.CAPTURE_NORMALIZED_EVENT_REQUIRED_NON_EMPTY_STRING_FIELDS,
+            c.CAPTURE_NORMALIZED_EVENT_REQUIRED_INT_FIELDS,
+        ),
+        (
+            c.CAPTURE_PROVIDER_FAILURE_REQUIRED_NON_EMPTY_STRING_FIELDS,
+            c.CAPTURE_PROVIDER_FAILURE_REQUIRED_INT_FIELDS,
+        ),
+    )
+    for non_empty, int_fields in pairs:
+        assert set(non_empty).isdisjoint(set(int_fields))
+
+
+# ---------------------------------------------------------------------------
+# Sanitiser caps
+# ---------------------------------------------------------------------------
+
+
+def test_capture_payload_summary_max_keys_is_locked():
+    assert c.CAPTURE_PAYLOAD_SUMMARY_MAX_KEYS == 16
+    assert isinstance(c.CAPTURE_PAYLOAD_SUMMARY_MAX_KEYS, int)
+    assert not isinstance(c.CAPTURE_PAYLOAD_SUMMARY_MAX_KEYS, bool)
+
+
+def test_capture_payload_summary_max_key_len_is_locked():
+    assert c.CAPTURE_PAYLOAD_SUMMARY_MAX_KEY_LEN == 64
+    assert isinstance(c.CAPTURE_PAYLOAD_SUMMARY_MAX_KEY_LEN, int)
+    assert not isinstance(c.CAPTURE_PAYLOAD_SUMMARY_MAX_KEY_LEN, bool)
+
+
+def test_capture_payload_summary_max_string_len_is_locked():
+    assert c.CAPTURE_PAYLOAD_SUMMARY_MAX_STRING_LEN == 512
+    assert isinstance(c.CAPTURE_PAYLOAD_SUMMARY_MAX_STRING_LEN, int)
+    assert not isinstance(c.CAPTURE_PAYLOAD_SUMMARY_MAX_STRING_LEN, bool)
+
+
+def test_capture_long_hex_run_min_len_is_locked():
+    assert c.CAPTURE_LONG_HEX_RUN_MIN_LEN == 40
+    assert isinstance(c.CAPTURE_LONG_HEX_RUN_MIN_LEN, int)
+    assert not isinstance(c.CAPTURE_LONG_HEX_RUN_MIN_LEN, bool)
+
+
+def test_capture_long_tokenish_min_len_is_locked():
+    assert c.CAPTURE_LONG_TOKENISH_MIN_LEN == 32
+    assert isinstance(c.CAPTURE_LONG_TOKENISH_MIN_LEN, int)
+    assert not isinstance(c.CAPTURE_LONG_TOKENISH_MIN_LEN, bool)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden URL / secret-key sanitiser inputs
+# ---------------------------------------------------------------------------
+
+
+def test_capture_forbidden_url_substrings_match_locked_assembled_values():
+    expected = (
+        "http" + ":" + "//",
+        "https" + ":" + "//",
+        "ws" + ":" + "//",
+        "wss" + ":" + "//",
+        ":" + "//",
+        "discord" + "." + "com",
+        "discordapp" + "." + "com",
+        "hooks" + ".slack" + "." + "com",
+    )
+    assert c.CAPTURE_FORBIDDEN_URL_SUBSTRINGS == expected
+
+
+def test_capture_forbidden_url_substrings_has_no_duplicates():
+    assert len(c.CAPTURE_FORBIDDEN_URL_SUBSTRINGS) == len(
+        set(c.CAPTURE_FORBIDDEN_URL_SUBSTRINGS)
+    )
+
+
+def test_capture_forbidden_secret_key_substrings_match_locked_set():
+    assert c.CAPTURE_FORBIDDEN_SECRET_KEY_SUBSTRINGS == (
+        "api_key",
+        "apikey",
+        "webhook_url",
+        "webhook",
+        "rpc_url",
+        "raw_response_body",
+        "raw_response",
+        "response_body",
+        "exception_message",
+        "exception_repr",
+        "exception_args",
+        "headers",
+        "authorization",
+        "bearer",
+        "password",
+        "secret",
+        "credential",
+        "credentials",
+        "private_key",
+        "privatekey",
+    )
+
+
+def test_capture_forbidden_secret_key_substrings_has_no_duplicates():
+    assert len(c.CAPTURE_FORBIDDEN_SECRET_KEY_SUBSTRINGS) == len(
+        set(c.CAPTURE_FORBIDDEN_SECRET_KEY_SUBSTRINGS)
+    )

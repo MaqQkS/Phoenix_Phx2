@@ -45,9 +45,12 @@ STAGE22_ROOT: Path = Path(__file__).parent.parent.parent / "stage22"
 
 # Stage 22 production scope -- updated each sub-stage. 22.2 adds
 # ``dedupe_ledger.py`` (in-memory + JSONL ledger implementations
-# behind the locked Stage 22.1 ``DedupeLedger`` Protocol). The
-# filename in this file is historical ("22.1") but the locked set
-# is the rolling Stage 22 production tree.
+# behind the locked Stage 22.1 ``DedupeLedger`` Protocol). 22.3
+# adds ``raw_capture.py`` (in-memory + JSONL raw capture writer
+# implementations behind the locked Stage 22.1
+# ``RawCaptureWriter`` Protocol). The filename in this file is
+# historical ("22.1") but the locked set is the rolling Stage 22
+# production tree.
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
     "__init__.py",
     "constants.py",
@@ -55,24 +58,29 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset({
     "ingest_contracts.py",
     "failure_classification.py",
     "dedupe_ledger.py",
+    "raw_capture.py",
 })
 
 
 # Filenames that MUST NOT exist under PHX2/stage22/. Each name
 # corresponds to behaviour reserved for a later Stage 22 sub-stage
 # or strictly later stage. Entries removed at 22.2 because the
-# corresponding module landed: ``dedupe_ledger.py``.
+# corresponding module landed: ``dedupe_ledger.py``. 22.3 keeps
+# the alternate capture writer filenames forbidden because the
+# stage shipped ``raw_capture.py`` instead.
 _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # Ledger implementations beyond the single 22.2 module
     "dedupe_ledger_jsonl.py",
     "dedupe_ledger_sqlite.py",
     "dedupe_ledger_in_memory.py",
     "in_memory_ledger.py",
-    # Capture writer implementations
+    # Capture writer implementations beyond the single 22.3 module
     "raw_capture_writer.py",
     "jsonl_writer.py",
     "jsonl_dedupe_ledger.py",
     "capture_writer.py",
+    "raw_capture_in_memory.py",
+    "raw_capture_jsonl.py",
     # Runner / orchestrator
     "ingest_runner.py",
     "bounded_runner.py",
@@ -171,10 +179,14 @@ _FORBIDDEN_FILE_PERSISTENCE_TOP_LEVEL_MODULES: frozenset[str] = frozenset({
 # Per-file allowlist for the otherwise-forbidden ``pathlib``
 # import. Stage 22.2 ships ``dedupe_ledger.py`` containing the
 # JSONL ledger implementation, which legitimately needs
-# ``pathlib.Path`` for operator-supplied ledger paths. No other
-# Stage 22 production module may import ``pathlib``.
+# ``pathlib.Path`` for operator-supplied ledger paths. Stage 22.3
+# ships ``raw_capture.py`` containing the JSONL raw capture
+# writer, which legitimately needs ``pathlib.Path`` for the
+# operator-supplied capture file path. No other Stage 22
+# production module may import ``pathlib``.
 _PATHLIB_ALLOWED_FILES: frozenset[str] = frozenset({
     "dedupe_ledger.py",
+    "raw_capture.py",
 })
 
 

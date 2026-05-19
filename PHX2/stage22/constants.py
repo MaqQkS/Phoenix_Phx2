@@ -30,7 +30,7 @@ from __future__ import annotations
 
 STAGE22_VERSION: str = "stage22_v0_ingest_hardening_foundation"
 # Minor version axis. Bump on every sub-stage merge: 22.1 -> 22.2 -> ...
-STAGE22_MINOR_VERSION: str = "22.2"
+STAGE22_MINOR_VERSION: str = "22.3"
 
 # Stage 22 consumes Stage 21 normalized event records as input.
 # The Stage 22 -> Stage 23 contract version is reserved here but
@@ -419,4 +419,257 @@ LEDGER_REQUIRED_NON_EMPTY_FIELDS: tuple[str, ...] = (
     "chain",
     "event_id",
     "raw_event_hash",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 22.3 -- raw capture record schema (JSONL)
+# ---------------------------------------------------------------------------
+#
+# Stage 22.3 introduces the JSONL raw-capture record family. One
+# append-only JSONL stream per writer instance carries three
+# discriminated record_type families: a sanitized projection of a
+# Stage 21 normalized event, a sanitized projection of a
+# per-event decode failure, and a sanitized projection of a
+# provider fetch failure. The schema version is per-record (not
+# per-file) so a future bump can migrate additively without a
+# file-header dance.
+#
+# The exact required-field tuple is locked per-record-type; the
+# writer enforces ``set(record.keys()) ==
+# set(CAPTURE_<TYPE>_REQUIRED_FIELDS)`` on every write and on
+# every replay line. Any missing field or unexpected extra field
+# is a hard contract violation and raises
+# ``Stage22CaptureContractError``. The exact-set discipline is
+# the same defense Stage 22.2 ships for the dedupe ledger, here
+# specialized per record_type because the three families do not
+# share a single field shape.
+
+
+STAGE22_CAPTURE_RECORD_SCHEMA_VERSION: str = "stage22_v0_capture"
+
+
+CAPTURE_RECORD_TYPE_NORMALIZED_EVENT: str = "normalized_event"
+CAPTURE_RECORD_TYPE_MALFORMED_EVENT: str = "malformed_event"
+CAPTURE_RECORD_TYPE_PROVIDER_FAILURE: str = "provider_failure"
+
+
+CAPTURE_RECORD_TYPES: tuple[str, ...] = (
+    CAPTURE_RECORD_TYPE_NORMALIZED_EVENT,
+    CAPTURE_RECORD_TYPE_MALFORMED_EVENT,
+    CAPTURE_RECORD_TYPE_PROVIDER_FAILURE,
+)
+
+
+# Exact required-field tuples per record_type. Field order in each
+# tuple is the canonical order documented in the Stage 22.3
+# design; on-disk JSON uses sorted keys so the wire order is
+# independent of these tuples.
+#
+# ``normalized_event`` is the sanitized projection of an
+# ``IngestEventEnvelope``. ``payload_summary`` is a nested JSON
+# object whose contents are recursively validated by the writer
+# at write time and at replay.
+
+CAPTURE_NORMALIZED_EVENT_REQUIRED_FIELDS: tuple[str, ...] = (
+    "schema_version",
+    "record_type",
+    "provider_id",
+    "chain",
+    "event_id",
+    "provider_event_id",
+    "raw_event_hash",
+    "received_at_utc",
+    "provider_attempt_index",
+    "event_type",
+    "source_kind",
+    "mint",
+    "slot",
+    "signature",
+    "payload_summary",
+)
+
+
+# ``malformed_event`` is the sanitized projection of a
+# ``MalformedEventRecord``. ``provider_event_id`` may be the empty
+# string per the Stage 22.1 record convention; ``raw_event_hash``
+# remains the canonical correlation key in that case.
+
+CAPTURE_MALFORMED_EVENT_REQUIRED_FIELDS: tuple[str, ...] = (
+    "schema_version",
+    "record_type",
+    "provider_id",
+    "provider_event_id",
+    "reason",
+    "failed_at_utc",
+    "raw_event_hash",
+)
+
+
+# ``provider_failure`` is the sanitized projection of a
+# ``ProviderFailureRecord``. ``upstream_error_type`` is locked
+# NON-empty in this record family: the empty string is reserved
+# for ok=True outcomes which are incoherent for a failure record.
+
+CAPTURE_PROVIDER_FAILURE_REQUIRED_FIELDS: tuple[str, ...] = (
+    "schema_version",
+    "record_type",
+    "provider_id",
+    "failure_label",
+    "status_class",
+    "upstream_error_type",
+    "provider_attempt_index",
+    "observed_at_utc",
+)
+
+
+# Per-record-type required non-empty string field tuples. The
+# writer rejects any record whose listed field is not a non-empty
+# string. ``provider_event_id`` is intentionally NOT in any of
+# these tuples -- it may be the empty string per the Stage 22.1
+# ``MalformedEventRecord`` / ``IngestEventKey`` convention and
+# remains audit-only.
+
+CAPTURE_NORMALIZED_EVENT_REQUIRED_NON_EMPTY_STRING_FIELDS: tuple[str, ...] = (
+    "schema_version",
+    "record_type",
+    "provider_id",
+    "chain",
+    "event_id",
+    "raw_event_hash",
+    "received_at_utc",
+    "event_type",
+    "source_kind",
+    "mint",
+    "signature",
+)
+
+
+CAPTURE_MALFORMED_EVENT_REQUIRED_NON_EMPTY_STRING_FIELDS: tuple[str, ...] = (
+    "schema_version",
+    "record_type",
+    "provider_id",
+    "reason",
+    "failed_at_utc",
+    "raw_event_hash",
+)
+
+
+CAPTURE_PROVIDER_FAILURE_REQUIRED_NON_EMPTY_STRING_FIELDS: tuple[str, ...] = (
+    "schema_version",
+    "record_type",
+    "provider_id",
+    "failure_label",
+    "status_class",
+    "upstream_error_type",
+    "observed_at_utc",
+)
+
+
+# Per-record-type required strict-int field tuples. ``bool`` is
+# a subclass of ``int`` in Python; the writer's runtime check
+# excludes bool explicitly so True / False cannot silently pass
+# as a slot or provider_attempt_index value. The replay decoder
+# applies the same discipline.
+
+CAPTURE_NORMALIZED_EVENT_REQUIRED_INT_FIELDS: tuple[str, ...] = (
+    "provider_attempt_index",
+    "slot",
+)
+
+
+CAPTURE_PROVIDER_FAILURE_REQUIRED_INT_FIELDS: tuple[str, ...] = (
+    "provider_attempt_index",
+)
+
+
+# ``payload_summary`` sanitizer caps. The writer rejects any
+# payload_summary that exceeds these limits.
+#
+# Caps locked at 22.3:
+#   * up to 16 keys
+#   * keys are snake_case lowercase ASCII identifiers up to 64
+#     chars
+#   * string values are up to 512 chars (raw evidence dumps
+#     belong to a strictly later specialised stage, after the
+#     sanitizer rules are proven on real provider data)
+CAPTURE_PAYLOAD_SUMMARY_MAX_KEYS: int = 16
+CAPTURE_PAYLOAD_SUMMARY_MAX_KEY_LEN: int = 64
+CAPTURE_PAYLOAD_SUMMARY_MAX_STRING_LEN: int = 512
+
+
+# Long-token thresholds for the writer-side sanitizer. The
+# thresholds mirror those in ``test_no_secret_leaks.py`` -- 40
+# chars for a hex run (above the Stage 21 truncated fingerprint
+# length of 12) and 32 chars for a mixed-content base64-shape
+# run.
+
+CAPTURE_LONG_HEX_RUN_MIN_LEN: int = 40
+CAPTURE_LONG_TOKENISH_MIN_LEN: int = 32
+
+
+# URL-scheme fragments and webhook host literals are constructed
+# at runtime via string concatenation so the literal substrings
+# the Stage 22 boundary scanners forbid never appear in this
+# source file. The forbidden literals include the four standard
+# scheme prefixes (http / https / ws / wss followed by colon-
+# slash-slash) and the three webhook host names (discord +
+# .com, discordapp + .com, hooks.slack + .com). Mirrors the
+# Stage 21 pattern in ``PHX2/stage21/constants.py``.
+
+_COLON_SLASH_SLASH: str = ":" + "//"
+_HTTP_SCHEME: str = "http" + _COLON_SLASH_SLASH
+_HTTPS_SCHEME: str = "https" + _COLON_SLASH_SLASH
+_WS_SCHEME: str = "ws" + _COLON_SLASH_SLASH
+_WSS_SCHEME: str = "wss" + _COLON_SLASH_SLASH
+
+_DOT_COM: str = "." + "com"
+_DISCORD_HOST: str = "discord" + _DOT_COM
+_DISCORDAPP_HOST: str = "discordapp" + _DOT_COM
+_HOOKS_SLACK_HOST: str = "hooks" + ".slack" + _DOT_COM
+
+
+# Substrings the writer rejects anywhere inside a payload_summary
+# string value (case-insensitive). The colon-slash-slash entry
+# catches URL prefixes that drop the scheme as well as the
+# concrete schemes.
+
+CAPTURE_FORBIDDEN_URL_SUBSTRINGS: tuple[str, ...] = (
+    _HTTP_SCHEME,
+    _HTTPS_SCHEME,
+    _WS_SCHEME,
+    _WSS_SCHEME,
+    _COLON_SLASH_SLASH,
+    _DISCORD_HOST,
+    _DISCORDAPP_HOST,
+    _HOOKS_SLACK_HOST,
+)
+
+
+# Substrings the writer rejects anywhere inside a payload_summary
+# key (case-insensitive). Mirrors the field-name discipline in
+# ``test_no_secret_leaks.py`` so the runtime sanitizer's reject
+# set is the same as the source-text scan set.
+
+CAPTURE_FORBIDDEN_SECRET_KEY_SUBSTRINGS: tuple[str, ...] = (
+    "api_key",
+    "apikey",
+    "webhook_url",
+    "webhook",
+    "rpc_url",
+    "raw_response_body",
+    "raw_response",
+    "response_body",
+    "exception_message",
+    "exception_repr",
+    "exception_args",
+    "headers",
+    "authorization",
+    "bearer",
+    "password",
+    "secret",
+    "credential",
+    "credentials",
+    "private_key",
+    "privatekey",
 )
