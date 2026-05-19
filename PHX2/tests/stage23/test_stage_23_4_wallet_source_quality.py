@@ -77,9 +77,11 @@ from PHX2.stage23.wallet_source_quality import (
     PRIMITIVE_FRESH_WALLET_PCT,
     PRIMITIVE_KNOWN_BAD_SOURCE_COUNT,
     PRIMITIVE_KNOWN_BAD_SOURCE_PCT,
+    PRIMITIVE_KNOWN_GOOD_SOURCE_PCT,
     PRIMITIVE_LARGEST_COMMON_FUNDER_CLUSTER_PCT,
     PRIMITIVE_MATURE_WALLET_PCT,
     PRIMITIVE_REPEATED_SOURCE_WALLET_PCT,
+    PRIMITIVE_SOURCE_QUALITY_KNOWN_PCT,
     PRIMITIVE_WALLET_AGE_KNOWN_PCT,
     PRIMITIVE_YOUNG_WALLET_PCT,
     REASON_COMMON_FUNDER_CLUSTER_HIGH,
@@ -1056,3 +1058,155 @@ def test_filter_identity_strings_make_no_ground_truth_claim():
         upper = token.upper()
         for needle in ("ORGANIC", "GROUND_TRUTH", "PARITY", "ANTE"):
             assert needle not in upper
+
+
+# ---------------------------------------------------------------------------
+# Stage 23.6: bounded pct primitive validation
+# ---------------------------------------------------------------------------
+
+
+# Every wallet-source primitive the production module reads
+# through ``_read_pct``. The set must stay in sync with
+# ``PHX2/stage23/wallet_source_quality.py`` -- adding a new
+# percentage primitive without listing it here would leave its
+# bounded-pct contract untested.
+_WALLET_SOURCE_PCT_PRIMITIVES: tuple[str, ...] = (
+    PRIMITIVE_FRESH_WALLET_PCT,
+    PRIMITIVE_REPEATED_SOURCE_WALLET_PCT,
+    PRIMITIVE_LARGEST_COMMON_FUNDER_CLUSTER_PCT,
+    PRIMITIVE_WALLET_AGE_KNOWN_PCT,
+    PRIMITIVE_YOUNG_WALLET_PCT,
+    PRIMITIVE_MATURE_WALLET_PCT,
+    PRIMITIVE_KNOWN_BAD_SOURCE_PCT,
+    PRIMITIVE_KNOWN_GOOD_SOURCE_PCT,
+    PRIMITIVE_SOURCE_QUALITY_KNOWN_PCT,
+)
+
+
+@pytest.mark.parametrize("primitive_key", _WALLET_SOURCE_PCT_PRIMITIVES)
+def test_wallet_source_pct_primitive_below_zero_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: -0.1})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_wallet_source_filter_input(
+                payload_summary=payload,
+            )
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _WALLET_SOURCE_PCT_PRIMITIVES)
+def test_wallet_source_pct_primitive_above_one_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: 1.4})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_wallet_source_filter_input(
+                payload_summary=payload,
+            )
+        )
+
+
+def test_wallet_source_malformed_pct_cannot_produce_normal_complete():
+    for primitive_key in _WALLET_SOURCE_PCT_PRIMITIVES:
+        payload = MappingProxyType({primitive_key: -0.1})
+        with pytest.raises(Stage23ContractError):
+            evaluate(
+                filter_input=make_wallet_source_filter_input(
+                    payload_summary=payload,
+                )
+            )
+
+
+@pytest.mark.parametrize("primitive_key", _WALLET_SOURCE_PCT_PRIMITIVES)
+def test_wallet_source_pct_primitive_nan_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("nan")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_wallet_source_filter_input(
+                payload_summary=payload,
+            )
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _WALLET_SOURCE_PCT_PRIMITIVES)
+def test_wallet_source_pct_primitive_positive_inf_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("inf")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_wallet_source_filter_input(
+                payload_summary=payload,
+            )
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _WALLET_SOURCE_PCT_PRIMITIVES)
+def test_wallet_source_pct_primitive_negative_inf_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("-inf")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_wallet_source_filter_input(
+                payload_summary=payload,
+            )
+        )
+
+
+# ---------------------------------------------------------------------------
+# Stage 23.6: closed unsupported-marker vocabulary
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "marker_key",
+    (
+        PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND,
+        PAYLOAD_MARKER_WALLET_AGE_PRIMITIVE_KIND,
+        PAYLOAD_MARKER_FUNDING_GRAPH_PRIMITIVE_KIND,
+        PAYLOAD_MARKER_PROVENANCE_PRIMITIVE_KIND,
+    ),
+)
+def test_wallet_source_invalid_unsupported_marker_value_is_rejected(marker_key):
+    payload = MappingProxyType(
+        {
+            marker_key: "not_a_known_marker",
+            PRIMITIVE_FRESH_WALLET_PCT: 0.10,
+        }
+    )
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_wallet_source_filter_input(
+                payload_summary=payload,
+            )
+        )
+
+
+def test_wallet_source_invalid_marker_cannot_produce_normal_complete():
+    payload = MappingProxyType(
+        {PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND: "bogus_marker"}
+    )
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_wallet_source_filter_input(
+                payload_summary=payload,
+            )
+        )
+
+
+def test_wallet_source_supported_marker_value_is_accepted():
+    from PHX2.stage23.wallet_source_quality import (
+        WALLET_SOURCE_PRIMITIVE_KIND_SUPPORTED,
+    )
+
+    payload = MappingProxyType(
+        {
+            PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND: (
+                WALLET_SOURCE_PRIMITIVE_KIND_SUPPORTED
+            ),
+            PRIMITIVE_FRESH_WALLET_PCT: 0.10,
+            PRIMITIVE_EARLY_WALLET_COUNT: 50,
+        }
+    )
+    result = evaluate(
+        filter_input=make_wallet_source_filter_input(
+            payload_summary=payload,
+        )
+    )
+    assert result.data_status != DATA_STATUS_UNSUPPORTED

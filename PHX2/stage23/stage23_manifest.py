@@ -145,7 +145,7 @@ class Stage23InputManifest(NamedTuple):
       * ``stage_name``             -- locked ``STAGE_NAME`` token
                                       (``"stage23"``).
       * ``stage_version``          -- locked ``STAGE_VERSION``
-                                      (``"23.1"``).
+                                      (closing value ``"23.6"``).
       * ``schema_version``         -- locked
                                       ``STAGE23_MANIFEST_SCHEMA_VERSION``.
       * ``observe_only_mode``      -- locked ``OBSERVE_ONLY_MODE``

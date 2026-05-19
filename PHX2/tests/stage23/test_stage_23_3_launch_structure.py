@@ -1015,3 +1015,118 @@ def test_filter_identity_strings_make_no_ante_parity_claim():
 def test_normal_payload_does_not_emit_bundle_like_reason():
     result = evaluate(filter_input=make_launch_filter_input())
     assert REASON_BUNDLE_LIKE_LAUNCH_PATTERN not in result.reason_codes
+
+
+# ---------------------------------------------------------------------------
+# Stage 23.6: bounded pct primitive validation
+# ---------------------------------------------------------------------------
+
+
+_LAUNCH_PCT_PRIMITIVES: tuple[str, ...] = (
+    PRIMITIVE_LARGEST_BUYER_CLUSTER_PCT,
+    PRIMITIVE_LARGEST_FUNDER_CLUSTER_PCT,
+    PRIMITIVE_FIRST_N_HOLDER_CONCENTRATION_PCT,
+)
+
+
+@pytest.mark.parametrize("primitive_key", _LAUNCH_PCT_PRIMITIVES)
+def test_launch_pct_primitive_below_zero_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: -0.05})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_launch_filter_input(payload_summary=payload)
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _LAUNCH_PCT_PRIMITIVES)
+def test_launch_pct_primitive_above_one_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: 1.2})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_launch_filter_input(payload_summary=payload)
+        )
+
+
+def test_launch_malformed_pct_cannot_produce_normal_complete():
+    """Each pct primitive should refuse a -0.1 input rather than
+    silently producing NORMAL/COMPLETE.
+    """
+    for primitive_key in _LAUNCH_PCT_PRIMITIVES:
+        payload = MappingProxyType({primitive_key: -0.1})
+        with pytest.raises(Stage23ContractError):
+            evaluate(
+                filter_input=make_launch_filter_input(
+                    payload_summary=payload,
+                )
+            )
+
+
+@pytest.mark.parametrize("primitive_key", _LAUNCH_PCT_PRIMITIVES)
+def test_launch_pct_primitive_nan_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("nan")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_launch_filter_input(payload_summary=payload)
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _LAUNCH_PCT_PRIMITIVES)
+def test_launch_pct_primitive_positive_inf_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("inf")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_launch_filter_input(payload_summary=payload)
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _LAUNCH_PCT_PRIMITIVES)
+def test_launch_pct_primitive_negative_inf_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("-inf")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_launch_filter_input(payload_summary=payload)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Stage 23.6: closed unsupported-marker vocabulary
+# ---------------------------------------------------------------------------
+
+
+def test_launch_invalid_unsupported_marker_value_is_rejected():
+    payload = MappingProxyType(
+        {
+            PAYLOAD_MARKER_LAUNCH_PRIMITIVE_KIND: "off-the-vocabulary",
+            PRIMITIVE_SAME_SLOT_BUYER_COUNT: 1,
+        }
+    )
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_launch_filter_input(payload_summary=payload)
+        )
+
+
+def test_launch_invalid_marker_cannot_produce_normal_complete():
+    payload = MappingProxyType(
+        {PAYLOAD_MARKER_LAUNCH_PRIMITIVE_KIND: "bogus_marker"}
+    )
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_launch_filter_input(payload_summary=payload)
+        )
+
+
+def test_launch_supported_marker_value_is_accepted():
+    from PHX2.stage23.launch_structure import LAUNCH_PRIMITIVE_KIND_SUPPORTED
+
+    payload = MappingProxyType(
+        {
+            PAYLOAD_MARKER_LAUNCH_PRIMITIVE_KIND: LAUNCH_PRIMITIVE_KIND_SUPPORTED,
+            PRIMITIVE_SAME_SLOT_BUYER_COUNT: 1,
+            PRIMITIVE_FIRST_N_UNIQUE_BUYERS: 10,
+        }
+    )
+    result = evaluate(
+        filter_input=make_launch_filter_input(payload_summary=payload)
+    )
+    assert result.data_status != DATA_STATUS_UNSUPPORTED

@@ -301,6 +301,31 @@ def _read_float(value: object) -> float | None:
     return None
 
 
+def _read_pct(value: object) -> float | None:
+    """Coerce a payload_summary value to a bounded ``[0.0, 1.0]`` float.
+
+    Returns ``None`` when the payload_summary did not carry the
+    primitive at all. Raises ``Stage23ContractError`` when the
+    value is present but outside the closed ``[0.0, 1.0]`` band
+    or is non-finite. Stage 23 percentage primitives are
+    contractually a fraction; an out-of-band value is a hard
+    contract violation, not data the filter should silently round
+    or clamp into NORMAL.
+    """
+    coerced = _read_float(value)
+    if coerced is None:
+        return None
+    if coerced < 0.0:
+        raise Stage23ContractError(
+            "holder percentage primitive is below 0.0"
+        )
+    if coerced > 1.0:
+        raise Stage23ContractError(
+            "holder percentage primitive is above 1.0"
+        )
+    return coerced
+
+
 def _read_int(value: object) -> int | None:
     """Coerce a payload_summary value to a non-negative ``int`` when safe.
 
@@ -341,23 +366,27 @@ def _project_holder_snapshot(
     unique_holder_count = _read_int(
         payload.get(PRIMITIVE_UNIQUE_HOLDER_COUNT)
     )
-    top_1 = _read_float(payload.get(PRIMITIVE_TOP_1_HOLDER_PCT))
-    top_5 = _read_float(payload.get(PRIMITIVE_TOP_5_HOLDER_PCT))
-    top_10 = _read_float(payload.get(PRIMITIVE_TOP_10_HOLDER_PCT))
-    top_20 = _read_float(payload.get(PRIMITIVE_TOP_20_HOLDER_PCT))
-    top_50 = _read_float(payload.get(PRIMITIVE_TOP_50_HOLDER_PCT))
-    creator_retained = _read_float(
+    top_1 = _read_pct(payload.get(PRIMITIVE_TOP_1_HOLDER_PCT))
+    top_5 = _read_pct(payload.get(PRIMITIVE_TOP_5_HOLDER_PCT))
+    top_10 = _read_pct(payload.get(PRIMITIVE_TOP_10_HOLDER_PCT))
+    top_20 = _read_pct(payload.get(PRIMITIVE_TOP_20_HOLDER_PCT))
+    top_50 = _read_pct(payload.get(PRIMITIVE_TOP_50_HOLDER_PCT))
+    creator_retained = _read_pct(
         payload.get(PRIMITIVE_CREATOR_RETAINED_PCT)
     )
-    dev_related_retained = _read_float(
+    dev_related_retained = _read_pct(
         payload.get(PRIMITIVE_DEV_RELATED_RETAINED_PCT)
     )
-    pool_related = _read_float(payload.get(PRIMITIVE_POOL_RELATED_PCT))
+    pool_related = _read_pct(payload.get(PRIMITIVE_POOL_RELATED_PCT))
     snapshot_age = _read_float(
         payload.get(PRIMITIVE_SNAPSHOT_AGE_SECONDS)
     )
 
     marker_raw = payload.get(PAYLOAD_MARKER_HOLDER_PRIMITIVE_KIND)
+    if marker_raw is not None and marker_raw not in HOLDER_PRIMITIVE_KIND_VALUES:
+        raise Stage23ContractError(
+            "holder_primitive_kind marker carries a non-closed-set value"
+        )
     is_marked_unsupported = (
         isinstance(marker_raw, str)
         and marker_raw == HOLDER_PRIMITIVE_KIND_UNSUPPORTED

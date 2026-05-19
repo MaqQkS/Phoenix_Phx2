@@ -48,11 +48,13 @@ Safety guarantees:
 
 This module imports only stdlib (``hashlib`` / ``pathlib`` /
 ``collections`` / ``types`` / ``typing``) plus the Stage 23
-constants / errors / models / manifest / runner. It does NOT
-import Stage 21 or Stage 22 modules, does NOT import any
-network / RPC / messaging / DB / scheduler / secrets-management
-library, does NOT read the process environment, does NOT define
-a CLI surface, and contains no top-level I/O.
+constants / errors / input reader / models / manifest / runner.
+The writer uses ``pathlib.Path.replace`` to commit temp-file
+artifact writes atomically and never imports / references
+``os.environ`` / ``os.getenv``. The writer does NOT import
+Stage 21 or Stage 22 modules, does NOT import any network /
+RPC / messaging / DB / scheduler / secrets-management library,
+does NOT define a CLI surface, and contains no top-level I/O.
 """
 
 from __future__ import annotations
@@ -71,8 +73,10 @@ from PHX2.stage23.constants import (
     STAGE23_MANIFEST_SCHEMA_VERSION,
 )
 from PHX2.stage23.errors import Stage23ManifestError
+from PHX2.stage23.input_reader import stage23_value_carries_leak_shape
 from PHX2.stage23.models import (
     Stage23FilterEvaluation,
+    Stage23FilterInput,
     canonical_json,
 )
 from PHX2.stage23.runner import Stage23RunnerResult
@@ -206,6 +210,13 @@ def _scan_for_redaction(*, text: str, artifact_basename: str) -> None:
     already rejects forbidden value substrings at ingest, and
     every filter's projection layer constrains its output to
     closed-set numeric values plus controlled identifier strings.
+
+    The text-scan deliberately checks only URL / webhook host
+    substrings -- the per-value scan in
+    ``_scan_filter_input_for_redaction`` catches long
+    hex / tokenish / env-name patterns BEFORE serialisation so
+    the writer-constructed SHA-256 hashes embedded in the
+    rendered text never produce a false positive here.
     """
     lower = text.lower()
     for needle in STAGE23_FORBIDDEN_INPUT_VALUE_SUBSTRINGS:
@@ -215,6 +226,75 @@ def _scan_for_redaction(*, text: str, artifact_basename: str) -> None:
                 f"{artifact_basename!r} carries a forbidden "
                 "URL-shape / webhook-host substring"
             )
+
+
+# The Stage23FilterInput string fields the writer serialises into
+# every evaluation row. These are the user-controllable values
+# that may carry a secret-shape if a caller bypassed the
+# Stage 23 input reader and constructed Stage23FilterInput
+# directly. Writer-computed values (input_hash / evaluation_hash
+# / artifact SHA-256 hashes) are deliberately excluded so the
+# hex-run check does not false-positive on legitimate hashes.
+_FILTER_INPUT_STRING_FIELDS: tuple[str, ...] = (
+    "token_mint",
+    "provider_id",
+    "event_id",
+    "captured_event_id",
+    "observed_at_utc",
+    "signature",
+)
+
+
+def _scan_filter_input_for_redaction(
+    *,
+    filter_input: Stage23FilterInput,
+) -> None:
+    """Raise ``Stage23ManifestError`` if any user-controllable string
+    field on ``filter_input`` carries a Stage 23 leak-shape.
+
+    Mirrors the Stage 23 input reader's per-value sanitiser via
+    the shared ``stage23_value_carries_leak_shape`` helper so a
+    caller that bypassed the reader cannot smuggle a
+    secret-shaped value into the artifact set.
+    """
+    for field_name in _FILTER_INPUT_STRING_FIELDS:
+        value = getattr(filter_input, field_name)
+        if stage23_value_carries_leak_shape(value):
+            raise Stage23ManifestError(
+                f"write_stage23_artifacts: filter_input field "
+                f"{field_name!r} carries a Stage 23 leak-shape value"
+            )
+
+
+def _scan_payload_summary_for_redaction(
+    *,
+    payload_summary: object,
+) -> None:
+    """Raise ``Stage23ManifestError`` if any payload_summary value
+    carries a Stage 23 leak-shape.
+
+    The Stage 23 input reader already validates payload_summary
+    on ingest, but a caller that constructed ``Stage23FilterInput``
+    directly can bypass that check; re-scan here so any leak-shape
+    smuggled through aborts the write rather than landing on disk.
+    """
+    if not isinstance(payload_summary, Mapping):
+        return
+    for value in payload_summary.values():
+        if isinstance(value, str) and stage23_value_carries_leak_shape(value):
+            raise Stage23ManifestError(
+                "write_stage23_artifacts: filter_input.payload_summary "
+                "value carries a Stage 23 leak-shape"
+            )
+
+
+def _scan_created_at_utc_for_redaction(*, created_at_utc: str) -> None:
+    """Raise ``Stage23ManifestError`` if ``created_at_utc`` carries a leak-shape."""
+    if stage23_value_carries_leak_shape(created_at_utc):
+        raise Stage23ManifestError(
+            "write_stage23_artifacts: created_at_utc carries a "
+            "Stage 23 leak-shape value"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -514,16 +594,133 @@ def _row_count_for_artifact(*, basename: str, text: str) -> int:
     return -1
 
 
-def _write_artifact_text(*, path: Path, text: str) -> None:
+def _validate_artifact_target_path(
+    *,
+    target_path: Path,
+    output_dir: Path,
+) -> None:
+    """Raise ``Stage23ManifestError`` if ``target_path`` is unsafe to
+    write into.
+
+    Safety rules:
+
+      * ``target_path`` must resolve to a path strictly inside
+        ``output_dir`` (anti-traversal). Resolution follows
+        ``Path.resolve(strict=False)`` so a non-existent target
+        still resolves to its intended absolute path.
+      * If ``target_path`` exists, it must be a regular file
+        (not a directory and not a non-regular special file).
+      * ``target_path`` must not be a symbolic link. The writer
+        refuses to follow symlinks to anywhere -- even into the
+        output directory -- because a symlink can be retargeted
+        between the writer's check and the writer's open.
+      * On platforms that report ``st_nlink``, the writer
+        refuses to overwrite a hardlinked file (link count > 1):
+        a hardlink would let an attacker share file identity
+        with a file outside the output dir.
+    """
+    output_dir_resolved = output_dir.resolve(strict=False)
+    target_resolved = target_path.resolve(strict=False)
+    try:
+        target_resolved.relative_to(output_dir_resolved)
+    except ValueError:
+        raise Stage23ManifestError(
+            f"write_stage23_artifacts: artifact target path "
+            f"{target_path.name!r} resolves outside output_dir"
+        )
+    # ``Path.is_symlink`` checks the path itself, not its target,
+    # so the call is safe even if the symlink points at a
+    # non-existent location.
+    if target_path.is_symlink():
+        raise Stage23ManifestError(
+            f"write_stage23_artifacts: artifact target "
+            f"{target_path.name!r} is a symbolic link"
+        )
+    if target_path.exists():
+        if target_path.is_dir():
+            raise Stage23ManifestError(
+                f"write_stage23_artifacts: artifact target "
+                f"{target_path.name!r} is an existing directory"
+            )
+        if not target_path.is_file():
+            raise Stage23ManifestError(
+                f"write_stage23_artifacts: artifact target "
+                f"{target_path.name!r} is a non-regular file"
+            )
+        # ``st_nlink`` is reported on POSIX; on Windows it is also
+        # available via the ``stat()`` result but may always be 1
+        # for non-NTFS filesystems. A value of > 1 anywhere is a
+        # hard refusal.
+        try:
+            stat_result = target_path.stat()
+        except OSError as exc:
+            raise Stage23ManifestError(
+                f"write_stage23_artifacts: artifact target "
+                f"{target_path.name!r} could not be stat'd: {exc!s}"
+            ) from exc
+        if getattr(stat_result, "st_nlink", 1) > 1:
+            raise Stage23ManifestError(
+                f"write_stage23_artifacts: artifact target "
+                f"{target_path.name!r} is a hardlinked file "
+                "(st_nlink > 1)"
+            )
+
+
+def _write_artifact_text(
+    *,
+    path: Path,
+    text: str,
+    output_dir: Path,
+) -> None:
     """Write ``text`` to ``path`` using a UTF-8 binary stream so
     every byte that lands on disk is exactly the byte we
     rendered. Explicit ``newline=""`` would not suffice because
     Python's text-mode write maps ``\\n`` to ``\\r\\n`` on
     Windows; binary mode is the only portable way to guarantee
     byte-identical artifacts across platforms.
+
+    The write happens via a temporary sibling file inside
+    ``output_dir`` and is then atomically replaced into
+    ``path`` via ``os.replace``. The temp file never leaves
+    ``output_dir`` so the writer can never produce a partial
+    write outside the operator-supplied directory; the
+    pre-write target-path validation (``_validate_artifact_target_path``)
+    rejects unsafe targets before the temp file is created.
     """
-    with open(path, "wb") as handle:
-        handle.write(text.encode("utf-8"))
+    _validate_artifact_target_path(target_path=path, output_dir=output_dir)
+    encoded = text.encode("utf-8")
+    temp_path = path.with_name(path.name + ".tmp")
+    # Defensive: refuse to overwrite a pre-existing temp file
+    # under our chosen name. A pre-existing file at the temp name
+    # may belong to another writer; remove it only if it is a
+    # regular file inside output_dir, otherwise raise.
+    if temp_path.exists() or temp_path.is_symlink():
+        if temp_path.is_symlink() or not temp_path.is_file():
+            raise Stage23ManifestError(
+                f"write_stage23_artifacts: stale temp path "
+                f"{temp_path.name!r} is not a regular file"
+            )
+        temp_path.unlink()
+    try:
+        with open(temp_path, "wb") as handle:
+            handle.write(encoded)
+        # ``Path.replace`` is atomic on POSIX and on Windows when
+        # source and destination are on the same filesystem; both
+        # paths live inside ``output_dir`` here so the precondition
+        # holds. ``Path.replace`` overwrites the destination
+        # unconditionally, which is the contract the writer wants
+        # because the per-target validation already rejected
+        # unsafe (symlink / hardlink / directory) destinations.
+        temp_path.replace(path)
+    except Exception:
+        # Clean up the temp file on any failure so a retry sees
+        # a fresh slot.
+        try:
+            if temp_path.exists():
+                temp_path.unlink()
+        except OSError:
+            pass
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -558,6 +755,21 @@ def write_stage23_artifacts(
     """
     _require_output_dir(output_dir)
     _require_created_at_utc(created_at_utc)
+    _scan_created_at_utc_for_redaction(created_at_utc=created_at_utc)
+
+    # Per-value scan over every runner-result evaluation. The
+    # writer scans user-controllable string fields BEFORE
+    # serialising them; if a caller bypassed the Stage 23 input
+    # reader and constructed Stage23FilterInput directly with a
+    # secret-shaped value, the writer aborts here rather than
+    # writing the value to disk.
+    for evaluation in runner_result.evaluations:
+        _scan_filter_input_for_redaction(
+            filter_input=evaluation.filter_input,
+        )
+        _scan_payload_summary_for_redaction(
+            payload_summary=evaluation.filter_input.payload_summary,
+        )
 
     # Render every non-manifest artifact's text first.
     rendered: dict[str, str] = {
@@ -592,11 +804,26 @@ def write_stage23_artifacts(
             basename=basename, text=text
         )
 
+    # Pre-validate every target path BEFORE any byte lands on
+    # disk. A failure here aborts the run with zero artifacts
+    # written, so an unsafe symlink / hardlink / non-regular
+    # file at one artifact name does not corrupt the rest of
+    # the artifact set.
+    for basename in (*rendered.keys(), ARTIFACT_FILENAME_MANIFEST):
+        _validate_artifact_target_path(
+            target_path=output_dir / basename,
+            output_dir=output_dir,
+        )
+
     # Write the rendered artifacts to disk.
     artifact_paths: dict[str, Path] = {}
     for basename, text in rendered.items():
         path = output_dir / basename
-        _write_artifact_text(path=path, text=text)
+        _write_artifact_text(
+            path=path,
+            text=text,
+            output_dir=output_dir,
+        )
         artifact_paths[basename] = path
 
     # Build + redaction-sweep + write the manifest.
@@ -612,7 +839,11 @@ def write_stage23_artifacts(
         artifact_basename=ARTIFACT_FILENAME_MANIFEST,
     )
     manifest_path = output_dir / ARTIFACT_FILENAME_MANIFEST
-    _write_artifact_text(path=manifest_path, text=manifest_text)
+    _write_artifact_text(
+        path=manifest_path,
+        text=manifest_text,
+        output_dir=output_dir,
+    )
     artifact_paths[ARTIFACT_FILENAME_MANIFEST] = manifest_path
     artifact_hashes[ARTIFACT_FILENAME_MANIFEST] = _sha256_hex(manifest_text)
     artifact_row_counts[ARTIFACT_FILENAME_MANIFEST] = -1

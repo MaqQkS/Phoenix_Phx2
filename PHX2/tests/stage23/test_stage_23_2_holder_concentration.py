@@ -770,6 +770,142 @@ def test_non_finite_pct_is_rejected():
 
 
 # ---------------------------------------------------------------------------
+# Stage 23.6: bounded pct primitive validation
+# ---------------------------------------------------------------------------
+#
+# The filter must refuse pct primitives outside [0.0, 1.0]. Without
+# the bound the filter would otherwise classify a malformed -0.1
+# or 1.5 as NORMAL because each threshold check is one-sided.
+
+
+_HOLDER_PCT_PRIMITIVES: tuple[str, ...] = (
+    PRIMITIVE_TOP_1_HOLDER_PCT,
+    PRIMITIVE_TOP_5_HOLDER_PCT,
+    PRIMITIVE_TOP_10_HOLDER_PCT,
+    PRIMITIVE_TOP_20_HOLDER_PCT,
+    PRIMITIVE_TOP_50_HOLDER_PCT,
+    PRIMITIVE_CREATOR_RETAINED_PCT,
+    PRIMITIVE_DEV_RELATED_RETAINED_PCT,
+    PRIMITIVE_POOL_RELATED_PCT,
+)
+
+
+@pytest.mark.parametrize("primitive_key", _HOLDER_PCT_PRIMITIVES)
+def test_holder_pct_primitive_below_zero_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: -0.1})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_holder_filter_input(payload_summary=payload)
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _HOLDER_PCT_PRIMITIVES)
+def test_holder_pct_primitive_above_one_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: 1.5})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_holder_filter_input(payload_summary=payload)
+        )
+
+
+def test_holder_malformed_pct_cannot_produce_normal_complete():
+    """Each pct primitive should refuse a -0.1 input rather than
+    silently producing NORMAL/COMPLETE.
+    """
+    for primitive_key in _HOLDER_PCT_PRIMITIVES:
+        payload = MappingProxyType({primitive_key: -0.1})
+        with pytest.raises(Stage23ContractError):
+            evaluate(
+                filter_input=make_holder_filter_input(
+                    payload_summary=payload,
+                )
+            )
+
+
+@pytest.mark.parametrize("primitive_key", _HOLDER_PCT_PRIMITIVES)
+def test_holder_pct_primitive_nan_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("nan")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_holder_filter_input(payload_summary=payload)
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _HOLDER_PCT_PRIMITIVES)
+def test_holder_pct_primitive_positive_inf_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("inf")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_holder_filter_input(payload_summary=payload)
+        )
+
+
+@pytest.mark.parametrize("primitive_key", _HOLDER_PCT_PRIMITIVES)
+def test_holder_pct_primitive_negative_inf_is_rejected(primitive_key):
+    payload = MappingProxyType({primitive_key: float("-inf")})
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_holder_filter_input(payload_summary=payload)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Stage 23.6: closed unsupported-marker vocabulary
+# ---------------------------------------------------------------------------
+
+
+def test_holder_invalid_unsupported_marker_value_is_rejected():
+    """Marker key present with a non-closed-set value must NOT
+    silently fall through to normal classification.
+    """
+    payload = MappingProxyType(
+        {
+            PAYLOAD_MARKER_HOLDER_PRIMITIVE_KIND: "definitely_not_supported",
+            PRIMITIVE_TOP_10_HOLDER_PCT: 0.20,
+        }
+    )
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_holder_filter_input(payload_summary=payload)
+        )
+
+
+def test_holder_invalid_marker_cannot_produce_normal_complete():
+    """An invalid marker value must not yield NORMAL/COMPLETE via the
+    runner's catch-all path. Calling ``evaluate`` directly raises
+    ``Stage23ContractError`` rather than returning a NORMAL result.
+    """
+    payload = MappingProxyType(
+        {PAYLOAD_MARKER_HOLDER_PRIMITIVE_KIND: "bogus_marker"}
+    )
+    with pytest.raises(Stage23ContractError):
+        evaluate(
+            filter_input=make_holder_filter_input(payload_summary=payload)
+        )
+
+
+def test_holder_supported_marker_value_is_accepted():
+    """The closed-set ``"supported"`` token must pass through
+    without raising.
+    """
+    from PHX2.stage23.holder_concentration import (
+        HOLDER_PRIMITIVE_KIND_SUPPORTED,
+    )
+
+    payload = MappingProxyType(
+        {
+            PAYLOAD_MARKER_HOLDER_PRIMITIVE_KIND: HOLDER_PRIMITIVE_KIND_SUPPORTED,
+            PRIMITIVE_TOP_10_HOLDER_PCT: 0.20,
+        }
+    )
+    result = evaluate(
+        filter_input=make_holder_filter_input(payload_summary=payload)
+    )
+    # supported = primitives are usable; should not flip to UNSUPPORTED.
+    assert result.data_status != DATA_STATUS_UNSUPPORTED
+
+
+# ---------------------------------------------------------------------------
 # Sanity: 23.1 input_hash semantics still apply to holder inputs
 # ---------------------------------------------------------------------------
 

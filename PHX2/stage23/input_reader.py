@@ -180,6 +180,46 @@ def _string_value_carries_leak_shape(value: str) -> bool:
     return False
 
 
+def stage23_value_carries_leak_shape(value: object) -> bool:
+    """Public Stage 23 secret-shape detector for STRING VALUES.
+
+    Mirrors the input reader's per-value sanitiser so callers
+    that bypass the reader (the Stage 23.5 artifact writer in
+    particular, when a caller constructs ``Stage23FilterInput``
+    directly) can re-run the same scan over user-controllable
+    string values before serialising them to disk.
+
+    Returns ``True`` if ``value`` is a string that carries any of:
+
+      * a URL / webhook host substring from
+        ``STAGE23_FORBIDDEN_INPUT_VALUE_SUBSTRINGS``;
+      * a run of >= ``STAGE23_LONG_HEX_RUN_MIN_LEN`` hex-class
+        characters (token / credential shape);
+      * a maximal run of >= ``STAGE23_LONG_TOKENISH_MIN_LEN``
+        token-shape characters with mixed letter+digit content
+        (API-key shape);
+      * an env-style sensitive substring from
+        ``STAGE23_FORBIDDEN_INPUT_FIELD_SUBSTRINGS`` embedded in
+        the value (e.g. ``"api_key"``, ``"webhook"``,
+        ``"password"``).
+
+    Returns ``False`` for non-string values; the writer scans
+    user-controllable string fields, and non-string artifact
+    values (closed-set integers, sorted reason-code tuples,
+    writer-computed SHA-256 hashes) are never sent through this
+    function.
+    """
+    if not isinstance(value, str):
+        return False
+    if _string_value_carries_leak_shape(value):
+        return True
+    lower = value.lower()
+    for forbidden in STAGE23_FORBIDDEN_INPUT_FIELD_SUBSTRINGS:
+        if forbidden in lower:
+            return True
+    return False
+
+
 def _is_safe_scalar_value(value: object) -> bool:
     """Return True iff ``value`` is a safe scalar for a preserved field
     (after string-value leak-shape sanitisation has already passed).
@@ -588,4 +628,5 @@ def _row_is_projectable(
 
 __all__ = [
     "read_stage22_jsonl",
+    "stage23_value_carries_leak_shape",
 ]

@@ -395,6 +395,31 @@ def _read_non_negative_float(value: object) -> float | None:
     return result
 
 
+def _read_pct(value: object) -> float | None:
+    """Coerce a payload_summary value to a bounded ``[0.0, 1.0]`` float.
+
+    Returns ``None`` when the payload_summary did not carry the
+    primitive at all. Raises ``Stage23ContractError`` when the
+    value is present but outside the closed ``[0.0, 1.0]`` band
+    or is non-finite. Stage 23 percentage primitives are
+    contractually a fraction; an out-of-band value is a hard
+    contract violation, not data the filter should silently round
+    or clamp into NORMAL.
+    """
+    coerced = _read_float(value)
+    if coerced is None:
+        return None
+    if coerced < 0.0:
+        raise Stage23ContractError(
+            "launch percentage primitive is below 0.0"
+        )
+    if coerced > 1.0:
+        raise Stage23ContractError(
+            "launch percentage primitive is above 1.0"
+        )
+    return coerced
+
+
 def _project_launch_structure(
     *,
     payload: Mapping[str, object],
@@ -418,13 +443,13 @@ def _project_launch_structure(
     buyer_source_cluster_count = _read_int(
         payload.get(PRIMITIVE_BUYER_SOURCE_CLUSTER_COUNT)
     )
-    largest_buyer_cluster_pct = _read_float(
+    largest_buyer_cluster_pct = _read_pct(
         payload.get(PRIMITIVE_LARGEST_BUYER_CLUSTER_PCT)
     )
-    largest_funder_cluster_pct = _read_float(
+    largest_funder_cluster_pct = _read_pct(
         payload.get(PRIMITIVE_LARGEST_FUNDER_CLUSTER_PCT)
     )
-    first_n_holder_concentration_pct = _read_float(
+    first_n_holder_concentration_pct = _read_pct(
         payload.get(PRIMITIVE_FIRST_N_HOLDER_CONCENTRATION_PCT)
     )
     repeated_source_wallet_count = _read_int(
@@ -443,6 +468,10 @@ def _project_launch_structure(
     )
 
     marker_raw = payload.get(PAYLOAD_MARKER_LAUNCH_PRIMITIVE_KIND)
+    if marker_raw is not None and marker_raw not in LAUNCH_PRIMITIVE_KIND_VALUES:
+        raise Stage23ContractError(
+            "launch_primitive_kind marker carries a non-closed-set value"
+        )
     is_marked_unsupported = (
         isinstance(marker_raw, str)
         and marker_raw == LAUNCH_PRIMITIVE_KIND_UNSUPPORTED

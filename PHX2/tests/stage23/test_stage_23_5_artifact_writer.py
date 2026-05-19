@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -864,3 +865,220 @@ def test_artifact_set_row_counts_for_manifest_is_minus_one(tmp_path):
         artifact_set.artifact_row_counts[ARTIFACT_FILENAME_MANIFEST]
         == -1
     )
+
+
+# ---------------------------------------------------------------------------
+# Stage 23.6: writer redaction bypass coverage
+# ---------------------------------------------------------------------------
+#
+# The writer must reject a Stage23FilterInput whose user-controllable
+# string fields carry a long hex / tokenish / env-name leak shape,
+# even if the input bypassed the Stage 23 input reader at ingest.
+
+
+def test_writer_rejects_long_hex_token_in_signature(tmp_path):
+    """A 40-character hex run in a string field must abort the write."""
+    leaked_input = make_mixed_filter_input(
+        token_mint="MintFixture111",
+    )
+    forty_char_hex = "a" * 40
+    leaked_input = leaked_input._replace(signature=forty_char_hex)
+    runner_result = run_stage23_filters(
+        filter_inputs=[leaked_input],
+        created_at_utc=FIXED_CLOCK_UTC,
+    )
+    with pytest.raises(Stage23ManifestError):
+        write_stage23_artifacts(
+            runner_result=runner_result,
+            output_dir=tmp_path,
+            created_at_utc=FIXED_CLOCK_UTC,
+        )
+    # No artifacts should land on disk.
+    assert sorted(p.name for p in tmp_path.iterdir()) == []
+
+
+def test_writer_rejects_long_tokenish_api_key_value_in_event_id(tmp_path):
+    """A 32-character API-key-shaped string must abort the write."""
+    leaked_input = make_mixed_filter_input(
+        token_mint="MintFixture111",
+    )
+    # 36 chars, mixed letters + digits, dense alnum content.
+    tokenish_value = "ab12CD34ef56GH78ij90KL12mn34OP56qr78"
+    leaked_input = leaked_input._replace(event_id=tokenish_value)
+    runner_result = run_stage23_filters(
+        filter_inputs=[leaked_input],
+        created_at_utc=FIXED_CLOCK_UTC,
+    )
+    with pytest.raises(Stage23ManifestError):
+        write_stage23_artifacts(
+            runner_result=runner_result,
+            output_dir=tmp_path,
+            created_at_utc=FIXED_CLOCK_UTC,
+        )
+    assert sorted(p.name for p in tmp_path.iterdir()) == []
+
+
+def test_writer_rejects_env_style_name_embedded_in_value(tmp_path):
+    """A value carrying an embedded env-style sensitive name (api_key
+    / webhook / password / secret) must abort the write.
+    """
+    leaked_input = make_mixed_filter_input(
+        token_mint="some_api_key_lurking_here",
+    )
+    runner_result = run_stage23_filters(
+        filter_inputs=[leaked_input],
+        created_at_utc=FIXED_CLOCK_UTC,
+    )
+    with pytest.raises(Stage23ManifestError):
+        write_stage23_artifacts(
+            runner_result=runner_result,
+            output_dir=tmp_path,
+            created_at_utc=FIXED_CLOCK_UTC,
+        )
+    assert sorted(p.name for p in tmp_path.iterdir()) == []
+
+
+def test_writer_rejects_long_hex_token_in_payload_summary_value(tmp_path):
+    """A long hex run smuggled into payload_summary must be caught
+    before any byte lands on disk.
+    """
+    from types import MappingProxyType as _MPT
+
+    leaked_payload = _MPT(
+        {
+            "leaked_marker": "f" * 40,
+        }
+    )
+    leaked_input = make_mixed_filter_input(
+        token_mint="MintFixture111",
+        payload_summary=leaked_payload,
+    )
+    runner_result = run_stage23_filters(
+        filter_inputs=[leaked_input],
+        created_at_utc=FIXED_CLOCK_UTC,
+    )
+    with pytest.raises(Stage23ManifestError):
+        write_stage23_artifacts(
+            runner_result=runner_result,
+            output_dir=tmp_path,
+            created_at_utc=FIXED_CLOCK_UTC,
+        )
+    assert sorted(p.name for p in tmp_path.iterdir()) == []
+
+
+# ---------------------------------------------------------------------------
+# Stage 23.6: writer path safety
+# ---------------------------------------------------------------------------
+
+
+def test_writer_rejects_existing_symlink_at_artifact_path(tmp_path):
+    """If a symlink already exists at one of the locked artifact
+    target paths, the writer must raise ``Stage23ManifestError``
+    and refuse to follow the symlink.
+    """
+    runner_result = _run_default_runner()
+    # Create a target for the symlink and the symlink itself at one
+    # of the locked artifact names.
+    target_file = tmp_path / "outside_target.txt"
+    target_file.write_text("outside content", encoding="utf-8")
+    artifact_link = tmp_path / ARTIFACT_FILENAME_FILTER_SUMMARY
+    try:
+        artifact_link.symlink_to(target_file)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation not permitted on this platform")
+    with pytest.raises(Stage23ManifestError):
+        write_stage23_artifacts(
+            runner_result=runner_result,
+            output_dir=tmp_path,
+            created_at_utc=FIXED_CLOCK_UTC,
+        )
+    # The symlink target must remain unmodified.
+    assert target_file.read_text(encoding="utf-8") == "outside content"
+
+
+def test_writer_rejects_existing_directory_at_artifact_path(tmp_path):
+    """If a directory already occupies an artifact filename, the
+    writer must reject the run with a typed error.
+    """
+    runner_result = _run_default_runner()
+    artifact_dir = tmp_path / ARTIFACT_FILENAME_FILTER_SUMMARY
+    artifact_dir.mkdir()
+    with pytest.raises(Stage23ManifestError):
+        write_stage23_artifacts(
+            runner_result=runner_result,
+            output_dir=tmp_path,
+            created_at_utc=FIXED_CLOCK_UTC,
+        )
+
+
+def test_writer_rejects_hardlinked_target_when_supported(tmp_path):
+    """If an artifact filename is a hardlink to a file outside
+    the output dir, the writer must refuse to overwrite it.
+
+    Skip the test if ``st_nlink`` reports 1 even after the
+    hardlink creation (some filesystems / sandboxes do not
+    expose link counts).
+    """
+    runner_result = _run_default_runner()
+    outside_file = tmp_path / "shared_target.txt"
+    outside_file.write_text("shared content", encoding="utf-8")
+    artifact_path = tmp_path / ARTIFACT_FILENAME_FILTER_SUMMARY
+    try:
+        os.link(outside_file, artifact_path)
+    except (OSError, NotImplementedError, AttributeError):
+        pytest.skip("hardlink creation not supported on this platform")
+    if artifact_path.stat().st_nlink <= 1:
+        pytest.skip("filesystem does not report st_nlink > 1 for hardlinks")
+    with pytest.raises(Stage23ManifestError):
+        write_stage23_artifacts(
+            runner_result=runner_result,
+            output_dir=tmp_path,
+            created_at_utc=FIXED_CLOCK_UTC,
+        )
+    # The original target's content stays intact.
+    assert outside_file.read_text(encoding="utf-8") == "shared content"
+
+
+def test_writer_leaves_unrelated_files_intact_alongside_normal_write(tmp_path):
+    """Unrelated pre-existing files in the output dir must survive
+    a successful write.
+    """
+    unrelated = tmp_path / "operator_notes.md"
+    unrelated.write_text("operator notes", encoding="utf-8")
+    runner_result = _run_default_runner()
+    write_stage23_artifacts(
+        runner_result=runner_result,
+        output_dir=tmp_path,
+        created_at_utc=FIXED_CLOCK_UTC,
+    )
+    assert unrelated.read_text(encoding="utf-8") == "operator notes"
+
+
+def test_writer_does_not_leave_temp_file_on_disk_after_success(tmp_path):
+    """Atomic-rename via temp file must not leave a ``.tmp`` artifact
+    behind after a successful write.
+    """
+    runner_result = _run_default_runner()
+    write_stage23_artifacts(
+        runner_result=runner_result,
+        output_dir=tmp_path,
+        created_at_utc=FIXED_CLOCK_UTC,
+    )
+    tmp_files = [p.name for p in tmp_path.iterdir() if p.suffix == ".tmp"]
+    assert tmp_files == [], (
+        f"temp artifacts left on disk after successful write: {tmp_files}"
+    )
+
+
+def test_writer_normal_write_still_succeeds_after_path_safety_pass(tmp_path):
+    """The path-safety pass must not regress the normal-write path."""
+    runner_result = _run_default_runner()
+    artifact_set = write_stage23_artifacts(
+        runner_result=runner_result,
+        output_dir=tmp_path,
+        created_at_utc=FIXED_CLOCK_UTC,
+    )
+    for basename in ALL_ARTIFACT_FILENAMES:
+        path = tmp_path / basename
+        assert path.is_file(), f"artifact {basename!r} did not land on disk"
+    assert artifact_set.redaction_confirmed == REDACTION_CONFIRMED_TOKEN

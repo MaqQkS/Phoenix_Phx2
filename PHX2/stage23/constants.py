@@ -31,7 +31,11 @@ from __future__ import annotations
 
 STAGE23_VERSION: str = "stage23_v0_observe_only_filter_foundation"
 # Minor version axis. Bump on every sub-stage merge: 23.1 -> 23.2 -> ...
-STAGE23_MINOR_VERSION: str = "23.1"
+# At closure (Stage 23.6) the axis is bumped to "23.6" so every
+# emitted manifest carries the closing sub-stage version. The
+# schema_version axis below is intentionally distinct so a future
+# schema migration is independent of the stage-version bump.
+STAGE23_MINOR_VERSION: str = "23.6"
 
 # Stage name token. Mirrors the Stage 22 "stage22" / "stage21"
 # discipline.
@@ -45,7 +49,11 @@ STAGE_VERSION: str = STAGE23_MINOR_VERSION
 # Stage 23 schema version. Per-record schema version used by the
 # filter-evaluation surface and the manifest surface. Mirrors the
 # Stage 22 per-record schema-version discipline so a future bump
-# can migrate additively without a file-header dance.
+# can migrate additively without a file-header dance. The schema
+# version is intentionally orthogonal to STAGE_VERSION: bumping
+# the stage version axis at closure (23.1 -> 23.6) does NOT bump
+# the schema versions, because the on-disk record shape did not
+# change.
 DEFAULT_SCHEMA_VERSION: str = "stage23_v0_filter_eval"
 STAGE23_MANIFEST_SCHEMA_VERSION: str = "stage23_v0_manifest"
 
@@ -171,6 +179,12 @@ STAGE23_FORBIDDEN_ROUTING_TOKENS: tuple[str, ...] = (
 # IMPORTANT: ``filter`` / ``evaluation`` / ``label`` / ``input`` /
 # ``manifest`` / ``reader`` are NOT on this list -- Stage 23 is
 # the legitimate home for that vocabulary.
+#
+# ``block`` and ``blocking`` are also forbidden as identifier
+# substrings because Stage 23 is observe-only. The boundary
+# scanner consumes this tuple against AST identifier positions
+# only, so docstring / comment phrases like "Stage 23 never
+# blocks" do not trigger the scanner.
 
 
 STAGE23_FORBIDDEN_VOCABULARY: tuple[str, ...] = (
@@ -190,6 +204,8 @@ STAGE23_FORBIDDEN_VOCABULARY: tuple[str, ...] = (
     "execution_quality",
     "enforce",
     "gate",
+    "block",
+    "blocking",
 )
 
 

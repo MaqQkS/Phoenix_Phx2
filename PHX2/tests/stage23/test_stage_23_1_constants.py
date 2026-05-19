@@ -20,8 +20,13 @@ def test_stage_name_token_is_locked():
 
 
 def test_stage_version_axis_is_locked():
-    assert c.STAGE_VERSION == "23.1"
-    assert c.STAGE23_MINOR_VERSION == "23.1"
+    # Stage 23 closes at 23.6; the public stage-version axis emitted
+    # on every manifest carries the closing sub-stage version. The
+    # schema_version axis (asserted below) is intentionally distinct
+    # so the closure bump does not implicitly migrate the on-disk
+    # record schema.
+    assert c.STAGE_VERSION == "23.6"
+    assert c.STAGE23_MINOR_VERSION == "23.6"
 
 
 def test_stage23_version_full_string_is_locked():

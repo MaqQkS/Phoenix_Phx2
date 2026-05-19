@@ -147,7 +147,7 @@ def test_build_input_manifest_sets_locked_metadata():
         created_at_utc="2026-01-01T00:00:00Z",
     )
     assert manifest.stage_name == "stage23"
-    assert manifest.stage_version == "23.1"
+    assert manifest.stage_version == "23.6"
     assert manifest.schema_version == "stage23_v0_manifest"
     assert manifest.observe_only_mode == "observe_only"
 

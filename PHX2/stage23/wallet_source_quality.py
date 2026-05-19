@@ -456,10 +456,53 @@ def _read_non_negative_float(value: object) -> float | None:
     return result
 
 
+def _read_pct(value: object) -> float | None:
+    """Coerce a payload_summary value to a bounded ``[0.0, 1.0]`` float.
+
+    Returns ``None`` when the payload_summary did not carry the
+    primitive at all. Raises ``Stage23ContractError`` when the
+    value is present but outside the closed ``[0.0, 1.0]`` band
+    or is non-finite. Stage 23 percentage primitives are
+    contractually a fraction; an out-of-band value is a hard
+    contract violation, not data the filter should silently round
+    or clamp into NORMAL.
+    """
+    coerced = _read_float(value)
+    if coerced is None:
+        return None
+    if coerced < 0.0:
+        raise Stage23ContractError(
+            "wallet-source percentage primitive is below 0.0"
+        )
+    if coerced > 1.0:
+        raise Stage23ContractError(
+            "wallet-source percentage primitive is above 1.0"
+        )
+    return coerced
+
+
 def _marker_is_unsupported(value: object) -> bool:
     return (
         isinstance(value, str)
         and value == WALLET_SOURCE_PRIMITIVE_KIND_UNSUPPORTED
+    )
+
+
+def _validate_marker_value(*, marker_name: str, value: object) -> None:
+    """Raise ``Stage23ContractError`` if a marker carries a non-closed-set value.
+
+    ``None`` (the marker was absent from the payload_summary) is
+    accepted unconditionally. A present marker value must be one
+    of the closed-set ``WALLET_SOURCE_PRIMITIVE_KIND_VALUES``
+    tokens; any other value is a contract violation rather than a
+    silently-ignored payload.
+    """
+    if value is None:
+        return
+    if value in WALLET_SOURCE_PRIMITIVE_KIND_VALUES:
+        return
+    raise Stage23ContractError(
+        f"{marker_name} marker carries a non-closed-set value"
     )
 
 
@@ -470,17 +513,17 @@ def _project_wallet_source(
     """Project the wallet / source-quality primitives out of ``payload``."""
     early_wallet_count = _read_int(payload.get(PRIMITIVE_EARLY_WALLET_COUNT))
     fresh_wallet_count = _read_int(payload.get(PRIMITIVE_FRESH_WALLET_COUNT))
-    fresh_wallet_pct = _read_float(payload.get(PRIMITIVE_FRESH_WALLET_PCT))
+    fresh_wallet_pct = _read_pct(payload.get(PRIMITIVE_FRESH_WALLET_PCT))
     repeated_source_wallet_count = _read_int(
         payload.get(PRIMITIVE_REPEATED_SOURCE_WALLET_COUNT)
     )
-    repeated_source_wallet_pct = _read_float(
+    repeated_source_wallet_pct = _read_pct(
         payload.get(PRIMITIVE_REPEATED_SOURCE_WALLET_PCT)
     )
     common_funder_cluster_count = _read_int(
         payload.get(PRIMITIVE_COMMON_FUNDER_CLUSTER_COUNT)
     )
-    largest_common_funder_cluster_pct = _read_float(
+    largest_common_funder_cluster_pct = _read_pct(
         payload.get(PRIMITIVE_LARGEST_COMMON_FUNDER_CLUSTER_PCT)
     )
     wallet_age_known_count = _read_int(
@@ -489,23 +532,23 @@ def _project_wallet_source(
     wallet_age_unknown_count = _read_int(
         payload.get(PRIMITIVE_WALLET_AGE_UNKNOWN_COUNT)
     )
-    wallet_age_known_pct = _read_float(
+    wallet_age_known_pct = _read_pct(
         payload.get(PRIMITIVE_WALLET_AGE_KNOWN_PCT)
     )
-    young_wallet_pct = _read_float(payload.get(PRIMITIVE_YOUNG_WALLET_PCT))
-    mature_wallet_pct = _read_float(
+    young_wallet_pct = _read_pct(payload.get(PRIMITIVE_YOUNG_WALLET_PCT))
+    mature_wallet_pct = _read_pct(
         payload.get(PRIMITIVE_MATURE_WALLET_PCT)
     )
     known_bad_source_count = _read_int(
         payload.get(PRIMITIVE_KNOWN_BAD_SOURCE_COUNT)
     )
-    known_bad_source_pct = _read_float(
+    known_bad_source_pct = _read_pct(
         payload.get(PRIMITIVE_KNOWN_BAD_SOURCE_PCT)
     )
     known_good_source_count = _read_int(
         payload.get(PRIMITIVE_KNOWN_GOOD_SOURCE_COUNT)
     )
-    known_good_source_pct = _read_float(
+    known_good_source_pct = _read_pct(
         payload.get(PRIMITIVE_KNOWN_GOOD_SOURCE_PCT)
     )
     dev_wallet_age_days = _read_non_negative_float(
@@ -514,22 +557,40 @@ def _project_wallet_source(
     creator_wallet_age_days = _read_non_negative_float(
         payload.get(PRIMITIVE_CREATOR_WALLET_AGE_DAYS)
     )
-    source_quality_known_pct = _read_float(
+    source_quality_known_pct = _read_pct(
         payload.get(PRIMITIVE_SOURCE_QUALITY_KNOWN_PCT)
     )
 
-    is_overall_unsupported = _marker_is_unsupported(
-        payload.get(PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND)
+    raw_overall_marker = payload.get(PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND)
+    raw_wallet_age_marker = payload.get(PAYLOAD_MARKER_WALLET_AGE_PRIMITIVE_KIND)
+    raw_funding_graph_marker = payload.get(
+        PAYLOAD_MARKER_FUNDING_GRAPH_PRIMITIVE_KIND
     )
-    is_wallet_age_unsupported = _marker_is_unsupported(
-        payload.get(PAYLOAD_MARKER_WALLET_AGE_PRIMITIVE_KIND)
+    raw_provenance_marker = payload.get(PAYLOAD_MARKER_PROVENANCE_PRIMITIVE_KIND)
+
+    _validate_marker_value(
+        marker_name=PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND,
+        value=raw_overall_marker,
     )
+    _validate_marker_value(
+        marker_name=PAYLOAD_MARKER_WALLET_AGE_PRIMITIVE_KIND,
+        value=raw_wallet_age_marker,
+    )
+    _validate_marker_value(
+        marker_name=PAYLOAD_MARKER_FUNDING_GRAPH_PRIMITIVE_KIND,
+        value=raw_funding_graph_marker,
+    )
+    _validate_marker_value(
+        marker_name=PAYLOAD_MARKER_PROVENANCE_PRIMITIVE_KIND,
+        value=raw_provenance_marker,
+    )
+
+    is_overall_unsupported = _marker_is_unsupported(raw_overall_marker)
+    is_wallet_age_unsupported = _marker_is_unsupported(raw_wallet_age_marker)
     is_funding_graph_unsupported = _marker_is_unsupported(
-        payload.get(PAYLOAD_MARKER_FUNDING_GRAPH_PRIMITIVE_KIND)
+        raw_funding_graph_marker
     )
-    is_provenance_unsupported = _marker_is_unsupported(
-        payload.get(PAYLOAD_MARKER_PROVENANCE_PRIMITIVE_KIND)
-    )
+    is_provenance_unsupported = _marker_is_unsupported(raw_provenance_marker)
 
     raw_values: tuple[tuple[str, object | None], ...] = (
         (PRIMITIVE_EARLY_WALLET_COUNT, early_wallet_count),

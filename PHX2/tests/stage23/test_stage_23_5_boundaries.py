@@ -135,6 +135,12 @@ _ARTIFACT_WRITER_ALLOWED_IMPORT_PREFIXES: tuple[str, ...] = (
     "typing",
     "PHX2.stage23.constants",
     "PHX2.stage23.errors",
+    # Stage 23.6: the writer imports the input reader's
+    # ``stage23_value_carries_leak_shape`` helper so the
+    # pre-write redaction sweep can detect long hex / tokenish /
+    # env-name leak shapes on user-controllable values that
+    # bypassed the input reader at ingest.
+    "PHX2.stage23.input_reader",
     "PHX2.stage23.models",
     "PHX2.stage23.runner",
     "PHX2.stage23.stage23_manifest",
@@ -436,14 +442,45 @@ def test_artifact_writer_no_public_subscriber_routing_strings():
 
 
 # Enforcement / blocking language in identifiers.
+#
+# Stage 23 is observe-only; the runner/writer must not introduce
+# any enforcement/gating/blocking vocabulary at the identifier
+# level. Substrings scanned here:
+#
+#   * ``enforce`` -- any enforce / enforced / enforcement family.
+#   * ``block_token`` -- the legacy blocking-decision identifier
+#     pattern from prior PHX2 stages.
+#   * ``block`` and ``blocking`` -- bare blocking-decision
+#     vocabulary. Catching the bare substrings prevents drift
+#     toward an identifier like ``block_event`` /
+#     ``blocking_filter`` that would slip past the more specific
+#     ``block_token`` needle.
+#   * ``gate_token`` and ``gate`` -- gating-decision vocabulary.
+#
+# Scanning happens at AST identifier positions ONLY -- function /
+# async-function / class definition names and ``ast.Name`` nodes.
+# String literals and docstrings are NOT scanned, so legitimate
+# negative phrases like "Stage 23 never blocks" in docstrings do
+# not produce false positives.
 _FORBIDDEN_ENFORCEMENT_TOKENS: tuple[str, ...] = (
     "enforce",
     "block_token",
+    "block",
+    "blocking",
     "gate_token",
+    "gate",
 )
 
 
 def _assert_no_enforcement_identifiers(path: Path) -> None:
+    """Scan AST identifier positions for enforcement-language substrings.
+
+    The scan only inspects function / async-function / class
+    definition names and ``ast.Name`` references; string literals
+    and docstrings are intentionally excluded so negative-form
+    phrases ("Stage 23 never blocks...") in docstrings stay
+    clean.
+    """
     tree = _tree(path)
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
