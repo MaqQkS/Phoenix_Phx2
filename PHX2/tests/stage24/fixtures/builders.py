@@ -1,4 +1,4 @@
-"""Synthetic Stage 24 test fixture builders (foundation only at 24.1).
+"""Synthetic Stage 24 test fixture builders.
 
 These helpers build deterministic, secret-free synthetic Stage
 24 records used by the Stage 24 test suite. No live provider
@@ -11,13 +11,15 @@ test suite exercises the same closed-set validation and
 projection paths the production runner / decoder implementations
 will exercise in 24.2+.
 
-Stage 24.2 / 24.3 / 24.4 / 24.5 will add decoder-result builders
-alongside their decoders. Stage 24.1 ships only the synthetic
-``Stage24ExecutionInput`` and decoded-tx-JSONL-row builders.
+Stage 24.2 added the ComputeBudget instruction-data builders
+(``encode_compute_budget_*``) used by the compute-budget and
+priority-fee decoder tests. Stage 24.3 / 24.4 / 24.5 will add
+decoder-result builders alongside their decoders.
 """
 
 from __future__ import annotations
 
+import base64
 from types import MappingProxyType
 from typing import Mapping
 
@@ -287,11 +289,195 @@ def make_row_with_nested_secret_key() -> dict[str, object]:
     )
 
 
+# ---------------------------------------------------------------------------
+# Stage 24.2 ComputeBudget instruction-data builders
+# ---------------------------------------------------------------------------
+#
+# Each helper returns a base64-encoded instruction-data string
+# in the canonical Stage 24 instruction-data format: the first
+# decoded byte is the ComputeBudget tag (0 / 1 / 2 / 3) and the
+# following bytes are the little-endian u32 / u64 fields
+# documented in the public Solana ComputeBudget program reference.
+# The helpers do NOT touch a Solana SDK; the encoding is
+# expressed in pure stdlib ``int.to_bytes`` calls.
+
+
+_COMPUTE_BUDGET_TAG_REQUEST_UNITS_DEPRECATED: int = 0
+_COMPUTE_BUDGET_TAG_REQUEST_HEAP_FRAME: int = 1
+_COMPUTE_BUDGET_TAG_SET_COMPUTE_UNIT_LIMIT: int = 2
+_COMPUTE_BUDGET_TAG_SET_COMPUTE_UNIT_PRICE: int = 3
+
+
+def encode_compute_budget_set_unit_limit_data(*, units: int) -> str:
+    """Return base64-encoded ``SetComputeUnitLimit(units)`` data."""
+    payload = bytes(
+        [_COMPUTE_BUDGET_TAG_SET_COMPUTE_UNIT_LIMIT]
+    ) + units.to_bytes(4, "little")
+    return base64.b64encode(payload).decode("ascii")
+
+
+def encode_compute_budget_set_unit_price_data(
+    *, micro_lamports_per_compute_unit: int
+) -> str:
+    """Return base64-encoded ``SetComputeUnitPrice(price)`` data."""
+    payload = bytes(
+        [_COMPUTE_BUDGET_TAG_SET_COMPUTE_UNIT_PRICE]
+    ) + micro_lamports_per_compute_unit.to_bytes(8, "little")
+    return base64.b64encode(payload).decode("ascii")
+
+
+def encode_compute_budget_request_heap_frame_data(
+    *, heap_frame_bytes: int
+) -> str:
+    """Return base64-encoded ``RequestHeapFrame(bytes)`` data."""
+    payload = bytes(
+        [_COMPUTE_BUDGET_TAG_REQUEST_HEAP_FRAME]
+    ) + heap_frame_bytes.to_bytes(4, "little")
+    return base64.b64encode(payload).decode("ascii")
+
+
+def encode_compute_budget_request_units_deprecated_data(
+    *,
+    requested_units: int,
+    additional_fee_lamports: int,
+) -> str:
+    """Return base64-encoded legacy ``RequestUnitsDeprecated(...)`` data."""
+    payload = (
+        bytes([_COMPUTE_BUDGET_TAG_REQUEST_UNITS_DEPRECATED])
+        + requested_units.to_bytes(4, "little")
+        + additional_fee_lamports.to_bytes(4, "little")
+    )
+    return base64.b64encode(payload).decode("ascii")
+
+
+def encode_compute_budget_unknown_tag_data(
+    *, tag: int, body: bytes = b""
+) -> str:
+    """Return base64-encoded ComputeBudget data carrying an unknown tag.
+
+    The decoder rejects unknown tags as ``DECODE_FAILED``. Used
+    by the negative-case Stage 24.2 tests.
+    """
+    payload = bytes([tag]) + body
+    return base64.b64encode(payload).decode("ascii")
+
+
+def encode_compute_budget_malformed_short_body_data() -> str:
+    """Return base64-encoded ComputeBudget data with a too-short body.
+
+    Tag 2 (``SetComputeUnitLimit``) expects 4 bytes of body but
+    this builder returns 3 bytes. Used by the malformed-body
+    Stage 24.2 test.
+    """
+    payload = bytes([_COMPUTE_BUDGET_TAG_SET_COMPUTE_UNIT_LIMIT]) + bytes(
+        [0x00, 0x00, 0x00]
+    )
+    return base64.b64encode(payload).decode("ascii")
+
+
+def encode_compute_budget_empty_data() -> str:
+    """Return a base64 encoding of zero bytes (no tag, no body)."""
+    return base64.b64encode(b"").decode("ascii")
+
+
+def make_compute_budget_set_unit_limit_instruction(
+    *,
+    units: int,
+    accounts: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Build a top-level ``SetComputeUnitLimit`` instruction record."""
+    return make_top_level_instruction(
+        program_id="ComputeBudget111111111111111111111111111111",
+        accounts=accounts,
+        data=encode_compute_budget_set_unit_limit_data(units=units),
+    )
+
+
+def make_compute_budget_set_unit_price_instruction(
+    *,
+    micro_lamports_per_compute_unit: int,
+    accounts: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Build a top-level ``SetComputeUnitPrice`` instruction record."""
+    return make_top_level_instruction(
+        program_id="ComputeBudget111111111111111111111111111111",
+        accounts=accounts,
+        data=encode_compute_budget_set_unit_price_data(
+            micro_lamports_per_compute_unit=(
+                micro_lamports_per_compute_unit
+            ),
+        ),
+    )
+
+
+def make_compute_budget_request_heap_frame_instruction(
+    *,
+    heap_frame_bytes: int,
+    accounts: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Build a top-level ``RequestHeapFrame`` instruction record."""
+    return make_top_level_instruction(
+        program_id="ComputeBudget111111111111111111111111111111",
+        accounts=accounts,
+        data=encode_compute_budget_request_heap_frame_data(
+            heap_frame_bytes=heap_frame_bytes,
+        ),
+    )
+
+
+def make_compute_budget_request_units_deprecated_instruction(
+    *,
+    requested_units: int,
+    additional_fee_lamports: int,
+    accounts: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Build a top-level legacy ``RequestUnitsDeprecated`` instruction record."""
+    return make_top_level_instruction(
+        program_id="ComputeBudget111111111111111111111111111111",
+        accounts=accounts,
+        data=encode_compute_budget_request_units_deprecated_data(
+            requested_units=requested_units,
+            additional_fee_lamports=additional_fee_lamports,
+        ),
+    )
+
+
+def make_non_compute_budget_instruction(
+    *,
+    program_id: str = "11111111111111111111111111111111",
+    accounts: tuple[str, ...] = (),
+    data: str = "",
+) -> dict[str, object]:
+    """Build an instruction record for a non-ComputeBudget program.
+
+    Default ``data`` is empty so the value-shape leak detector
+    does not reject the row. Used by tests that need a non-
+    ComputeBudget instruction alongside a ComputeBudget one.
+    """
+    return make_top_level_instruction(
+        program_id=program_id,
+        accounts=accounts,
+        data=data,
+    )
+
+
 __all__ = [
     "FIXED_CLOCK_UTC",
+    "encode_compute_budget_empty_data",
+    "encode_compute_budget_malformed_short_body_data",
+    "encode_compute_budget_request_heap_frame_data",
+    "encode_compute_budget_request_units_deprecated_data",
+    "encode_compute_budget_set_unit_limit_data",
+    "encode_compute_budget_set_unit_price_data",
+    "encode_compute_budget_unknown_tag_data",
+    "make_compute_budget_request_heap_frame_instruction",
+    "make_compute_budget_request_units_deprecated_instruction",
+    "make_compute_budget_set_unit_limit_instruction",
+    "make_compute_budget_set_unit_price_instruction",
     "make_decoded_tx_row",
     "make_execution_input",
     "make_inner_instruction",
+    "make_non_compute_budget_instruction",
     "make_row_with_long_hex_credential",
     "make_row_with_nested_secret_key",
     "make_row_with_secret_field_name",

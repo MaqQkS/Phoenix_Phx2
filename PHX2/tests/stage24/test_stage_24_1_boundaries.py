@@ -65,6 +65,11 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "decoder_contracts.py",
         "input_reader.py",
         "stage24_manifest.py",
+        # Stage 24.2 decoder pair (admitted in 24.2; see
+        # test_stage_24_2_boundaries.py for the 24.2 file-scope
+        # invariants).
+        "compute_budget.py",
+        "priority_fee.py",
     }
 )
 
@@ -82,8 +87,9 @@ _PATHLIB_ALLOWED_FILES: frozenset[str] = frozenset(
 
 _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # Reserved-but-not-used decoder filenames (later sub-stages).
-    "compute_budget.py",
-    "priority_fee.py",
+    # ``compute_budget.py`` / ``priority_fee.py`` were forbidden at
+    # 24.1; they were admitted at 24.2 and now appear in
+    # ``_LOCKED_PRODUCTION_FILENAMES``.
     "jito_tip.py",
     "router_fee.py",
     "execution_quality.py",
