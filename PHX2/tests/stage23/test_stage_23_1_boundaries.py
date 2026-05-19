@@ -50,6 +50,11 @@ STAGE23_ROOT: Path = Path(__file__).parent.parent.parent / "stage23"
 # ---------------------------------------------------------------------------
 
 
+# Stage 23 production scope -- updated each sub-stage. 23.2 adds
+# ``holder_concentration.py`` (the first observe-only filter
+# implementation behind the locked Stage 23.1 ``Stage23Filter``
+# Protocol). The filename in this file is historical ("23.1")
+# but the locked set is the rolling Stage 23 production tree.
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
     {
         "__init__.py",
@@ -59,6 +64,7 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "input_reader.py",
         "filter_contracts.py",
         "stage23_manifest.py",
+        "holder_concentration.py",
     }
 )
 
@@ -84,8 +90,9 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",
-    # Filter implementations (23.2 / 23.3 / 23.4)
-    "holder_concentration.py",
+    # Filter implementations (23.3 / 23.4). 23.2 ships
+    # ``holder_concentration.py``; the remaining filter
+    # implementations stay forbidden until their sub-stages land.
     "launch_structure.py",
     "wallet_source_quality.py",
     "filters.py",
