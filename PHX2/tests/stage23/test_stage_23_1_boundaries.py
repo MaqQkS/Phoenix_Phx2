@@ -52,11 +52,11 @@ STAGE23_ROOT: Path = Path(__file__).parent.parent.parent / "stage23"
 
 # Stage 23 production scope -- updated each sub-stage. 23.2 adds
 # ``holder_concentration.py``, 23.3 adds ``launch_structure.py``,
-# 23.4 adds ``wallet_source_quality.py`` (the third observe-only
-# filter implementation behind the locked Stage 23.1
-# ``Stage23Filter`` Protocol). The filename in this file is
-# historical ("23.1") but the locked set is the rolling Stage 23
-# production tree.
+# 23.4 adds ``wallet_source_quality.py``, 23.5 adds
+# ``runner.py`` + ``artifact_writer.py`` (the offline unified
+# runner and deterministic artifact writer). The filename in
+# this file is historical ("23.1") but the locked set is the
+# rolling Stage 23 production tree.
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
     {
         "__init__.py",
@@ -69,6 +69,8 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "holder_concentration.py",
         "launch_structure.py",
         "wallet_source_quality.py",
+        "runner.py",
+        "artifact_writer.py",
     }
 )
 
@@ -76,30 +78,29 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
 # Stage 23.1 filename-allowed exception: ``pathlib`` may be
 # imported by the modules listed here for operator-supplied path
 # handling. Every other Stage 23 production module is forbidden
-# from importing ``pathlib``.
+# from importing ``pathlib``. 23.5 adds ``artifact_writer.py``
+# to the allowlist because the writer is the deterministic
+# on-disk surface for Stage 23.
 _PATHLIB_ALLOWED_FILES: frozenset[str] = frozenset(
     {
         "input_reader.py",
         "stage23_manifest.py",
+        "artifact_writer.py",
     }
 )
 
 
 _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
-    # Reserved for Stage 23.5
-    "runner.py",
+    # Reserved-but-not-used runner/writer names. 23.5 ships
+    # ``runner.py`` and ``artifact_writer.py``; the alternative
+    # filenames below stay forbidden so a future patch can't
+    # silently fragment the runner/writer surface.
     "stage23_runner.py",
     "bounded_runner.py",
-    "artifact_writer.py",
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",
-    # Filter implementations. 23.2 ships
-    # ``holder_concentration.py``; 23.3 ships
-    # ``launch_structure.py``; 23.4 ships
-    # ``wallet_source_quality.py``. Future filter aggregation
-    # files (e.g. ``filters.py``) stay forbidden until their
-    # sub-stage lands.
+    # Filter aggregation file (forbidden until its own sub-stage).
     "filters.py",
     # Scheduler / daemon
     "scheduler.py",

@@ -372,11 +372,13 @@ def test_threshold_version_constant_is_locked():
 # ---------------------------------------------------------------------------
 
 
+# Stage 23.5 lands ``runner.py`` and ``artifact_writer.py``;
+# those filenames are removed from the forbidden-future list.
+# Alternative runner/writer filenames stay forbidden so a future
+# patch can't silently fragment the runner/writer surface.
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
-    "runner.py",
     "stage23_runner.py",
     "bounded_runner.py",
-    "artifact_writer.py",
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",

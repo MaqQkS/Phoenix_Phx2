@@ -18,6 +18,12 @@ used by the launch-structure filter tests.
 
 Stage 23.4 adds the wallet / source-quality payload-summary
 builders used by the wallet-source-quality filter tests.
+
+Stage 23.5 adds the mixed payload-summary builder used by the
+unified runner and artifact-writer tests; the mixed payload
+combines holder, launch-structure, and wallet-source-quality
+primitives in one payload so a single ``Stage23FilterInput``
+can drive all three filters in a single runner invocation.
 """
 
 from __future__ import annotations
@@ -558,6 +564,70 @@ def make_wallet_source_filter_input(
     )
 
 
+# ---------------------------------------------------------------------------
+# Mixed payload-summary helpers (Stage 23.5)
+# ---------------------------------------------------------------------------
+
+
+def make_mixed_payload_summary(
+    *,
+    holder_overrides: Mapping[str, object] | None = None,
+    launch_overrides: Mapping[str, object] | None = None,
+    wallet_source_overrides: Mapping[str, object] | None = None,
+) -> Mapping[str, object]:
+    """Build a deterministic payload_summary that drives all three filters.
+
+    The mixed payload combines the three Stage 23 filter
+    primitive families in a single immutable mapping. Each
+    family defaults to its ``NORMAL``-verdict band. Optional
+    overrides let a test bump a single primitive into the
+    ``ELEVATED`` / ``SUSPICIOUS`` / ``SCAM_LIKELY`` band without
+    re-declaring the entire payload.
+    """
+    body: dict[str, object] = {}
+    body.update(dict(make_holder_payload_summary()))
+    body.update(dict(make_launch_payload_summary()))
+    body.update(dict(make_wallet_source_payload_summary()))
+    if holder_overrides:
+        body.update(dict(holder_overrides))
+    if launch_overrides:
+        body.update(dict(launch_overrides))
+    if wallet_source_overrides:
+        body.update(dict(wallet_source_overrides))
+    return MappingProxyType(body)
+
+
+def make_mixed_filter_input(
+    *,
+    payload_summary: Mapping[str, object] | None = None,
+    token_mint: str = "MintMixed111",
+    provider_id: str = "fake_provider",
+    event_id: str = "evt_mixed0123456789abcdef01",
+    captured_event_id: str = "captured_mixed_001",
+    observed_at_utc: str = FIXED_CLOCK_UTC,
+    slot: int = 1000,
+    signature: str = "sig_mixed_001",
+    missing_fields: tuple[str, ...] = (),
+) -> Stage23FilterInput:
+    """Build a ``Stage23FilterInput`` carrying a mixed payload_summary."""
+    payload: Mapping[str, object]
+    if payload_summary is None:
+        payload = make_mixed_payload_summary()
+    else:
+        payload = payload_summary
+    return make_filter_input(
+        token_mint=token_mint,
+        provider_id=provider_id,
+        event_id=event_id,
+        captured_event_id=captured_event_id,
+        observed_at_utc=observed_at_utc,
+        slot=slot,
+        signature=signature,
+        payload_summary=payload,
+        missing_fields=missing_fields,
+    )
+
+
 __all__ = [
     "FIXED_CLOCK_UTC",
     "empty_payload_summary",
@@ -567,6 +637,8 @@ __all__ = [
     "make_holder_payload_summary",
     "make_launch_filter_input",
     "make_launch_payload_summary",
+    "make_mixed_filter_input",
+    "make_mixed_payload_summary",
     "make_unsupported_funding_graph_payload_summary",
     "make_unsupported_holder_payload_summary",
     "make_unsupported_launch_payload_summary",

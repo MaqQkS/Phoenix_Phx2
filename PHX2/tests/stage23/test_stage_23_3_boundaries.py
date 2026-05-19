@@ -358,13 +358,13 @@ def test_threshold_version_constant_is_locked():
 # ---------------------------------------------------------------------------
 
 
-# Stage 23.4 lands ``wallet_source_quality.py``; that filename is
-# removed from the forbidden-future list.
+# Stage 23.4 lands ``wallet_source_quality.py`` and Stage 23.5
+# lands ``runner.py`` + ``artifact_writer.py``; those filenames
+# are removed from the forbidden-future list as their sub-stages
+# land.
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
-    "runner.py",
     "stage23_runner.py",
     "bounded_runner.py",
-    "artifact_writer.py",
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",
