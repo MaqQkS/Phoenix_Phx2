@@ -15,6 +15,9 @@ used by the holder-concentration filter tests.
 
 Stage 23.3 adds the launch-structure payload-summary builders
 used by the launch-structure filter tests.
+
+Stage 23.4 adds the wallet / source-quality payload-summary
+builders used by the wallet-source-quality filter tests.
 """
 
 from __future__ import annotations
@@ -64,6 +67,32 @@ from PHX2.stage23.models import (
     Stage23FilterInput,
     Stage23FilterResult,
     build_filter_result,
+)
+from PHX2.stage23.wallet_source_quality import (
+    PAYLOAD_MARKER_FUNDING_GRAPH_PRIMITIVE_KIND,
+    PAYLOAD_MARKER_PROVENANCE_PRIMITIVE_KIND,
+    PAYLOAD_MARKER_WALLET_AGE_PRIMITIVE_KIND,
+    PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND,
+    PRIMITIVE_COMMON_FUNDER_CLUSTER_COUNT,
+    PRIMITIVE_CREATOR_WALLET_AGE_DAYS,
+    PRIMITIVE_DEV_WALLET_AGE_DAYS,
+    PRIMITIVE_EARLY_WALLET_COUNT,
+    PRIMITIVE_FRESH_WALLET_COUNT,
+    PRIMITIVE_FRESH_WALLET_PCT,
+    PRIMITIVE_KNOWN_BAD_SOURCE_COUNT,
+    PRIMITIVE_KNOWN_BAD_SOURCE_PCT,
+    PRIMITIVE_KNOWN_GOOD_SOURCE_COUNT,
+    PRIMITIVE_KNOWN_GOOD_SOURCE_PCT,
+    PRIMITIVE_LARGEST_COMMON_FUNDER_CLUSTER_PCT,
+    PRIMITIVE_MATURE_WALLET_PCT,
+    PRIMITIVE_REPEATED_SOURCE_WALLET_COUNT,
+    PRIMITIVE_REPEATED_SOURCE_WALLET_PCT,
+    PRIMITIVE_SOURCE_QUALITY_KNOWN_PCT,
+    PRIMITIVE_WALLET_AGE_KNOWN_COUNT,
+    PRIMITIVE_WALLET_AGE_KNOWN_PCT,
+    PRIMITIVE_WALLET_AGE_UNKNOWN_COUNT,
+    PRIMITIVE_YOUNG_WALLET_PCT,
+    WALLET_SOURCE_PRIMITIVE_KIND_UNSUPPORTED,
 )
 
 
@@ -352,6 +381,183 @@ def make_launch_filter_input(
     )
 
 
+# ---------------------------------------------------------------------------
+# Wallet / source-quality synthetic snapshots (Stage 23.4)
+# ---------------------------------------------------------------------------
+
+
+def make_wallet_source_payload_summary(
+    *,
+    early_wallet_count: int | None = 50,
+    fresh_wallet_count: int | None = 5,
+    fresh_wallet_pct: float | None = 0.10,
+    repeated_source_wallet_count: int | None = 0,
+    repeated_source_wallet_pct: float | None = 0.0,
+    common_funder_cluster_count: int | None = 1,
+    largest_common_funder_cluster_pct: float | None = 0.10,
+    wallet_age_known_count: int | None = 40,
+    wallet_age_unknown_count: int | None = 10,
+    wallet_age_known_pct: float | None = 0.80,
+    young_wallet_pct: float | None = 0.20,
+    mature_wallet_pct: float | None = 0.60,
+    known_bad_source_count: int | None = 0,
+    known_bad_source_pct: float | None = 0.0,
+    known_good_source_count: int | None = 35,
+    known_good_source_pct: float | None = 0.70,
+    dev_wallet_age_days: float | None = 365.0,
+    creator_wallet_age_days: float | None = 365.0,
+    source_quality_known_pct: float | None = 0.80,
+    wallet_source_primitive_kind: str | None = None,
+    wallet_age_primitive_kind: str | None = None,
+    funding_graph_primitive_kind: str | None = None,
+    provenance_primitive_kind: str | None = None,
+) -> Mapping[str, object]:
+    """Build a deterministic synthetic wallet-source payload_summary.
+
+    Each primitive defaults to a value inside the
+    ``NORMAL``-verdict band; tests override individual fields
+    to exercise other labels. Pass ``None`` for a primitive to
+    omit it from the payload (the filter then treats it as a
+    missing primitive). Pass any of the four ``*_primitive_kind``
+    markers to inject an unsupported-sub-family marker.
+    """
+    pairs: tuple[tuple[str, object | None], ...] = (
+        (PRIMITIVE_EARLY_WALLET_COUNT, early_wallet_count),
+        (PRIMITIVE_FRESH_WALLET_COUNT, fresh_wallet_count),
+        (PRIMITIVE_FRESH_WALLET_PCT, fresh_wallet_pct),
+        (
+            PRIMITIVE_REPEATED_SOURCE_WALLET_COUNT,
+            repeated_source_wallet_count,
+        ),
+        (PRIMITIVE_REPEATED_SOURCE_WALLET_PCT, repeated_source_wallet_pct),
+        (
+            PRIMITIVE_COMMON_FUNDER_CLUSTER_COUNT,
+            common_funder_cluster_count,
+        ),
+        (
+            PRIMITIVE_LARGEST_COMMON_FUNDER_CLUSTER_PCT,
+            largest_common_funder_cluster_pct,
+        ),
+        (PRIMITIVE_WALLET_AGE_KNOWN_COUNT, wallet_age_known_count),
+        (PRIMITIVE_WALLET_AGE_UNKNOWN_COUNT, wallet_age_unknown_count),
+        (PRIMITIVE_WALLET_AGE_KNOWN_PCT, wallet_age_known_pct),
+        (PRIMITIVE_YOUNG_WALLET_PCT, young_wallet_pct),
+        (PRIMITIVE_MATURE_WALLET_PCT, mature_wallet_pct),
+        (PRIMITIVE_KNOWN_BAD_SOURCE_COUNT, known_bad_source_count),
+        (PRIMITIVE_KNOWN_BAD_SOURCE_PCT, known_bad_source_pct),
+        (PRIMITIVE_KNOWN_GOOD_SOURCE_COUNT, known_good_source_count),
+        (PRIMITIVE_KNOWN_GOOD_SOURCE_PCT, known_good_source_pct),
+        (PRIMITIVE_DEV_WALLET_AGE_DAYS, dev_wallet_age_days),
+        (PRIMITIVE_CREATOR_WALLET_AGE_DAYS, creator_wallet_age_days),
+        (PRIMITIVE_SOURCE_QUALITY_KNOWN_PCT, source_quality_known_pct),
+    )
+    body: dict[str, object] = {}
+    for key, value in pairs:
+        if value is None:
+            continue
+        body[key] = value
+    if wallet_source_primitive_kind is not None:
+        body[PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND] = (
+            wallet_source_primitive_kind
+        )
+    if wallet_age_primitive_kind is not None:
+        body[PAYLOAD_MARKER_WALLET_AGE_PRIMITIVE_KIND] = (
+            wallet_age_primitive_kind
+        )
+    if funding_graph_primitive_kind is not None:
+        body[PAYLOAD_MARKER_FUNDING_GRAPH_PRIMITIVE_KIND] = (
+            funding_graph_primitive_kind
+        )
+    if provenance_primitive_kind is not None:
+        body[PAYLOAD_MARKER_PROVENANCE_PRIMITIVE_KIND] = (
+            provenance_primitive_kind
+        )
+    return MappingProxyType(body)
+
+
+def make_unsupported_wallet_source_payload_summary() -> Mapping[str, object]:
+    """Build a wallet-source payload_summary with the overall surface
+    marked unsupported.
+    """
+    return MappingProxyType(
+        {
+            PAYLOAD_MARKER_WALLET_SOURCE_PRIMITIVE_KIND: (
+                WALLET_SOURCE_PRIMITIVE_KIND_UNSUPPORTED
+            ),
+        }
+    )
+
+
+def make_unsupported_wallet_age_payload_summary() -> Mapping[str, object]:
+    """Build a wallet-source payload_summary with the wallet-age
+    sub-family marked unsupported.
+    """
+    return MappingProxyType(
+        {
+            PAYLOAD_MARKER_WALLET_AGE_PRIMITIVE_KIND: (
+                WALLET_SOURCE_PRIMITIVE_KIND_UNSUPPORTED
+            ),
+        }
+    )
+
+
+def make_unsupported_funding_graph_payload_summary() -> Mapping[str, object]:
+    """Build a wallet-source payload_summary with the funding-graph
+    sub-family marked unsupported.
+    """
+    return MappingProxyType(
+        {
+            PAYLOAD_MARKER_FUNDING_GRAPH_PRIMITIVE_KIND: (
+                WALLET_SOURCE_PRIMITIVE_KIND_UNSUPPORTED
+            ),
+        }
+    )
+
+
+def make_unsupported_provenance_payload_summary() -> Mapping[str, object]:
+    """Build a wallet-source payload_summary with the provenance
+    sub-family marked unsupported.
+    """
+    return MappingProxyType(
+        {
+            PAYLOAD_MARKER_PROVENANCE_PRIMITIVE_KIND: (
+                WALLET_SOURCE_PRIMITIVE_KIND_UNSUPPORTED
+            ),
+        }
+    )
+
+
+def make_wallet_source_filter_input(
+    *,
+    payload_summary: Mapping[str, object] | None = None,
+    token_mint: str = "MintFixture111",
+    provider_id: str = "fake_provider",
+    event_id: str = "evt_abcdef0123456789abcdef01",
+    captured_event_id: str = "captured_wallet_source_001",
+    observed_at_utc: str = FIXED_CLOCK_UTC,
+    slot: int = 1000,
+    signature: str = "sig_wallet_source_001",
+    missing_fields: tuple[str, ...] = (),
+) -> Stage23FilterInput:
+    """Build a ``Stage23FilterInput`` carrying a wallet-source payload_summary."""
+    payload: Mapping[str, object]
+    if payload_summary is None:
+        payload = make_wallet_source_payload_summary()
+    else:
+        payload = payload_summary
+    return make_filter_input(
+        token_mint=token_mint,
+        provider_id=provider_id,
+        event_id=event_id,
+        captured_event_id=captured_event_id,
+        observed_at_utc=observed_at_utc,
+        slot=slot,
+        signature=signature,
+        payload_summary=payload,
+        missing_fields=missing_fields,
+    )
+
+
 __all__ = [
     "FIXED_CLOCK_UTC",
     "empty_payload_summary",
@@ -361,6 +567,12 @@ __all__ = [
     "make_holder_payload_summary",
     "make_launch_filter_input",
     "make_launch_payload_summary",
+    "make_unsupported_funding_graph_payload_summary",
     "make_unsupported_holder_payload_summary",
     "make_unsupported_launch_payload_summary",
+    "make_unsupported_provenance_payload_summary",
+    "make_unsupported_wallet_age_payload_summary",
+    "make_unsupported_wallet_source_payload_summary",
+    "make_wallet_source_filter_input",
+    "make_wallet_source_payload_summary",
 ]

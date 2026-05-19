@@ -358,6 +358,8 @@ def test_threshold_version_constant_is_locked():
 # ---------------------------------------------------------------------------
 
 
+# Stage 23.4 lands ``wallet_source_quality.py``; that filename is
+# removed from the forbidden-future list.
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
     "runner.py",
     "stage23_runner.py",
@@ -366,7 +368,6 @@ _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",
-    "wallet_source_quality.py",
     "filters.py",
     "scheduler.py",
     "daemon.py",
@@ -393,16 +394,6 @@ def test_no_runner_or_artifact_writer_introduced():
         assert not (STAGE23_ROOT / name).exists(), (
             f"Stage 23.3 scope violation: {name} must not exist"
         )
-
-
-def test_no_wallet_source_quality_module_introduced():
-    """Stage 23.4 lands wallet_source_quality.py; Stage 23.3 must
-    not introduce it.
-    """
-    assert not (STAGE23_ROOT / "wallet_source_quality.py").exists(), (
-        "Stage 23.3 scope violation: wallet_source_quality.py must not "
-        "exist yet (Stage 23.4 home)"
-    )
 
 
 # ---------------------------------------------------------------------------
