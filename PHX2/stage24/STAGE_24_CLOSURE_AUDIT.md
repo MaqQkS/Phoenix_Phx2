@@ -36,7 +36,7 @@ into `Stage24ExecutionInput`; nothing else crosses the boundary.
 
 ## 2. Commit list
 
-Seven commits land Stage 24 on `master` after the Stage 23 closure
+Eight commits land Stage 24 on `master` after the Stage 23 closure
 commit (`401f05b` — *phx2 stage 23.6: closure audit and stage 24
 handoff*):
 
@@ -51,11 +51,14 @@ handoff*):
     (Path B lock).
   * `5ae1709` — phx2 stage 24.6: runner writer and execution
     artifacts.
+  * `eca5d03` — phx2 stage 24.7: closure audit and stage 25
+    handoff.
 
-The seven short SHAs `3957347`, `a0ce8d8`, `107fc3b`, `a593cf7`,
-`cd8d7a8`, `3af1ba5`, `5ae1709` cover the Stage 24 surface from
-scope lock through deterministic artifacts. The Stage 24.7 closure
-test pins these seven SHAs verbatim against this document.
+The eight short SHAs `3957347`, `a0ce8d8`, `107fc3b`, `a593cf7`,
+`cd8d7a8`, `3af1ba5`, `5ae1709`, `eca5d03` cover the Stage 24
+surface from scope lock through deterministic artifacts and
+closure docs. The Stage 24.7 closure test pins these eight SHAs
+verbatim against this document.
 
 ## 3. Final Stage 24 components
 

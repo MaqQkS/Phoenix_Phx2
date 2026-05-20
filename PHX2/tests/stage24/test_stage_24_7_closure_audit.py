@@ -9,9 +9,9 @@ The tests in this module pin the closure state at the
 content / file / constant level:
 
   * Both closure docs exist under ``PHX2/stage24/``.
-  * The docs mention the seven Stage 24 commit short SHAs
+  * The docs mention the eight Stage 24 commit short SHAs
     (``3957347`` / ``a0ce8d8`` / ``107fc3b`` / ``a593cf7`` /
-    ``cd8d7a8`` / ``3af1ba5`` / ``5ae1709``).
+    ``cd8d7a8`` / ``3af1ba5`` / ``5ae1709`` / ``eca5d03``).
   * The docs mention the eleven Stage 24 artifact filenames.
   * The docs explicitly state Stage 24 is observe-only.
   * The docs explicitly mention Stage 24.5 Path B and the
@@ -76,6 +76,7 @@ _EXPECTED_COMMIT_SHORT_SHAS: tuple[str, ...] = (
     "cd8d7a8",
     "3af1ba5",
     "5ae1709",
+    "eca5d03",
 )
 
 
