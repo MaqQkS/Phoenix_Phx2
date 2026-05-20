@@ -120,9 +120,9 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",
-    # Closure / handoff docs not yet written.
-    "STAGE_24_CLOSURE_AUDIT.md",
-    "STAGE_25_HANDOFF.md",
+    # Stage 24.7 closure docs were admitted at 24.7 and are
+    # pinned by ``test_stage_24_7_closure_audit.py`` rather than
+    # this earlier-stage forbidden list.
     # Scheduler / daemon
     "scheduler.py",
     "daemon.py",

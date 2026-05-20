@@ -2,12 +2,14 @@
 
 Pins the 24.6 scope at the file and identifier level:
 
-  * The Stage 24 production tree contains EXACTLY the locked
-    fourteen files: the eleven 24.1-24.4 files plus the new
-    24.6 ``execution_quality.py`` / ``runner.py`` /
-    ``artifact_writer.py``.
-  * Stage 24.7 closure files do NOT exist yet
-    (``STAGE_24_CLOSURE_AUDIT.md`` / ``STAGE_25_HANDOFF.md``).
+  * The Stage 24 production .py tree contains EXACTLY the
+    fourteen locked files: the eleven 24.1-24.4 files plus the
+    new 24.6 ``execution_quality.py`` / ``runner.py`` /
+    ``artifact_writer.py``. The 24.7 closure docs
+    (``STAGE_24_CLOSURE_AUDIT.md`` / ``STAGE_25_HANDOFF.md``)
+    are markdown files; their presence is pinned by the
+    Stage 24.7 closure-audit test, not by this 24.6 .py-only
+    scanner.
   * The new 24.6 modules do not import Stage 17 / Stage 18 /
     Stage 19 / Stage 20 / Stage 21 / Stage 22 / Stage 23
     production modules.
@@ -96,9 +98,10 @@ _FORBIDDEN_LATER_STAGE_PRODUCTION_FILENAMES: tuple[str, ...] = (
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",
-    # Stage 24.7 closure docs.
-    "STAGE_24_CLOSURE_AUDIT.md",
-    "STAGE_25_HANDOFF.md",
+    # Stage 24.7 closure docs were admitted at Stage 24.7. The
+    # closure-audit / Stage 25 handoff filenames are pinned by
+    # ``test_stage_24_7_closure_audit.py`` rather than this
+    # later-stage forbidden list.
     # Scheduler / daemon (forever forbidden in Stage 24).
     "scheduler.py",
     "daemon.py",
@@ -353,14 +356,6 @@ def test_later_stage_24_files_do_not_exist():
         path = STAGE24_ROOT / name
         assert not path.exists(), (
             f"Stage 24.6 scope violation: {name} must not exist yet"
-        )
-
-
-def test_stage_24_7_closure_docs_do_not_exist():
-    for name in ("STAGE_24_CLOSURE_AUDIT.md", "STAGE_25_HANDOFF.md"):
-        path = STAGE24_ROOT / name
-        assert not path.exists(), (
-            f"Stage 24.7 closure doc {name} must not exist yet"
         )
 
 

@@ -24,10 +24,15 @@ This module pins:
     ``fee_source != "AXIOM_GLOBAL_FEE"``.
   * No sanitized real fixture has landed under
     ``PHX2/tests/stage24/fixtures/`` yet.
-  * The Stage 24.5 file-scope boundary is held: no Stage 24.6 /
-    24.7 production file (``execution_quality.py``, ``runner.py``,
-    ``artifact_writer.py``, ``STAGE_24_CLOSURE_AUDIT.md``,
-    ``STAGE_25_HANDOFF.md``) has been created.
+  * The Stage 24.5 file-scope boundary remains held against
+    alternate-name runner / writer files
+    (``stage24_runner.py``, ``evaluations_writer.py``,
+    ``summary_writer.py``, ``csv_writer.py``). The canonical
+    Stage 24.6 surface (``execution_quality.py`` / ``runner.py`` /
+    ``artifact_writer.py``) and the Stage 24.7 closure docs
+    (``STAGE_24_CLOSURE_AUDIT.md`` / ``STAGE_25_HANDOFF.md``)
+    were admitted at their respective sub-stages and are now
+    pinned by their own boundary / closure tests.
   * ``router_fee.py`` has not been quietly rewritten: its decoder
     name and version axes still match the locked 24.4 strings.
 
@@ -424,30 +429,32 @@ def test_real_fixture_count_constant_matches_disk_state():
 
 _STAGE_24_5_FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # Stage 24.6 runner / writer / quality surface was forbidden
-    # at Stage 24.5 but admitted at 24.6. The lock contract for
-    # Stage 24.5 (no confirmed router-fee decoder) is preserved
-    # independently of these files; the 24.6 artifact writer
-    # follows the Path B rules in router-fee emission.
+    # at Stage 24.5 but admitted at 24.6. Stage 24.7 closure docs
+    # were forbidden at Stage 24.5 but admitted at 24.7 and are
+    # now pinned by ``test_stage_24_7_closure_audit.py``. The
+    # Stage 24.5 lock contract (no confirmed router-fee decoder)
+    # is preserved independently of these files; the 24.6
+    # artifact writer follows the Path B rules in router-fee
+    # emission, and the 24.7 closure docs only document the
+    # Path B state, they do not promote any router-fee primitive
+    # to ``DECODED``.
     "stage24_runner.py",
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",
-    # Stage 24.7 closure docs.
-    "STAGE_24_CLOSURE_AUDIT.md",
-    "STAGE_25_HANDOFF.md",
 )
 
 
-def test_stage_24_5_lock_does_not_admit_stage_24_7_production_files():
+def test_stage_24_5_lock_does_not_admit_alternate_runner_or_writer_files():
     """The Stage 24.5 lock continues to forbid the alternate-name
-    runner / writer files and the Stage 24.7 closure docs even after
-    Stage 24.6 admits the canonical ``runner.py`` /
-    ``artifact_writer.py`` / ``execution_quality.py`` filenames.
+    runner / writer files even after Stage 24.6 admits the canonical
+    ``runner.py`` / ``artifact_writer.py`` / ``execution_quality.py``
+    filenames and Stage 24.7 admits the closure docs.
     """
     for name in _STAGE_24_5_FORBIDDEN_PRODUCTION_FILENAMES:
         path = _STAGE_24_PRODUCTION_ROOT / name
         assert not path.exists(), (
-            f"Stage 24.5 boundary violation: {name} must not exist yet"
+            f"Stage 24.5 boundary violation: {name} must not exist"
         )
 
 
