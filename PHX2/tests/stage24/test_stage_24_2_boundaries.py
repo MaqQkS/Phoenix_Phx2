@@ -57,6 +57,10 @@ _STAGE_24_2_APPROVED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # Stage 24.2 decoders
         "compute_budget.py",
         "priority_fee.py",
+        # Stage 24.3 Jito tip decoder (admitted in 24.3; the
+        # 24.2 file-scope invariants are extended here so the
+        # 24.2 boundary scanner stays accurate after 24.3 lands).
+        "jito_tip.py",
     }
 )
 
@@ -68,8 +72,9 @@ _STAGE_24_2_NEW_PRODUCTION_FILENAMES: tuple[str, ...] = (
 
 
 _FORBIDDEN_LATER_STAGE_PRODUCTION_FILENAMES: tuple[str, ...] = (
-    # Stage 24.3+ decoders
-    "jito_tip.py",
+    # Stage 24.4+ decoders. ``jito_tip.py`` was forbidden at 24.2
+    # but is admitted at 24.3 and now appears in
+    # ``_STAGE_24_2_APPROVED_PRODUCTION_FILENAMES`` instead.
     "router_fee.py",
     "execution_quality.py",
     # Stage 24.6 runner / writer surface

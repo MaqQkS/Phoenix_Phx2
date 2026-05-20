@@ -314,15 +314,24 @@ DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS: tuple[str, ...] = (
 
 # Known Jito tip accounts.
 #
-# Stage 24.3 will lock this tuple to the eight standard Jito tip
-# wallets sourced from the public Jito-Solana docs and verified
-# against a synthetic fixture. Stage 24.1 ships the tuple as
-# empty so the locked vocabulary is established but the literal
-# values land alongside the Stage 24.3 decoder (the same patch
-# that asserts the tip-account match behavior). Boundary tests
-# require this constant to exist; the constants tests assert it
-# is a tuple of strings.
-KNOWN_JITO_TIP_ACCOUNTS: tuple[str, ...] = ()
+# The eight standard Jito tip wallets documented in the public
+# Jito-Solana SDK / Block Engine docs. These are public on-chain
+# pubkeys, NOT secrets, and have been stable since the Jito
+# tipping interface was published. Stage 24.3 locks the literal
+# tuple in this file (rather than reaching out over the network)
+# so the decoder can perform tip-account match without network
+# I/O. Adding or removing a tip account requires a contract
+# patch to this tuple plus a corresponding constants test.
+KNOWN_JITO_TIP_ACCOUNTS: tuple[str, ...] = (
+    "96gYZGLnJYVFmbjzopPSU6QiEV5fGqZNyN9nmNhvrZU5",
+    "HFqU5x63VTqvQss8hp11i4wVV8bD44PvwucfZ2bU7gRe",
+    "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY",
+    "ADaUMid9yfUytqMBgopwjb2DTLSokTSzL1zt6iGPaS49",
+    "DfXygSm4jCyNCybVYYK6DwvWqjKee8pbDmJGcLWNDXjh",
+    "ADuUkR4vqLUMWXxW9gh6D6L8pivKeVrtfXEMnEnyGuTk",
+    "DttWaMuVvTiduZRnguLF7jNxTgiMBZ1hyAumKUiL2KRL",
+    "3AVi9Tg9Uo68tJfuvoKvqKNWKkC5wPdSSdeBnizKZ6jT",
+)
 
 
 # ---------------------------------------------------------------------------

@@ -70,6 +70,10 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # invariants).
         "compute_budget.py",
         "priority_fee.py",
+        # Stage 24.3 Jito tip decoder (admitted in 24.3; see
+        # test_stage_24_3_boundaries.py for the 24.3 file-scope
+        # invariants).
+        "jito_tip.py",
     }
 )
 
@@ -89,8 +93,9 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # Reserved-but-not-used decoder filenames (later sub-stages).
     # ``compute_budget.py`` / ``priority_fee.py`` were forbidden at
     # 24.1; they were admitted at 24.2 and now appear in
-    # ``_LOCKED_PRODUCTION_FILENAMES``.
-    "jito_tip.py",
+    # ``_LOCKED_PRODUCTION_FILENAMES``. ``jito_tip.py`` was
+    # forbidden at 24.1-24.2; it was admitted at 24.3 and now
+    # appears in ``_LOCKED_PRODUCTION_FILENAMES`` as well.
     "router_fee.py",
     "execution_quality.py",
     # Reserved-but-not-used runner / writer filenames.

@@ -26,6 +26,8 @@ from typing import Mapping
 from PHX2.stage24.constants import (
     DEFAULT_SCHEMA_VERSION,
     INPUT_KIND_SYNTHETIC_DECODED_TX_JSONL,
+    KNOWN_JITO_TIP_ACCOUNTS,
+    SYSTEM_PROGRAM_ID,
 )
 from PHX2.stage24.models import (
     Stage24ExecutionInput,
@@ -461,6 +463,190 @@ def make_non_compute_budget_instruction(
     )
 
 
+# ---------------------------------------------------------------------------
+# Stage 24.3 System Program transfer instruction-data builders
+# ---------------------------------------------------------------------------
+#
+# The System Program ``Transfer`` instruction layout is:
+#   * 4 bytes: u32 little-endian instruction tag (= 2 for Transfer)
+#   * 8 bytes: u64 little-endian lamports
+# Total 12 bytes. The helpers below encode that layout via pure
+# stdlib ``int.to_bytes`` calls; no Solana SDK is touched.
+
+
+_SYSTEM_PROGRAM_TAG_CREATE_ACCOUNT: int = 0
+_SYSTEM_PROGRAM_TAG_ASSIGN: int = 1
+_SYSTEM_PROGRAM_TAG_TRANSFER: int = 2
+
+
+def make_system_transfer_instruction_data(*, lamports: int) -> str:
+    """Return base64-encoded System Program ``Transfer(lamports)`` data."""
+    payload = (
+        _SYSTEM_PROGRAM_TAG_TRANSFER.to_bytes(4, "little")
+        + lamports.to_bytes(8, "little")
+    )
+    return base64.b64encode(payload).decode("ascii")
+
+
+def make_system_transfer_instruction(
+    *,
+    lamports: int,
+    destination: str,
+    source: str = "AccountSource11111111111111111111111111111",
+) -> dict[str, object]:
+    """Build a top-level System Program ``Transfer`` instruction record.
+
+    ``accounts`` is encoded as direct base58 pubkey strings in
+    Stage 24-shaped decoded-tx JSONL fixtures (mirroring the
+    ComputeBudget fixtures' string-account convention).
+    Position 0 is the source, position 1 is the destination, per
+    the public System Program Transfer layout.
+    """
+    return make_top_level_instruction(
+        program_id=SYSTEM_PROGRAM_ID,
+        accounts=(source, destination),
+        data=make_system_transfer_instruction_data(lamports=lamports),
+    )
+
+
+def make_jito_tip_instruction(
+    *,
+    lamports: int = 10_000,
+    tip_account: str | None = None,
+    source: str = "AccountSource11111111111111111111111111111",
+) -> dict[str, object]:
+    """Build a top-level System Program transfer to a known Jito tip account.
+
+    Defaults to the first locked Jito tip account so callers do
+    not have to know the literal pubkeys. Raises ``RuntimeError``
+    if the tip-account tuple is empty (which would mean Stage 24
+    constants regressed).
+    """
+    if tip_account is None:
+        if not KNOWN_JITO_TIP_ACCOUNTS:
+            raise RuntimeError(
+                "KNOWN_JITO_TIP_ACCOUNTS is empty; cannot build a tip "
+                "instruction with a default destination."
+            )
+        tip_account = KNOWN_JITO_TIP_ACCOUNTS[0]
+    return make_system_transfer_instruction(
+        lamports=lamports,
+        destination=tip_account,
+        source=source,
+    )
+
+
+def make_non_tip_system_transfer_instruction(
+    *,
+    lamports: int = 1_000,
+    destination: str = "NonTipAccount11111111111111111111111111111",
+    source: str = "AccountSource11111111111111111111111111111",
+) -> dict[str, object]:
+    """Build a top-level System Program transfer to a non-tip account."""
+    return make_system_transfer_instruction(
+        lamports=lamports,
+        destination=destination,
+        source=source,
+    )
+
+
+def make_system_program_unknown_tag_data(
+    *,
+    tag: int,
+    body: bytes = b"",
+) -> str:
+    """Return base64-encoded System Program data carrying an unknown tag.
+
+    The instruction tag is encoded as a u32 little-endian (matching
+    the System Program layout). Used by tests that need a System
+    Program instruction whose tag is NOT ``Transfer``.
+    """
+    payload = tag.to_bytes(4, "little") + body
+    return base64.b64encode(payload).decode("ascii")
+
+
+def make_system_program_non_transfer_instruction(
+    *,
+    tag: int = _SYSTEM_PROGRAM_TAG_CREATE_ACCOUNT,
+    body: bytes = b"",
+    accounts: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Build a top-level System Program instruction with a non-Transfer tag."""
+    return make_top_level_instruction(
+        program_id=SYSTEM_PROGRAM_ID,
+        accounts=accounts,
+        data=make_system_program_unknown_tag_data(tag=tag, body=body),
+    )
+
+
+def make_malformed_system_transfer_instruction(
+    *,
+    destination: str | None = None,
+    source: str = "AccountSource11111111111111111111111111111",
+) -> dict[str, object]:
+    """Build a System Program transfer instruction with a too-short body.
+
+    Tag bytes claim ``Transfer`` (u32=2) but only 3 lamport bytes
+    follow, instead of the required 8. The decoder must fail
+    closed as ``DECODE_FAILED`` / ``MALFORMED``.
+    """
+    if destination is None:
+        destination = (
+            KNOWN_JITO_TIP_ACCOUNTS[0]
+            if KNOWN_JITO_TIP_ACCOUNTS
+            else "DefaultDestination11111111111111111111111"
+        )
+    payload = (
+        _SYSTEM_PROGRAM_TAG_TRANSFER.to_bytes(4, "little") + bytes([0, 0, 0])
+    )
+    data_str = base64.b64encode(payload).decode("ascii")
+    return make_top_level_instruction(
+        program_id=SYSTEM_PROGRAM_ID,
+        accounts=(source, destination),
+        data=data_str,
+    )
+
+
+def make_inner_jito_tip_instruction(
+    *,
+    lamports: int = 5_000,
+    tip_account: str | None = None,
+    source: str = "AccountSource11111111111111111111111111111",
+) -> dict[str, object]:
+    """Build an inner (CPI) System Program transfer to a Jito tip account.
+
+    Shape matches the top-level builder; the only difference is
+    that the caller places the record into ``inner_instructions``
+    on the ``Stage24ExecutionInput``.
+    """
+    if tip_account is None:
+        if not KNOWN_JITO_TIP_ACCOUNTS:
+            raise RuntimeError(
+                "KNOWN_JITO_TIP_ACCOUNTS is empty; cannot build a tip "
+                "instruction with a default destination."
+            )
+        tip_account = KNOWN_JITO_TIP_ACCOUNTS[0]
+    return make_inner_instruction(
+        program_id=SYSTEM_PROGRAM_ID,
+        accounts=(source, tip_account),
+        data=make_system_transfer_instruction_data(lamports=lamports),
+    )
+
+
+def make_inner_non_tip_system_transfer_instruction(
+    *,
+    lamports: int = 750,
+    destination: str = "InnerNonTip11111111111111111111111111111",
+    source: str = "AccountSource11111111111111111111111111111",
+) -> dict[str, object]:
+    """Build an inner (CPI) System Program transfer to a non-tip account."""
+    return make_inner_instruction(
+        program_id=SYSTEM_PROGRAM_ID,
+        accounts=(source, destination),
+        data=make_system_transfer_instruction_data(lamports=lamports),
+    )
+
+
 __all__ = [
     "FIXED_CLOCK_UTC",
     "encode_compute_budget_empty_data",
@@ -477,10 +663,19 @@ __all__ = [
     "make_decoded_tx_row",
     "make_execution_input",
     "make_inner_instruction",
+    "make_inner_jito_tip_instruction",
+    "make_inner_non_tip_system_transfer_instruction",
+    "make_jito_tip_instruction",
+    "make_malformed_system_transfer_instruction",
     "make_non_compute_budget_instruction",
+    "make_non_tip_system_transfer_instruction",
     "make_row_with_long_hex_credential",
     "make_row_with_nested_secret_key",
     "make_row_with_secret_field_name",
     "make_row_with_url_value",
+    "make_system_program_non_transfer_instruction",
+    "make_system_program_unknown_tag_data",
+    "make_system_transfer_instruction",
+    "make_system_transfer_instruction_data",
     "make_top_level_instruction",
 ]
