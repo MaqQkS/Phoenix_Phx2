@@ -423,10 +423,11 @@ def test_real_fixture_count_constant_matches_disk_state():
 
 
 _STAGE_24_5_FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
-    # Stage 24.6 runner / writer / quality surface.
-    "execution_quality.py",
-    "runner.py",
-    "artifact_writer.py",
+    # Stage 24.6 runner / writer / quality surface was forbidden
+    # at Stage 24.5 but admitted at 24.6. The lock contract for
+    # Stage 24.5 (no confirmed router-fee decoder) is preserved
+    # independently of these files; the 24.6 artifact writer
+    # follows the Path B rules in router-fee emission.
     "stage24_runner.py",
     "evaluations_writer.py",
     "summary_writer.py",
@@ -437,7 +438,12 @@ _STAGE_24_5_FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
 )
 
 
-def test_stage_24_5_does_not_create_stage_24_6_or_24_7_production_files():
+def test_stage_24_5_lock_does_not_admit_stage_24_7_production_files():
+    """The Stage 24.5 lock continues to forbid the alternate-name
+    runner / writer files and the Stage 24.7 closure docs even after
+    Stage 24.6 admits the canonical ``runner.py`` /
+    ``artifact_writer.py`` / ``execution_quality.py`` filenames.
+    """
     for name in _STAGE_24_5_FORBIDDEN_PRODUCTION_FILENAMES:
         path = _STAGE_24_PRODUCTION_ROOT / name
         assert not path.exists(), (

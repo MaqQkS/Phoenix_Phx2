@@ -65,6 +65,13 @@ _STAGE_24_4_APPROVED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "jito_tip.py",
         # Stage 24.4 decoder
         "router_fee.py",
+        # Stage 24.6 runner / writer / quality surface (admitted
+        # in 24.6; the 24.4 file-scope invariants are extended
+        # here so the 24.4 boundary scanner stays accurate after
+        # 24.6 lands).
+        "execution_quality.py",
+        "runner.py",
+        "artifact_writer.py",
     }
 )
 
@@ -75,10 +82,10 @@ _STAGE_24_4_NEW_PRODUCTION_FILENAMES: tuple[str, ...] = (
 
 
 _FORBIDDEN_LATER_STAGE_PRODUCTION_FILENAMES: tuple[str, ...] = (
-    # Stage 24.6 runner / writer / quality surface
-    "execution_quality.py",
-    "runner.py",
-    "artifact_writer.py",
+    # Stage 24.6 runner / writer / quality surface was forbidden
+    # at Stage 24.4-24.5 but admitted at 24.6; the canonical
+    # filenames now appear in
+    # ``_STAGE_24_4_APPROVED_PRODUCTION_FILENAMES``.
     "stage24_runner.py",
     "evaluations_writer.py",
     "summary_writer.py",
@@ -354,19 +361,25 @@ def test_later_stage_24_files_do_not_exist():
         )
 
 
-def test_execution_quality_module_still_forbidden_at_stage_24_4():
-    """``execution_quality.py`` lands at Stage 24.6 at the earliest."""
-    assert not (STAGE24_ROOT / "execution_quality.py").exists()
+def test_execution_quality_module_admitted_after_stage_24_6():
+    """``execution_quality.py`` landed at Stage 24.6 and is admitted
+    by the Stage 24.4 boundary scanner from that point onward.
+    """
+    assert (STAGE24_ROOT / "execution_quality.py").is_file()
 
 
-def test_runner_module_still_forbidden_at_stage_24_4():
-    """``runner.py`` lands at Stage 24.6 at the earliest."""
-    assert not (STAGE24_ROOT / "runner.py").exists()
+def test_runner_module_admitted_after_stage_24_6():
+    """``runner.py`` landed at Stage 24.6 and is admitted by the
+    Stage 24.4 boundary scanner from that point onward.
+    """
+    assert (STAGE24_ROOT / "runner.py").is_file()
 
 
-def test_artifact_writer_module_still_forbidden_at_stage_24_4():
-    """``artifact_writer.py`` lands at Stage 24.6 at the earliest."""
-    assert not (STAGE24_ROOT / "artifact_writer.py").exists()
+def test_artifact_writer_module_admitted_after_stage_24_6():
+    """``artifact_writer.py`` landed at Stage 24.6 and is admitted by
+    the Stage 24.4 boundary scanner from that point onward.
+    """
+    assert (STAGE24_ROOT / "artifact_writer.py").is_file()
 
 
 def test_no_later_stage_subdirectories_exist():

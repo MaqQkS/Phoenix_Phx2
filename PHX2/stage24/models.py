@@ -1306,6 +1306,295 @@ def build_router_fee_result(
     )
 
 
+def build_execution_quality_result(
+    *,
+    decoder_name: str,
+    decoder_version: str,
+    threshold_version: str,
+    decoder_status: str,
+    data_status: str,
+    confidence_level: str,
+    fee_source: str,
+    route_family: str,
+    landed: Optional[bool],
+    landed_slot: int,
+    submitted_slot: int,
+    slot_delta: Optional[int],
+    realized_priority_fee_lamports: Optional[int],
+    realized_jito_tip_lamports: Optional[int],
+    realized_router_fee_lamports: Optional[int],
+    error_code: str,
+    reason_codes: tuple[str, ...],
+    numeric_features: Mapping[str, object],
+    evidence: Mapping[str, object],
+    input_missing_fields: tuple[str, ...],
+) -> Stage24ExecutionQualityResult:
+    """Build a ``Stage24ExecutionQualityResult`` with closed-set validation."""
+    _require_non_empty_string("decoder_name", decoder_name)
+    _require_non_empty_string("decoder_version", decoder_version)
+    _require_non_empty_string("threshold_version", threshold_version)
+    assert_decoder_status_in_closed_set(decoder_status)
+    assert_data_status_in_closed_set(data_status)
+    assert_confidence_level_in_closed_set(confidence_level)
+    assert_fee_source_in_closed_set(fee_source)
+    assert_route_family_in_closed_set(route_family)
+    if landed is not None and not isinstance(landed, bool):
+        raise Stage24ContractError("landed must be a bool or None")
+    if not isinstance(landed_slot, int) or isinstance(landed_slot, bool):
+        raise Stage24ContractError("landed_slot must be a strict int")
+    if (
+        not isinstance(submitted_slot, int)
+        or isinstance(submitted_slot, bool)
+    ):
+        raise Stage24ContractError("submitted_slot must be a strict int")
+    if slot_delta is not None:
+        if isinstance(slot_delta, bool):
+            raise Stage24ContractError("slot_delta must not be a bool")
+        if not isinstance(slot_delta, int):
+            raise Stage24ContractError(
+                "slot_delta must be an int or None"
+            )
+    assert_optional_non_negative_int(
+        field_name="realized_priority_fee_lamports",
+        value=realized_priority_fee_lamports,
+    )
+    assert_optional_non_negative_int(
+        field_name="realized_jito_tip_lamports",
+        value=realized_jito_tip_lamports,
+    )
+    assert_optional_non_negative_int(
+        field_name="realized_router_fee_lamports",
+        value=realized_router_fee_lamports,
+    )
+    if not isinstance(error_code, str):
+        raise Stage24ContractError("error_code must be a string")
+    _require_tuple_of_strings("reason_codes", reason_codes)
+    _require_mapping("numeric_features", numeric_features)
+    _require_mapping("evidence", evidence)
+    if not isinstance(input_missing_fields, tuple):
+        raise Stage24ContractError(
+            "input_missing_fields must be a tuple"
+        )
+    _require_tuple_of_strings(
+        "input_missing_fields", input_missing_fields
+    )
+    primitive_family = "EXECUTION_QUALITY"
+    result_hash = compute_result_hash(
+        primitive_family=primitive_family,
+        decoder_name=decoder_name,
+        decoder_version=decoder_version,
+        threshold_version=threshold_version,
+        decoder_status=decoder_status,
+        data_status=data_status,
+        confidence_level=confidence_level,
+        fee_source=fee_source,
+        route_family=route_family,
+        extra={
+            "landed": landed,
+            "landed_slot": landed_slot,
+            "submitted_slot": submitted_slot,
+            "slot_delta": slot_delta,
+            "realized_priority_fee_lamports": (
+                realized_priority_fee_lamports
+            ),
+            "realized_jito_tip_lamports": realized_jito_tip_lamports,
+            "realized_router_fee_lamports": (
+                realized_router_fee_lamports
+            ),
+            "error_code": error_code,
+            "reason_codes": list(reason_codes),
+            "numeric_features": _canonicalize(numeric_features),
+            "evidence": _canonicalize(evidence),
+            "input_missing_fields": list(input_missing_fields),
+        },
+    )
+    return Stage24ExecutionQualityResult(
+        primitive_family=primitive_family,
+        decoder_name=decoder_name,
+        decoder_version=decoder_version,
+        threshold_version=threshold_version,
+        decoder_status=decoder_status,
+        data_status=data_status,
+        confidence_level=confidence_level,
+        fee_source=fee_source,
+        route_family=route_family,
+        landed=landed,
+        landed_slot=landed_slot,
+        submitted_slot=submitted_slot,
+        slot_delta=slot_delta,
+        realized_priority_fee_lamports=realized_priority_fee_lamports,
+        realized_jito_tip_lamports=realized_jito_tip_lamports,
+        realized_router_fee_lamports=realized_router_fee_lamports,
+        error_code=error_code,
+        reason_codes=reason_codes,
+        numeric_features=numeric_features,
+        evidence=evidence,
+        input_missing_fields=input_missing_fields,
+        result_hash=result_hash,
+    )
+
+
+def build_execution_primitive(
+    *,
+    tx_signature: str,
+    slot: int,
+    provider_id: str,
+    observed_at_utc: str,
+    primitive_family: str,
+    fee_source: str,
+    decoder_status: str,
+    data_status: str,
+    confidence_level: str,
+    route_family: str,
+    instruction_location: str,
+    program_id: str,
+    amount_lamports: Optional[int],
+    amount_token: Optional[int],
+    mint: str,
+    unit_price_microlamports: Optional[int],
+    unit_limit: Optional[int],
+    reason_codes: tuple[str, ...],
+    numeric_features: Mapping[str, object],
+    evidence: Mapping[str, object],
+    missing_features: tuple[str, ...],
+    input_hash: str,
+    created_at_utc: str,
+) -> Stage24ExecutionPrimitive:
+    """Build a ``Stage24ExecutionPrimitive`` with closed-set validation."""
+    assert_primitive_family_in_closed_set(primitive_family)
+    assert_decoder_status_in_closed_set(decoder_status)
+    assert_data_status_in_closed_set(data_status)
+    assert_confidence_level_in_closed_set(confidence_level)
+    assert_fee_source_in_closed_set(fee_source)
+    assert_route_family_in_closed_set(route_family)
+    assert_instruction_location_in_closed_set(instruction_location)
+    if not isinstance(tx_signature, str):
+        raise Stage24ContractError("tx_signature must be a string")
+    if not isinstance(slot, int) or isinstance(slot, bool):
+        raise Stage24ContractError("slot must be a strict int")
+    _require_non_empty_string("provider_id", provider_id)
+    if not isinstance(observed_at_utc, str):
+        raise Stage24ContractError("observed_at_utc must be a string")
+    if not isinstance(program_id, str):
+        raise Stage24ContractError("program_id must be a string")
+    if not isinstance(mint, str):
+        raise Stage24ContractError("mint must be a string")
+    assert_optional_non_negative_int(
+        field_name="amount_lamports", value=amount_lamports
+    )
+    assert_optional_non_negative_int(
+        field_name="amount_token", value=amount_token
+    )
+    assert_optional_non_negative_int(
+        field_name="unit_price_microlamports",
+        value=unit_price_microlamports,
+    )
+    assert_optional_non_negative_int(
+        field_name="unit_limit", value=unit_limit
+    )
+    _require_tuple_of_strings("reason_codes", reason_codes)
+    _require_mapping("numeric_features", numeric_features)
+    _require_mapping("evidence", evidence)
+    if not isinstance(missing_features, tuple):
+        raise Stage24ContractError(
+            "missing_features must be a tuple"
+        )
+    _require_tuple_of_strings("missing_features", missing_features)
+    if not isinstance(input_hash, str) or input_hash == "":
+        raise Stage24ContractError(
+            "input_hash must be a non-empty string"
+        )
+    if not isinstance(created_at_utc, str):
+        raise Stage24ContractError(
+            "created_at_utc must be a string"
+        )
+    primitive_without_hash = Stage24ExecutionPrimitive(
+        tx_signature=tx_signature,
+        slot=slot,
+        provider_id=provider_id,
+        observed_at_utc=observed_at_utc,
+        primitive_family=primitive_family,
+        fee_source=fee_source,
+        decoder_status=decoder_status,
+        data_status=data_status,
+        confidence_level=confidence_level,
+        route_family=route_family,
+        instruction_location=instruction_location,
+        program_id=program_id,
+        amount_lamports=amount_lamports,
+        amount_token=amount_token,
+        mint=mint,
+        unit_price_microlamports=unit_price_microlamports,
+        unit_limit=unit_limit,
+        reason_codes=reason_codes,
+        numeric_features=numeric_features,
+        evidence=evidence,
+        missing_features=missing_features,
+        input_hash=input_hash,
+        primitive_hash="",
+        created_at_utc=created_at_utc,
+    )
+    primitive_hash = compute_primitive_hash(primitive_without_hash)
+    return primitive_without_hash._replace(primitive_hash=primitive_hash)
+
+
+def build_runner_result(
+    *,
+    compute_budget_results: tuple[Stage24ComputeBudgetResult, ...],
+    priority_fee_results: tuple[Stage24PriorityFeeResult, ...],
+    jito_tip_results: tuple[Stage24JitoTipResult, ...],
+    router_fee_results: tuple[Stage24RouterFeeResult, ...],
+    execution_quality_results: tuple[Stage24ExecutionQualityResult, ...],
+    execution_primitives: tuple[Stage24ExecutionPrimitive, ...],
+    input_count: int,
+    input_rejection_count: int,
+    created_at_utc: str,
+) -> Stage24RunnerResult:
+    """Build a ``Stage24RunnerResult`` with shape validation."""
+    for name, value in (
+        ("compute_budget_results", compute_budget_results),
+        ("priority_fee_results", priority_fee_results),
+        ("jito_tip_results", jito_tip_results),
+        ("router_fee_results", router_fee_results),
+        ("execution_quality_results", execution_quality_results),
+        ("execution_primitives", execution_primitives),
+    ):
+        if not isinstance(value, tuple):
+            raise Stage24ContractError(f"{name} must be a tuple")
+    if not isinstance(input_count, int) or isinstance(input_count, bool):
+        raise Stage24ContractError(
+            "input_count must be a strict int"
+        )
+    if input_count < 0:
+        raise Stage24ContractError("input_count must be >= 0")
+    if (
+        not isinstance(input_rejection_count, int)
+        or isinstance(input_rejection_count, bool)
+    ):
+        raise Stage24ContractError(
+            "input_rejection_count must be a strict int"
+        )
+    if input_rejection_count < 0:
+        raise Stage24ContractError(
+            "input_rejection_count must be >= 0"
+        )
+    if not isinstance(created_at_utc, str) or created_at_utc == "":
+        raise Stage24ContractError(
+            "created_at_utc must be a non-empty string"
+        )
+    return Stage24RunnerResult(
+        compute_budget_results=compute_budget_results,
+        priority_fee_results=priority_fee_results,
+        jito_tip_results=jito_tip_results,
+        router_fee_results=router_fee_results,
+        execution_quality_results=execution_quality_results,
+        execution_primitives=execution_primitives,
+        input_count=input_count,
+        input_rejection_count=input_rejection_count,
+        created_at_utc=created_at_utc,
+    )
+
+
 __all__ = [
     "Stage24ComputeBudgetResult",
     "Stage24ExecutionInput",
@@ -1324,9 +1613,12 @@ __all__ = [
     "assert_primitive_family_in_closed_set",
     "assert_route_family_in_closed_set",
     "build_compute_budget_result",
+    "build_execution_primitive",
+    "build_execution_quality_result",
     "build_jito_tip_result",
     "build_priority_fee_result",
     "build_router_fee_result",
+    "build_runner_result",
     "canonical_json",
     "compute_execution_input_hash",
     "compute_execution_input_hash_from_projection",

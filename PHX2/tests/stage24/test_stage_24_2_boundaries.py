@@ -66,6 +66,13 @@ _STAGE_24_2_APPROVED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # so the 24.2 boundary scanner stays accurate after 24.4
         # lands).
         "router_fee.py",
+        # Stage 24.6 runner / writer / quality surface (admitted
+        # in 24.6; the 24.2 file-scope invariants are extended
+        # here so the 24.2 boundary scanner stays accurate after
+        # 24.6 lands).
+        "execution_quality.py",
+        "runner.py",
+        "artifact_writer.py",
     }
 )
 
@@ -83,10 +90,9 @@ _FORBIDDEN_LATER_STAGE_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # instead. ``router_fee.py`` was forbidden at 24.2-24.3 but
     # is admitted at 24.4 and now appears in
     # ``_STAGE_24_2_APPROVED_PRODUCTION_FILENAMES`` instead.
-    "execution_quality.py",
-    # Stage 24.6 runner / writer surface
-    "runner.py",
-    "artifact_writer.py",
+    # ``execution_quality.py`` / ``runner.py`` / ``artifact_writer.py``
+    # were forbidden at 24.2-24.5 but are admitted at 24.6 and
+    # now appear in ``_STAGE_24_2_APPROVED_PRODUCTION_FILENAMES``.
     "stage24_runner.py",
     "evaluations_writer.py",
     "summary_writer.py",

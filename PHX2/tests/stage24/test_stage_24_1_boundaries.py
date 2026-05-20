@@ -78,6 +78,12 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # 24.4; see test_stage_24_4_boundaries.py for the 24.4
         # file-scope invariants).
         "router_fee.py",
+        # Stage 24.6 runner / writer / quality surface (admitted
+        # in 24.6; see test_stage_24_6_boundaries.py for the
+        # 24.6 file-scope invariants).
+        "execution_quality.py",
+        "runner.py",
+        "artifact_writer.py",
     }
 )
 
@@ -89,6 +95,9 @@ _PATHLIB_ALLOWED_FILES: frozenset[str] = frozenset(
     {
         "input_reader.py",
         "stage24_manifest.py",
+        # Stage 24.6 artifact writer also takes an operator-
+        # supplied output directory and writes artifacts there.
+        "artifact_writer.py",
     }
 )
 
@@ -103,10 +112,10 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # ``router_fee.py`` was forbidden at 24.1-24.3; it was
     # admitted at 24.4 and now appears in
     # ``_LOCKED_PRODUCTION_FILENAMES`` as well.
-    "execution_quality.py",
+    # ``execution_quality.py`` / ``runner.py`` / ``artifact_writer.py``
+    # were forbidden at 24.1-24.5; they were admitted at 24.6
+    # and now appear in ``_LOCKED_PRODUCTION_FILENAMES``.
     # Reserved-but-not-used runner / writer filenames.
-    "runner.py",
-    "artifact_writer.py",
     "stage24_runner.py",
     "evaluations_writer.py",
     "summary_writer.py",

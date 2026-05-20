@@ -544,3 +544,115 @@ STAGE24_LONG_HEX_RUN_MIN_LEN: int = 40
 STAGE_24_5_HAS_CONFIRMED_ROUTER_FEE_DECODER: bool = False
 STAGE_24_5_REAL_FIXTURE_COUNT: int = 0
 STAGE_24_5_CONFIRMED_LAYOUT_COUNT: int = 0
+
+
+# ---------------------------------------------------------------------------
+# Stage 24.6 artifact filename constants
+# ---------------------------------------------------------------------------
+#
+# The locked, deterministic Stage 24.6 artifact filenames the
+# ``PHX2.stage24.artifact_writer`` module emits when a caller-
+# driven offline runner finishes a Stage 24 run. Mirrors the
+# Stage 23 artifact discipline: every filename is locked here so
+# the 24.6 writer cannot drift, and downstream readers can pin
+# the filename set without having to scan the writer module.
+#
+# Stage 24.5 took Path B; the router/global-fee confirmed
+# decoder did not land. The artifact writer therefore emits the
+# 24.4 candidate evidence into ``stage24_router_fee_candidates.jsonl``
+# and leaves ``stage24_router_fee_results.jsonl`` empty (header
+# / no data rows). Both filenames are reserved in this tuple.
+
+
+ARTIFACT_FILENAME_MANIFEST: str = "stage24_manifest.json"
+ARTIFACT_FILENAME_SUMMARY: str = "stage24_summary.json"
+ARTIFACT_FILENAME_EXECUTION_PRIMITIVES: str = (
+    "stage24_execution_primitives.jsonl"
+)
+ARTIFACT_FILENAME_COMPUTE_BUDGET_RESULTS: str = (
+    "stage24_compute_budget_results.jsonl"
+)
+ARTIFACT_FILENAME_PRIORITY_FEE_RESULTS: str = (
+    "stage24_priority_fee_results.jsonl"
+)
+ARTIFACT_FILENAME_JITO_TIP_RESULTS: str = (
+    "stage24_jito_tip_results.jsonl"
+)
+ARTIFACT_FILENAME_ROUTER_FEE_RESULTS: str = (
+    "stage24_router_fee_results.jsonl"
+)
+ARTIFACT_FILENAME_ROUTER_FEE_CANDIDATES: str = (
+    "stage24_router_fee_candidates.jsonl"
+)
+ARTIFACT_FILENAME_EXECUTION_QUALITY_RESULTS: str = (
+    "stage24_execution_quality_results.jsonl"
+)
+ARTIFACT_FILENAME_DECODER_COVERAGE: str = (
+    "stage24_decoder_coverage.csv"
+)
+ARTIFACT_FILENAME_REJECTIONS: str = "stage24_rejections.jsonl"
+
+
+ALL_STAGE24_ARTIFACT_FILENAMES: tuple[str, ...] = (
+    ARTIFACT_FILENAME_MANIFEST,
+    ARTIFACT_FILENAME_SUMMARY,
+    ARTIFACT_FILENAME_EXECUTION_PRIMITIVES,
+    ARTIFACT_FILENAME_COMPUTE_BUDGET_RESULTS,
+    ARTIFACT_FILENAME_PRIORITY_FEE_RESULTS,
+    ARTIFACT_FILENAME_JITO_TIP_RESULTS,
+    ARTIFACT_FILENAME_ROUTER_FEE_RESULTS,
+    ARTIFACT_FILENAME_ROUTER_FEE_CANDIDATES,
+    ARTIFACT_FILENAME_EXECUTION_QUALITY_RESULTS,
+    ARTIFACT_FILENAME_DECODER_COVERAGE,
+    ARTIFACT_FILENAME_REJECTIONS,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 24.6 execution-quality / runner / writer version axes
+# ---------------------------------------------------------------------------
+
+
+EXECUTION_QUALITY_DECODER_NAME: str = "execution_quality_v0"
+EXECUTION_QUALITY_DECODER_VERSION: str = (
+    "stage24_v0_execution_quality"
+)
+
+
+STAGE24_RUNNER_NAME: str = "stage24_runner_v0"
+STAGE24_RUNNER_VERSION: str = "stage24_v0_runner"
+
+
+STAGE24_ARTIFACT_WRITER_NAME: str = "stage24_artifact_writer_v0"
+STAGE24_ARTIFACT_WRITER_VERSION: str = "stage24_v0_artifact_writer"
+
+
+STAGE24_ARTIFACT_SUMMARY_SCHEMA_VERSION: str = (
+    "stage24_v0_artifact_summary"
+)
+STAGE24_ARTIFACT_COVERAGE_SCHEMA_VERSION: str = (
+    "stage24_v0_decoder_coverage"
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 24.6 rejection-record reason tokens
+# ---------------------------------------------------------------------------
+#
+# Closed-set short tokens the artifact writer / runner records
+# on rejection rows so downstream readers can group rejections
+# without parsing free-form text.
+
+
+STAGE24_REJECTION_REASON_DECODER_TYPED_ERROR: str = (
+    "DECODER_TYPED_ERROR"
+)
+STAGE24_REJECTION_REASON_BUILDER_TYPED_ERROR: str = (
+    "BUILDER_TYPED_ERROR"
+)
+
+
+STAGE24_REJECTION_REASONS: tuple[str, ...] = (
+    STAGE24_REJECTION_REASON_DECODER_TYPED_ERROR,
+    STAGE24_REJECTION_REASON_BUILDER_TYPED_ERROR,
+)
