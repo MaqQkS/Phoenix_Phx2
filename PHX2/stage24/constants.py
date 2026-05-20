@@ -508,3 +508,39 @@ STAGE24_FORBIDDEN_INPUT_VALUE_SUBSTRINGS: tuple[str, ...] = (
 
 
 STAGE24_LONG_HEX_RUN_MIN_LEN: int = 40
+
+
+# ---------------------------------------------------------------------------
+# Stage 24.5 router/global-fee no-confirmed-decoder lock (Path B)
+# ---------------------------------------------------------------------------
+#
+# Stage 24.5 took Path B per ``STAGE_24_BRAINSTORM.md`` Section 5
+# / Section 15 / Section 19: no sanitized real Axiom / FLASHX8
+# transaction fixtures exist to prove the instruction layout,
+# account layout, fee-account movement, lamport/token flow, and
+# instruction location that Section 9 requires before a
+# router/global-fee primitive can be promoted to
+# ``decoder_status=DECODED``. The router/global-fee surface
+# therefore stays at the Stage 24.4 candidate-only contract.
+#
+# The three scalar markers below are NOT closed-set members;
+# they are fixture-state and decoder-state markers that:
+#
+#   * the Stage 24.5 lock test reads to assert the no-confirmed-
+#     decoder state has not silently regressed, and
+#   * the Stage 24.6 manifest writer (when 24.6 lands) embeds
+#     in its decoder-state block so downstream readers see the
+#     no-confirmed-decoder state explicitly.
+#
+# Flipping ``STAGE_24_5_HAS_CONFIRMED_ROUTER_FEE_DECODER`` to
+# True is the explicit signal that Path A is being attempted.
+# Doing so without also (a) landing sanitized real fixtures,
+# (b) wiring a confirmed decoder in ``router_fee.py``, (c)
+# updating ``STAGE_24_5_NO_DECODER_LOCK.md``, and (d) updating
+# the Stage 24.5 lock test is a contract violation that the lock
+# test catches.
+
+
+STAGE_24_5_HAS_CONFIRMED_ROUTER_FEE_DECODER: bool = False
+STAGE_24_5_REAL_FIXTURE_COUNT: int = 0
+STAGE_24_5_CONFIRMED_LAYOUT_COUNT: int = 0
