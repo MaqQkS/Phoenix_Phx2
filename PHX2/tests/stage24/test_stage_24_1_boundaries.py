@@ -74,6 +74,10 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # test_stage_24_3_boundaries.py for the 24.3 file-scope
         # invariants).
         "jito_tip.py",
+        # Stage 24.4 router-fee candidate scaffold (admitted in
+        # 24.4; see test_stage_24_4_boundaries.py for the 24.4
+        # file-scope invariants).
+        "router_fee.py",
     }
 )
 
@@ -96,7 +100,9 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # ``_LOCKED_PRODUCTION_FILENAMES``. ``jito_tip.py`` was
     # forbidden at 24.1-24.2; it was admitted at 24.3 and now
     # appears in ``_LOCKED_PRODUCTION_FILENAMES`` as well.
-    "router_fee.py",
+    # ``router_fee.py`` was forbidden at 24.1-24.3; it was
+    # admitted at 24.4 and now appears in
+    # ``_LOCKED_PRODUCTION_FILENAMES`` as well.
     "execution_quality.py",
     # Reserved-but-not-used runner / writer filenames.
     "runner.py",

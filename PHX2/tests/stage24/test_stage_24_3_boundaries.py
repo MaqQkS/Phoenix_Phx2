@@ -58,6 +58,11 @@ _STAGE_24_3_APPROVED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "priority_fee.py",
         # Stage 24.3 decoder
         "jito_tip.py",
+        # Stage 24.4 router-fee candidate scaffold (admitted in
+        # 24.4; the 24.3 file-scope invariants are extended here
+        # so the 24.3 boundary scanner stays accurate after 24.4
+        # lands).
+        "router_fee.py",
     }
 )
 
@@ -68,8 +73,10 @@ _STAGE_24_3_NEW_PRODUCTION_FILENAMES: tuple[str, ...] = (
 
 
 _FORBIDDEN_LATER_STAGE_PRODUCTION_FILENAMES: tuple[str, ...] = (
-    # Stage 24.4+ decoders
-    "router_fee.py",
+    # Later-stage decoders / runners / writers. ``router_fee.py``
+    # was forbidden at 24.3 but is admitted at 24.4 and now
+    # appears in ``_STAGE_24_3_APPROVED_PRODUCTION_FILENAMES``
+    # instead.
     "execution_quality.py",
     # Stage 24.6 runner / writer surface
     "runner.py",
@@ -336,13 +343,6 @@ def test_later_stage_24_files_do_not_exist():
         assert not path.exists(), (
             f"Stage 24.3 scope violation: {name} must not exist yet"
         )
-
-
-def test_router_fee_module_is_still_forbidden_at_stage_24_3():
-    """Sanity check: ``router_fee.py`` lands at Stage 24.4 at the
-    earliest. Stage 24.3 must not have it.
-    """
-    assert not (STAGE24_ROOT / "router_fee.py").exists()
 
 
 def test_execution_quality_module_is_still_forbidden_at_stage_24_3():

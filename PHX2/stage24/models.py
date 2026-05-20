@@ -1204,6 +1204,108 @@ def build_jito_tip_result(
     )
 
 
+def build_router_fee_result(
+    *,
+    decoder_name: str,
+    decoder_version: str,
+    threshold_version: str,
+    decoder_status: str,
+    data_status: str,
+    confidence_level: str,
+    fee_source: str,
+    route_family: str,
+    instruction_location: str,
+    program_id: str,
+    amount_lamports: Optional[int],
+    amount_token: Optional[int],
+    mint: str,
+    reason_codes: tuple[str, ...],
+    numeric_features: Mapping[str, object],
+    evidence: Mapping[str, object],
+    input_missing_fields: tuple[str, ...],
+) -> Stage24RouterFeeResult:
+    """Build a ``Stage24RouterFeeResult`` with closed-set validation.
+
+    Validates closed sets, string shapes, and optional non-negative
+    int amounts. Stage-specific invariants (e.g. Stage 24.4 must
+    keep ``amount_lamports`` ``None`` for every router-fee path)
+    are enforced by the calling decoder, not by this helper -- the
+    same ``Stage24RouterFeeResult`` type spans both Stage 24.4
+    candidates and the eventual Stage 24.5 confirmed decoder.
+    """
+    _require_non_empty_string("decoder_name", decoder_name)
+    _require_non_empty_string("decoder_version", decoder_version)
+    _require_non_empty_string("threshold_version", threshold_version)
+    assert_decoder_status_in_closed_set(decoder_status)
+    assert_data_status_in_closed_set(data_status)
+    assert_confidence_level_in_closed_set(confidence_level)
+    assert_fee_source_in_closed_set(fee_source)
+    assert_route_family_in_closed_set(route_family)
+    assert_instruction_location_in_closed_set(instruction_location)
+    if not isinstance(program_id, str):
+        raise Stage24ContractError("program_id must be a string")
+    if not isinstance(mint, str):
+        raise Stage24ContractError("mint must be a string")
+    assert_optional_non_negative_int(
+        field_name="amount_lamports", value=amount_lamports
+    )
+    assert_optional_non_negative_int(
+        field_name="amount_token", value=amount_token
+    )
+    _require_tuple_of_strings("reason_codes", reason_codes)
+    _require_mapping("numeric_features", numeric_features)
+    _require_mapping("evidence", evidence)
+    if not isinstance(input_missing_fields, tuple):
+        raise Stage24ContractError(
+            "input_missing_fields must be a tuple"
+        )
+    _require_tuple_of_strings("input_missing_fields", input_missing_fields)
+    primitive_family = "ROUTER_FEE"
+    result_hash = compute_result_hash(
+        primitive_family=primitive_family,
+        decoder_name=decoder_name,
+        decoder_version=decoder_version,
+        threshold_version=threshold_version,
+        decoder_status=decoder_status,
+        data_status=data_status,
+        confidence_level=confidence_level,
+        fee_source=fee_source,
+        route_family=route_family,
+        extra={
+            "instruction_location": instruction_location,
+            "program_id": program_id,
+            "amount_lamports": amount_lamports,
+            "amount_token": amount_token,
+            "mint": mint,
+            "reason_codes": list(reason_codes),
+            "numeric_features": _canonicalize(numeric_features),
+            "evidence": _canonicalize(evidence),
+            "input_missing_fields": list(input_missing_fields),
+        },
+    )
+    return Stage24RouterFeeResult(
+        primitive_family=primitive_family,
+        decoder_name=decoder_name,
+        decoder_version=decoder_version,
+        threshold_version=threshold_version,
+        decoder_status=decoder_status,
+        data_status=data_status,
+        confidence_level=confidence_level,
+        fee_source=fee_source,
+        route_family=route_family,
+        instruction_location=instruction_location,
+        program_id=program_id,
+        amount_lamports=amount_lamports,
+        amount_token=amount_token,
+        mint=mint,
+        reason_codes=reason_codes,
+        numeric_features=numeric_features,
+        evidence=evidence,
+        input_missing_fields=input_missing_fields,
+        result_hash=result_hash,
+    )
+
+
 __all__ = [
     "Stage24ComputeBudgetResult",
     "Stage24ExecutionInput",
@@ -1224,6 +1326,7 @@ __all__ = [
     "build_compute_budget_result",
     "build_jito_tip_result",
     "build_priority_fee_result",
+    "build_router_fee_result",
     "canonical_json",
     "compute_execution_input_hash",
     "compute_execution_input_hash_from_projection",

@@ -24,10 +24,13 @@ from types import MappingProxyType
 from typing import Mapping
 
 from PHX2.stage24.constants import (
+    ACTIVE_AXIOM_ROUTER_PROGRAM_IDS,
     DEFAULT_SCHEMA_VERSION,
+    DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS,
     INPUT_KIND_SYNTHETIC_DECODED_TX_JSONL,
     KNOWN_JITO_TIP_ACCOUNTS,
     SYSTEM_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
 )
 from PHX2.stage24.models import (
     Stage24ExecutionInput,
@@ -647,6 +650,182 @@ def make_inner_non_tip_system_transfer_instruction(
     )
 
 
+# ---------------------------------------------------------------------------
+# Stage 24.4 router-fee candidate fixture builders
+# ---------------------------------------------------------------------------
+#
+# Each helper builds a synthetic instruction record or execution
+# input that exercises the Stage 24.4 router-fee candidate
+# scaffold. Stage 24.4 does NOT decode router or global-fee
+# amounts; it only detects router program IDs, classifies the
+# route family, and surfaces wrapped-swap / inner-transfer
+# evidence. The fixtures therefore do not need real router
+# instruction data -- empty ``data`` strings are fine and keep
+# the redaction-shape detector happy.
+
+
+def make_axiom_trading_program_1_instruction(
+    *,
+    accounts: tuple[str, ...] = (),
+    data: str = "",
+) -> dict[str, object]:
+    """Build a top-level Axiom Trading Program 1 instruction.
+
+    Maps to ``route_family = AXIOM_TRADING_PROGRAM_1`` at the
+    Stage 24.4 decoder.
+    """
+    return make_top_level_instruction(
+        program_id=ACTIVE_AXIOM_ROUTER_PROGRAM_IDS[0],
+        accounts=accounts,
+        data=data,
+    )
+
+
+def make_axiom_flashx8_instruction(
+    *,
+    accounts: tuple[str, ...] = (),
+    data: str = "",
+) -> dict[str, object]:
+    """Build a top-level Axiom FLASHX8 instruction.
+
+    Maps to ``route_family = AXIOM_FLASHX8`` at the Stage 24.4
+    decoder.
+    """
+    return make_top_level_instruction(
+        program_id=ACTIVE_AXIOM_ROUTER_PROGRAM_IDS[1],
+        accounts=accounts,
+        data=data,
+    )
+
+
+def make_deprecated_axiom_instruction(
+    *,
+    deprecated_index: int = 0,
+    accounts: tuple[str, ...] = (),
+    data: str = "",
+) -> dict[str, object]:
+    """Build a top-level deprecated Axiom router instruction.
+
+    ``deprecated_index`` selects which of the two deprecated
+    Axiom program IDs in
+    ``DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS`` to use. The Stage
+    24.4 decoder maps both deprecated IDs to
+    ``route_family = DEPRECATED_AXIOM`` with
+    ``decoder_status = UNSUPPORTED``.
+    """
+    if not DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS:
+        raise RuntimeError(
+            "DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS is empty; cannot build "
+            "a deprecated Axiom instruction."
+        )
+    if (
+        deprecated_index < 0
+        or deprecated_index >= len(DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS)
+    ):
+        raise IndexError(
+            "deprecated_index out of range for "
+            "DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS"
+        )
+    return make_top_level_instruction(
+        program_id=DEPRECATED_AXIOM_ROUTER_PROGRAM_IDS[deprecated_index],
+        accounts=accounts,
+        data=data,
+    )
+
+
+def make_router_like_execution_input(
+    *,
+    top_level_instructions: tuple[Mapping[str, object], ...],
+    inner_instructions: tuple[Mapping[str, object], ...] = (),
+    signature: str = "sig_router_fixture_001",
+    account_keys: tuple[str, ...] = (
+        "AccountA1111111111111111111111111111111111",
+        "AccountB2222222222222222222222222222222222",
+    ),
+) -> Stage24ExecutionInput:
+    """Build a ``Stage24ExecutionInput`` shaped like a router transaction.
+
+    Used by the Stage 24.4 tests to feed router / wrapped-swap
+    candidate scenarios into the decoder.
+    """
+    return make_execution_input(
+        signature=signature,
+        account_keys=account_keys,
+        top_level_instructions=top_level_instructions,
+        inner_instructions=inner_instructions,
+    )
+
+
+def make_inner_system_transfer_under_router(
+    *,
+    lamports: int = 5_000,
+    destination: str = "InnerRouterDest1111111111111111111111111",
+    source: str = "AccountSource11111111111111111111111111111",
+) -> dict[str, object]:
+    """Build an inner (CPI) System Program transfer beneath a router.
+
+    Shape-equivalent to ``make_inner_non_tip_system_transfer_instruction``;
+    re-exported under a router-flavoured name so Stage 24.4 tests
+    read clearly.
+    """
+    return make_inner_instruction(
+        program_id=SYSTEM_PROGRAM_ID,
+        accounts=(source, destination),
+        data=make_system_transfer_instruction_data(lamports=lamports),
+    )
+
+
+def make_inner_token_transfer_under_router(
+    *,
+    accounts: tuple[str, ...] = (
+        "TokenSource1111111111111111111111111111111",
+        "TokenDest11111111111111111111111111111111",
+    ),
+    data: str = "",
+) -> dict[str, object]:
+    """Build an inner (CPI) Token Program instruction beneath a router.
+
+    Stage 24.4 does NOT decode token-transfer instruction bytes;
+    the candidate scaffold only matches on the inner
+    instruction's program_id. The ``data`` field can therefore be
+    empty.
+    """
+    return make_inner_instruction(
+        program_id=TOKEN_PROGRAM_ID,
+        accounts=accounts,
+        data=data,
+    )
+
+
+def make_wrapped_swap_candidate_execution_input(
+    *,
+    route_family_index: int = 1,
+    extra_inner_token_transfer: bool = False,
+) -> Stage24ExecutionInput:
+    """Build an execution input with a wrapped-swap candidate shape.
+
+    Active router top-level instruction plus an inner System
+    Program transfer. ``route_family_index = 0`` selects Axiom
+    Trading Program 1; ``= 1`` selects FLASHX8. When
+    ``extra_inner_token_transfer`` is True an additional inner
+    Token Program instruction is added so tests can assert on
+    both inner candidate types.
+    """
+    if route_family_index == 0:
+        router_instr = make_axiom_trading_program_1_instruction()
+    else:
+        router_instr = make_axiom_flashx8_instruction()
+    inner: tuple[Mapping[str, object], ...] = (
+        make_inner_system_transfer_under_router(),
+    )
+    if extra_inner_token_transfer:
+        inner = inner + (make_inner_token_transfer_under_router(),)
+    return make_router_like_execution_input(
+        top_level_instructions=(router_instr,),
+        inner_instructions=inner,
+    )
+
+
 __all__ = [
     "FIXED_CLOCK_UTC",
     "encode_compute_budget_empty_data",
@@ -656,19 +835,25 @@ __all__ = [
     "encode_compute_budget_set_unit_limit_data",
     "encode_compute_budget_set_unit_price_data",
     "encode_compute_budget_unknown_tag_data",
+    "make_axiom_flashx8_instruction",
+    "make_axiom_trading_program_1_instruction",
     "make_compute_budget_request_heap_frame_instruction",
     "make_compute_budget_request_units_deprecated_instruction",
     "make_compute_budget_set_unit_limit_instruction",
     "make_compute_budget_set_unit_price_instruction",
     "make_decoded_tx_row",
+    "make_deprecated_axiom_instruction",
     "make_execution_input",
     "make_inner_instruction",
     "make_inner_jito_tip_instruction",
     "make_inner_non_tip_system_transfer_instruction",
+    "make_inner_system_transfer_under_router",
+    "make_inner_token_transfer_under_router",
     "make_jito_tip_instruction",
     "make_malformed_system_transfer_instruction",
     "make_non_compute_budget_instruction",
     "make_non_tip_system_transfer_instruction",
+    "make_router_like_execution_input",
     "make_row_with_long_hex_credential",
     "make_row_with_nested_secret_key",
     "make_row_with_secret_field_name",
@@ -678,4 +863,5 @@ __all__ = [
     "make_system_transfer_instruction",
     "make_system_transfer_instruction_data",
     "make_top_level_instruction",
+    "make_wrapped_swap_candidate_execution_input",
 ]
