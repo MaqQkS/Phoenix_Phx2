@@ -50,6 +50,15 @@ _STAGE_26_1_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "stage25_artifact_reader.py",
         "stage25_artifact_validation.py",
         "calibration_input_contracts.py",
+        # Stage 26.2 narrowly extended the locked Stage 26 production
+        # tree with the denominator / outcome-eligibility surface.
+        # The Stage 26.1 boundary tests still apply uniformly to
+        # every Stage 26 production module (Stage 26.1 + Stage 26.2)
+        # except where Stage 26.2 vocabulary supersedes a Stage 26.1
+        # lock (see ``_FORBIDDEN_DOMAIN_SUBSTRINGS``).
+        "eligibility_constants.py",
+        "eligibility_models.py",
+        "eligibility_classifier.py",
     }
 )
 
@@ -139,7 +148,12 @@ _FORBIDDEN_FILE_PERSISTENCE_TOP_LEVEL_MODULES: frozenset[str] = frozenset(
 
 
 _FORBIDDEN_DOMAIN_SUBSTRINGS: tuple[str, ...] = (
-    "denominator_status",
+    # ``denominator_status`` was forbidden at Stage 26.1 because Stage
+    # 26.1 must not ship denominator semantics; Stage 26.2 narrowly
+    # unlocks the token because the denominator-honesty surface is
+    # exactly Stage 26.2's locked scope (see Stage 26.0 spec-lock §5
+    # and the Stage 26.2 charter). Stage 26.3+ vocabulary remains
+    # forbidden.
     "approval_state",
     "approved_by",
     "cohort",
@@ -603,6 +617,11 @@ def test_each_stage26_production_module_imports_cleanly():
         "PHX2.stage26.stage25_artifact_reader",
         "PHX2.stage26.stage25_artifact_validation",
         "PHX2.stage26.calibration_input_contracts",
+        # Stage 26.2 added the eligibility surface; the import check
+        # was narrowly extended to cover it.
+        "PHX2.stage26.eligibility_constants",
+        "PHX2.stage26.eligibility_models",
+        "PHX2.stage26.eligibility_classifier",
     }
     for name in expected:
         module = importlib.import_module(name)

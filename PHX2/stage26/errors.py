@@ -31,6 +31,13 @@ Error hierarchy:
                                        the structured validation
                                        report so callers can inspect
                                        every failure.
+  * ``Stage26EligibilityError``     -- Stage 26.2 classifier was
+                                       handed a non-string truth
+                                       class, or a string that is
+                                       not a member of the locked
+                                       Stage 26.1
+                                       ``MEASUREMENT_TRUTH_CLASSES``
+                                       closed set.
 
 Stage 26.1 errors NEVER carry any of the following: a network URL,
 a webhook host literal, an environment-variable name, a secret-
@@ -111,7 +118,20 @@ class Stage26ValidationError(Stage26Error):
         self.report: object = report
 
 
+class Stage26EligibilityError(Stage26Error):
+    """Raised by the Stage 26.2 classifier on an unknown truth class.
+
+    The classifier accepts only members of the locked Stage 26.1
+    ``MEASUREMENT_TRUTH_CLASSES`` tuple. Any other string (or a
+    non-string) raises this error with code
+    ``STG26_CAL_ELIGIBILITY_UNKNOWN_TRUTH_CLASS``. The error
+    deliberately does NOT label the row as a failure outcome -- the
+    classifier is a pure projector, not a row validator.
+    """
+
+
 __all__ = [
+    "Stage26EligibilityError",
     "Stage26Error",
     "Stage26ManifestError",
     "Stage26ReaderError",
