@@ -93,9 +93,35 @@ from PHX2.stage25.constants import (
     STAGE25_FORBIDDEN_INPUT_FIELD_SUBSTRINGS,
     STAGE25_FORBIDDEN_INPUT_VALUE_SUBSTRINGS,
     STAGE25_MANIFEST_SCHEMA_VERSION,
+    STAGE25_RUNNER_NAME,
+    STAGE25_RUNNER_VERSION,
+    STAGE25_WRITER_NAME,
+    STAGE25_WRITER_VERSION,
 )
 from PHX2.stage25.errors import Stage25ManifestError
 from PHX2.stage25.models import canonical_json
+
+
+# ---------------------------------------------------------------------------
+# Self-referential manifest sentinels
+# ---------------------------------------------------------------------------
+#
+# The Stage 25 artifact manifest includes ``stage25_manifest.json`` as
+# one of its own file entries (see ``build_artifact_manifest``). The
+# manifest's recorded ``sha256`` cannot be the real hash of its bytes
+# because writing the recorded hash back into the manifest changes
+# the bytes (the classic self-referential hash problem). The Stage
+# 25.6 convention: the self-entry carries the locked sentinel string
+# ``SELF_REFERENTIAL_MANIFEST_SHA256`` in the ``sha256`` field and
+# ``-1`` in the ``byte_count`` field; downstream readers detect the
+# sentinel and skip the bytes-equal verification for the manifest
+# self-entry. The sentinel is intentionally a non-hex string so it
+# can never be confused with a real digest.
+
+
+SELF_REFERENTIAL_MANIFEST_SHA256: str = "SELF_REFERENTIAL_MANIFEST_SHA256"
+SELF_REFERENTIAL_MANIFEST_BYTE_COUNT: int = -1
+SELF_REFERENTIAL_MANIFEST_ROW_COUNT: int = -1
 
 
 # ---------------------------------------------------------------------------
@@ -112,16 +138,28 @@ class Stage25ManifestFileEntry(NamedTuple):
                              path). Required non-empty.
       * ``sha256``        -- SHA-256 hex of the file's bytes at
                              manifest-build time. Required non-empty.
+                             The locked
+                             ``SELF_REFERENTIAL_MANIFEST_SHA256``
+                             sentinel is reserved for the manifest's
+                             own self-entry.
       * ``row_count``     -- count of non-blank JSONL lines the
                              reader projected from the file. ``-1``
                              is reserved for "not applicable" (e.g.
                              an artifact file whose row count is not
                              meaningful at manifest-build time).
+      * ``byte_count``    -- byte count of the file's bytes at
+                             manifest-build time. ``-1`` is reserved
+                             for "not applicable" -- specifically
+                             the manifest's own self-entry, whose
+                             byte_count cannot be recorded inside
+                             the manifest itself without breaking the
+                             self-referential hash chain.
     """
 
     file_basename: str
     sha256: str
     row_count: int
+    byte_count: int = -1
 
 
 # ---------------------------------------------------------------------------
@@ -210,12 +248,22 @@ class Stage25ArtifactManifest(NamedTuple):
     """Stage 25 artifact manifest.
 
     Provenance record for the artifact files a Stage 25 run wrote.
-    Stage 25.1 ships the record + serializer only; no runner
-    constructs instances of it.
+    Stage 25.6 promotes the runner / writer identity tokens to
+    first-class manifest fields so downstream readers can pin the
+    exact runner / writer that produced a manifest without parsing
+    serialized JSON or inferring from filenames.
 
-    Field shape mirrors ``Stage25InputManifest``; the only
-    difference is that ``files`` lists OUTPUT artifact files
-    rather than INPUT files.
+    Fields mirror ``Stage25InputManifest`` plus:
+
+      * ``runner_name``    -- locked ``STAGE25_RUNNER_NAME``.
+      * ``runner_version`` -- locked ``STAGE25_RUNNER_VERSION``.
+      * ``writer_name``    -- locked ``STAGE25_WRITER_NAME`` /
+                              ``STAGE25_ARTIFACT_WRITER_NAME``.
+      * ``writer_version`` -- locked ``STAGE25_WRITER_VERSION`` /
+                              ``STAGE25_ARTIFACT_WRITER_VERSION``.
+
+    ``files`` lists OUTPUT artifact files (including the manifest
+    file itself; see ``SELF_REFERENTIAL_MANIFEST_SHA256``).
     """
 
     stage_name: str
@@ -226,6 +274,10 @@ class Stage25ArtifactManifest(NamedTuple):
     files: tuple[Stage25ManifestFileEntry, ...]
     upstream_stage24_pin: Optional[Stage25Stage24ManifestPin]
     created_at_utc: str
+    runner_name: str = STAGE25_RUNNER_NAME
+    runner_version: str = STAGE25_RUNNER_VERSION
+    writer_name: str = STAGE25_WRITER_NAME
+    writer_version: str = STAGE25_WRITER_VERSION
 
 
 # ---------------------------------------------------------------------------
@@ -329,8 +381,14 @@ def build_manifest_file_entry(
     file_basename: str,
     sha256: str,
     row_count: int,
+    byte_count: int = -1,
 ) -> Stage25ManifestFileEntry:
-    """Build a ``Stage25ManifestFileEntry`` with safety validation."""
+    """Build a ``Stage25ManifestFileEntry`` with safety validation.
+
+    ``byte_count`` defaults to ``-1`` (the "not applicable" sentinel
+    reserved for the manifest's own self-entry); every caller writing
+    a real artifact file MUST supply the file's actual byte length.
+    """
     _require_safe_basename(file_basename)
     _require_safe_sha256(sha256)
     if not isinstance(row_count, int) or isinstance(row_count, bool):
@@ -341,10 +399,19 @@ def build_manifest_file_entry(
         raise Stage25ManifestError(
             "manifest row_count must be -1 (not applicable) or >= 0"
         )
+    if not isinstance(byte_count, int) or isinstance(byte_count, bool):
+        raise Stage25ManifestError(
+            "manifest byte_count must be a strict int"
+        )
+    if byte_count < -1:
+        raise Stage25ManifestError(
+            "manifest byte_count must be -1 (not applicable) or >= 0"
+        )
     return Stage25ManifestFileEntry(
         file_basename=file_basename,
         sha256=sha256,
         row_count=row_count,
+        byte_count=byte_count,
     )
 
 
@@ -473,8 +540,18 @@ def build_artifact_manifest(
     redaction_confirmed: str = "",
     upstream_manifest_basename: Optional[str] = None,
     upstream_manifest_sha256: Optional[str] = None,
+    runner_name: str = STAGE25_RUNNER_NAME,
+    runner_version: str = STAGE25_RUNNER_VERSION,
+    writer_name: str = STAGE25_WRITER_NAME,
+    writer_version: str = STAGE25_WRITER_VERSION,
 ) -> Stage25ArtifactManifest:
-    """Assemble a ``Stage25ArtifactManifest`` with deterministic file order."""
+    """Assemble a ``Stage25ArtifactManifest`` with deterministic file order.
+
+    Stage 25.6 promotes ``runner_name`` / ``runner_version`` /
+    ``writer_name`` / ``writer_version`` to first-class manifest fields
+    so downstream readers can pin the exact runner / writer pair that
+    produced a manifest. Defaults are the locked Stage 25 axes.
+    """
     if not isinstance(created_at_utc, str) or created_at_utc == "":
         raise Stage25ManifestError(
             "manifest created_at_utc must be a non-empty string"
@@ -490,6 +567,22 @@ def build_artifact_manifest(
                 "manifest files must contain only "
                 "Stage25ManifestFileEntry records"
             )
+    if not isinstance(runner_name, str) or runner_name == "":
+        raise Stage25ManifestError(
+            "manifest runner_name must be a non-empty string"
+        )
+    if not isinstance(runner_version, str) or runner_version == "":
+        raise Stage25ManifestError(
+            "manifest runner_version must be a non-empty string"
+        )
+    if not isinstance(writer_name, str) or writer_name == "":
+        raise Stage25ManifestError(
+            "manifest writer_name must be a non-empty string"
+        )
+    if not isinstance(writer_version, str) or writer_version == "":
+        raise Stage25ManifestError(
+            "manifest writer_version must be a non-empty string"
+        )
     sorted_entries = _sort_file_entries(files)
     upstream_pin = _resolve_upstream_pin(
         upstream_manifest_basename=upstream_manifest_basename,
@@ -504,6 +597,10 @@ def build_artifact_manifest(
         files=sorted_entries,
         upstream_stage24_pin=upstream_pin,
         created_at_utc=created_at_utc,
+        runner_name=runner_name,
+        runner_version=runner_version,
+        writer_name=writer_name,
+        writer_version=writer_version,
     )
 
 
@@ -520,6 +617,7 @@ def _serialize_files(
             "file_basename": entry.file_basename,
             "sha256": entry.sha256,
             "row_count": entry.row_count,
+            "byte_count": entry.byte_count,
         }
         for entry in files
     ]
@@ -555,7 +653,12 @@ def serialize_input_manifest(manifest: Stage25InputManifest) -> str:
 
 
 def serialize_artifact_manifest(manifest: Stage25ArtifactManifest) -> str:
-    """Return the canonical JSON serialization of ``manifest``."""
+    """Return the canonical JSON serialization of ``manifest``.
+
+    The artifact manifest body includes the Stage 25.6 runner /
+    writer identity tokens so downstream readers can pin the exact
+    code that produced the manifest.
+    """
     body: dict[str, object] = {
         "stage_name": manifest.stage_name,
         "stage_version": manifest.stage_version,
@@ -568,15 +671,50 @@ def serialize_artifact_manifest(manifest: Stage25ArtifactManifest) -> str:
         ),
         "created_at_utc": manifest.created_at_utc,
         "manifest_kind": "artifact",
+        "runner_name": manifest.runner_name,
+        "runner_version": manifest.runner_version,
+        "writer_name": manifest.writer_name,
+        "writer_version": manifest.writer_version,
     }
     return canonical_json(body)
 
 
+def artifact_manifest_to_canonical_body(
+    manifest: Stage25ArtifactManifest,
+) -> dict[str, object]:
+    """Return the canonical mapping body of an artifact manifest.
+
+    Convenience for callers that want to run a redaction sweep over
+    the canonical body without first round-tripping through JSON.
+    """
+    return {
+        "stage_name": manifest.stage_name,
+        "stage_version": manifest.stage_version,
+        "schema_version": manifest.schema_version,
+        "observe_only_mode": manifest.observe_only_mode,
+        "redaction_confirmed": manifest.redaction_confirmed,
+        "files": _serialize_files(manifest.files),
+        "upstream_stage24_pin": _serialize_pin(
+            manifest.upstream_stage24_pin
+        ),
+        "created_at_utc": manifest.created_at_utc,
+        "manifest_kind": "artifact",
+        "runner_name": manifest.runner_name,
+        "runner_version": manifest.runner_version,
+        "writer_name": manifest.writer_name,
+        "writer_version": manifest.writer_version,
+    }
+
+
 __all__ = [
+    "SELF_REFERENTIAL_MANIFEST_BYTE_COUNT",
+    "SELF_REFERENTIAL_MANIFEST_ROW_COUNT",
+    "SELF_REFERENTIAL_MANIFEST_SHA256",
     "Stage25ArtifactManifest",
     "Stage25InputManifest",
     "Stage25ManifestFileEntry",
     "Stage25Stage24ManifestPin",
+    "artifact_manifest_to_canonical_body",
     "build_artifact_manifest",
     "build_input_manifest",
     "build_manifest_file_entry",

@@ -630,19 +630,70 @@ class Stage25UnifiedMeasurement(NamedTuple):
 
 
 class Stage25RunnerResult(NamedTuple):
-    """Immutable wrapper bundling Stage 25 runner outputs (Stage 25.5+).
+    """Immutable wrapper bundling Stage 25 runner outputs (Stage 25.6+ surface).
 
-    Stage 25.1 ships the record shape only.
+    Stage 25.6 promotes every Stage 25.2-25.5 tuple output to a
+    first-class runner-result field so downstream readers do not have
+    to re-derive the upstream tuples from the runner's measurement
+    output. ``summary`` is the canonicalizable summary mapping
+    produced by ``PHX2.stage25.summary.build_stage25_summary``.
+
+    Fields:
+
+      * ``migration_observations``    -- tuple of
+                                         ``Stage25MigrationObservation``
+                                         records consumed by the
+                                         runner (deterministic order).
+      * ``migration_measurements``    -- tuple of
+                                         ``Stage25MigrationMeasurement``
+                                         emitted by the runner.
+      * ``price_window_observations`` -- tuple of
+                                         ``Stage25PriceWindowObservation``
+                                         emitted by the runner.
+      * ``ath_candidates``            -- tuple of ``Stage25ATHCandidate``
+                                         emitted by the runner.
+      * ``source_reconciliations``    -- tuple of
+                                         ``Stage25SourceReconciliation``
+                                         emitted by the runner.
+      * ``ath_measurements``          -- tuple of
+                                         ``Stage25ATHMeasurement``
+                                         emitted by the runner.
+      * ``rejections``                -- tuple of
+                                         ``Stage25MeasurementRejection``
+                                         emitted by the runner.
+      * ``summary``                   -- canonicalizable summary
+                                         mapping (sorted keys, no
+                                         whitespace separators).
+      * ``created_at_utc``            -- caller-injected ISO-8601 UTC
+                                         string.
+      * ``runner_name``               -- locked
+                                         ``STAGE25_RUNNER_NAME`` token.
+      * ``runner_version``            -- locked
+                                         ``STAGE25_RUNNER_VERSION``.
+      * ``threshold_version``         -- locked Stage 25 threshold
+                                         version axis.
+      * ``schema_version``            -- locked Stage 25 schema version.
+      * ``input_token_count``         -- distinct ``token_mint`` count
+                                         across the runner inputs.
+      * ``input_rejection_count``     -- count of rejections emitted by
+                                         the runner.
     """
 
+    migration_observations: tuple[Stage25MigrationObservation, ...]
     migration_measurements: tuple[Stage25MigrationMeasurement, ...]
-    ath_measurements: tuple[Stage25ATHMeasurement, ...]
-    unified_measurements: tuple[Stage25UnifiedMeasurement, ...]
+    price_window_observations: tuple[Stage25PriceWindowObservation, ...]
+    ath_candidates: tuple[Stage25ATHCandidate, ...]
     source_reconciliations: tuple[Stage25SourceReconciliation, ...]
+    ath_measurements: tuple[Stage25ATHMeasurement, ...]
     rejections: tuple[Stage25MeasurementRejection, ...]
+    summary: Mapping[str, object]
+    created_at_utc: str
+    runner_name: str
+    runner_version: str
+    threshold_version: str
+    schema_version: str
     input_token_count: int
     input_rejection_count: int
-    created_at_utc: str
 
 
 # ---------------------------------------------------------------------------
@@ -2184,6 +2235,135 @@ def build_migration_measurement_record(
     )
 
 
+def build_runner_result(
+    *,
+    migration_observations: tuple[Stage25MigrationObservation, ...],
+    migration_measurements: tuple[Stage25MigrationMeasurement, ...],
+    price_window_observations: tuple[Stage25PriceWindowObservation, ...],
+    ath_candidates: tuple[Stage25ATHCandidate, ...],
+    source_reconciliations: tuple[Stage25SourceReconciliation, ...],
+    ath_measurements: tuple[Stage25ATHMeasurement, ...],
+    rejections: tuple[Stage25MeasurementRejection, ...],
+    summary: Mapping[str, object],
+    created_at_utc: str,
+    runner_name: str,
+    runner_version: str,
+    threshold_version: str,
+    schema_version: str,
+    input_token_count: int,
+    input_rejection_count: int,
+) -> Stage25RunnerResult:
+    """Build a ``Stage25RunnerResult`` with shape + count validation.
+
+    Validates every tuple field is a tuple of the expected record type,
+    every string field is non-empty, ``summary`` is a canonicalizable
+    mapping, and the count fields are strict non-negative ``int``.
+    """
+    if not isinstance(migration_observations, tuple):
+        raise Stage25ContractError(
+            "migration_observations must be a tuple"
+        )
+    for entry in migration_observations:
+        if not isinstance(entry, Stage25MigrationObservation):
+            raise Stage25ContractError(
+                "migration_observations must contain only "
+                "Stage25MigrationObservation records"
+            )
+    if not isinstance(migration_measurements, tuple):
+        raise Stage25ContractError(
+            "migration_measurements must be a tuple"
+        )
+    for entry in migration_measurements:
+        if not isinstance(entry, Stage25MigrationMeasurement):
+            raise Stage25ContractError(
+                "migration_measurements must contain only "
+                "Stage25MigrationMeasurement records"
+            )
+    if not isinstance(price_window_observations, tuple):
+        raise Stage25ContractError(
+            "price_window_observations must be a tuple"
+        )
+    for entry in price_window_observations:
+        if not isinstance(entry, Stage25PriceWindowObservation):
+            raise Stage25ContractError(
+                "price_window_observations must contain only "
+                "Stage25PriceWindowObservation records"
+            )
+    if not isinstance(ath_candidates, tuple):
+        raise Stage25ContractError("ath_candidates must be a tuple")
+    for entry in ath_candidates:
+        if not isinstance(entry, Stage25ATHCandidate):
+            raise Stage25ContractError(
+                "ath_candidates must contain only Stage25ATHCandidate "
+                "records"
+            )
+    if not isinstance(source_reconciliations, tuple):
+        raise Stage25ContractError(
+            "source_reconciliations must be a tuple"
+        )
+    for entry in source_reconciliations:
+        if not isinstance(entry, Stage25SourceReconciliation):
+            raise Stage25ContractError(
+                "source_reconciliations must contain only "
+                "Stage25SourceReconciliation records"
+            )
+    if not isinstance(ath_measurements, tuple):
+        raise Stage25ContractError(
+            "ath_measurements must be a tuple"
+        )
+    for entry in ath_measurements:
+        if not isinstance(entry, Stage25ATHMeasurement):
+            raise Stage25ContractError(
+                "ath_measurements must contain only "
+                "Stage25ATHMeasurement records"
+            )
+    if not isinstance(rejections, tuple):
+        raise Stage25ContractError("rejections must be a tuple")
+    for entry in rejections:
+        if not isinstance(entry, Stage25MeasurementRejection):
+            raise Stage25ContractError(
+                "rejections must contain only Stage25MeasurementRejection "
+                "records"
+            )
+    _require_mapping("summary", summary)
+    # ``summary`` must round-trip through canonical_json; raising here
+    # surfaces non-canonicalizable values early so the runner contract
+    # can rely on serialization.
+    canonical_json(summary)
+    _require_non_empty_string("created_at_utc", created_at_utc)
+    _require_non_empty_string("runner_name", runner_name)
+    _require_non_empty_string("runner_version", runner_version)
+    _require_non_empty_string("threshold_version", threshold_version)
+    _require_non_empty_string("schema_version", schema_version)
+    _require_strict_non_negative_int(
+        field_name="input_token_count", value=input_token_count
+    )
+    _require_strict_non_negative_int(
+        field_name="input_rejection_count", value=input_rejection_count
+    )
+    if input_rejection_count != len(rejections):
+        raise Stage25ContractError(
+            "input_rejection_count must equal len(rejections)"
+        )
+    return Stage25RunnerResult(
+        migration_observations=migration_observations,
+        migration_measurements=migration_measurements,
+        price_window_observations=price_window_observations,
+        ath_candidates=ath_candidates,
+        source_reconciliations=source_reconciliations,
+        ath_measurements=ath_measurements,
+        rejections=rejections,
+        summary=summary,
+        created_at_utc=created_at_utc,
+        runner_name=runner_name,
+        runner_version=runner_version,
+        threshold_version=threshold_version,
+        schema_version=schema_version,
+        input_token_count=input_token_count,
+        input_rejection_count=input_rejection_count,
+    )
+
+
 __all__ = [
     "Stage25ATHCandidate",
     "Stage25ATHMeasurement",
@@ -2204,6 +2384,7 @@ __all__ = [
     "build_migration_observation",
     "build_price_observation",
     "build_price_window_observation_record",
+    "build_runner_result",
     "build_source_reconciliation_record",
     "canonical_json",
     "compute_candidate_hash",

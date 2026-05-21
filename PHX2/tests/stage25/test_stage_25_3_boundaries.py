@@ -94,12 +94,22 @@ _STAGE25_5_ADDED_FILENAMES: frozenset[str] = frozenset(
 )
 
 
+_STAGE25_6_ADDED_FILENAMES: frozenset[str] = frozenset(
+    {
+        "runner.py",
+        "artifact_writer.py",
+        "summary.py",
+    }
+)
+
+
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = (
     _STAGE25_1_PRODUCTION_FILENAMES
     | _STAGE25_2_ADDED_FILENAMES
     | _STAGE25_3_ADDED_FILENAMES
     | _STAGE25_4_ADDED_FILENAMES
     | _STAGE25_5_ADDED_FILENAMES
+    | _STAGE25_6_ADDED_FILENAMES
 )
 
 
@@ -114,17 +124,16 @@ _STAGE25_3_NEW_MODULES: tuple[str, ...] = (
 
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
     # Later sub-stages (source reconciler / runner / artifact
-    # writer). Note: ``ath_candidate.py`` graduated into Stage 25.4
-    # and ``source_reconciliation.py`` graduated into Stage 25.5,
-    # both are part of the locked inventory above, so they are no
-    # longer forbidden here.
+    # writer). Note: ``ath_candidate.py`` graduated into Stage 25.4,
+    # ``source_reconciliation.py`` graduated into Stage 25.5, and
+    # ``runner.py`` / ``artifact_writer.py`` / ``summary.py``
+    # graduated into Stage 25.6; all are part of the locked
+    # inventory above, so they are no longer forbidden here.
     "ath_reconciler.py",
     "ath_measurer.py",
     "ath_measurement.py",
     "source_reconciler.py",
-    "runner.py",
     "stage25_runner.py",
-    "artifact_writer.py",
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",

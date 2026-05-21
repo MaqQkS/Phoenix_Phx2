@@ -95,12 +95,22 @@ _STAGE25_5_ADDED_FILENAMES: frozenset[str] = frozenset(
 )
 
 
+_STAGE25_6_ADDED_FILENAMES: frozenset[str] = frozenset(
+    {
+        "runner.py",
+        "artifact_writer.py",
+        "summary.py",
+    }
+)
+
+
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = (
     _STAGE25_1_PRODUCTION_FILENAMES
     | _STAGE25_2_ADDED_FILENAMES
     | _STAGE25_3_ADDED_FILENAMES
     | _STAGE25_4_ADDED_FILENAMES
     | _STAGE25_5_ADDED_FILENAMES
+    | _STAGE25_6_ADDED_FILENAMES
 )
 
 
@@ -113,12 +123,13 @@ _STAGE25_5_NEW_MODULES: tuple[str, ...] = (
 
 
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
-    # Later sub-stages (Stage 25.6+ runner / artifact writer).
-    # Stage 25.5 does NOT ship a runner or writer; the locked
-    # inventory above covers the only Stage 25.5 production module.
-    "runner.py",
+    # Later sub-stages (closure-audit / Stage 25.7+ surfaces).
+    # Stage 25.5 does NOT ship a runner / writer / summary; the
+    # locked inventory above includes Stage 25.6 graduated files
+    # so the inventory check does not flag them as unexpected
+    # files. The scoped Stage 25.5 boundary checks below still
+    # only inspect ``source_reconciliation.py``.
     "stage25_runner.py",
-    "artifact_writer.py",
     "evaluations_writer.py",
     "summary_writer.py",
     "csv_writer.py",

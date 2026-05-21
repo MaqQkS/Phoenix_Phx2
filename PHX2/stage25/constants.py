@@ -75,21 +75,27 @@ REDACTION_CONFIRMED_TOKEN: str = "stage25_redaction_confirmed"
 
 
 # ---------------------------------------------------------------------------
-# Stage 25 runner / writer version axes (forward-looking placeholders)
+# Stage 25 runner / writer version axes (Stage 25.6 surface)
 # ---------------------------------------------------------------------------
 #
-# Stage 25.1 ships no runner and no writer. The manifest carries
-# these axes anyway so downstream readers can pin them without
-# having to special-case the empty-runner case. Stage 25.5 (when
-# it lands) bumps these strings to the real implementations.
+# Stage 25.6 ships the pure runner and the deterministic artifact
+# writer. The version axes below are the locked identifiers the
+# runner / writer emit so downstream readers can pin the exact
+# code that produced a runner result / artifact manifest record
+# without inspecting commit hashes. Bumping runner / writer
+# semantics requires bumping the ``_VERSION`` axis.
 
 
-STAGE25_RUNNER_NAME: str = "stage25_runner_v0_unimplemented"
-STAGE25_RUNNER_VERSION: str = "stage25_v0_runner_unimplemented"
-STAGE25_ARTIFACT_WRITER_NAME: str = "stage25_artifact_writer_v0_unimplemented"
-STAGE25_ARTIFACT_WRITER_VERSION: str = (
-    "stage25_v0_artifact_writer_unimplemented"
-)
+STAGE25_RUNNER_NAME: str = "stage25_measurement_runner"
+STAGE25_RUNNER_VERSION: str = "stage25_runner_v0"
+STAGE25_ARTIFACT_WRITER_NAME: str = "stage25_artifact_writer"
+STAGE25_ARTIFACT_WRITER_VERSION: str = "stage25_writer_v0"
+# Alias the writer axes under the Stage 25.6 spec names so downstream
+# callers can import either form. The two name pairs always carry the
+# same value: the alias is a synonym, not a separate axis.
+STAGE25_WRITER_NAME: str = STAGE25_ARTIFACT_WRITER_NAME
+STAGE25_WRITER_VERSION: str = STAGE25_ARTIFACT_WRITER_VERSION
+STAGE25_SUMMARY_VERSION: str = "stage25_summary_v0"
 
 
 # ---------------------------------------------------------------------------
@@ -1156,6 +1162,57 @@ def assert_non_negative_int_or_minus_one_sentinel(
         )
 
 
+# ---------------------------------------------------------------------------
+# Stage 25.6 locked artifact filenames
+# ---------------------------------------------------------------------------
+#
+# Filenames the Stage 25.6 deterministic writer emits into the
+# operator-supplied output directory. Locked here so downstream
+# readers can rely on basenames without re-deriving them at the
+# writer surface.
+
+
+STAGE25_MIGRATION_OBSERVATIONS_FILENAME: str = (
+    "stage25_migration_observations.jsonl"
+)
+STAGE25_MIGRATION_MEASUREMENTS_FILENAME: str = (
+    "stage25_migration_measurements.jsonl"
+)
+STAGE25_PRICE_WINDOW_OBSERVATIONS_FILENAME: str = (
+    "stage25_price_window_observations.jsonl"
+)
+STAGE25_ATH_CANDIDATES_FILENAME: str = "stage25_ath_candidates.jsonl"
+STAGE25_SOURCE_RECONCILIATIONS_FILENAME: str = (
+    "stage25_source_reconciliations.jsonl"
+)
+STAGE25_ATH_MEASUREMENTS_FILENAME: str = "stage25_ath_measurements.jsonl"
+STAGE25_MEASUREMENT_REJECTIONS_FILENAME: str = (
+    "stage25_measurement_rejections.jsonl"
+)
+STAGE25_SUMMARY_FILENAME: str = "stage25_summary.json"
+STAGE25_MANIFEST_FILENAME: str = "stage25_manifest.json"
+
+
+STAGE25_ARTIFACT_FILENAMES: tuple[str, ...] = (
+    STAGE25_MIGRATION_OBSERVATIONS_FILENAME,
+    STAGE25_MIGRATION_MEASUREMENTS_FILENAME,
+    STAGE25_PRICE_WINDOW_OBSERVATIONS_FILENAME,
+    STAGE25_ATH_CANDIDATES_FILENAME,
+    STAGE25_SOURCE_RECONCILIATIONS_FILENAME,
+    STAGE25_ATH_MEASUREMENTS_FILENAME,
+    STAGE25_MEASUREMENT_REJECTIONS_FILENAME,
+    STAGE25_SUMMARY_FILENAME,
+    STAGE25_MANIFEST_FILENAME,
+)
+
+
+# Stage 25.6 does NOT emit the optional source-coverage CSV. The
+# decision is locked here so future sub-stages cannot silently
+# enable it; future sub-stages flipping the flag MUST update the
+# Stage 25.6 boundary tests at the same time.
+STAGE25_EMITS_SOURCE_COVERAGE_CSV: bool = False
+
+
 __all__ = [
     "ATH_CANDIDATE_KINDS",
     "ATH_CANDIDATE_KIND_COMBINED_PEAK",
@@ -1304,28 +1361,42 @@ __all__ = [
     "SOURCE_STATUS_PARTIAL",
     "SOURCE_STATUS_PRESENT",
     "SOURCE_STATUS_UNSUPPORTED",
+    "STAGE25_ARTIFACT_FILENAMES",
     "STAGE25_ARTIFACT_WRITER_NAME",
     "STAGE25_ARTIFACT_WRITER_VERSION",
+    "STAGE25_ATH_CANDIDATES_FILENAME",
     "STAGE25_ATH_CANDIDATE_VERSION",
+    "STAGE25_ATH_MEASUREMENTS_FILENAME",
     "STAGE25_ATH_MEASUREMENT_VERSION",
     "STAGE25_ATH_MEASURER_NAME",
+    "STAGE25_EMITS_SOURCE_COVERAGE_CSV",
     "STAGE25_FORBIDDEN_INPUT_FIELD_SUBSTRINGS",
     "STAGE25_FORBIDDEN_INPUT_VALUE_SUBSTRINGS",
     "STAGE25_FORBIDDEN_ROUTING_TOKENS",
     "STAGE25_FORBIDDEN_STAGE24_EXECUTION_FEE_VOCABULARY",
     "STAGE25_FORBIDDEN_VOCABULARY",
     "STAGE25_LONG_HEX_RUN_MIN_LEN",
+    "STAGE25_MANIFEST_FILENAME",
     "STAGE25_MANIFEST_SCHEMA_VERSION",
+    "STAGE25_MEASUREMENT_REJECTIONS_FILENAME",
+    "STAGE25_MIGRATION_MEASUREMENTS_FILENAME",
     "STAGE25_MIGRATION_MEASURER_NAME",
     "STAGE25_MIGRATION_MEASURER_VERSION",
+    "STAGE25_MIGRATION_OBSERVATIONS_FILENAME",
     "STAGE25_MIGRATION_OBSERVATION_VERSION",
     "STAGE25_MINOR_VERSION",
     "STAGE25_PRICE_OBSERVATION_VERSION",
+    "STAGE25_PRICE_WINDOW_OBSERVATIONS_FILENAME",
     "STAGE25_PRICE_WINDOW_VERSION",
     "STAGE25_RUNNER_NAME",
     "STAGE25_RUNNER_VERSION",
+    "STAGE25_SOURCE_RECONCILIATIONS_FILENAME",
     "STAGE25_SOURCE_RECONCILIATION_VERSION",
+    "STAGE25_SUMMARY_FILENAME",
+    "STAGE25_SUMMARY_VERSION",
     "STAGE25_VERSION",
+    "STAGE25_WRITER_NAME",
+    "STAGE25_WRITER_VERSION",
     "STAGE_NAME",
     "STAGE_VERSION",
     "_Stage25ClosedSetError",
