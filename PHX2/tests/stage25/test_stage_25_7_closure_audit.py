@@ -20,21 +20,23 @@ Pins:
     lock scaffold + the approved Stage 26.1 calibration-input
     contract + Stage 25 artifact reader / validator surface + the
     approved Stage 26.2 denominator / outcome-eligibility surface +
-    the approved Stage 26.3 calibration cohort builder surface.
-    Stage 26.3 admits: ``__init__.py`` + ``STAGE_26_0_SPEC_LOCK.md``
+    the approved Stage 26.3 calibration cohort builder surface +
+    the approved Stage 26.4 threshold candidate generator surface.
+    Stage 26.4 admits: ``__init__.py`` + ``STAGE_26_0_SPEC_LOCK.md``
     + ``constants.py`` + ``errors.py`` + ``models.py`` +
     ``stage25_schema_whitelist.py`` + ``stage25_artifact_reader.py``
     + ``stage25_artifact_validation.py`` +
     ``calibration_input_contracts.py`` + ``eligibility_constants.py``
     + ``eligibility_models.py`` + ``eligibility_classifier.py`` +
     ``cohort_constants.py`` + ``cohort_models.py`` +
-    ``cohort_builder.py``. Any other entry is treated as Stage
-    26.4+ implementation and is rejected (Stage 26.4+ surfaces --
-    threshold / policy / review packet / runner / writer / CLI --
-    remain blocked).
+    ``cohort_builder.py`` + ``threshold_constants.py`` +
+    ``threshold_models.py`` + ``threshold_candidate_generator.py``.
+    Any other entry is treated as Stage 26.5+ implementation and is
+    rejected (Stage 26.5+ surfaces -- policy candidate / review
+    packet / runner / writer / CLI -- remain blocked).
   * ``PHX2/stage27/`` does NOT exist (no Stage 27 scaffold is
     admitted at Stage 25.7 / Stage 26.0 / Stage 26.1 / Stage 26.2 /
-    Stage 26.3).
+    Stage 26.3 / Stage 26.4).
 """
 
 from __future__ import annotations
@@ -646,7 +648,7 @@ def test_no_url_literal_in_closure_docs():
             )
 
 
-_STAGE_26_3_ALLOWED_ENTRIES: frozenset[str] = frozenset(
+_STAGE_26_4_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 26.0 spec-lock scaffold.
         "__init__.py",
@@ -668,67 +670,83 @@ _STAGE_26_3_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "cohort_constants.py",
         "cohort_models.py",
         "cohort_builder.py",
+        # Stage 26.4 threshold candidate generator surface.
+        "threshold_constants.py",
+        "threshold_models.py",
+        "threshold_candidate_generator.py",
     }
 )
 
 
-def test_stage26_tree_is_only_stage26_3_approved_files():
-    """``PHX2/stage26/`` carries only the approved Stage 26.0/26.1/26.2/26.3 surface.
+def test_stage26_tree_is_only_stage26_4_approved_files():
+    """``PHX2/stage26/`` carries only the approved Stage 26.0/26.1/26.2/26.3/26.4 surface.
 
     Stage 25.7 originally asserted ``PHX2/stage26/`` did not exist.
     Stage 26.0 materialized the directory with a spec-lock-only
     scaffold. Stage 26.1 added the calibration-input contract +
     Stage 25 artifact reader / validator surface. Stage 26.2 added
     the denominator / outcome-eligibility surface. Stage 26.3 added
-    the calibration cohort builder surface; this test was narrowly
+    the calibration cohort builder surface. Stage 26.4 added the
+    threshold candidate generator surface; this test was narrowly
     extended to admit exactly that locked file set:
 
-      * ``__init__.py``                       -- Stage 26 package
-                                                 marker.
-      * ``STAGE_26_0_SPEC_LOCK.md``           -- Stage 26.0 spec-
-                                                 lock document.
-      * ``constants.py``                      -- Stage 26.1 closed-
-                                                 set vocabularies.
-      * ``errors.py``                         -- Stage 26.1 / 26.2 /
-                                                 26.3 typed errors.
-      * ``models.py``                         -- Stage 26.1 immutable
-                                                 input record
-                                                 NamedTuples.
-      * ``stage25_schema_whitelist.py``       -- locked Stage 25
-                                                 schema / vocabulary
-                                                 import surface.
-      * ``stage25_artifact_reader.py``        -- pure per-row
-                                                 projector reader.
-      * ``stage25_artifact_validation.py``    -- structured per-file
-                                                 validator.
-      * ``calibration_input_contracts.py``    -- high-level Stage
-                                                 26.1 orchestrator.
-      * ``eligibility_constants.py``          -- Stage 26.2 closed-
-                                                 set denominator /
-                                                 outcome-eligibility
-                                                 vocabularies.
-      * ``eligibility_models.py``             -- Stage 26.2 immutable
-                                                 eligibility record
-                                                 NamedTuples.
-      * ``eligibility_classifier.py``         -- pure deterministic
-                                                 Stage 26.2 classifier.
-      * ``cohort_constants.py``               -- Stage 26.3 closed-
-                                                 set cohort
-                                                 vocabularies.
-      * ``cohort_models.py``                  -- Stage 26.3 immutable
-                                                 cohort record
-                                                 NamedTuples.
-      * ``cohort_builder.py``                 -- pure deterministic
-                                                 Stage 26.3 cohort
-                                                 builder.
+      * ``__init__.py``                          -- Stage 26 package
+                                                    marker.
+      * ``STAGE_26_0_SPEC_LOCK.md``              -- Stage 26.0 spec-
+                                                    lock document.
+      * ``constants.py``                         -- Stage 26.1 closed-
+                                                    set vocabularies.
+      * ``errors.py``                            -- Stage 26.1 / 26.2 /
+                                                    26.3 / 26.4 typed
+                                                    errors.
+      * ``models.py``                            -- Stage 26.1 immutable
+                                                    input record
+                                                    NamedTuples.
+      * ``stage25_schema_whitelist.py``          -- locked Stage 25
+                                                    schema / vocabulary
+                                                    import surface.
+      * ``stage25_artifact_reader.py``           -- pure per-row
+                                                    projector reader.
+      * ``stage25_artifact_validation.py``       -- structured per-file
+                                                    validator.
+      * ``calibration_input_contracts.py``       -- high-level Stage
+                                                    26.1 orchestrator.
+      * ``eligibility_constants.py``             -- Stage 26.2 closed-
+                                                    set denominator /
+                                                    outcome-eligibility
+                                                    vocabularies.
+      * ``eligibility_models.py``                -- Stage 26.2 immutable
+                                                    eligibility record
+                                                    NamedTuples.
+      * ``eligibility_classifier.py``            -- pure deterministic
+                                                    Stage 26.2 classifier.
+      * ``cohort_constants.py``                  -- Stage 26.3 closed-
+                                                    set cohort
+                                                    vocabularies.
+      * ``cohort_models.py``                     -- Stage 26.3 immutable
+                                                    cohort record
+                                                    NamedTuples.
+      * ``cohort_builder.py``                    -- pure deterministic
+                                                    Stage 26.3 cohort
+                                                    builder.
+      * ``threshold_constants.py``               -- Stage 26.4 closed-
+                                                    set threshold
+                                                    candidate
+                                                    vocabularies.
+      * ``threshold_models.py``                  -- Stage 26.4 immutable
+                                                    threshold candidate
+                                                    record NamedTuples.
+      * ``threshold_candidate_generator.py``     -- pure deterministic
+                                                    Stage 26.4 threshold
+                                                    candidate generator.
 
     Any other top-level entry under ``PHX2/stage26/`` -- a Stage
-    26.4 threshold generator, a Stage 26.5 policy candidate writer,
-    a Stage 26.6 review packet module, a runner / writer / CLI /
-    dispatch surface, or a subdirectory other than the interpreter's
-    ``__pycache__`` -- is treated as Stage 26.4+ implementation and
-    is forbidden. Stage 26.4+ implementation remains blocked until
-    each respective sub-stage is operator-authorized.
+    26.5 policy candidate writer, a Stage 26.6 review packet module,
+    a runner / writer / CLI / dispatch surface, or a subdirectory
+    other than the interpreter's ``__pycache__`` -- is treated as
+    Stage 26.5+ implementation and is forbidden. Stage 26.5+
+    implementation remains blocked until each respective sub-stage
+    is operator-authorized.
     """
     stage26 = PHX2_ROOT / "stage26"
     if not stage26.exists():
@@ -744,15 +762,15 @@ def test_stage26_tree_is_only_stage26_3_approved_files():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    forbidden = actual - _STAGE_26_3_ALLOWED_ENTRIES
+    forbidden = actual - _STAGE_26_4_ALLOWED_ENTRIES
     assert not forbidden, (
         f"PHX2/stage26 admits only the locked Stage 26.0 + Stage 26.1 "
-        f"+ Stage 26.2 + Stage 26.3 file set "
-        f"({sorted(_STAGE_26_3_ALLOWED_ENTRIES)!r}). Stage 26.4+ "
-        f"implementation (threshold / policy / review / runner / "
-        f"writer / CLI / dispatch) remains blocked until each "
-        f"sub-stage is operator-authorized. Forbidden entries "
-        f"found: {sorted(forbidden)!r}"
+        f"+ Stage 26.2 + Stage 26.3 + Stage 26.4 file set "
+        f"({sorted(_STAGE_26_4_ALLOWED_ENTRIES)!r}). Stage 26.5+ "
+        f"implementation (policy / review / runner / writer / CLI / "
+        f"dispatch) remains blocked until each sub-stage is "
+        f"operator-authorized. Forbidden entries found: "
+        f"{sorted(forbidden)!r}"
     )
 
 

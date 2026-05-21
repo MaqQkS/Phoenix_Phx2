@@ -49,6 +49,14 @@ Error hierarchy:
                                        or a row carrying a Stage 26
                                        closed-set status outside
                                        the locked vocabulary.
+  * ``Stage26ThresholdError``       -- Stage 26.4 threshold candidate
+                                       generator rejected its inputs
+                                       or detected an invariant
+                                       violation in its outputs.
+                                       Carries one of the
+                                       ``STG26_CAL_THRESHOLD_*`` code
+                                       tokens declared in
+                                       ``PHX2.stage26.threshold_constants``.
 
 Stage 26.1 errors NEVER carry any of the following: a network URL,
 a webhook host literal, an environment-variable name, a secret-
@@ -171,6 +179,46 @@ class Stage26CohortError(Stage26Error):
     """
 
 
+class Stage26ThresholdError(Stage26Error):
+    """Raised by the Stage 26.4 threshold candidate generator.
+
+    The error wraps one of the Stage 26.4 typed-error code tokens
+    declared in ``PHX2.stage26.threshold_constants``:
+
+      * ``STG26_CAL_THRESHOLD_UNKNOWN_CANDIDATE_KIND`` -- the caller
+        supplied a candidate-kind token outside the locked
+        ``THRESHOLD_CANDIDATE_KINDS`` closed set.
+      * ``STG26_CAL_THRESHOLD_INVALID_DIRECTION`` -- a candidate
+        carried a direction token outside the locked
+        ``THRESHOLD_DIRECTIONS`` closed set (defensive; the generator
+        should never produce this).
+      * ``STG26_CAL_THRESHOLD_INVALID_COHORT_STATUS`` -- a cohort
+        summary carried a ``cohort_status`` outside the locked
+        Stage 26.3 ``COHORT_STATUSES`` closed set.
+      * ``STG26_CAL_THRESHOLD_MIXED_MANIFEST_HASH`` -- the input
+        cohort summaries carry more than one Stage 25 manifest hash,
+        OR a summary's hash disagrees with the cohort-result pin.
+      * ``STG26_CAL_THRESHOLD_NON_MEASURED_PRIMARY`` -- a cohort
+        summary's ``primary_measured_denominator_count`` exceeds its
+        ``measured_count``, which would imply a non-``MEASURED`` row
+        was upgraded into the primary measured denominator (Stage
+        26.4 forbids the upgrade).
+      * ``STG26_CAL_THRESHOLD_INVALID_COUNT_SHAPE`` -- a cohort
+        summary's truth-class / denominator-status counts do not sum
+        to ``row_count``, OR a count is negative.
+      * ``STG26_CAL_THRESHOLD_POLICY_LEAK`` -- a generated candidate
+        ended up with ``operator_approved=True`` or
+        ``runtime_consumable=True``. Stage 26.4 candidates are
+        ALWAYS candidate-only and never runtime-consumable; the
+        check is a defensive invariant.
+
+    The error deliberately does NOT label any non-``MEASURED`` truth
+    class as a failure -- Stage 26.4 preserves Stage 26.2's truth-
+    class semantics verbatim and treats every Stage 25 truth class
+    as a first-class category.
+    """
+
+
 __all__ = [
     "Stage26CohortError",
     "Stage26EligibilityError",
@@ -178,5 +226,6 @@ __all__ = [
     "Stage26ManifestError",
     "Stage26ReaderError",
     "Stage26SchemaError",
+    "Stage26ThresholdError",
     "Stage26ValidationError",
 ]

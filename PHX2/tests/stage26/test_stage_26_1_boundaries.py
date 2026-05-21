@@ -54,9 +54,9 @@ _STAGE_26_1_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # tree with the denominator / outcome-eligibility surface.
         # The Stage 26.1 boundary tests still apply uniformly to
         # every Stage 26 production module (Stage 26.1 + Stage 26.2 +
-        # Stage 26.3) except where Stage 26.2 / Stage 26.3 vocabulary
-        # supersedes a Stage 26.1 lock (see ``_FORBIDDEN_DOMAIN_
-        # SUBSTRINGS``).
+        # Stage 26.3 + Stage 26.4) except where a later sub-stage's
+        # vocabulary supersedes a Stage 26.1 lock (see
+        # ``_FORBIDDEN_DOMAIN_SUBSTRINGS``).
         "eligibility_constants.py",
         "eligibility_models.py",
         "eligibility_classifier.py",
@@ -65,6 +65,11 @@ _STAGE_26_1_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "cohort_constants.py",
         "cohort_models.py",
         "cohort_builder.py",
+        # Stage 26.4 narrowly extended the locked Stage 26 production
+        # tree with the threshold candidate generator surface.
+        "threshold_constants.py",
+        "threshold_models.py",
+        "threshold_candidate_generator.py",
     }
 )
 
@@ -162,11 +167,23 @@ _FORBIDDEN_DOMAIN_SUBSTRINGS: tuple[str, ...] = (
     # 26.1 / 26.2 because the calibration cohort builder is Stage
     # 26.3's locked scope; Stage 26.3 narrowly unlocks ``cohort`` so
     # the cohort vocabulary can ship in the approved Stage 26.3
-    # cohort_*.py files. Stage 26.4+ vocabulary remains forbidden.
+    # cohort_*.py files. ``threshold_candidate`` was forbidden at
+    # Stage 26.1 / 26.2 / 26.3 because the threshold candidate
+    # generator is Stage 26.4's locked scope; Stage 26.4 narrowly
+    # unlocks ``threshold_candidate`` so the threshold candidate
+    # vocabulary can ship in the approved Stage 26.4
+    # threshold_*.py files. ``policy_candidate`` was similarly
+    # forbidden but is narrowly unlocked by Stage 26.4 ONLY as the
+    # forward-pointing review readiness token
+    # ``READY_FOR_POLICY_CANDIDATE_REVIEW``; the Stage 26.5+
+    # policy candidate artifact / writer / models remain forbidden
+    # by the basename lock in
+    # ``test_no_forbidden_future_substage_files_present``. Stage
+    # 26.5+ vocabulary (``approval_state`` /
+    # ``approved_by`` / ``enforcement`` / ``dispatcher`` / ...)
+    # remains forbidden.
     "approval_state",
     "approved_by",
-    "threshold_candidate",
-    "policy_candidate",
     "enforcement",
     "enforcer",
     "ratchet",
@@ -318,7 +335,14 @@ def test_no_forbidden_future_substage_files_present():
     # 26.3's locked scope; Stage 26.3 narrowly unlocks
     # ``cohort_builder.py`` (and the supporting ``cohort_constants.py``
     # / ``cohort_models.py``) so the locked Stage 26.3 cohort file
-    # set can ship. Stage 26.4+ basenames remain forbidden.
+    # set can ship. ``threshold_candidate_generator.py`` (and the
+    # supporting ``threshold_constants.py`` / ``threshold_models.py``)
+    # is Stage 26.4's locked scope and ships under the
+    # ``_STAGE_26_1_PRODUCTION_FILENAMES`` lock above; the generic
+    # ``threshold.py`` / ``threshold_generator.py`` basenames remain
+    # forbidden so a future contributor cannot ship a thin
+    # alternative threshold surface under those names. Stage 26.5+
+    # basenames remain forbidden.
     forbidden_basenames = (
         "denominator.py",
         "threshold.py",
@@ -343,7 +367,7 @@ def test_no_forbidden_future_substage_files_present():
     )
     for basename in forbidden_basenames:
         assert not (STAGE26_ROOT / basename).exists(), (
-            f"Stage 26 must not ship {basename!r}; reserved for Stage 26.4+"
+            f"Stage 26 must not ship {basename!r}; reserved for Stage 26.5+"
         )
 
 
@@ -639,6 +663,11 @@ def test_each_stage26_production_module_imports_cleanly():
         "PHX2.stage26.cohort_constants",
         "PHX2.stage26.cohort_models",
         "PHX2.stage26.cohort_builder",
+        # Stage 26.4 added the threshold candidate generator surface;
+        # the import check was narrowly extended to cover it.
+        "PHX2.stage26.threshold_constants",
+        "PHX2.stage26.threshold_models",
+        "PHX2.stage26.threshold_candidate_generator",
     }
     for name in expected:
         module = importlib.import_module(name)
