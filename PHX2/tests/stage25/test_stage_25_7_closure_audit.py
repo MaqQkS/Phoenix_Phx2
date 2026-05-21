@@ -16,14 +16,19 @@ Pins:
   * Stage 25 production source carries no Stage 21-24 imports, no
     network / DB / dispatch / CLI surfaces, no env reads, no URL
     literals.
-  * ``PHX2/stage26/`` carries no Stage 26.1+ implementation
-    files. Stage 26.0 is permitted to materialize the directory
-    as a spec-lock-only scaffold containing exactly
-    ``__init__.py`` + ``STAGE_26_0_SPEC_LOCK.md``; any other
-    entry is treated as Stage 26.1+ implementation and is
-    rejected.
+  * ``PHX2/stage26/`` carries only the approved Stage 26.0 spec-
+    lock scaffold + the approved Stage 26.1 calibration-input
+    contract + Stage 25 artifact reader / validator surface.
+    Stage 26.1 admits: ``__init__.py`` + ``STAGE_26_0_SPEC_LOCK.md``
+    + ``constants.py`` + ``errors.py`` + ``models.py`` +
+    ``stage25_schema_whitelist.py`` + ``stage25_artifact_reader.py``
+    + ``stage25_artifact_validation.py`` +
+    ``calibration_input_contracts.py``. Any other entry is treated
+    as Stage 26.2+ implementation and is rejected (Stage 26.2+
+    surfaces -- denominator / cohort / threshold / policy / review
+    packet / runner / writer / CLI -- remain blocked).
   * ``PHX2/stage27/`` does NOT exist (no Stage 27 scaffold is
-    admitted at Stage 25.7 / Stage 26.0).
+    admitted at Stage 25.7 / Stage 26.0 / Stage 26.1).
 """
 
 from __future__ import annotations
@@ -635,32 +640,63 @@ def test_no_url_literal_in_closure_docs():
             )
 
 
-_STAGE_26_0_SCAFFOLD_ALLOWED_ENTRIES: frozenset[str] = frozenset(
-    {"__init__.py", "STAGE_26_0_SPEC_LOCK.md"}
+_STAGE_26_1_ALLOWED_ENTRIES: frozenset[str] = frozenset(
+    {
+        # Stage 26.0 spec-lock scaffold.
+        "__init__.py",
+        "STAGE_26_0_SPEC_LOCK.md",
+        # Stage 26.1 calibration-input contract + Stage 25 artifact
+        # reader / validator surface.
+        "constants.py",
+        "errors.py",
+        "models.py",
+        "stage25_schema_whitelist.py",
+        "stage25_artifact_reader.py",
+        "stage25_artifact_validation.py",
+        "calibration_input_contracts.py",
+    }
 )
 
 
-def test_stage26_tree_is_only_stage26_0_scaffold():
-    """``PHX2/stage26/`` carries only the Stage 26.0 spec-lock scaffold.
+def test_stage26_tree_is_only_stage26_1_approved_files():
+    """``PHX2/stage26/`` carries only the approved Stage 26.0 + 26.1 surface.
 
     Stage 25.7 originally asserted ``PHX2/stage26/`` did not exist.
-    Stage 26.0 is a spec-lock-only sub-stage that must materialize
-    the directory to ship ``STAGE_26_0_SPEC_LOCK.md``. This test was
-    narrowly relaxed to admit exactly that scaffold:
+    Stage 26.0 materialized the directory with a spec-lock-only
+    scaffold. Stage 26.1 added the calibration-input contract +
+    Stage 25 artifact reader / validator surface; this test was
+    narrowly extended to admit exactly that locked file set:
 
-      * ``__init__.py``           -- Stage 26 package marker
-                                     (docstring only; no runtime
-                                     symbols exported).
-      * ``STAGE_26_0_SPEC_LOCK.md`` -- Stage 26.0 spec-lock document.
+      * ``__init__.py``                       -- Stage 26 package
+                                                 marker.
+      * ``STAGE_26_0_SPEC_LOCK.md``           -- Stage 26.0 spec-
+                                                 lock document.
+      * ``constants.py``                      -- Stage 26.1 closed-
+                                                 set vocabularies.
+      * ``errors.py``                         -- Stage 26.1 typed
+                                                 errors.
+      * ``models.py``                         -- Stage 26.1 immutable
+                                                 input record
+                                                 NamedTuples.
+      * ``stage25_schema_whitelist.py``       -- locked Stage 25
+                                                 schema / vocabulary
+                                                 import surface.
+      * ``stage25_artifact_reader.py``        -- pure per-row
+                                                 projector reader.
+      * ``stage25_artifact_validation.py``    -- structured per-file
+                                                 validator.
+      * ``calibration_input_contracts.py``    -- high-level Stage
+                                                 26.1 orchestrator.
 
-    Any other top-level entry under ``PHX2/stage26/`` -- a reader,
-    model, calibration / denominator / cohort / threshold / policy /
-    enforcement / runner / writer / CLI module, a ``constants.py``
-    or ``errors.py`` or ``stage26_manifest.py``, or a subdirectory
-    other than the interpreter's ``__pycache__`` -- is treated as
-    Stage 26.1+ implementation and is forbidden. Stage 26.1
-    implementation remains blocked until the operator creates
-    ``stage-25-closed`` and explicitly authorizes Stage 26.1.
+    Any other top-level entry under ``PHX2/stage26/`` -- a Stage
+    26.2 denominator module, a Stage 26.3 cohort builder, a Stage
+    26.4 threshold generator, a Stage 26.5 policy candidate
+    writer, a Stage 26.6 review packet module, a runner / writer /
+    CLI / dispatch surface, or a subdirectory other than the
+    interpreter's ``__pycache__`` -- is treated as Stage 26.2+
+    implementation and is forbidden. Stage 26.2+ implementation
+    remains blocked until each respective sub-stage is operator-
+    authorized.
     """
     stage26 = PHX2_ROOT / "stage26"
     if not stage26.exists():
@@ -676,13 +712,14 @@ def test_stage26_tree_is_only_stage26_0_scaffold():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    forbidden = actual - _STAGE_26_0_SCAFFOLD_ALLOWED_ENTRIES
+    forbidden = actual - _STAGE_26_1_ALLOWED_ENTRIES
     assert not forbidden, (
-        f"PHX2/stage26 admits only the Stage 26.0 spec-lock scaffold "
-        f"({sorted(_STAGE_26_0_SCAFFOLD_ALLOWED_ENTRIES)!r}). "
-        f"Stage 26.1+ implementation is blocked until stage-25-closed "
-        f"exists and operator authorization is granted. Forbidden "
-        f"entries found: {sorted(forbidden)!r}"
+        f"PHX2/stage26 admits only the locked Stage 26.0 + Stage 26.1 "
+        f"file set ({sorted(_STAGE_26_1_ALLOWED_ENTRIES)!r}). "
+        f"Stage 26.2+ implementation (denominator / cohort / threshold "
+        f"/ policy / review / runner / writer / CLI / dispatch) "
+        f"remains blocked until each sub-stage is operator-authorized. "
+        f"Forbidden entries found: {sorted(forbidden)!r}"
     )
 
 
