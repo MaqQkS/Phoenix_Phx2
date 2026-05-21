@@ -19,18 +19,22 @@ Pins:
   * ``PHX2/stage26/`` carries only the approved Stage 26.0 spec-
     lock scaffold + the approved Stage 26.1 calibration-input
     contract + Stage 25 artifact reader / validator surface + the
-    approved Stage 26.2 denominator / outcome-eligibility surface.
-    Stage 26.2 admits: ``__init__.py`` + ``STAGE_26_0_SPEC_LOCK.md``
+    approved Stage 26.2 denominator / outcome-eligibility surface +
+    the approved Stage 26.3 calibration cohort builder surface.
+    Stage 26.3 admits: ``__init__.py`` + ``STAGE_26_0_SPEC_LOCK.md``
     + ``constants.py`` + ``errors.py`` + ``models.py`` +
     ``stage25_schema_whitelist.py`` + ``stage25_artifact_reader.py``
     + ``stage25_artifact_validation.py`` +
     ``calibration_input_contracts.py`` + ``eligibility_constants.py``
-    + ``eligibility_models.py`` + ``eligibility_classifier.py``. Any
-    other entry is treated as Stage 26.3+ implementation and is
-    rejected (Stage 26.3+ surfaces -- cohort / threshold / policy /
-    review packet / runner / writer / CLI -- remain blocked).
+    + ``eligibility_models.py`` + ``eligibility_classifier.py`` +
+    ``cohort_constants.py`` + ``cohort_models.py`` +
+    ``cohort_builder.py``. Any other entry is treated as Stage
+    26.4+ implementation and is rejected (Stage 26.4+ surfaces --
+    threshold / policy / review packet / runner / writer / CLI --
+    remain blocked).
   * ``PHX2/stage27/`` does NOT exist (no Stage 27 scaffold is
-    admitted at Stage 25.7 / Stage 26.0 / Stage 26.1 / Stage 26.2).
+    admitted at Stage 25.7 / Stage 26.0 / Stage 26.1 / Stage 26.2 /
+    Stage 26.3).
 """
 
 from __future__ import annotations
@@ -642,7 +646,7 @@ def test_no_url_literal_in_closure_docs():
             )
 
 
-_STAGE_26_2_ALLOWED_ENTRIES: frozenset[str] = frozenset(
+_STAGE_26_3_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 26.0 spec-lock scaffold.
         "__init__.py",
@@ -660,19 +664,24 @@ _STAGE_26_2_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "eligibility_constants.py",
         "eligibility_models.py",
         "eligibility_classifier.py",
+        # Stage 26.3 calibration cohort builder surface.
+        "cohort_constants.py",
+        "cohort_models.py",
+        "cohort_builder.py",
     }
 )
 
 
-def test_stage26_tree_is_only_stage26_2_approved_files():
-    """``PHX2/stage26/`` carries only the approved Stage 26.0/26.1/26.2 surface.
+def test_stage26_tree_is_only_stage26_3_approved_files():
+    """``PHX2/stage26/`` carries only the approved Stage 26.0/26.1/26.2/26.3 surface.
 
     Stage 25.7 originally asserted ``PHX2/stage26/`` did not exist.
     Stage 26.0 materialized the directory with a spec-lock-only
     scaffold. Stage 26.1 added the calibration-input contract +
     Stage 25 artifact reader / validator surface. Stage 26.2 added
-    the denominator / outcome-eligibility surface; this test was
-    narrowly extended to admit exactly that locked file set:
+    the denominator / outcome-eligibility surface. Stage 26.3 added
+    the calibration cohort builder surface; this test was narrowly
+    extended to admit exactly that locked file set:
 
       * ``__init__.py``                       -- Stage 26 package
                                                  marker.
@@ -680,8 +689,8 @@ def test_stage26_tree_is_only_stage26_2_approved_files():
                                                  lock document.
       * ``constants.py``                      -- Stage 26.1 closed-
                                                  set vocabularies.
-      * ``errors.py``                         -- Stage 26.1 + 26.2
-                                                 typed errors.
+      * ``errors.py``                         -- Stage 26.1 / 26.2 /
+                                                 26.3 typed errors.
       * ``models.py``                         -- Stage 26.1 immutable
                                                  input record
                                                  NamedTuples.
@@ -703,15 +712,23 @@ def test_stage26_tree_is_only_stage26_2_approved_files():
                                                  NamedTuples.
       * ``eligibility_classifier.py``         -- pure deterministic
                                                  Stage 26.2 classifier.
+      * ``cohort_constants.py``               -- Stage 26.3 closed-
+                                                 set cohort
+                                                 vocabularies.
+      * ``cohort_models.py``                  -- Stage 26.3 immutable
+                                                 cohort record
+                                                 NamedTuples.
+      * ``cohort_builder.py``                 -- pure deterministic
+                                                 Stage 26.3 cohort
+                                                 builder.
 
     Any other top-level entry under ``PHX2/stage26/`` -- a Stage
-    26.3 cohort builder, a Stage 26.4 threshold generator, a Stage
-    26.5 policy candidate writer, a Stage 26.6 review packet module,
-    a runner / writer / CLI / dispatch surface, or a subdirectory
-    other than the interpreter's ``__pycache__`` -- is treated as
-    Stage 26.3+ implementation and is forbidden. Stage 26.3+
-    implementation remains blocked until each respective sub-stage
-    is operator-authorized.
+    26.4 threshold generator, a Stage 26.5 policy candidate writer,
+    a Stage 26.6 review packet module, a runner / writer / CLI /
+    dispatch surface, or a subdirectory other than the interpreter's
+    ``__pycache__`` -- is treated as Stage 26.4+ implementation and
+    is forbidden. Stage 26.4+ implementation remains blocked until
+    each respective sub-stage is operator-authorized.
     """
     stage26 = PHX2_ROOT / "stage26"
     if not stage26.exists():
@@ -727,14 +744,14 @@ def test_stage26_tree_is_only_stage26_2_approved_files():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    forbidden = actual - _STAGE_26_2_ALLOWED_ENTRIES
+    forbidden = actual - _STAGE_26_3_ALLOWED_ENTRIES
     assert not forbidden, (
         f"PHX2/stage26 admits only the locked Stage 26.0 + Stage 26.1 "
-        f"+ Stage 26.2 file set "
-        f"({sorted(_STAGE_26_2_ALLOWED_ENTRIES)!r}). Stage 26.3+ "
-        f"implementation (cohort / threshold / policy / review / "
-        f"runner / writer / CLI / dispatch) remains blocked until "
-        f"each sub-stage is operator-authorized. Forbidden entries "
+        f"+ Stage 26.2 + Stage 26.3 file set "
+        f"({sorted(_STAGE_26_3_ALLOWED_ENTRIES)!r}). Stage 26.4+ "
+        f"implementation (threshold / policy / review / runner / "
+        f"writer / CLI / dispatch) remains blocked until each "
+        f"sub-stage is operator-authorized. Forbidden entries "
         f"found: {sorted(forbidden)!r}"
     )
 

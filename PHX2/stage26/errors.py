@@ -38,6 +38,17 @@ Error hierarchy:
                                        Stage 26.1
                                        ``MEASUREMENT_TRUTH_CLASSES``
                                        closed set.
+  * ``Stage26CohortError``          -- Stage 26.3 cohort builder
+                                       rejected its inputs: an
+                                       unknown cohort dimension
+                                       token, an empty / malformed
+                                       dimensions tuple, a row whose
+                                       Stage 25 manifest hash does
+                                       not match the bundle's pin,
+                                       an invalid cohort-key shape,
+                                       or a row carrying a Stage 26
+                                       closed-set status outside
+                                       the locked vocabulary.
 
 Stage 26.1 errors NEVER carry any of the following: a network URL,
 a webhook host literal, an environment-variable name, a secret-
@@ -130,7 +141,38 @@ class Stage26EligibilityError(Stage26Error):
     """
 
 
+class Stage26CohortError(Stage26Error):
+    """Raised by the Stage 26.3 cohort builder on invalid inputs.
+
+    The error wraps one of the Stage 26.3 cohort-error code tokens
+    (``STG26_CAL_COHORT_*`` in ``PHX2.stage26.cohort_constants``):
+
+      * ``STG26_CAL_COHORT_UNKNOWN_DIMENSION`` -- the caller supplied
+        a dimensions tuple containing a token outside the locked
+        ``COHORT_DIMENSIONS`` closed set.
+      * ``STG26_CAL_COHORT_EMPTY_INPUT`` -- the caller supplied an
+        empty dimensions tuple. Stage 26.3 requires at least one
+        explicit dimension because cohorts decide nothing implicit.
+      * ``STG26_CAL_COHORT_MIXED_MANIFEST_HASH`` -- the input
+        eligibility rows carry more than one Stage 25 manifest hash,
+        OR a row's hash disagrees with the eligibility bundle pin.
+      * ``STG26_CAL_COHORT_INVALID_KEY`` -- a cohort key was
+        constructed with mismatched ``dimensions`` / ``values``
+        lengths.
+      * ``STG26_CAL_COHORT_UNSUPPORTED_STATUS`` -- a row carried a
+        Stage 26 closed-set status token outside the locked
+        vocabulary (defensive check; Stage 26.2 output should never
+        produce this).
+
+    The error deliberately does NOT label any non-``MEASURED`` truth
+    class as a failure -- Stage 26.3 preserves Stage 26.2's truth-
+    class semantics verbatim and treats every Stage 25 truth class
+    as a first-class category.
+    """
+
+
 __all__ = [
+    "Stage26CohortError",
     "Stage26EligibilityError",
     "Stage26Error",
     "Stage26ManifestError",

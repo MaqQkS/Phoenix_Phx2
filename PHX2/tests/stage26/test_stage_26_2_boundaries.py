@@ -168,9 +168,11 @@ _ENV_ATTR_NAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 26.3 narrowly unlocks ``cohort_builder.py`` (and the
+# supporting ``cohort_constants.py`` / ``cohort_models.py``) for
+# the locked Stage 26.3 cohort-file set. Stage 26.4+ basenames
+# remain forbidden.
 _FORBIDDEN_FUTURE_SUBSTAGE_BASENAMES: tuple[str, ...] = (
-    "cohort.py",
-    "cohort_builder.py",
     "threshold.py",
     "threshold_generator.py",
     "policy.py",
@@ -286,7 +288,7 @@ def test_stage_26_2_production_files_exist():
 def test_no_forbidden_future_substage_files_present():
     for basename in _FORBIDDEN_FUTURE_SUBSTAGE_BASENAMES:
         assert not (STAGE26_ROOT / basename).exists(), (
-            f"Stage 26.2 must not ship {basename!r}; reserved for Stage 26.3+"
+            f"Stage 26 must not ship {basename!r}; reserved for Stage 26.4+"
         )
 
 

@@ -53,12 +53,18 @@ _STAGE_26_1_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # Stage 26.2 narrowly extended the locked Stage 26 production
         # tree with the denominator / outcome-eligibility surface.
         # The Stage 26.1 boundary tests still apply uniformly to
-        # every Stage 26 production module (Stage 26.1 + Stage 26.2)
-        # except where Stage 26.2 vocabulary supersedes a Stage 26.1
-        # lock (see ``_FORBIDDEN_DOMAIN_SUBSTRINGS``).
+        # every Stage 26 production module (Stage 26.1 + Stage 26.2 +
+        # Stage 26.3) except where Stage 26.2 / Stage 26.3 vocabulary
+        # supersedes a Stage 26.1 lock (see ``_FORBIDDEN_DOMAIN_
+        # SUBSTRINGS``).
         "eligibility_constants.py",
         "eligibility_models.py",
         "eligibility_classifier.py",
+        # Stage 26.3 narrowly extended the locked Stage 26 production
+        # tree with the calibration cohort builder surface.
+        "cohort_constants.py",
+        "cohort_models.py",
+        "cohort_builder.py",
     }
 )
 
@@ -152,11 +158,13 @@ _FORBIDDEN_DOMAIN_SUBSTRINGS: tuple[str, ...] = (
     # 26.1 must not ship denominator semantics; Stage 26.2 narrowly
     # unlocks the token because the denominator-honesty surface is
     # exactly Stage 26.2's locked scope (see Stage 26.0 spec-lock §5
-    # and the Stage 26.2 charter). Stage 26.3+ vocabulary remains
-    # forbidden.
+    # and the Stage 26.2 charter). ``cohort`` was forbidden at Stage
+    # 26.1 / 26.2 because the calibration cohort builder is Stage
+    # 26.3's locked scope; Stage 26.3 narrowly unlocks ``cohort`` so
+    # the cohort vocabulary can ship in the approved Stage 26.3
+    # cohort_*.py files. Stage 26.4+ vocabulary remains forbidden.
     "approval_state",
     "approved_by",
-    "cohort",
     "threshold_candidate",
     "policy_candidate",
     "enforcement",
@@ -305,10 +313,14 @@ def test_stage26_production_tree_matches_locked_inventory():
 
 
 def test_no_forbidden_future_substage_files_present():
+    # ``cohort.py`` / ``cohort_builder.py`` were forbidden at Stage
+    # 26.1 / 26.2 because the calibration cohort builder is Stage
+    # 26.3's locked scope; Stage 26.3 narrowly unlocks
+    # ``cohort_builder.py`` (and the supporting ``cohort_constants.py``
+    # / ``cohort_models.py``) so the locked Stage 26.3 cohort file
+    # set can ship. Stage 26.4+ basenames remain forbidden.
     forbidden_basenames = (
         "denominator.py",
-        "cohort.py",
-        "cohort_builder.py",
         "threshold.py",
         "threshold_generator.py",
         "policy.py",
@@ -331,7 +343,7 @@ def test_no_forbidden_future_substage_files_present():
     )
     for basename in forbidden_basenames:
         assert not (STAGE26_ROOT / basename).exists(), (
-            f"Stage 26.1 must not ship {basename!r}; reserved for Stage 26.2+"
+            f"Stage 26 must not ship {basename!r}; reserved for Stage 26.4+"
         )
 
 
@@ -622,6 +634,11 @@ def test_each_stage26_production_module_imports_cleanly():
         "PHX2.stage26.eligibility_constants",
         "PHX2.stage26.eligibility_models",
         "PHX2.stage26.eligibility_classifier",
+        # Stage 26.3 added the calibration cohort builder surface;
+        # the import check was narrowly extended to cover it.
+        "PHX2.stage26.cohort_constants",
+        "PHX2.stage26.cohort_models",
+        "PHX2.stage26.cohort_builder",
     }
     for name in expected:
         module = importlib.import_module(name)
