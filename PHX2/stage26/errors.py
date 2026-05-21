@@ -57,6 +57,14 @@ Error hierarchy:
                                        ``STG26_CAL_THRESHOLD_*`` code
                                        tokens declared in
                                        ``PHX2.stage26.threshold_constants``.
+  * ``Stage26PolicyCandidateError`` -- Stage 26.5 observe-only policy
+                                       candidate builder / writer
+                                       rejected its inputs or
+                                       detected a safety-lock
+                                       violation. Carries one of the
+                                       ``STG26_CAL_POLICY_CANDIDATE_*``
+                                       code tokens declared in
+                                       ``PHX2.stage26.policy_candidate_constants``.
 
 Stage 26.1 errors NEVER carry any of the following: a network URL,
 a webhook host literal, an environment-variable name, a secret-
@@ -219,11 +227,75 @@ class Stage26ThresholdError(Stage26Error):
     """
 
 
+class Stage26PolicyCandidateError(Stage26Error):
+    """Raised by the Stage 26.5 observe-only policy candidate
+    builder / writer.
+
+    The error wraps one of the Stage 26.5 typed-error code tokens
+    declared in ``PHX2.stage26.policy_candidate_constants``:
+
+      * ``STG26_CAL_POLICY_CANDIDATE_INVALID_THRESHOLD`` -- the
+        builder received a Stage 26.4 candidate carrying a status /
+        readiness / kind / direction token outside its locked
+        Stage 26.4 closed set.
+      * ``STG26_CAL_POLICY_CANDIDATE_POLICY_LEAK`` -- an emitted
+        Stage 26.5 candidate ended up with ``candidate_only`` flipped
+        to False, or with any other safety-lock invariant violated
+        beyond the dedicated approval / runtime sub-codes below.
+      * ``STG26_CAL_POLICY_CANDIDATE_APPROVAL_LEAK`` -- an emitted
+        candidate ended up with ``operator_approved=True``. Stage
+        26.5 candidates are NEVER operator-approved; the check is a
+        defensive invariant against a future refactor.
+      * ``STG26_CAL_POLICY_CANDIDATE_RUNTIME_LEAK`` -- an emitted
+        candidate ended up with ``runtime_consumable=True`` or
+        ``enforcement_enabled=True``. Stage 26.5 candidates are
+        NEVER runtime-consumable and NEVER enforcement-enabled.
+      * ``STG26_CAL_POLICY_CANDIDATE_INVALID_STATUS`` -- the builder
+        produced (or was asked to produce) a candidate with a
+        ``candidate_status`` outside the locked
+        ``POLICY_CANDIDATE_STATUSES`` closed set.
+      * ``STG26_CAL_POLICY_CANDIDATE_HASH_MISMATCH`` -- the writer
+        recomputed an artifact's sha256 / byte_count / row_count and
+        the manifest entry does not match.
+      * ``STG26_CAL_POLICY_CANDIDATE_MANIFEST_INVALID`` -- the
+        manifest body the writer assembled is structurally invalid
+        (e.g. missing self-entry sentinel, missing required artifact
+        entry).
+      * ``STG26_CAL_POLICY_CANDIDATE_REDACTION_FAILED`` -- the
+        writer's redaction sweep over the row / summary / manifest
+        bytes detected a forbidden substring (a URL fragment, a
+        webhook host, a secret-shaped token, an approval-leak
+        marker).
+      * ``STG26_CAL_POLICY_CANDIDATE_OUTPUT_DIR_INVALID`` -- the
+        caller-supplied output directory does not exist or is not a
+        directory; the writer refuses to create arbitrary parent
+        directories.
+      * ``STG26_CAL_POLICY_CANDIDATE_RUNTIME_FILENAME_LEAK`` -- the
+        writer was asked (or attempted) to emit an artifact under a
+        runtime-policy basename. Stage 26.5 writers ONLY emit the
+        locked observe-only basenames.
+      * ``STG26_CAL_POLICY_CANDIDATE_MIXED_MANIFEST_HASH`` -- the
+        Stage 26.4 input set carries policy candidates whose
+        ``stage25_manifest_hash`` disagrees with the set's pin.
+      * ``STG26_CAL_POLICY_CANDIDATE_UNKNOWN_EVIDENCE_CLASS`` -- a
+        Stage 26.4 candidate carried an ``evidence_class`` token
+        outside the locked Stage 26.4
+        ``THRESHOLD_EVIDENCE_CLASSES`` closed set; Stage 26.5 refuses
+        to invent a fallback policy-candidate kind.
+
+    The error deliberately does NOT label any non-``MEASURED`` truth
+    class as a failure -- Stage 26.5 preserves Stage 26.2 / 26.3 /
+    26.4 truth-class semantics verbatim and treats every Stage 25
+    truth class as a first-class category.
+    """
+
+
 __all__ = [
     "Stage26CohortError",
     "Stage26EligibilityError",
     "Stage26Error",
     "Stage26ManifestError",
+    "Stage26PolicyCandidateError",
     "Stage26ReaderError",
     "Stage26SchemaError",
     "Stage26ThresholdError",
