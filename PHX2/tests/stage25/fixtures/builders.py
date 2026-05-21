@@ -18,7 +18,9 @@ from types import MappingProxyType
 from typing import Mapping, Optional
 
 from PHX2.stage25.constants import (
+    ATH_CANDIDATE_KIND_SOURCE_REPORTED_PEAK,
     CONFIDENCE_LEVEL_HIGH,
+    CONFIDENCE_LEVEL_MEDIUM,
     CONFIDENCE_LEVEL_NONE,
     DEFAULT_SCHEMA_VERSION,
     DEFAULT_THRESHOLD_VERSION,
@@ -37,10 +39,12 @@ from PHX2.stage25.constants import (
     STAGE25_MIGRATION_MEASURER_VERSION,
 )
 from PHX2.stage25.models import (
+    Stage25ATHCandidate,
     Stage25MigrationMeasurement,
     Stage25MigrationObservation,
     Stage25PriceObservation,
     Stage25PriceWindowObservation,
+    build_ath_candidate_record,
     build_migration_measurement_record,
     build_migration_observation,
     build_price_observation,
@@ -363,6 +367,51 @@ def make_price_window_observation(
     )
 
 
+def make_ath_candidate(
+    *,
+    token_mint: str = SAMPLE_TOKEN_MINT_A,
+    source_family: str = SOURCE_FAMILY_DEXSCREENER,
+    source_status: str = SOURCE_STATUS_PRESENT,
+    candidate_kind: str = ATH_CANDIDATE_KIND_SOURCE_REPORTED_PEAK,
+    confidence_level: str = CONFIDENCE_LEVEL_MEDIUM,
+    peak_observed_at_utc: str = FIXED_CLOCK_UTC,
+    peak_slot: int = 251_000_010,
+    peak_block_time: int = 1_750_000_010,
+    peak_price: Optional[int] = 1_234_567,
+    quote_denomination: str = QUOTE_DENOMINATION_USD_MICRO,
+    reason_codes: tuple[str, ...] = (),
+    evidence: Optional[Mapping[str, object]] = None,
+    input_missing_fields: tuple[str, ...] = (),
+) -> Stage25ATHCandidate:
+    """Build a synthetic ``Stage25ATHCandidate`` with safe defaults.
+
+    Stage 25.5 test fixture: callers construct candidate records
+    directly without going through the full Stage 25.4 builder. The
+    helper validates the closed-set tokens via
+    ``build_ath_candidate_record`` so the returned record carries a
+    deterministic ``candidate_hash`` consistent with the production
+    builder.
+    """
+    evidence_mapping = (
+        evidence if evidence is not None else _frozen_empty_mapping()
+    )
+    return build_ath_candidate_record(
+        token_mint=token_mint,
+        source_family=source_family,
+        source_status=source_status,
+        candidate_kind=candidate_kind,
+        confidence_level=confidence_level,
+        peak_observed_at_utc=peak_observed_at_utc,
+        peak_slot=peak_slot,
+        peak_block_time=peak_block_time,
+        peak_price=peak_price,
+        quote_denomination=quote_denomination,
+        reason_codes=reason_codes,
+        evidence=evidence_mapping,
+        input_missing_fields=input_missing_fields,
+    )
+
+
 def make_unmeasured_migration_measurement(
     *,
     token_mint: str = SAMPLE_TOKEN_MINT_A,
@@ -408,6 +457,7 @@ __all__ = [
     "SAMPLE_TOKEN_MINT_A",
     "SAMPLE_TOKEN_MINT_B",
     "SAMPLE_TOKEN_MINT_C",
+    "make_ath_candidate",
     "make_measured_migration_measurement",
     "make_migration_observation",
     "make_migration_observation_row",

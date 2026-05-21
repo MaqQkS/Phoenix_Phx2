@@ -89,6 +89,10 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # inventory check does not flag them as unexpected files.
         # The Stage 25.4 boundary test pins them explicitly.
         "ath_candidate.py",
+        # Stage 25.5 additions -- listed here so the Stage 25.1
+        # inventory check does not flag them as unexpected files.
+        # The Stage 25.5 boundary test pins them explicitly.
+        "source_reconciliation.py",
     }
 )
 
@@ -106,12 +110,14 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # building / reconciliation filenames (later sub-stages).
     # Stage 25.1 explicitly forbids any module implementing ATH
     # candidate-building or source reconciliation domain logic.
+    # NOTE: ``source_reconciliation.py`` graduated into Stage 25.5
+    # and is part of the locked inventory above; it is no longer
+    # listed here.
     "migration_measurer.py",
     "ath_reconciler.py",
     "ath_measurer.py",
     "price_projector.py",
     "source_reconciler.py",
-    "source_reconciliation.py",
     # Reserved-but-not-used runner / writer filenames.
     "stage25_runner.py",
     "runner.py",
@@ -930,6 +936,8 @@ def test_every_production_module_imports_cleanly():
         "PHX2.stage25.price_window",
         # Stage 25.4 additions.
         "PHX2.stage25.ath_candidate",
+        # Stage 25.5 additions.
+        "PHX2.stage25.source_reconciliation",
     }
     for name in expected:
         module = importlib.import_module(name)

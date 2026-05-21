@@ -887,10 +887,12 @@ def test_build_source_reconciliation_record_round_trips_with_hash():
     reconciliation = build_source_reconciliation_record(
         measurement_family=MEASUREMENT_FAMILY_MIGRATION,
         reconciliation_status=RECONCILIATION_STATUS_AGREED,
+        confidence_level=CONFIDENCE_LEVEL_HIGH,
         token_mint=SAMPLE_TOKEN_MINT_A,
         source_families=(SOURCE_FAMILY_BIRDEYE, SOURCE_FAMILY_DEXSCREENER),
         contributing_source_count=2,
         disagreeing_source_count=0,
+        disagreement_metric=MappingProxyType({}),
         reason_codes=(),
         evidence=MappingProxyType({}),
     )
@@ -898,10 +900,12 @@ def test_build_source_reconciliation_record_round_trips_with_hash():
     expected = compute_reconciliation_hash(
         measurement_family=reconciliation.measurement_family,
         reconciliation_status=reconciliation.reconciliation_status,
+        confidence_level=reconciliation.confidence_level,
         token_mint=reconciliation.token_mint,
         source_families=reconciliation.source_families,
         contributing_source_count=reconciliation.contributing_source_count,
         disagreeing_source_count=reconciliation.disagreeing_source_count,
+        disagreement_metric=reconciliation.disagreement_metric,
         reason_codes=reconciliation.reason_codes,
         evidence=reconciliation.evidence,
     )
@@ -913,10 +917,12 @@ def test_build_source_reconciliation_record_rejects_unknown_source_family():
         build_source_reconciliation_record(
             measurement_family=MEASUREMENT_FAMILY_MIGRATION,
             reconciliation_status=RECONCILIATION_STATUS_AGREED,
+            confidence_level=CONFIDENCE_LEVEL_HIGH,
             token_mint=SAMPLE_TOKEN_MINT_A,
             source_families=(SOURCE_FAMILY_BIRDEYE, "NOT_REAL"),
             contributing_source_count=2,
             disagreeing_source_count=0,
+            disagreement_metric=MappingProxyType({}),
             reason_codes=(),
             evidence=MappingProxyType({}),
         )

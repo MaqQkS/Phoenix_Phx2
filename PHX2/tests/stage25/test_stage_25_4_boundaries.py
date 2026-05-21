@@ -90,11 +90,19 @@ _STAGE25_4_ADDED_FILENAMES: frozenset[str] = frozenset(
 )
 
 
+_STAGE25_5_ADDED_FILENAMES: frozenset[str] = frozenset(
+    {
+        "source_reconciliation.py",
+    }
+)
+
+
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = (
     _STAGE25_1_PRODUCTION_FILENAMES
     | _STAGE25_2_ADDED_FILENAMES
     | _STAGE25_3_ADDED_FILENAMES
     | _STAGE25_4_ADDED_FILENAMES
+    | _STAGE25_5_ADDED_FILENAMES
 )
 
 
@@ -109,9 +117,9 @@ _STAGE25_4_NEW_MODULES: tuple[str, ...] = (
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
     # Later sub-stages (source reconciler / ATH measurer /
     # runner / artifact writer). Note: ``ath_candidate.py``
-    # graduated into Stage 25.4 and is part of the locked
-    # inventory above, so it is no longer forbidden.
-    "source_reconciliation.py",
+    # graduated into Stage 25.4 and ``source_reconciliation.py``
+    # graduated into Stage 25.5; both are part of the locked
+    # inventory above and are no longer forbidden here.
     "source_reconciler.py",
     "ath_reconciler.py",
     "ath_measurer.py",

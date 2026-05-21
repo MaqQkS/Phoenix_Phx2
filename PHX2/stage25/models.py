@@ -98,8 +98,11 @@ from typing import Mapping, NamedTuple, Optional
 from PHX2.stage25.constants import (
     ATH_CANDIDATE_KIND_INSUFFICIENT_DATA,
     CONFIDENCE_LEVEL_NONE,
+    MEASUREMENT_FAMILY_ATH,
     MEASUREMENT_FAMILY_MIGRATION,
+    MEASUREMENT_STATUS_MEASURED,
     REASON_CODE_PRICE_OBSERVED_ZERO,
+    RECONCILIATION_STATUS_AGREED,
     SOURCE_STATUS_PARTIAL,
     SOURCE_STATUS_PRESENT,
     assert_ath_candidate_kind_in_closed_set,
@@ -458,18 +461,48 @@ class Stage25ATHCandidate(NamedTuple):
 class Stage25ATHMeasurement(NamedTuple):
     """Consolidated ATH measurement (Stage 25.4+ surface).
 
-    Stage 25.1 ships the record shape only.
+    Stage 25.5 promotes the source-reconciliation outcome
+    (``reconciliation_status`` / ``peak_source_family`` /
+    ``reconciled_peak_observed_at_utc`` / ``time_to_peak_seconds``)
+    to first-class fields so downstream consumers do not have to
+    parse ``evidence`` to learn how the consolidated record was
+    derived. ``consolidated_peak_price`` is the canonical name for
+    the reconciled peak price (``reconciled_peak_price_micro_units``
+    in the spec); ``consolidated_peak_block_time`` is the reconciled
+    peak Unix-seconds timestamp.
 
     Closed-set semantics:
 
-      * ``measurement_family`` -- always ``"ATH"``.
-      * ``measurement_status`` -- one of ``MEASUREMENT_STATUSES``.
-      * ``confidence_level``   -- one of ``CONFIDENCE_LEVELS``.
+      * ``measurement_family``    -- always ``"ATH"``.
+      * ``measurement_status``    -- one of ``MEASUREMENT_STATUSES``.
+      * ``confidence_level``      -- one of ``CONFIDENCE_LEVELS``.
+      * ``reconciliation_status`` -- one of ``RECONCILIATION_STATUSES``.
+                                     First-class field added at Stage
+                                     25.5 so downstream consumers do
+                                     not have to parse ``evidence``.
+      * ``peak_source_family``    -- either a member of
+                                     ``SOURCE_FAMILIES`` or the empty
+                                     string. The empty string is
+                                     reserved for unmeasured records.
+
+    Honesty invariants:
+
+      * ``consolidated_peak_price`` (= reconciled peak price) MUST be
+        ``None`` unless ``measurement_status == MEASURED``.
+      * ``reconciled_peak_observed_at_utc`` MUST be the empty string
+        unless ``measurement_status == MEASURED``.
+      * ``peak_source_family`` MUST be the empty string unless
+        ``measurement_status == MEASURED``.
+      * ``time_to_peak_seconds`` is ``Optional[int]``. ``None``
+        honestly records "not computable in Stage 25.5" -- the value
+        depends on a migration measurement that Stage 25.5 does not
+        consume.
     """
 
     measurement_family: str
     measurement_status: str
     confidence_level: str
+    reconciliation_status: str
     token_mint: str
     schema_version: str
     threshold_version: str
@@ -479,6 +512,9 @@ class Stage25ATHMeasurement(NamedTuple):
     consolidated_peak_block_time: int
     consolidated_peak_price: Optional[int]
     quote_denomination: str
+    peak_source_family: str
+    reconciled_peak_observed_at_utc: str
+    time_to_peak_seconds: Optional[int]
     contributing_source_count: int
     reason_codes: tuple[str, ...]
     numeric_features: Mapping[str, object]
@@ -495,20 +531,35 @@ class Stage25ATHMeasurement(NamedTuple):
 class Stage25SourceReconciliation(NamedTuple):
     """Per-measurement source-reconciliation record (Stage 25.4+ surface).
 
-    Stage 25.1 ships the record shape only.
+    Stage 25.5 promotes ``confidence_level`` and
+    ``disagreement_metric`` to first-class fields so downstream
+    consumers can read the per-source agreement summary directly
+    rather than parsing the ``evidence`` mapping. The
+    ``source_families`` tuple is the sorted-unique set of
+    source-family tokens observed among the supplied candidates.
 
     Closed-set semantics:
 
       * ``reconciliation_status`` -- one of ``RECONCILIATION_STATUSES``.
       * ``measurement_family``    -- one of ``MEASUREMENT_FAMILIES``.
+      * ``confidence_level``      -- one of ``CONFIDENCE_LEVELS``.
+
+    Honesty invariants:
+
+      * ``disagreement_metric`` is a frozen mapping carrying integer
+        metrics: ``price_disagreement_ppm`` and
+        ``peak_time_disagreement_seconds``. Both metrics are integer
+        so the canonical-JSON hash stays deterministic.
     """
 
     measurement_family: str
     reconciliation_status: str
+    confidence_level: str
     token_mint: str
     source_families: tuple[str, ...]
     contributing_source_count: int
     disagreeing_source_count: int
+    disagreement_metric: Optional[Mapping[str, object]]
     reason_codes: tuple[str, ...]
     evidence: Mapping[str, object]
     reconciliation_hash: str
@@ -1070,21 +1121,34 @@ def compute_reconciliation_hash(
     *,
     measurement_family: str,
     reconciliation_status: str,
+    confidence_level: str,
     token_mint: str,
     source_families: tuple[str, ...],
     contributing_source_count: int,
     disagreeing_source_count: int,
+    disagreement_metric: Optional[Mapping[str, object]],
     reason_codes: tuple[str, ...],
     evidence: Mapping[str, object],
 ) -> str:
-    """Return the deterministic ``reconciliation_hash`` for a reconciliation."""
+    """Return the deterministic ``reconciliation_hash`` for a reconciliation.
+
+    ``confidence_level`` and ``disagreement_metric`` are bound
+    directly into the canonical body so a reconciliation's hash
+    changes when either field changes alone, even when the rest of
+    the record is identical. ``disagreement_metric`` may be
+    ``None`` -- the canonical body encodes it as ``null`` and the
+    resulting hash is deterministically different from any non-None
+    mapping value.
+    """
     body: dict[str, object] = {
         "measurement_family": measurement_family,
         "reconciliation_status": reconciliation_status,
+        "confidence_level": confidence_level,
         "token_mint": token_mint,
         "source_families": list(source_families),
         "contributing_source_count": contributing_source_count,
         "disagreeing_source_count": disagreeing_source_count,
+        "disagreement_metric": _canonicalize(disagreement_metric),
         "reason_codes": list(reason_codes),
         "evidence": _canonicalize(evidence),
     }
@@ -1543,39 +1607,123 @@ def build_ath_candidate_record(
     )
 
 
+def _require_disagreement_metric_mapping_or_none(value: object) -> None:
+    """Validate ``disagreement_metric``.
+
+    Stage 25.5 contract: ``disagreement_metric`` is either:
+
+      * ``None`` -- the caller asserts the metric is undefined for
+        this reconciliation (e.g. NO_SOURCES, or callers that don't
+        compute spreads); or
+      * a mapping with string keys whose values are strict ``int``
+        or ``None``.
+
+    The validator refuses:
+
+      * a non-mapping non-None input;
+      * non-string keys;
+      * ``bool`` values (Python treats ``True`` / ``False`` as int
+        but they are NOT valid integer metrics);
+      * ``float`` values (the canonical-JSON hash demands integer
+        determinism);
+      * arbitrary object values (str, list, dict, NamedTuple, ...).
+
+    ``None`` map values are accepted so callers can record an
+    explicit "undefined for this key" without using a sentinel
+    integer.
+    """
+    if value is None:
+        return
+    if not isinstance(value, Mapping):
+        raise Stage25ContractError(
+            "disagreement_metric must be a mapping or None"
+        )
+    for key, entry in value.items():
+        if not isinstance(key, str):
+            raise Stage25ContractError(
+                "disagreement_metric keys must be strings; got "
+                f"{type(key).__name__}"
+            )
+        if entry is None:
+            continue
+        if isinstance(entry, bool):
+            raise Stage25ContractError(
+                f"disagreement_metric[{key!r}]: bool is not a valid "
+                "integer metric"
+            )
+        if isinstance(entry, float):
+            raise Stage25ContractError(
+                f"disagreement_metric[{key!r}]: float values are not "
+                "permitted; use an int sentinel for undefined metrics"
+            )
+        if not isinstance(entry, int):
+            raise Stage25ContractError(
+                f"disagreement_metric[{key!r}]: expected int or None, "
+                f"got {type(entry).__name__}"
+            )
+
+
 def build_source_reconciliation_record(
     *,
     measurement_family: str,
     reconciliation_status: str,
+    confidence_level: str,
     token_mint: str,
     source_families: tuple[str, ...],
     contributing_source_count: int,
     disagreeing_source_count: int,
+    disagreement_metric: Optional[Mapping[str, object]],
     reason_codes: tuple[str, ...],
     evidence: Mapping[str, object],
 ) -> Stage25SourceReconciliation:
     """Construct a ``Stage25SourceReconciliation`` record with closed-set validation.
 
-    Stage 25.1 contract surface: this helper is a pure record
-    validator. It does NOT compare source observations, compute
-    agreement, or reconcile disagreement -- callers supply
-    already-resolved status / counts and this function only
+    Pure record validator: callers supply already-resolved status /
+    confidence / disagreement metric / counts and this function only
     validates the shape + closed-set tokens and computes the
-    canonical record hash.
+    canonical record hash. The Stage 25.5 reconciler in
+    ``source_reconciliation.py`` is the canonical caller; tests may
+    also invoke this builder directly with hand-built inputs.
+
+    Stage 25.5 first-class field contract:
+
+      * ``confidence_level`` is validated against
+        ``CONFIDENCE_LEVELS``; ``NONE`` is permitted and is the
+        canonical level for ``NO_SOURCES`` / ``AMBIGUOUS`` /
+        ``DISAGREED_MAJOR`` reconciliations.
+      * ``disagreement_metric`` may be ``None`` (the metric is
+        undefined for this reconciliation) or a mapping with string
+        keys and strict ``int`` / ``None`` values. The validator
+        refuses ``bool`` / ``float`` / arbitrary-object map values
+        so the canonical-JSON hash stays deterministic. ``None``
+        vs. a mapping produces distinct reconciliation hashes.
     """
     _require_measurement_family(measurement_family)
     _require_reconciliation_status(reconciliation_status)
+    _require_confidence_level(confidence_level)
     _require_non_empty_string("token_mint", token_mint)
     if not isinstance(source_families, tuple):
         raise Stage25ContractError(
             "source_families must be a tuple"
         )
+    seen_source_families: list[str] = []
     for entry in source_families:
         if not isinstance(entry, str) or entry == "":
             raise Stage25ContractError(
                 "each source_families item must be a non-empty string"
             )
         _require_source_family(entry)
+        if seen_source_families and entry == seen_source_families[-1]:
+            raise Stage25ContractError(
+                "source_families must be unique; duplicate entry "
+                f"{entry!r}"
+            )
+        if seen_source_families and entry < seen_source_families[-1]:
+            raise Stage25ContractError(
+                "source_families must be sorted lexicographically; "
+                f"{entry!r} follows {seen_source_families[-1]!r}"
+            )
+        seen_source_families.append(entry)
     _require_strict_non_negative_int(
         field_name="contributing_source_count",
         value=contributing_source_count,
@@ -1584,28 +1732,296 @@ def build_source_reconciliation_record(
         field_name="disagreeing_source_count",
         value=disagreeing_source_count,
     )
+    _require_disagreement_metric_mapping_or_none(disagreement_metric)
     _require_tuple_of_strings("reason_codes", reason_codes)
     _require_mapping("evidence", evidence)
     reconciliation_hash = compute_reconciliation_hash(
         measurement_family=measurement_family,
         reconciliation_status=reconciliation_status,
+        confidence_level=confidence_level,
         token_mint=token_mint,
         source_families=source_families,
         contributing_source_count=contributing_source_count,
         disagreeing_source_count=disagreeing_source_count,
+        disagreement_metric=disagreement_metric,
         reason_codes=reason_codes,
         evidence=evidence,
     )
     return Stage25SourceReconciliation(
         measurement_family=measurement_family,
         reconciliation_status=reconciliation_status,
+        confidence_level=confidence_level,
         token_mint=token_mint,
         source_families=source_families,
         contributing_source_count=contributing_source_count,
         disagreeing_source_count=disagreeing_source_count,
+        disagreement_metric=disagreement_metric,
         reason_codes=reason_codes,
         evidence=evidence,
         reconciliation_hash=reconciliation_hash,
+    )
+
+
+def _require_peak_source_family_or_empty(value: object) -> None:
+    """Validate ``peak_source_family``.
+
+    Accepts either the empty string (reserved for unmeasured records)
+    or a member of ``SOURCE_FAMILIES``. Any other value raises
+    ``Stage25ContractError``.
+    """
+    if not isinstance(value, str):
+        raise Stage25ContractError(
+            "peak_source_family must be a string"
+        )
+    if value == "":
+        return
+    _require_source_family(value)
+
+
+def _require_optional_time_to_peak_seconds(value: object) -> None:
+    """Validate ``time_to_peak_seconds``.
+
+    Accepts either ``None`` (Stage 25.5 default -- not computable
+    without a migration measurement) or a non-negative ``int``
+    (``bool`` rejected).
+    """
+    if value is None:
+        return
+    if isinstance(value, bool):
+        raise Stage25ContractError(
+            "time_to_peak_seconds: bool is not a valid int"
+        )
+    if not isinstance(value, int):
+        raise Stage25ContractError(
+            "time_to_peak_seconds: expected int or None, got "
+            f"{type(value).__name__}"
+        )
+    if value < 0:
+        raise Stage25ContractError(
+            "time_to_peak_seconds: must be >= 0 or None"
+        )
+
+
+def build_ath_measurement_record(
+    *,
+    measurement_status: str,
+    confidence_level: str,
+    reconciliation_status: str,
+    token_mint: str,
+    schema_version: str,
+    threshold_version: str,
+    measurer_name: str,
+    measurer_version: str,
+    consolidated_peak_slot: int,
+    consolidated_peak_block_time: int,
+    consolidated_peak_price: Optional[int],
+    quote_denomination: str,
+    peak_source_family: str,
+    reconciled_peak_observed_at_utc: str,
+    time_to_peak_seconds: Optional[int],
+    contributing_source_count: int,
+    reason_codes: tuple[str, ...],
+    numeric_features: Mapping[str, object],
+    evidence: Mapping[str, object],
+    input_missing_fields: tuple[str, ...],
+) -> Stage25ATHMeasurement:
+    """Construct a ``Stage25ATHMeasurement`` with closed-set validation.
+
+    Stage 25.5 surface: this helper is the validated single point of
+    construction for ATH measurement records. ``measurement_family``
+    is locked to ``MEASUREMENT_FAMILY_ATH`` -- callers do NOT supply
+    it. Closed-set tokens (``measurement_status`` /
+    ``confidence_level`` / ``reconciliation_status``) are validated
+    against ``MEASUREMENT_STATUSES`` / ``CONFIDENCE_LEVELS`` /
+    ``RECONCILIATION_STATUSES``. ``peak_source_family`` must be the
+    empty string (unmeasured) or a member of ``SOURCE_FAMILIES``.
+
+    Slot / block-time fields use the ``-1`` sentinel for "absent"; the
+    helper validates them with
+    ``_require_non_negative_int_or_minus_one_sentinel`` so the
+    canonical-JSON hash contract stays deterministic for unmeasured
+    records.
+
+    Status-conditional invariants enforced here:
+
+      * ``measurement_status == MEASURED`` requires:
+          - a non-empty ``peak_source_family`` from
+            ``SOURCE_FAMILIES``;
+          - a non-empty ``reconciled_peak_observed_at_utc``;
+          - a non-``None`` ``consolidated_peak_price``;
+          - a ``reconciliation_status`` of ``AGREED`` (Stage 25.5
+            never emits ``MEASURED`` for any other reconciliation).
+      * Any other ``measurement_status`` requires:
+          - an empty ``peak_source_family``;
+          - an empty ``reconciled_peak_observed_at_utc``;
+          - a ``None`` ``consolidated_peak_price``.
+
+    The measurement hash binds every first-class body field via
+    ``compute_measurement_hash`` so two distinct measurement bodies
+    never collide on one hash.
+    """
+    _require_measurement_status(measurement_status)
+    _require_confidence_level(confidence_level)
+    _require_reconciliation_status(reconciliation_status)
+    _require_non_empty_string("token_mint", token_mint)
+    _require_non_empty_string("schema_version", schema_version)
+    _require_non_empty_string("threshold_version", threshold_version)
+    _require_non_empty_string("measurer_name", measurer_name)
+    _require_non_empty_string("measurer_version", measurer_version)
+    _require_non_negative_int_or_minus_one_sentinel(
+        field_name="consolidated_peak_slot",
+        value=consolidated_peak_slot,
+    )
+    _require_non_negative_int_or_minus_one_sentinel(
+        field_name="consolidated_peak_block_time",
+        value=consolidated_peak_block_time,
+    )
+    _require_optional_non_negative_int(
+        field_name="consolidated_peak_price",
+        value=consolidated_peak_price,
+    )
+    _require_quote_denomination(quote_denomination)
+    _require_peak_source_family_or_empty(peak_source_family)
+    _require_string(
+        "reconciled_peak_observed_at_utc",
+        reconciled_peak_observed_at_utc,
+    )
+    _require_optional_time_to_peak_seconds(time_to_peak_seconds)
+    _require_strict_non_negative_int(
+        field_name="contributing_source_count",
+        value=contributing_source_count,
+    )
+    _require_tuple_of_strings("reason_codes", reason_codes)
+    _require_mapping("numeric_features", numeric_features)
+    _require_mapping("evidence", evidence)
+    if not isinstance(input_missing_fields, tuple):
+        raise Stage25ContractError(
+            "input_missing_fields must be a tuple"
+        )
+    _require_tuple_of_strings("input_missing_fields", input_missing_fields)
+    _require_price_zero_has_explicit_reason(
+        price=consolidated_peak_price, reason_codes=reason_codes
+    )
+
+    if measurement_status == MEASUREMENT_STATUS_MEASURED:
+        if reconciliation_status != RECONCILIATION_STATUS_AGREED:
+            raise Stage25ContractError(
+                "MEASURED ATH measurement requires "
+                "reconciliation_status == AGREED; got "
+                f"{reconciliation_status!r}"
+            )
+        if contributing_source_count < 2:
+            raise Stage25ContractError(
+                "MEASURED ATH measurement requires "
+                "contributing_source_count >= 2; got "
+                f"{contributing_source_count!r}"
+            )
+        if peak_source_family == "":
+            raise Stage25ContractError(
+                "MEASURED ATH measurement requires a non-empty "
+                "peak_source_family from SOURCE_FAMILIES"
+            )
+        if reconciled_peak_observed_at_utc == "":
+            raise Stage25ContractError(
+                "MEASURED ATH measurement requires a non-empty "
+                "reconciled_peak_observed_at_utc"
+            )
+        if consolidated_peak_price is None:
+            raise Stage25ContractError(
+                "MEASURED ATH measurement requires a non-None "
+                "consolidated_peak_price"
+            )
+        if consolidated_peak_slot < 0:
+            raise Stage25ContractError(
+                "MEASURED ATH measurement requires a non-negative "
+                "consolidated_peak_slot; the -1 absent sentinel is "
+                "reserved for unmeasured records"
+            )
+        if consolidated_peak_block_time < 0:
+            raise Stage25ContractError(
+                "MEASURED ATH measurement requires a non-negative "
+                "consolidated_peak_block_time; the -1 absent sentinel is "
+                "reserved for unmeasured records"
+            )
+    else:
+        if peak_source_family != "":
+            raise Stage25ContractError(
+                "non-MEASURED ATH measurement must carry an empty "
+                "peak_source_family"
+            )
+        if reconciled_peak_observed_at_utc != "":
+            raise Stage25ContractError(
+                "non-MEASURED ATH measurement must carry an empty "
+                "reconciled_peak_observed_at_utc"
+            )
+        if consolidated_peak_price is not None:
+            raise Stage25ContractError(
+                "non-MEASURED ATH measurement must carry a None "
+                "consolidated_peak_price"
+            )
+        if consolidated_peak_slot != -1:
+            raise Stage25ContractError(
+                "non-MEASURED ATH measurement must carry the -1 "
+                "absent sentinel for consolidated_peak_slot; got "
+                f"{consolidated_peak_slot!r}"
+            )
+        if consolidated_peak_block_time != -1:
+            raise Stage25ContractError(
+                "non-MEASURED ATH measurement must carry the -1 "
+                "absent sentinel for consolidated_peak_block_time; "
+                f"got {consolidated_peak_block_time!r}"
+            )
+
+    measurement_hash = compute_measurement_hash(
+        measurement_family=MEASUREMENT_FAMILY_ATH,
+        measurement_status=measurement_status,
+        confidence_level=confidence_level,
+        token_mint=token_mint,
+        schema_version=schema_version,
+        threshold_version=threshold_version,
+        measurer_name=measurer_name,
+        measurer_version=measurer_version,
+        extra={
+            "reconciliation_status": reconciliation_status,
+            "consolidated_peak_slot": consolidated_peak_slot,
+            "consolidated_peak_block_time": consolidated_peak_block_time,
+            "consolidated_peak_price": consolidated_peak_price,
+            "quote_denomination": quote_denomination,
+            "peak_source_family": peak_source_family,
+            "reconciled_peak_observed_at_utc": (
+                reconciled_peak_observed_at_utc
+            ),
+            "time_to_peak_seconds": time_to_peak_seconds,
+            "contributing_source_count": contributing_source_count,
+            "reason_codes": list(reason_codes),
+            "numeric_features": numeric_features,
+            "evidence": evidence,
+            "input_missing_fields": list(input_missing_fields),
+        },
+    )
+    return Stage25ATHMeasurement(
+        measurement_family=MEASUREMENT_FAMILY_ATH,
+        measurement_status=measurement_status,
+        confidence_level=confidence_level,
+        reconciliation_status=reconciliation_status,
+        token_mint=token_mint,
+        schema_version=schema_version,
+        threshold_version=threshold_version,
+        measurer_name=measurer_name,
+        measurer_version=measurer_version,
+        consolidated_peak_slot=consolidated_peak_slot,
+        consolidated_peak_block_time=consolidated_peak_block_time,
+        consolidated_peak_price=consolidated_peak_price,
+        quote_denomination=quote_denomination,
+        peak_source_family=peak_source_family,
+        reconciled_peak_observed_at_utc=reconciled_peak_observed_at_utc,
+        time_to_peak_seconds=time_to_peak_seconds,
+        contributing_source_count=contributing_source_count,
+        reason_codes=reason_codes,
+        numeric_features=numeric_features,
+        evidence=evidence,
+        input_missing_fields=input_missing_fields,
+        measurement_hash=measurement_hash,
     )
 
 
@@ -1781,6 +2197,7 @@ __all__ = [
     "Stage25SourceReconciliation",
     "Stage25UnifiedMeasurement",
     "build_ath_candidate_record",
+    "build_ath_measurement_record",
     "build_measurement_input",
     "build_measurement_rejection",
     "build_migration_measurement_record",
