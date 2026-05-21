@@ -88,6 +88,9 @@ from typing import NamedTuple, Optional
 from PHX2.stage25.constants import (
     OBSERVE_ONLY_MODE,
     REDACTION_CONFIRMED_TOKEN,
+    SELF_REFERENTIAL_MANIFEST_BYTE_COUNT,
+    SELF_REFERENTIAL_MANIFEST_ROW_COUNT,
+    SELF_REFERENTIAL_MANIFEST_SHA256,
     STAGE_NAME,
     STAGE_VERSION,
     STAGE25_FORBIDDEN_INPUT_FIELD_SUBSTRINGS,
@@ -113,15 +116,17 @@ from PHX2.stage25.models import canonical_json
 # the bytes (the classic self-referential hash problem). The Stage
 # 25.6 convention: the self-entry carries the locked sentinel string
 # ``SELF_REFERENTIAL_MANIFEST_SHA256`` in the ``sha256`` field and
-# ``-1`` in the ``byte_count`` field; downstream readers detect the
-# sentinel and skip the bytes-equal verification for the manifest
-# self-entry. The sentinel is intentionally a non-hex string so it
-# can never be confused with a real digest.
-
-
-SELF_REFERENTIAL_MANIFEST_SHA256: str = "SELF_REFERENTIAL_MANIFEST_SHA256"
-SELF_REFERENTIAL_MANIFEST_BYTE_COUNT: int = -1
-SELF_REFERENTIAL_MANIFEST_ROW_COUNT: int = -1
+# ``-1`` in both the ``byte_count`` and ``row_count`` fields;
+# downstream readers detect the sentinel and skip the bytes-equal
+# verification for the manifest self-entry. The sentinel is
+# intentionally a non-hex string so it can never be confused with a
+# real digest.
+#
+# The three sentinel constants are defined in
+# ``PHX2/stage25/constants.py`` (the canonical Stage 25 schema /
+# vocabulary surface) and re-exported verbatim here for backward
+# compatibility with existing Stage 25.6 callers that import them
+# from this module.
 
 
 # ---------------------------------------------------------------------------

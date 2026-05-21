@@ -1213,6 +1213,38 @@ STAGE25_ARTIFACT_FILENAMES: tuple[str, ...] = (
 STAGE25_EMITS_SOURCE_COVERAGE_CSV: bool = False
 
 
+# ---------------------------------------------------------------------------
+# Self-referential manifest sentinels
+# ---------------------------------------------------------------------------
+#
+# The Stage 25 artifact manifest includes ``stage25_manifest.json`` as
+# one of its own file entries (see ``build_artifact_manifest`` in
+# ``PHX2/stage25/stage25_manifest.py``). The manifest's recorded
+# ``sha256`` cannot be the real hash of its bytes because writing the
+# recorded hash back into the manifest changes the bytes (the classic
+# self-referential hash problem). The Stage 25.6 convention: the
+# self-entry carries the locked sentinel string
+# ``SELF_REFERENTIAL_MANIFEST_SHA256`` in the ``sha256`` field and
+# ``-1`` in both the ``byte_count`` and ``row_count`` fields;
+# downstream readers detect the sentinel and skip the bytes-equal
+# verification for the manifest self-entry. The sentinel is
+# intentionally a non-hex string so it can never be confused with a
+# real digest.
+#
+# The sentinels are defined here in ``constants.py`` so downstream
+# Stage 25 artifact consumers (Stage 26 calibration input readers,
+# etc.) can detect the self-entry convention via the locked Stage 25
+# schema/vocabulary surface without importing the Stage 25 manifest
+# writer module. ``PHX2/stage25/stage25_manifest.py`` re-exports the
+# three names verbatim for backward compatibility with existing
+# Stage 25.6 callers.
+
+
+SELF_REFERENTIAL_MANIFEST_SHA256: str = "SELF_REFERENTIAL_MANIFEST_SHA256"
+SELF_REFERENTIAL_MANIFEST_BYTE_COUNT: int = -1
+SELF_REFERENTIAL_MANIFEST_ROW_COUNT: int = -1
+
+
 __all__ = [
     "ATH_CANDIDATE_KINDS",
     "ATH_CANDIDATE_KIND_COMBINED_PEAK",
@@ -1347,6 +1379,9 @@ __all__ = [
     "REJECTION_REASON_UNKNOWN_INPUT_KIND",
     "REJECTION_REASON_UNKNOWN_SOURCE_FAMILY",
     "REJECTION_REASON_ZERO_PRICE_WITHOUT_EXPLICIT_OBSERVED_ZERO",
+    "SELF_REFERENTIAL_MANIFEST_BYTE_COUNT",
+    "SELF_REFERENTIAL_MANIFEST_ROW_COUNT",
+    "SELF_REFERENTIAL_MANIFEST_SHA256",
     "SOURCE_FAMILIES",
     "SOURCE_FAMILY_BIRDEYE",
     "SOURCE_FAMILY_DEXSCREENER",
