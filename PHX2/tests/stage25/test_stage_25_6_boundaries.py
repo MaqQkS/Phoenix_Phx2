@@ -121,9 +121,11 @@ _STAGE25_6_NEW_MODULES: tuple[str, ...] = (
 
 
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
-    # Closure-audit / handoff docs are a Stage 25.7 concern.
-    "STAGE_25_CLOSURE_AUDIT.md",
-    "STAGE_26_HANDOFF.md",
+    # Stage 25.7 closure docs (``STAGE_25_CLOSURE_AUDIT.md`` and
+    # ``STAGE_26_HANDOFF.md``) graduated into the Stage 25 production
+    # tree in Stage 25.7 and are no longer forbidden here. They are
+    # ``.md`` files; the production-tree inventory check filters on
+    # ``.py`` suffix so they don't appear there.
     # Forbidden Stage 26 / 27 / non-Stage-25 production filenames.
     "stage25_runner.py",
     "evaluations_writer.py",
