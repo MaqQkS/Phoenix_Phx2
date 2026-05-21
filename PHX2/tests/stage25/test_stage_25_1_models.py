@@ -145,10 +145,117 @@ def test_price_window_observation_is_a_namedtuple():
     assert issubclass(Stage25PriceWindowObservation, tuple)
 
 
+def test_price_window_observation_fields_include_source_status():
+    """``source_status`` must be a first-class field on the window
+    observation so non-PRESENT statuses (``PARTIAL``, ``AMBIGUOUS``,
+    ``ABSENT``, ...) survive projection from
+    ``Stage25PriceObservation`` verbatim.
+    """
+    assert "source_status" in Stage25PriceWindowObservation._fields
+
+
+def test_price_window_observation_fields_match_locked_order():
+    """Lock the field order of ``Stage25PriceWindowObservation``.
+
+    The hash projection relies on the canonical body shape, but
+    downstream consumers also pin field positions (positional
+    construction, ``namedtuple._asdict`` ordering). This test pins
+    the exact order so a future reorder is caught explicitly.
+    """
+    assert Stage25PriceWindowObservation._fields == (
+        "token_mint",
+        "source_family",
+        "source_status",
+        "window_kind",
+        "observed_at_utc",
+        "slot",
+        "block_time",
+        "price",
+        "quote_denomination",
+        "reason_codes",
+        "evidence",
+        "observation_hash",
+    )
+
+
 def test_price_observation_is_immutable():
     record = make_price_observation()
     with pytest.raises(AttributeError):
         record.price = 999  # type: ignore[misc]
+
+
+def test_price_window_record_helper_rejects_unknown_source_status():
+    """``build_price_window_observation_record`` must validate
+    ``source_status`` against the Stage 25 closed set.
+    """
+    from PHX2.stage25.constants import (
+        PRICE_WINDOW_KIND_POST_MIGRATION_PRIMARY,
+        QUOTE_DENOMINATION_USD_MICRO,
+        SOURCE_FAMILY_BIRDEYE,
+    )
+    from PHX2.stage25.models import build_price_window_observation_record
+    from PHX2.tests.stage25.fixtures.builders import (
+        FIXED_CLOCK_UTC,
+        SAMPLE_TOKEN_MINT_A,
+    )
+
+    with pytest.raises(Stage25ContractError):
+        build_price_window_observation_record(
+            token_mint=SAMPLE_TOKEN_MINT_A,
+            source_family=SOURCE_FAMILY_BIRDEYE,
+            source_status="NOT_A_REAL_STATUS",
+            window_kind=PRICE_WINDOW_KIND_POST_MIGRATION_PRIMARY,
+            observed_at_utc=FIXED_CLOCK_UTC,
+            slot=1,
+            block_time=2,
+            price=1,
+            quote_denomination=QUOTE_DENOMINATION_USD_MICRO,
+            reason_codes=(),
+            evidence={},
+        )
+
+
+def test_price_window_record_hash_changes_when_only_source_status_changes():
+    """Two window records identical on every field except
+    ``source_status`` must hash differently. Pins the binding of
+    ``source_status`` into the canonical hash body.
+    """
+    from PHX2.stage25.constants import (
+        PRICE_WINDOW_KIND_POST_MIGRATION_PRIMARY,
+        QUOTE_DENOMINATION_USD_MICRO,
+        SOURCE_FAMILY_BIRDEYE,
+        SOURCE_STATUS_PARTIAL,
+        SOURCE_STATUS_PRESENT,
+    )
+    from PHX2.stage25.models import build_price_window_observation_record
+    from PHX2.tests.stage25.fixtures.builders import (
+        FIXED_CLOCK_UTC,
+        SAMPLE_TOKEN_MINT_A,
+    )
+
+    kwargs = dict(
+        token_mint=SAMPLE_TOKEN_MINT_A,
+        source_family=SOURCE_FAMILY_BIRDEYE,
+        window_kind=PRICE_WINDOW_KIND_POST_MIGRATION_PRIMARY,
+        observed_at_utc=FIXED_CLOCK_UTC,
+        slot=1,
+        block_time=2,
+        price=1,
+        quote_denomination=QUOTE_DENOMINATION_USD_MICRO,
+        reason_codes=(),
+        evidence={},
+    )
+    record_present = build_price_window_observation_record(
+        source_status=SOURCE_STATUS_PRESENT, **kwargs
+    )
+    record_partial = build_price_window_observation_record(
+        source_status=SOURCE_STATUS_PARTIAL, **kwargs
+    )
+    assert record_present.source_status != record_partial.source_status
+    assert (
+        record_present.observation_hash
+        != record_partial.observation_hash
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -74,8 +74,18 @@ _STAGE25_2_ADDED_FILENAMES: frozenset[str] = frozenset(
 )
 
 
+_STAGE25_3_ADDED_FILENAMES: frozenset[str] = frozenset(
+    {
+        "price_observation.py",
+        "price_window.py",
+    }
+)
+
+
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = (
-    _STAGE25_1_PRODUCTION_FILENAMES | _STAGE25_2_ADDED_FILENAMES
+    _STAGE25_1_PRODUCTION_FILENAMES
+    | _STAGE25_2_ADDED_FILENAMES
+    | _STAGE25_3_ADDED_FILENAMES
 )
 
 
@@ -89,10 +99,10 @@ _STAGE25_2_NEW_MODULES: tuple[str, ...] = (
 
 
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
-    # Later sub-stages (price projector / ATH candidate builder /
-    # source reconciler / runner / artifact writer).
-    "price_observation.py",
-    "price_window.py",
+    # Later sub-stages (ATH candidate builder / source reconciler /
+    # runner / artifact writer). Note: ``price_observation.py`` and
+    # ``price_window.py`` graduated into Stage 25.3 and are now part
+    # of the locked inventory above, so they are no longer forbidden.
     "price_projector.py",
     "ath_candidate.py",
     "ath_reconciler.py",

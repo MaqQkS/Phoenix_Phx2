@@ -330,18 +330,34 @@ class Stage25MigrationMeasurement(NamedTuple):
 class Stage25PriceWindowObservation(NamedTuple):
     """Window-classified price observation (Stage 25.3+ surface).
 
-    A future Stage 25.3+ projector takes a ``Stage25PriceObservation``
-    plus a ``Stage25MigrationMeasurement`` and emits a window-
-    classified record assigning the observation to a price window.
-    Stage 25.1 ships the record shape only.
+    The Stage 25.3 projector takes a ``Stage25PriceObservation`` plus
+    a ``Stage25MigrationMeasurement`` and emits a window-classified
+    record assigning the observation to a price window. Stage 25.1
+    ships the record shape only.
 
     Closed-set semantics:
 
-      * ``window_kind`` -- one of ``PRICE_WINDOW_KINDS``.
+      * ``source_family`` -- one of ``SOURCE_FAMILIES``.
+      * ``source_status`` -- one of ``SOURCE_STATUSES``. Preserved
+                             verbatim from the upstream
+                             ``Stage25PriceObservation`` so a
+                             non-PRESENT status survives the
+                             window-classification step.
+      * ``window_kind``   -- one of ``PRICE_WINDOW_KINDS``.
+
+    Honesty rules:
+
+      * ``price`` is ``Optional[int]``. ``None`` honestly records
+        "no price observed" and is reserved for non-PRESENT
+        ``source_status`` values; the record validator refuses
+        ``None`` when ``source_status`` is ``PRESENT``.
+      * ``price = 0`` is only legal with the explicit
+        ``PRICE_OBSERVED_ZERO`` reason code.
     """
 
     token_mint: str
     source_family: str
+    source_status: str
     window_kind: str
     observed_at_utc: str
     slot: int
@@ -879,6 +895,47 @@ def compute_price_observation_hash_from_projection(
     return stage25_hash(body)
 
 
+def compute_price_window_observation_hash_from_projection(
+    *,
+    token_mint: str,
+    source_family: str,
+    source_status: str,
+    window_kind: str,
+    observed_at_utc: str,
+    slot: int,
+    block_time: int,
+    price: Optional[int],
+    quote_denomination: str,
+    reason_codes: tuple[str, ...],
+    evidence: Mapping[str, object],
+) -> str:
+    """Compute a price-window observation hash from a projection.
+
+    The Stage 25.3 ``build_price_window_observation_record`` helper
+    uses this routine to derive the deterministic
+    ``observation_hash`` for a ``Stage25PriceWindowObservation``. The
+    canonical body carries an ``observation_kind`` discriminator
+    distinct from the ``PRICE`` / ``MIGRATION`` bodies so two records
+    with the same field values but different observation_kind never
+    collide on a single hash.
+    """
+    body: dict[str, object] = {
+        "observation_kind": "PRICE_WINDOW",
+        "token_mint": token_mint,
+        "source_family": source_family,
+        "source_status": source_status,
+        "window_kind": window_kind,
+        "observed_at_utc": observed_at_utc,
+        "slot": slot,
+        "block_time": block_time,
+        "price": price,
+        "quote_denomination": quote_denomination,
+        "reason_codes": list(reason_codes),
+        "evidence": _canonicalize(evidence),
+    }
+    return stage25_hash(body)
+
+
 # ---------------------------------------------------------------------------
 # Measurement / candidate / reconciliation hash builders
 # ---------------------------------------------------------------------------
@@ -1155,6 +1212,98 @@ def build_price_observation(
         reason_codes=reason_codes,
         evidence=evidence,
         input_missing_fields=input_missing_fields,
+        observation_hash=observation_hash,
+    )
+
+
+def build_price_window_observation_record(
+    *,
+    token_mint: str,
+    source_family: str,
+    source_status: str,
+    window_kind: str,
+    observed_at_utc: str,
+    slot: int,
+    block_time: int,
+    price: Optional[int],
+    quote_denomination: str,
+    reason_codes: tuple[str, ...],
+    evidence: Mapping[str, object],
+) -> Stage25PriceWindowObservation:
+    """Construct a ``Stage25PriceWindowObservation`` with closed-set validation.
+
+    Stage 25.3 surface: this helper is the validated single point of
+    construction for price-window observation records. Closed-set
+    tokens (``source_family`` / ``source_status`` / ``window_kind`` /
+    ``quote_denomination``) are validated against their Stage 25
+    closed sets. Slot / block_time fields use the ``-1`` sentinel
+    for "absent"; the validator accepts the sentinel so an
+    observation with an absent slot / block_time still produces a
+    deterministic-hash window record.
+
+    Honesty invariants enforced here:
+
+      * ``price`` must be ``None`` or a non-negative ``int`` (bool
+        rejected, negative rejected, NaN / Infinity rejected upstream
+        by canonicalization).
+      * ``price = 0`` requires the explicit ``PRICE_OBSERVED_ZERO``
+        reason code on the ``reason_codes`` tuple.
+      * ``price = None`` is reserved for non-PRESENT
+        ``source_status`` values; ``PRESENT`` requires a
+        non-None ``price``.
+
+    The observation hash binds the discriminator
+    ``observation_kind="PRICE_WINDOW"`` plus every body field so two
+    distinct window observations never collide on one hash.
+    """
+    _require_non_empty_string("token_mint", token_mint)
+    _require_source_family(source_family)
+    _require_source_status(source_status)
+    _require_price_window_kind(window_kind)
+    _require_string("observed_at_utc", observed_at_utc)
+    _require_non_negative_int_or_minus_one_sentinel(
+        field_name="slot", value=slot
+    )
+    _require_non_negative_int_or_minus_one_sentinel(
+        field_name="block_time", value=block_time
+    )
+    _require_optional_non_negative_int(field_name="price", value=price)
+    _require_quote_denomination(quote_denomination)
+    _require_tuple_of_strings("reason_codes", reason_codes)
+    _require_mapping("evidence", evidence)
+    _require_present_status_has_observed_price(
+        source_status=source_status, price=price
+    )
+    _require_price_zero_has_explicit_reason(
+        price=price, reason_codes=reason_codes
+    )
+    observation_hash = (
+        compute_price_window_observation_hash_from_projection(
+            token_mint=token_mint,
+            source_family=source_family,
+            source_status=source_status,
+            window_kind=window_kind,
+            observed_at_utc=observed_at_utc,
+            slot=slot,
+            block_time=block_time,
+            price=price,
+            quote_denomination=quote_denomination,
+            reason_codes=reason_codes,
+            evidence=evidence,
+        )
+    )
+    return Stage25PriceWindowObservation(
+        token_mint=token_mint,
+        source_family=source_family,
+        source_status=source_status,
+        window_kind=window_kind,
+        observed_at_utc=observed_at_utc,
+        slot=slot,
+        block_time=block_time,
+        price=price,
+        quote_denomination=quote_denomination,
+        reason_codes=reason_codes,
+        evidence=evidence,
         observation_hash=observation_hash,
     )
 
@@ -1539,6 +1688,7 @@ __all__ = [
     "build_migration_measurement_record",
     "build_migration_observation",
     "build_price_observation",
+    "build_price_window_observation_record",
     "build_source_reconciliation_record",
     "canonical_json",
     "compute_candidate_hash",
@@ -1546,6 +1696,7 @@ __all__ = [
     "compute_migration_observation_hash_from_projection",
     "compute_observation_hash",
     "compute_price_observation_hash_from_projection",
+    "compute_price_window_observation_hash_from_projection",
     "compute_reconciliation_hash",
     "stage25_hash",
 ]

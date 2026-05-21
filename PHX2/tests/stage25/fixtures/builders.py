@@ -18,17 +18,28 @@ from types import MappingProxyType
 from typing import Mapping, Optional
 
 from PHX2.stage25.constants import (
+    CONFIDENCE_LEVEL_HIGH,
+    CONFIDENCE_LEVEL_NONE,
+    DEFAULT_SCHEMA_VERSION,
+    DEFAULT_THRESHOLD_VERSION,
     INPUT_KIND_SYNTHETIC_MIGRATION_OBSERVATIONS_JSONL,
     INPUT_KIND_SYNTHETIC_PRICE_OBSERVATIONS_JSONL,
+    MEASUREMENT_STATUS_MEASURED,
     QUOTE_DENOMINATION_USD_MICRO,
+    RECONCILIATION_STATUS_AGREED,
+    RECONCILIATION_STATUS_NO_SOURCES,
     SOURCE_FAMILY_BIRDEYE,
     SOURCE_FAMILY_DEXSCREENER,
     SOURCE_FAMILY_ON_CHAIN_SWAP_REPLAY,
     SOURCE_STATUS_PRESENT,
+    STAGE25_MIGRATION_MEASURER_NAME,
+    STAGE25_MIGRATION_MEASURER_VERSION,
 )
 from PHX2.stage25.models import (
+    Stage25MigrationMeasurement,
     Stage25MigrationObservation,
     Stage25PriceObservation,
+    build_migration_measurement_record,
     build_migration_observation,
     build_price_observation,
 )
@@ -266,15 +277,92 @@ def make_price_row_with_url_value() -> dict[str, object]:
     )
 
 
+# ---------------------------------------------------------------------------
+# Migration measurement builders (Stage 25.3 fixtures)
+# ---------------------------------------------------------------------------
+
+
+SAMPLE_MIGRATION_BLOCK_TIME: int = 1_750_000_000
+SAMPLE_MIGRATION_SLOT: int = 251_000_000
+
+
+def make_measured_migration_measurement(
+    *,
+    token_mint: str = SAMPLE_TOKEN_MINT_A,
+    consolidated_slot: int = SAMPLE_MIGRATION_SLOT,
+    consolidated_block_time: int = SAMPLE_MIGRATION_BLOCK_TIME,
+    reconciled_signature: str = SAMPLE_MIGRATION_SIG,
+    selected_source_family: str = SOURCE_FAMILY_BIRDEYE,
+    contributing_source_count: int = 2,
+) -> Stage25MigrationMeasurement:
+    """Build a synthetic MEASURED migration measurement with safe defaults."""
+    return build_migration_measurement_record(
+        measurement_status=MEASUREMENT_STATUS_MEASURED,
+        confidence_level=CONFIDENCE_LEVEL_HIGH,
+        reconciliation_status=RECONCILIATION_STATUS_AGREED,
+        token_mint=token_mint,
+        schema_version=DEFAULT_SCHEMA_VERSION,
+        threshold_version=DEFAULT_THRESHOLD_VERSION,
+        measurer_name=STAGE25_MIGRATION_MEASURER_NAME,
+        measurer_version=STAGE25_MIGRATION_MEASURER_VERSION,
+        consolidated_slot=consolidated_slot,
+        consolidated_block_time=consolidated_block_time,
+        reconciled_signature=reconciled_signature,
+        selected_source_family=selected_source_family,
+        contributing_source_count=contributing_source_count,
+        reason_codes=(),
+        numeric_features=_frozen_empty_mapping(),
+        evidence=_frozen_empty_mapping(),
+        input_missing_fields=(),
+    )
+
+
+def make_unmeasured_migration_measurement(
+    *,
+    token_mint: str = SAMPLE_TOKEN_MINT_A,
+    measurement_status: str,
+    reconciliation_status: str = RECONCILIATION_STATUS_NO_SOURCES,
+    reason_codes: tuple[str, ...] = (),
+) -> Stage25MigrationMeasurement:
+    """Build a synthetic unmeasured migration measurement.
+
+    The default reconciliation_status is ``NO_SOURCES``; callers
+    supplying an ``AMBIGUOUS`` measurement_status should also pass
+    ``reconciliation_status=AMBIGUOUS`` for honesty.
+    """
+    return build_migration_measurement_record(
+        measurement_status=measurement_status,
+        confidence_level=CONFIDENCE_LEVEL_NONE,
+        reconciliation_status=reconciliation_status,
+        token_mint=token_mint,
+        schema_version=DEFAULT_SCHEMA_VERSION,
+        threshold_version=DEFAULT_THRESHOLD_VERSION,
+        measurer_name=STAGE25_MIGRATION_MEASURER_NAME,
+        measurer_version=STAGE25_MIGRATION_MEASURER_VERSION,
+        consolidated_slot=-1,
+        consolidated_block_time=-1,
+        reconciled_signature="",
+        selected_source_family="",
+        contributing_source_count=0,
+        reason_codes=reason_codes,
+        numeric_features=_frozen_empty_mapping(),
+        evidence=_frozen_empty_mapping(),
+        input_missing_fields=(),
+    )
+
+
 __all__ = [
     "FIXED_CLOCK_UTC",
+    "SAMPLE_MIGRATION_BLOCK_TIME",
     "SAMPLE_MIGRATION_POOL",
     "SAMPLE_MIGRATION_SIG",
     "SAMPLE_MIGRATION_SIG_ALT",
     "SAMPLE_MIGRATION_SIG_THIRD",
+    "SAMPLE_MIGRATION_SLOT",
     "SAMPLE_TOKEN_MINT_A",
     "SAMPLE_TOKEN_MINT_B",
     "SAMPLE_TOKEN_MINT_C",
+    "make_measured_migration_measurement",
     "make_migration_observation",
     "make_migration_observation_row",
     "make_migration_row_with_long_hex_credential",
@@ -285,4 +373,5 @@ __all__ = [
     "make_price_observation_row",
     "make_price_row_with_secret_field_name",
     "make_price_row_with_url_value",
+    "make_unmeasured_migration_measurement",
 ]
