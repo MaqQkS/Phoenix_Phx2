@@ -23,6 +23,7 @@ from PHX2.stage25.constants import (
     QUOTE_DENOMINATION_USD_MICRO,
     SOURCE_FAMILY_BIRDEYE,
     SOURCE_FAMILY_DEXSCREENER,
+    SOURCE_FAMILY_ON_CHAIN_SWAP_REPLAY,
     SOURCE_STATUS_PRESENT,
 )
 from PHX2.stage25.models import (
@@ -44,8 +45,11 @@ FIXED_CLOCK_UTC: str = "2026-01-01T00:00:00Z"
 # Convenience: short non-secret token-mint literals used by tests.
 SAMPLE_TOKEN_MINT_A: str = "MintAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 SAMPLE_TOKEN_MINT_B: str = "MintBbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+SAMPLE_TOKEN_MINT_C: str = "MintCcccccccccccccccccccccccccccccccccccccc"
 SAMPLE_MIGRATION_POOL: str = "PoolXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 SAMPLE_MIGRATION_SIG: str = "sig_migration_synthetic_001"
+SAMPLE_MIGRATION_SIG_ALT: str = "sig_migration_synthetic_002"
+SAMPLE_MIGRATION_SIG_THIRD: str = "sig_migration_synthetic_003"
 
 
 def _frozen_empty_mapping() -> Mapping[str, object]:
@@ -266,8 +270,11 @@ __all__ = [
     "FIXED_CLOCK_UTC",
     "SAMPLE_MIGRATION_POOL",
     "SAMPLE_MIGRATION_SIG",
+    "SAMPLE_MIGRATION_SIG_ALT",
+    "SAMPLE_MIGRATION_SIG_THIRD",
     "SAMPLE_TOKEN_MINT_A",
     "SAMPLE_TOKEN_MINT_B",
+    "SAMPLE_TOKEN_MINT_C",
     "make_migration_observation",
     "make_migration_observation_row",
     "make_migration_row_with_long_hex_credential",

@@ -96,6 +96,7 @@ import math
 from typing import Mapping, NamedTuple, Optional
 
 from PHX2.stage25.constants import (
+    MEASUREMENT_FAMILY_MIGRATION,
     REASON_CODE_PRICE_OBSERVED_ZERO,
     SOURCE_STATUS_PRESENT,
     assert_ath_candidate_kind_in_closed_set,
@@ -271,19 +272,39 @@ class Stage25MeasurementInput(NamedTuple):
 class Stage25MigrationMeasurement(NamedTuple):
     """Consolidated migration boundary measurement (Stage 25.2+ surface).
 
-    Stage 25.1 ships the record shape only; no measurer constructs
-    instances of it.
+    Stage 25.1 ships the record shape only; the Stage 25.2 measurer
+    constructs instances via ``build_migration_measurement_record``.
 
     Closed-set semantics:
 
-      * ``measurement_family`` -- always ``"MIGRATION"``.
-      * ``measurement_status`` -- one of ``MEASUREMENT_STATUSES``.
-      * ``confidence_level``   -- one of ``CONFIDENCE_LEVELS``.
+      * ``measurement_family``    -- always ``"MIGRATION"``.
+      * ``measurement_status``    -- one of ``MEASUREMENT_STATUSES``.
+      * ``confidence_level``      -- one of ``CONFIDENCE_LEVELS``.
+      * ``reconciliation_status`` -- one of ``RECONCILIATION_STATUSES``.
+                                     First-class field added at Stage
+                                     25.2 so downstream consumers do
+                                     not have to parse the ``evidence``
+                                     mapping.
+      * ``selected_source_family`` -- either a member of
+                                     ``SOURCE_FAMILIES`` or the empty
+                                     string. The empty string is
+                                     reserved for unmeasured records
+                                     (``MISSING`` / ``AMBIGUOUS`` /
+                                     ``UNSUPPORTED`` / ``REJECTED`` /
+                                     ``PARTIAL``).
+
+    ``reconciled_signature`` is the consolidated migration transaction
+    signature when the measurement is ``MEASURED``; the empty string
+    when the measurement is not ``MEASURED``. ``consolidated_slot`` /
+    ``consolidated_block_time`` remain the first-class consolidated
+    slot / Unix-seconds block time -- no duplicate ``reconciled_*``
+    int field is added.
     """
 
     measurement_family: str
     measurement_status: str
     confidence_level: str
+    reconciliation_status: str
     token_mint: str
     schema_version: str
     threshold_version: str
@@ -291,6 +312,8 @@ class Stage25MigrationMeasurement(NamedTuple):
     measurer_version: str
     consolidated_slot: int
     consolidated_block_time: int
+    reconciled_signature: str
+    selected_source_family: str
     contributing_source_count: int
     reason_codes: tuple[str, ...]
     numeric_features: Mapping[str, object]
@@ -1339,6 +1362,165 @@ def build_source_reconciliation_record(
     )
 
 
+def _require_selected_source_family_or_empty(value: object) -> None:
+    """Validate ``selected_source_family``.
+
+    Accepts either the empty string (reserved for unmeasured records)
+    or a member of ``SOURCE_FAMILIES``. Any other value raises
+    ``Stage25ContractError``.
+    """
+    if not isinstance(value, str):
+        raise Stage25ContractError(
+            "selected_source_family must be a string"
+        )
+    if value == "":
+        return
+    _require_source_family(value)
+
+
+def build_migration_measurement_record(
+    *,
+    measurement_status: str,
+    confidence_level: str,
+    reconciliation_status: str,
+    token_mint: str,
+    schema_version: str,
+    threshold_version: str,
+    measurer_name: str,
+    measurer_version: str,
+    consolidated_slot: int,
+    consolidated_block_time: int,
+    reconciled_signature: str,
+    selected_source_family: str,
+    contributing_source_count: int,
+    reason_codes: tuple[str, ...],
+    numeric_features: Mapping[str, object],
+    evidence: Mapping[str, object],
+    input_missing_fields: tuple[str, ...],
+) -> Stage25MigrationMeasurement:
+    """Construct a ``Stage25MigrationMeasurement`` with closed-set validation.
+
+    Stage 25.2 surface: this helper is the validated single point of
+    construction for migration measurement records. ``measurement_family``
+    is locked to ``MEASUREMENT_FAMILY_MIGRATION`` -- callers do NOT supply
+    it. Closed-set tokens (``measurement_status`` / ``confidence_level``
+    / ``reconciliation_status``) are validated against
+    ``MEASUREMENT_STATUSES`` / ``CONFIDENCE_LEVELS`` /
+    ``RECONCILIATION_STATUSES``. ``selected_source_family`` must be the
+    empty string (unmeasured) or a member of ``SOURCE_FAMILIES``.
+
+    Slot / block-time fields use the ``-1`` sentinel for "absent"; this
+    helper validates them with
+    ``_require_non_negative_int_or_minus_one_sentinel`` so the canonical-
+    JSON hash contract stays deterministic for unmeasured records.
+
+    Status-conditional invariants enforced here:
+
+      * ``measurement_status == MEASURED`` requires a non-empty
+        ``reconciled_signature`` and a non-empty
+        ``selected_source_family`` that is a member of
+        ``SOURCE_FAMILIES``.
+      * Any other ``measurement_status`` permits empty
+        ``reconciled_signature`` / ``selected_source_family``.
+
+    The measurement hash binds the measurement family / status /
+    confidence level / reconciliation status / token mint / schema
+    version / threshold version / measurer name / measurer version
+    plus the measurement body (consolidated slot / block time,
+    reconciled signature, selected source family, contributing source
+    count, reason codes, numeric features, evidence, input missing
+    fields) so two distinct measurement bodies never collide on one
+    hash.
+    """
+    _require_measurement_status(measurement_status)
+    _require_confidence_level(confidence_level)
+    _require_reconciliation_status(reconciliation_status)
+    _require_non_empty_string("token_mint", token_mint)
+    _require_non_empty_string("schema_version", schema_version)
+    _require_non_empty_string("threshold_version", threshold_version)
+    _require_non_empty_string("measurer_name", measurer_name)
+    _require_non_empty_string("measurer_version", measurer_version)
+    _require_non_negative_int_or_minus_one_sentinel(
+        field_name="consolidated_slot", value=consolidated_slot
+    )
+    _require_non_negative_int_or_minus_one_sentinel(
+        field_name="consolidated_block_time",
+        value=consolidated_block_time,
+    )
+    _require_string("reconciled_signature", reconciled_signature)
+    _require_selected_source_family_or_empty(selected_source_family)
+    _require_strict_non_negative_int(
+        field_name="contributing_source_count",
+        value=contributing_source_count,
+    )
+    _require_tuple_of_strings("reason_codes", reason_codes)
+    _require_mapping("numeric_features", numeric_features)
+    _require_mapping("evidence", evidence)
+    if not isinstance(input_missing_fields, tuple):
+        raise Stage25ContractError(
+            "input_missing_fields must be a tuple"
+        )
+    _require_tuple_of_strings(
+        "input_missing_fields", input_missing_fields
+    )
+
+    if measurement_status == "MEASURED":
+        if reconciled_signature == "":
+            raise Stage25ContractError(
+                "MEASURED migration measurement requires a non-empty "
+                "reconciled_signature"
+            )
+        if selected_source_family == "":
+            raise Stage25ContractError(
+                "MEASURED migration measurement requires a non-empty "
+                "selected_source_family from SOURCE_FAMILIES"
+            )
+
+    measurement_hash = compute_measurement_hash(
+        measurement_family=MEASUREMENT_FAMILY_MIGRATION,
+        measurement_status=measurement_status,
+        confidence_level=confidence_level,
+        token_mint=token_mint,
+        schema_version=schema_version,
+        threshold_version=threshold_version,
+        measurer_name=measurer_name,
+        measurer_version=measurer_version,
+        extra={
+            "reconciliation_status": reconciliation_status,
+            "consolidated_slot": consolidated_slot,
+            "consolidated_block_time": consolidated_block_time,
+            "reconciled_signature": reconciled_signature,
+            "selected_source_family": selected_source_family,
+            "contributing_source_count": contributing_source_count,
+            "reason_codes": list(reason_codes),
+            "numeric_features": numeric_features,
+            "evidence": evidence,
+            "input_missing_fields": list(input_missing_fields),
+        },
+    )
+    return Stage25MigrationMeasurement(
+        measurement_family=MEASUREMENT_FAMILY_MIGRATION,
+        measurement_status=measurement_status,
+        confidence_level=confidence_level,
+        reconciliation_status=reconciliation_status,
+        token_mint=token_mint,
+        schema_version=schema_version,
+        threshold_version=threshold_version,
+        measurer_name=measurer_name,
+        measurer_version=measurer_version,
+        consolidated_slot=consolidated_slot,
+        consolidated_block_time=consolidated_block_time,
+        reconciled_signature=reconciled_signature,
+        selected_source_family=selected_source_family,
+        contributing_source_count=contributing_source_count,
+        reason_codes=reason_codes,
+        numeric_features=numeric_features,
+        evidence=evidence,
+        input_missing_fields=input_missing_fields,
+        measurement_hash=measurement_hash,
+    )
+
+
 __all__ = [
     "Stage25ATHCandidate",
     "Stage25ATHMeasurement",
@@ -1354,6 +1536,7 @@ __all__ = [
     "build_ath_candidate_record",
     "build_measurement_input",
     "build_measurement_rejection",
+    "build_migration_measurement_record",
     "build_migration_observation",
     "build_price_observation",
     "build_source_reconciliation_record",

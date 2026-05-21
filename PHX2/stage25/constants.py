@@ -93,6 +93,27 @@ STAGE25_ARTIFACT_WRITER_VERSION: str = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 25.2 migration observation / measurer version axes
+# ---------------------------------------------------------------------------
+#
+# Stage 25.2 ships the migration observation helpers and the
+# migration measurer. The version axes below are the locked
+# identifiers the measurer / helper modules emit so downstream
+# readers can pin the exact code that produced a measurement
+# record without inspecting commit hashes. Bumping the measurer
+# semantics requires bumping the ``_VERSION`` axis.
+
+
+STAGE25_MIGRATION_OBSERVATION_VERSION: str = (
+    "stage25_migration_observation_v0"
+)
+STAGE25_MIGRATION_MEASURER_NAME: str = "stage25_migration_measurer"
+STAGE25_MIGRATION_MEASURER_VERSION: str = (
+    "stage25_migration_measurer_v0"
+)
+
+
+# ---------------------------------------------------------------------------
 # MEASUREMENT_FAMILIES -- closed set of measurement families
 # ---------------------------------------------------------------------------
 
@@ -402,8 +423,72 @@ PRICE_OBSERVATION_INPUT_KINDS: tuple[str, ...] = (
 REASON_CODE_PRICE_OBSERVED_ZERO: str = "PRICE_OBSERVED_ZERO"
 
 
+# ---------------------------------------------------------------------------
+# Migration measurement reason codes (Stage 25.2)
+# ---------------------------------------------------------------------------
+#
+# Closed-set short tokens the Stage 25.2 migration measurer / helper
+# emits on observations and on consolidated migration measurement
+# records. They name the WHY of a measurement_status / partial
+# evidence assignment so downstream readers can group rows without
+# parsing free-form text.
+#
+# Naming mirrors the existing ``REASON_CODE_PRICE_OBSERVED_ZERO``
+# pattern: the constant name carries the ``REASON_CODE_`` prefix,
+# the value is the canonical short token. The forbidden-vocabulary
+# scanner inspects identifier positions, not string literal values,
+# so the canonical token can contain Stage 25 vocabulary like
+# ``MIGRATION`` and ``BLOCK_TIME`` without tripping the scanner.
+
+
+REASON_CODE_MIGRATION_NO_OBSERVATIONS: str = "MIGRATION_NO_OBSERVATIONS"
+REASON_CODE_MIGRATION_NO_CONTRIBUTING_SOURCES: str = (
+    "MIGRATION_NO_CONTRIBUTING_SOURCES"
+)
+REASON_CODE_MIGRATION_SINGLE_SOURCE: str = "MIGRATION_SINGLE_SOURCE"
+REASON_CODE_MIGRATION_SOURCES_AGREED: str = "MIGRATION_SOURCES_AGREED"
+REASON_CODE_MIGRATION_SOURCES_DISAGREED: str = (
+    "MIGRATION_SOURCES_DISAGREED"
+)
+REASON_CODE_MIGRATION_SAME_SOURCE_CONFLICT: str = (
+    "MIGRATION_SAME_SOURCE_CONFLICT"
+)
+REASON_CODE_MIGRATION_BLOCK_TIME_MISSING: str = (
+    "MIGRATION_BLOCK_TIME_MISSING"
+)
+REASON_CODE_MIGRATION_SIGNATURE_MISSING: str = (
+    "MIGRATION_SIGNATURE_MISSING"
+)
+REASON_CODE_MIGRATION_SLOT_MISSING: str = "MIGRATION_SLOT_MISSING"
+REASON_CODE_MIGRATION_UNSUPPORTED_SOURCE_STATUS: str = (
+    "MIGRATION_UNSUPPORTED_SOURCE_STATUS"
+)
+REASON_CODE_MIGRATION_AMBIGUOUS_SOURCE_STATUS: str = (
+    "MIGRATION_AMBIGUOUS_SOURCE_STATUS"
+)
+REASON_CODE_MIGRATION_DUPLICATE_OBSERVATION_COLLAPSED: str = (
+    "MIGRATION_DUPLICATE_OBSERVATION_COLLAPSED"
+)
+REASON_CODE_MIGRATION_TOKEN_MISMATCH_REJECTED: str = (
+    "MIGRATION_TOKEN_MISMATCH_REJECTED"
+)
+
+
 REASON_CODES: tuple[str, ...] = (
     REASON_CODE_PRICE_OBSERVED_ZERO,
+    REASON_CODE_MIGRATION_NO_OBSERVATIONS,
+    REASON_CODE_MIGRATION_NO_CONTRIBUTING_SOURCES,
+    REASON_CODE_MIGRATION_SINGLE_SOURCE,
+    REASON_CODE_MIGRATION_SOURCES_AGREED,
+    REASON_CODE_MIGRATION_SOURCES_DISAGREED,
+    REASON_CODE_MIGRATION_SAME_SOURCE_CONFLICT,
+    REASON_CODE_MIGRATION_BLOCK_TIME_MISSING,
+    REASON_CODE_MIGRATION_SIGNATURE_MISSING,
+    REASON_CODE_MIGRATION_SLOT_MISSING,
+    REASON_CODE_MIGRATION_UNSUPPORTED_SOURCE_STATUS,
+    REASON_CODE_MIGRATION_AMBIGUOUS_SOURCE_STATUS,
+    REASON_CODE_MIGRATION_DUPLICATE_OBSERVATION_COLLAPSED,
+    REASON_CODE_MIGRATION_TOKEN_MISMATCH_REJECTED,
 )
 
 
@@ -836,6 +921,19 @@ __all__ = [
     "QUOTE_DENOMINATION_UNKNOWN_QUOTE",
     "QUOTE_DENOMINATION_USD_MICRO",
     "REASON_CODES",
+    "REASON_CODE_MIGRATION_AMBIGUOUS_SOURCE_STATUS",
+    "REASON_CODE_MIGRATION_BLOCK_TIME_MISSING",
+    "REASON_CODE_MIGRATION_DUPLICATE_OBSERVATION_COLLAPSED",
+    "REASON_CODE_MIGRATION_NO_CONTRIBUTING_SOURCES",
+    "REASON_CODE_MIGRATION_NO_OBSERVATIONS",
+    "REASON_CODE_MIGRATION_SAME_SOURCE_CONFLICT",
+    "REASON_CODE_MIGRATION_SIGNATURE_MISSING",
+    "REASON_CODE_MIGRATION_SINGLE_SOURCE",
+    "REASON_CODE_MIGRATION_SLOT_MISSING",
+    "REASON_CODE_MIGRATION_SOURCES_AGREED",
+    "REASON_CODE_MIGRATION_SOURCES_DISAGREED",
+    "REASON_CODE_MIGRATION_TOKEN_MISMATCH_REJECTED",
+    "REASON_CODE_MIGRATION_UNSUPPORTED_SOURCE_STATUS",
     "REASON_CODE_PRICE_OBSERVED_ZERO",
     "RECONCILIATION_STATUSES",
     "RECONCILIATION_STATUS_AGREED",
@@ -883,6 +981,9 @@ __all__ = [
     "STAGE25_FORBIDDEN_VOCABULARY",
     "STAGE25_LONG_HEX_RUN_MIN_LEN",
     "STAGE25_MANIFEST_SCHEMA_VERSION",
+    "STAGE25_MIGRATION_MEASURER_NAME",
+    "STAGE25_MIGRATION_MEASURER_VERSION",
+    "STAGE25_MIGRATION_OBSERVATION_VERSION",
     "STAGE25_MINOR_VERSION",
     "STAGE25_RUNNER_NAME",
     "STAGE25_RUNNER_VERSION",

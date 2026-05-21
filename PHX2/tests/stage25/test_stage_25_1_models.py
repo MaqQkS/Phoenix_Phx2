@@ -31,16 +31,27 @@ import pytest
 from PHX2.stage25.constants import (
     ATH_CANDIDATE_KIND_SOURCE_REPORTED_PEAK,
     CONFIDENCE_LEVEL_HIGH,
+    CONFIDENCE_LEVEL_LOW,
+    CONFIDENCE_LEVEL_NONE,
     DEFAULT_SCHEMA_VERSION,
     DEFAULT_THRESHOLD_VERSION,
     MEASUREMENT_FAMILY_ATH,
     MEASUREMENT_FAMILY_MIGRATION,
+    MEASUREMENT_STATUS_AMBIGUOUS,
+    MEASUREMENT_STATUS_MEASURED,
+    MEASUREMENT_STATUS_MISSING,
     QUOTE_DENOMINATION_USD_MICRO,
     REASON_CODE_PRICE_OBSERVED_ZERO,
     RECONCILIATION_STATUS_AGREED,
+    RECONCILIATION_STATUS_AMBIGUOUS,
+    RECONCILIATION_STATUS_DISAGREED_MAJOR,
+    RECONCILIATION_STATUS_NO_SOURCES,
+    RECONCILIATION_STATUS_SINGLE_SOURCE,
     REJECTION_REASON_INPUT_MALFORMED,
     SOURCE_FAMILY_BIRDEYE,
     SOURCE_FAMILY_DEXSCREENER,
+    STAGE25_MIGRATION_MEASURER_NAME,
+    STAGE25_MIGRATION_MEASURER_VERSION,
     SOURCE_STATUS_ABSENT,
     SOURCE_STATUS_PRESENT,
 )
@@ -60,6 +71,7 @@ from PHX2.stage25.models import (
     build_ath_candidate_record,
     build_measurement_input,
     build_measurement_rejection,
+    build_migration_measurement_record,
     build_migration_observation,
     build_price_observation,
     build_source_reconciliation_record,
@@ -684,3 +696,184 @@ def test_compute_measurement_hash_is_deterministic():
         ),
     )
     assert a == b
+
+
+# ---------------------------------------------------------------------------
+# Stage 25.2 first-class fields on Stage25MigrationMeasurement
+# ---------------------------------------------------------------------------
+
+
+_MEASURED_BUILDER_DEFAULTS: dict[str, object] = {
+    "measurement_status": MEASUREMENT_STATUS_MEASURED,
+    "confidence_level": CONFIDENCE_LEVEL_LOW,
+    "reconciliation_status": RECONCILIATION_STATUS_SINGLE_SOURCE,
+    "token_mint": SAMPLE_TOKEN_MINT_A,
+    "schema_version": DEFAULT_SCHEMA_VERSION,
+    "threshold_version": DEFAULT_THRESHOLD_VERSION,
+    "measurer_name": STAGE25_MIGRATION_MEASURER_NAME,
+    "measurer_version": STAGE25_MIGRATION_MEASURER_VERSION,
+    "consolidated_slot": 251_000_000,
+    "consolidated_block_time": 1_750_000_000,
+    "reconciled_signature": "sig_first_class_001",
+    "selected_source_family": SOURCE_FAMILY_BIRDEYE,
+    "contributing_source_count": 1,
+    "reason_codes": (),
+    "numeric_features": MappingProxyType({}),
+    "evidence": MappingProxyType({}),
+    "input_missing_fields": (),
+}
+
+
+def _build_measured(**overrides: object) -> Stage25MigrationMeasurement:
+    kwargs: dict[str, object] = dict(_MEASURED_BUILDER_DEFAULTS)
+    kwargs.update(overrides)
+    return build_migration_measurement_record(**kwargs)  # type: ignore[arg-type]
+
+
+def test_migration_measurement_named_tuple_field_set():
+    expected = (
+        "measurement_family",
+        "measurement_status",
+        "confidence_level",
+        "reconciliation_status",
+        "token_mint",
+        "schema_version",
+        "threshold_version",
+        "measurer_name",
+        "measurer_version",
+        "consolidated_slot",
+        "consolidated_block_time",
+        "reconciled_signature",
+        "selected_source_family",
+        "contributing_source_count",
+        "reason_codes",
+        "numeric_features",
+        "evidence",
+        "input_missing_fields",
+        "measurement_hash",
+    )
+    assert Stage25MigrationMeasurement._fields == expected
+
+
+def test_migration_measurement_does_not_have_duplicate_reconciled_block_time_field():
+    assert (
+        "reconciled_block_time_unix"
+        not in Stage25MigrationMeasurement._fields
+    )
+    assert (
+        "consolidated_block_time"
+        in Stage25MigrationMeasurement._fields
+    )
+
+
+def test_build_migration_measurement_record_assigns_first_class_fields():
+    record = _build_measured()
+    assert record.measurement_family == MEASUREMENT_FAMILY_MIGRATION
+    assert record.reconciliation_status == (
+        RECONCILIATION_STATUS_SINGLE_SOURCE
+    )
+    assert record.reconciled_signature == "sig_first_class_001"
+    assert record.selected_source_family == SOURCE_FAMILY_BIRDEYE
+
+
+def test_build_migration_measurement_record_rejects_unknown_reconciliation_status():
+    with pytest.raises(Stage25ContractError):
+        _build_measured(reconciliation_status="NOT_A_STATUS")
+
+
+def test_build_migration_measurement_record_rejects_invalid_selected_source_family():
+    with pytest.raises(Stage25ContractError):
+        _build_measured(selected_source_family="NOT_A_SOURCE")
+
+
+def test_build_migration_measurement_record_allows_empty_selected_source_family_when_not_measured():
+    record = _build_measured(
+        measurement_status=MEASUREMENT_STATUS_MISSING,
+        confidence_level=CONFIDENCE_LEVEL_NONE,
+        reconciliation_status=RECONCILIATION_STATUS_NO_SOURCES,
+        consolidated_slot=-1,
+        consolidated_block_time=-1,
+        reconciled_signature="",
+        selected_source_family="",
+        contributing_source_count=0,
+    )
+    assert record.measurement_status == MEASUREMENT_STATUS_MISSING
+    assert record.reconciled_signature == ""
+    assert record.selected_source_family == ""
+
+
+def test_build_migration_measurement_record_rejects_non_string_reconciled_signature():
+    with pytest.raises(Stage25ContractError):
+        _build_measured(reconciled_signature=42)  # type: ignore[arg-type]
+
+
+def test_build_migration_measurement_record_rejects_non_string_selected_source_family():
+    with pytest.raises(Stage25ContractError):
+        _build_measured(selected_source_family=7)  # type: ignore[arg-type]
+
+
+def test_measured_migration_requires_non_empty_reconciled_signature():
+    with pytest.raises(Stage25ContractError):
+        _build_measured(reconciled_signature="")
+
+
+def test_measured_migration_requires_non_empty_selected_source_family():
+    with pytest.raises(Stage25ContractError):
+        _build_measured(selected_source_family="")
+
+
+def test_measurement_hash_changes_when_reconciliation_status_changes():
+    record_a = _build_measured(
+        reconciliation_status=RECONCILIATION_STATUS_SINGLE_SOURCE
+    )
+    record_b = _build_measured(
+        reconciliation_status=RECONCILIATION_STATUS_AGREED,
+        contributing_source_count=2,
+    )
+    assert record_a.measurement_hash != record_b.measurement_hash
+
+
+def test_measurement_hash_changes_when_reconciled_signature_changes():
+    record_a = _build_measured(reconciled_signature="sig_one")
+    record_b = _build_measured(reconciled_signature="sig_two")
+    assert record_a.measurement_hash != record_b.measurement_hash
+
+
+def test_measurement_hash_changes_when_selected_source_family_changes():
+    record_a = _build_measured(
+        selected_source_family=SOURCE_FAMILY_BIRDEYE
+    )
+    record_b = _build_measured(
+        selected_source_family=SOURCE_FAMILY_DEXSCREENER
+    )
+    assert record_a.measurement_hash != record_b.measurement_hash
+
+
+def test_measurement_hash_is_stable_across_two_identical_invocations():
+    record_a = _build_measured()
+    record_b = _build_measured()
+    assert record_a.measurement_hash == record_b.measurement_hash
+
+
+def test_measurement_hash_changes_when_only_reconciliation_status_axis_changes():
+    record_a = _build_measured(
+        measurement_status=MEASUREMENT_STATUS_AMBIGUOUS,
+        confidence_level=CONFIDENCE_LEVEL_NONE,
+        reconciliation_status=RECONCILIATION_STATUS_AMBIGUOUS,
+        consolidated_slot=-1,
+        consolidated_block_time=-1,
+        reconciled_signature="",
+        selected_source_family="",
+        contributing_source_count=0,
+    )
+    record_b = _build_measured(
+        measurement_status=MEASUREMENT_STATUS_AMBIGUOUS,
+        confidence_level=CONFIDENCE_LEVEL_NONE,
+        reconciliation_status=RECONCILIATION_STATUS_DISAGREED_MAJOR,
+        consolidated_slot=-1,
+        consolidated_block_time=-1,
+        reconciled_signature="",
+        selected_source_family="",
+        contributing_source_count=0,
+    )
+    assert record_a.measurement_hash != record_b.measurement_hash

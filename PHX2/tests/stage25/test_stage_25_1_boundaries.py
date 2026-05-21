@@ -75,6 +75,11 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         "measurement_contracts.py",
         "input_reader.py",
         "stage25_manifest.py",
+        # Stage 25.2 additions -- listed here so the Stage 25.1
+        # inventory check does not flag them as unexpected files.
+        # The Stage 25.2 boundary test pins them explicitly.
+        "migration_observation.py",
+        "migration_measurement.py",
     }
 )
 
@@ -909,6 +914,9 @@ def test_every_production_module_imports_cleanly():
         "PHX2.stage25.measurement_contracts",
         "PHX2.stage25.input_reader",
         "PHX2.stage25.stage25_manifest",
+        # Stage 25.2 additions.
+        "PHX2.stage25.migration_observation",
+        "PHX2.stage25.migration_measurement",
     }
     for name in expected:
         module = importlib.import_module(name)
