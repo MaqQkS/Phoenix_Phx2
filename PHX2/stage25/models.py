@@ -96,8 +96,11 @@ import math
 from typing import Mapping, NamedTuple, Optional
 
 from PHX2.stage25.constants import (
+    ATH_CANDIDATE_KIND_INSUFFICIENT_DATA,
+    CONFIDENCE_LEVEL_NONE,
     MEASUREMENT_FAMILY_MIGRATION,
     REASON_CODE_PRICE_OBSERVED_ZERO,
+    SOURCE_STATUS_PARTIAL,
     SOURCE_STATUS_PRESENT,
     assert_ath_candidate_kind_in_closed_set,
     assert_confidence_level_in_closed_set,
@@ -113,6 +116,23 @@ from PHX2.stage25.constants import (
     assert_source_status_in_closed_set,
 )
 from PHX2.stage25.errors import Stage25ContractError
+
+
+# ---------------------------------------------------------------------------
+# Stage 25.4 contributing source-status set
+# ---------------------------------------------------------------------------
+#
+# Module-local frozenset enforcing the Stage 25.4 candidate-record
+# contract that a non-``INSUFFICIENT_DATA`` candidate must carry a
+# contributing source status (``PRESENT`` or ``PARTIAL``).
+
+
+_ATH_CANDIDATE_CONTRIBUTING_SOURCE_STATUSES: frozenset[str] = frozenset(
+    {
+        SOURCE_STATUS_PRESENT,
+        SOURCE_STATUS_PARTIAL,
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -375,20 +395,50 @@ class Stage25PriceWindowObservation(NamedTuple):
 
 
 class Stage25ATHCandidate(NamedTuple):
-    """ATH (all-time-high) candidate record (Stage 25.3+ surface).
+    """ATH (all-time-high) candidate record (Stage 25.4+ surface).
 
-    A future Stage 25.3+ projector emits one
-    ``Stage25ATHCandidate`` per (token_mint, source_family,
-    candidate_kind) triple. Stage 25.1 ships the record shape only.
+    The Stage 25.4 ATH candidate builder emits one
+    ``Stage25ATHCandidate`` per (token_mint, source_family) group of
+    Stage 25.3 ``Stage25PriceWindowObservation`` records. Stage 25.1
+    ships the record shape only; Stage 25.4 promotes ``source_status``
+    and ``confidence_level`` to first-class fields so a downstream
+    Stage 25.5+ source reconciler can read them directly rather than
+    parsing opaque ``evidence`` keys.
 
     Closed-set semantics:
 
-      * ``candidate_kind`` -- one of ``ATH_CANDIDATE_KINDS``.
+      * ``source_family``      -- one of ``SOURCE_FAMILIES``.
+      * ``source_status``      -- one of ``SOURCE_STATUSES``.
+                                  Preserved verbatim from the selected
+                                  peak observation when the candidate
+                                  is contributing. For an
+                                  ``INSUFFICIENT_DATA`` candidate the
+                                  field carries the most-relevant
+                                  status explaining why the group has
+                                  no peak (e.g. ``AMBIGUOUS`` /
+                                  ``ABSENT`` / ``PARTIAL``).
+      * ``candidate_kind``     -- one of ``ATH_CANDIDATE_KINDS``.
+      * ``confidence_level``   -- one of ``CONFIDENCE_LEVELS``.
+                                  ``NONE`` is reserved for
+                                  ``INSUFFICIENT_DATA`` candidates.
+
+    Honesty rules:
+
+      * ``peak_price`` is ``Optional[int]``. ``None`` honestly records
+        "no peak observed" and is reserved for ``INSUFFICIENT_DATA``
+        candidates.
+      * ``peak_price = 0`` requires the explicit
+        ``PRICE_OBSERVED_ZERO`` reason code.
+      * A non-``INSUFFICIENT_DATA`` candidate must carry a
+        contributing ``source_status`` (``PRESENT`` or ``PARTIAL``)
+        and a non-``NONE`` ``confidence_level``.
     """
 
     token_mint: str
     source_family: str
+    source_status: str
     candidate_kind: str
+    confidence_level: str
     peak_observed_at_utc: str
     peak_slot: int
     peak_block_time: int
@@ -980,7 +1030,9 @@ def compute_candidate_hash(
     *,
     token_mint: str,
     source_family: str,
+    source_status: str,
     candidate_kind: str,
+    confidence_level: str,
     peak_observed_at_utc: str,
     peak_slot: int,
     peak_block_time: int,
@@ -990,11 +1042,18 @@ def compute_candidate_hash(
     evidence: Mapping[str, object],
     input_missing_fields: tuple[str, ...],
 ) -> str:
-    """Return the deterministic ``candidate_hash`` for an ATH candidate."""
+    """Return the deterministic ``candidate_hash`` for an ATH candidate.
+
+    ``source_status`` and ``confidence_level`` are bound directly into
+    the canonical body so a candidate's hash changes when either field
+    changes alone, even when the rest of the record is identical.
+    """
     body: dict[str, object] = {
         "token_mint": token_mint,
         "source_family": source_family,
+        "source_status": source_status,
         "candidate_kind": candidate_kind,
+        "confidence_level": confidence_level,
         "peak_observed_at_utc": peak_observed_at_utc,
         "peak_slot": peak_slot,
         "peak_block_time": peak_block_time,
@@ -1374,7 +1433,9 @@ def build_ath_candidate_record(
     *,
     token_mint: str,
     source_family: str,
+    source_status: str,
     candidate_kind: str,
+    confidence_level: str,
     peak_observed_at_utc: str,
     peak_slot: int,
     peak_block_time: int,
@@ -1386,15 +1447,33 @@ def build_ath_candidate_record(
 ) -> Stage25ATHCandidate:
     """Construct a ``Stage25ATHCandidate`` record with closed-set validation.
 
-    Stage 25.1 contract surface: this helper is a pure record
-    validator. It does NOT implement ATH candidate-building from
-    observations / windows -- callers supply already-resolved
-    peak fields and this function only validates the shape +
-    closed-set tokens and computes the canonical record hash.
+    Pure record validator: callers supply already-resolved fields and
+    this function validates the shape + closed-set tokens and computes
+    the canonical record hash.
+
+    Stage 25.4 first-class field contract:
+
+      * ``source_status`` and ``confidence_level`` are validated against
+        ``SOURCE_STATUSES`` / ``CONFIDENCE_LEVELS`` respectively.
+      * If ``candidate_kind != INSUFFICIENT_DATA``:
+          - ``source_status`` MUST be a contributing status
+            (``PRESENT`` or ``PARTIAL``). ``ABSENT`` / ``MALFORMED``
+            / ``DECODE_FAILED`` / ``UNSUPPORTED`` / ``AMBIGUOUS`` are
+            refused because a contributing candidate cannot honestly
+            cite a non-contributing source as its peak origin.
+          - ``confidence_level`` MUST NOT be ``NONE``; ``NONE`` is
+            reserved for ``INSUFFICIENT_DATA`` candidates.
+      * If ``candidate_kind == INSUFFICIENT_DATA``:
+          - ``source_status`` may be ANY closed-set value -- the field
+            then names the most-relevant status explaining why the
+            candidate has no peak.
+          - ``confidence_level`` may be ``NONE`` (and typically is).
     """
     _require_non_empty_string("token_mint", token_mint)
     _require_source_family(source_family)
+    _require_source_status(source_status)
     _require_ath_candidate_kind(candidate_kind)
+    _require_confidence_level(confidence_level)
     _require_string("peak_observed_at_utc", peak_observed_at_utc)
     _require_non_negative_int_or_minus_one_sentinel(
         field_name="peak_slot", value=peak_slot
@@ -1416,10 +1495,27 @@ def build_ath_candidate_record(
     _require_price_zero_has_explicit_reason(
         price=peak_price, reason_codes=reason_codes
     )
+
+    if candidate_kind != ATH_CANDIDATE_KIND_INSUFFICIENT_DATA:
+        if source_status not in _ATH_CANDIDATE_CONTRIBUTING_SOURCE_STATUSES:
+            raise Stage25ContractError(
+                "contributing ATH candidate requires a contributing "
+                "source_status (PRESENT or PARTIAL); got "
+                f"{source_status!r}"
+            )
+        if confidence_level == CONFIDENCE_LEVEL_NONE:
+            raise Stage25ContractError(
+                "contributing ATH candidate must not carry "
+                "confidence_level=NONE; NONE is reserved for "
+                "INSUFFICIENT_DATA"
+            )
+
     candidate_hash = compute_candidate_hash(
         token_mint=token_mint,
         source_family=source_family,
+        source_status=source_status,
         candidate_kind=candidate_kind,
+        confidence_level=confidence_level,
         peak_observed_at_utc=peak_observed_at_utc,
         peak_slot=peak_slot,
         peak_block_time=peak_block_time,
@@ -1432,7 +1528,9 @@ def build_ath_candidate_record(
     return Stage25ATHCandidate(
         token_mint=token_mint,
         source_family=source_family,
+        source_status=source_status,
         candidate_kind=candidate_kind,
+        confidence_level=confidence_level,
         peak_observed_at_utc=peak_observed_at_utc,
         peak_slot=peak_slot,
         peak_block_time=peak_block_time,

@@ -29,9 +29,12 @@ from types import MappingProxyType
 import pytest
 
 from PHX2.stage25.constants import (
+    ATH_CANDIDATE_KIND_INSUFFICIENT_DATA,
     ATH_CANDIDATE_KIND_SOURCE_REPORTED_PEAK,
+    ATH_CANDIDATE_KIND_SWAP_REPLAY_PEAK,
     CONFIDENCE_LEVEL_HIGH,
     CONFIDENCE_LEVEL_LOW,
+    CONFIDENCE_LEVEL_MEDIUM,
     CONFIDENCE_LEVEL_NONE,
     DEFAULT_SCHEMA_VERSION,
     DEFAULT_THRESHOLD_VERSION,
@@ -53,6 +56,8 @@ from PHX2.stage25.constants import (
     STAGE25_MIGRATION_MEASURER_NAME,
     STAGE25_MIGRATION_MEASURER_VERSION,
     SOURCE_STATUS_ABSENT,
+    SOURCE_STATUS_AMBIGUOUS,
+    SOURCE_STATUS_PARTIAL,
     SOURCE_STATUS_PRESENT,
 )
 from PHX2.stage25.errors import Stage25ContractError
@@ -646,7 +651,9 @@ def test_build_ath_candidate_record_round_trips_with_hash():
     candidate = build_ath_candidate_record(
         token_mint=SAMPLE_TOKEN_MINT_A,
         source_family=SOURCE_FAMILY_BIRDEYE,
+        source_status=SOURCE_STATUS_PRESENT,
         candidate_kind=ATH_CANDIDATE_KIND_SOURCE_REPORTED_PEAK,
+        confidence_level=CONFIDENCE_LEVEL_MEDIUM,
         peak_observed_at_utc=FIXED_CLOCK_UTC,
         peak_slot=251_000_500,
         peak_block_time=1_750_001_000,
@@ -662,7 +669,9 @@ def test_build_ath_candidate_record_round_trips_with_hash():
     expected = compute_candidate_hash(
         token_mint=candidate.token_mint,
         source_family=candidate.source_family,
+        source_status=candidate.source_status,
         candidate_kind=candidate.candidate_kind,
+        confidence_level=candidate.confidence_level,
         peak_observed_at_utc=candidate.peak_observed_at_utc,
         peak_slot=candidate.peak_slot,
         peak_block_time=candidate.peak_block_time,
@@ -680,7 +689,9 @@ def test_build_ath_candidate_record_rejects_zero_peak_without_explicit_reason():
         build_ath_candidate_record(
             token_mint=SAMPLE_TOKEN_MINT_A,
             source_family=SOURCE_FAMILY_BIRDEYE,
+            source_status=SOURCE_STATUS_PRESENT,
             candidate_kind=ATH_CANDIDATE_KIND_SOURCE_REPORTED_PEAK,
+            confidence_level=CONFIDENCE_LEVEL_MEDIUM,
             peak_observed_at_utc=FIXED_CLOCK_UTC,
             peak_slot=251_000_500,
             peak_block_time=1_750_001_000,
@@ -690,6 +701,186 @@ def test_build_ath_candidate_record_rejects_zero_peak_without_explicit_reason():
             evidence=MappingProxyType({}),
             input_missing_fields=(),
         )
+
+
+# ---------------------------------------------------------------------------
+# Stage 25.4 first-class field promotion on Stage25ATHCandidate
+# ---------------------------------------------------------------------------
+
+
+def test_ath_candidate_fields_include_source_status_and_confidence_level():
+    """Pin the Stage25ATHCandidate ``_fields`` tuple in its intended order.
+
+    Stage 25.4 promotes ``source_status`` and ``confidence_level`` to
+    first-class fields so Stage 25.5+ source reconciliation can read
+    them directly without parsing the opaque ``evidence`` mapping. The
+    field order is pinned here so downstream readers (and the
+    canonical hash projection) cannot drift silently.
+    """
+    assert Stage25ATHCandidate._fields == (
+        "token_mint",
+        "source_family",
+        "source_status",
+        "candidate_kind",
+        "confidence_level",
+        "peak_observed_at_utc",
+        "peak_slot",
+        "peak_block_time",
+        "peak_price",
+        "quote_denomination",
+        "reason_codes",
+        "evidence",
+        "input_missing_fields",
+        "candidate_hash",
+    )
+
+
+def _ath_candidate_kwargs(**overrides):
+    """Helper: minimal valid kwargs for ``build_ath_candidate_record``."""
+    defaults = dict(
+        token_mint=SAMPLE_TOKEN_MINT_A,
+        source_family=SOURCE_FAMILY_BIRDEYE,
+        source_status=SOURCE_STATUS_PRESENT,
+        candidate_kind=ATH_CANDIDATE_KIND_SOURCE_REPORTED_PEAK,
+        confidence_level=CONFIDENCE_LEVEL_MEDIUM,
+        peak_observed_at_utc=FIXED_CLOCK_UTC,
+        peak_slot=251_000_500,
+        peak_block_time=1_750_001_000,
+        peak_price=1_000,
+        quote_denomination=QUOTE_DENOMINATION_USD_MICRO,
+        reason_codes=(),
+        evidence=MappingProxyType({}),
+        input_missing_fields=(),
+    )
+    defaults.update(overrides)
+    return defaults
+
+
+def test_build_ath_candidate_record_rejects_unknown_source_status():
+    with pytest.raises(Stage25ContractError):
+        build_ath_candidate_record(
+            **_ath_candidate_kwargs(source_status="NOT_A_REAL_STATUS")
+        )
+
+
+def test_build_ath_candidate_record_rejects_unknown_confidence_level():
+    with pytest.raises(Stage25ContractError):
+        build_ath_candidate_record(
+            **_ath_candidate_kwargs(confidence_level="NOT_A_REAL_LEVEL")
+        )
+
+
+def test_build_ath_candidate_record_rejects_contributing_with_absent_source():
+    """A contributing candidate (kind != INSUFFICIENT_DATA) must carry a
+    contributing source_status. ABSENT is forbidden here.
+    """
+    with pytest.raises(Stage25ContractError):
+        build_ath_candidate_record(
+            **_ath_candidate_kwargs(source_status=SOURCE_STATUS_ABSENT)
+        )
+
+
+def test_build_ath_candidate_record_rejects_contributing_with_ambiguous_source():
+    with pytest.raises(Stage25ContractError):
+        build_ath_candidate_record(
+            **_ath_candidate_kwargs(source_status=SOURCE_STATUS_AMBIGUOUS)
+        )
+
+
+def test_build_ath_candidate_record_rejects_contributing_with_none_confidence():
+    """A contributing candidate must not carry ``confidence_level=NONE``.
+
+    ``NONE`` is reserved for ``INSUFFICIENT_DATA`` candidates.
+    """
+    with pytest.raises(Stage25ContractError):
+        build_ath_candidate_record(
+            **_ath_candidate_kwargs(confidence_level=CONFIDENCE_LEVEL_NONE)
+        )
+
+
+def test_build_ath_candidate_record_accepts_insufficient_with_none_confidence():
+    """INSUFFICIENT_DATA candidates may carry ``confidence_level=NONE``
+    AND a non-contributing source_status that explains the gap.
+    """
+    candidate = build_ath_candidate_record(
+        **_ath_candidate_kwargs(
+            source_status=SOURCE_STATUS_ABSENT,
+            candidate_kind=ATH_CANDIDATE_KIND_INSUFFICIENT_DATA,
+            confidence_level=CONFIDENCE_LEVEL_NONE,
+            peak_price=None,
+            peak_observed_at_utc="",
+            peak_slot=-1,
+            peak_block_time=-1,
+        )
+    )
+    assert candidate.source_status == SOURCE_STATUS_ABSENT
+    assert candidate.confidence_level == CONFIDENCE_LEVEL_NONE
+    assert candidate.peak_price is None
+
+
+def test_candidate_hash_changes_when_source_status_changes_only():
+    """Hash sensitivity: changing only ``source_status`` (with no other
+    field change) must change the candidate hash.
+
+    Uses ``INSUFFICIENT_DATA`` so two different non-contributing
+    statuses are both contractually valid.
+    """
+    insufficient_a = build_ath_candidate_record(
+        **_ath_candidate_kwargs(
+            source_status=SOURCE_STATUS_ABSENT,
+            candidate_kind=ATH_CANDIDATE_KIND_INSUFFICIENT_DATA,
+            confidence_level=CONFIDENCE_LEVEL_NONE,
+            peak_price=None,
+            peak_observed_at_utc="",
+            peak_slot=-1,
+            peak_block_time=-1,
+        )
+    )
+    insufficient_b = build_ath_candidate_record(
+        **_ath_candidate_kwargs(
+            source_status=SOURCE_STATUS_AMBIGUOUS,
+            candidate_kind=ATH_CANDIDATE_KIND_INSUFFICIENT_DATA,
+            confidence_level=CONFIDENCE_LEVEL_NONE,
+            peak_price=None,
+            peak_observed_at_utc="",
+            peak_slot=-1,
+            peak_block_time=-1,
+        )
+    )
+    assert insufficient_a.candidate_hash != insufficient_b.candidate_hash
+
+
+def test_candidate_hash_changes_when_confidence_level_changes_only():
+    """Hash sensitivity: changing only ``confidence_level`` (with no
+    other field change) must change the candidate hash.
+    """
+    medium = build_ath_candidate_record(
+        **_ath_candidate_kwargs(confidence_level=CONFIDENCE_LEVEL_MEDIUM)
+    )
+    low = build_ath_candidate_record(
+        **_ath_candidate_kwargs(confidence_level=CONFIDENCE_LEVEL_LOW)
+    )
+    assert medium.candidate_hash != low.candidate_hash
+
+
+def test_candidate_source_status_and_confidence_are_first_class_attributes():
+    """Stage 25.5+ source reconciliation must be able to read
+    ``source_status`` and ``confidence_level`` directly off the record
+    without parsing ``evidence``.
+    """
+    candidate = build_ath_candidate_record(
+        **_ath_candidate_kwargs(
+            source_status=SOURCE_STATUS_PARTIAL,
+            confidence_level=CONFIDENCE_LEVEL_LOW,
+        )
+    )
+    assert candidate.source_status == SOURCE_STATUS_PARTIAL
+    assert candidate.confidence_level == CONFIDENCE_LEVEL_LOW
+    # The evidence mapping should NOT need to carry these fields for
+    # downstream readers; the test does not assert what the mapping
+    # contains, only that the first-class read path works without
+    # touching it.
+    _ = candidate.evidence  # access does not raise
 
 
 def test_build_source_reconciliation_record_round_trips_with_hash():

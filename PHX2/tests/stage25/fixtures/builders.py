@@ -25,6 +25,7 @@ from PHX2.stage25.constants import (
     INPUT_KIND_SYNTHETIC_MIGRATION_OBSERVATIONS_JSONL,
     INPUT_KIND_SYNTHETIC_PRICE_OBSERVATIONS_JSONL,
     MEASUREMENT_STATUS_MEASURED,
+    PRICE_WINDOW_KIND_POST_MIGRATION_PRIMARY,
     QUOTE_DENOMINATION_USD_MICRO,
     RECONCILIATION_STATUS_AGREED,
     RECONCILIATION_STATUS_NO_SOURCES,
@@ -39,9 +40,11 @@ from PHX2.stage25.models import (
     Stage25MigrationMeasurement,
     Stage25MigrationObservation,
     Stage25PriceObservation,
+    Stage25PriceWindowObservation,
     build_migration_measurement_record,
     build_migration_observation,
     build_price_observation,
+    build_price_window_observation_record,
 )
 
 
@@ -317,6 +320,49 @@ def make_measured_migration_measurement(
     )
 
 
+def make_price_window_observation(
+    *,
+    token_mint: str = SAMPLE_TOKEN_MINT_A,
+    source_family: str = SOURCE_FAMILY_DEXSCREENER,
+    source_status: str = SOURCE_STATUS_PRESENT,
+    window_kind: str = PRICE_WINDOW_KIND_POST_MIGRATION_PRIMARY,
+    observed_at_utc: str = FIXED_CLOCK_UTC,
+    slot: int = 251_000_010,
+    block_time: int = 1_750_000_010,
+    price: Optional[int] = 1_234_567,
+    quote_denomination: str = QUOTE_DENOMINATION_USD_MICRO,
+    reason_codes: tuple[str, ...] = (),
+    evidence: Optional[Mapping[str, object]] = None,
+) -> Stage25PriceWindowObservation:
+    """Build a synthetic ``Stage25PriceWindowObservation`` with safe defaults.
+
+    Stage 25.4 test fixture: callers construct window observations
+    directly without having to go through the full
+    ``build_price_window_observation`` projector (which requires a
+    matching migration measurement). The builder validates the
+    closed-set tokens via ``build_price_window_observation_record``
+    so the returned record carries a deterministic
+    ``observation_hash`` consistent with the production model
+    helper.
+    """
+    evidence_mapping = (
+        evidence if evidence is not None else _frozen_empty_mapping()
+    )
+    return build_price_window_observation_record(
+        token_mint=token_mint,
+        source_family=source_family,
+        source_status=source_status,
+        window_kind=window_kind,
+        observed_at_utc=observed_at_utc,
+        slot=slot,
+        block_time=block_time,
+        price=price,
+        quote_denomination=quote_denomination,
+        reason_codes=reason_codes,
+        evidence=evidence_mapping,
+    )
+
+
 def make_unmeasured_migration_measurement(
     *,
     token_mint: str = SAMPLE_TOKEN_MINT_A,
@@ -373,5 +419,6 @@ __all__ = [
     "make_price_observation_row",
     "make_price_row_with_secret_field_name",
     "make_price_row_with_url_value",
+    "make_price_window_observation",
     "make_unmeasured_migration_measurement",
 ]

@@ -85,6 +85,10 @@ _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # The Stage 25.3 boundary test pins them explicitly.
         "price_observation.py",
         "price_window.py",
+        # Stage 25.4 additions -- listed here so the Stage 25.1
+        # inventory check does not flag them as unexpected files.
+        # The Stage 25.4 boundary test pins them explicitly.
+        "ath_candidate.py",
     }
 )
 
@@ -104,7 +108,6 @@ _FORBIDDEN_PRODUCTION_FILENAMES: tuple[str, ...] = (
     # candidate-building or source reconciliation domain logic.
     "migration_measurer.py",
     "ath_reconciler.py",
-    "ath_candidate.py",
     "ath_measurer.py",
     "price_projector.py",
     "source_reconciler.py",
@@ -925,6 +928,8 @@ def test_every_production_module_imports_cleanly():
         # Stage 25.3 additions.
         "PHX2.stage25.price_observation",
         "PHX2.stage25.price_window",
+        # Stage 25.4 additions.
+        "PHX2.stage25.ath_candidate",
     }
     for name in expected:
         module = importlib.import_module(name)

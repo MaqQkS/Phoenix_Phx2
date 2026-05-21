@@ -80,10 +80,18 @@ _STAGE25_3_ADDED_FILENAMES: frozenset[str] = frozenset(
 )
 
 
+_STAGE25_4_ADDED_FILENAMES: frozenset[str] = frozenset(
+    {
+        "ath_candidate.py",
+    }
+)
+
+
 _LOCKED_PRODUCTION_FILENAMES: frozenset[str] = (
     _STAGE25_1_PRODUCTION_FILENAMES
     | _STAGE25_2_ADDED_FILENAMES
     | _STAGE25_3_ADDED_FILENAMES
+    | _STAGE25_4_ADDED_FILENAMES
 )
 
 
@@ -97,9 +105,10 @@ _STAGE25_3_NEW_MODULES: tuple[str, ...] = (
 
 
 _FORBIDDEN_FUTURE_FILENAMES: tuple[str, ...] = (
-    # Later sub-stages (ATH candidate builder / source reconciler /
-    # runner / artifact writer).
-    "ath_candidate.py",
+    # Later sub-stages (source reconciler / runner / artifact
+    # writer). Note: ``ath_candidate.py`` graduated into Stage 25.4
+    # and is part of the locked inventory above, so it is no longer
+    # forbidden.
     "ath_reconciler.py",
     "ath_measurer.py",
     "ath_measurement.py",
