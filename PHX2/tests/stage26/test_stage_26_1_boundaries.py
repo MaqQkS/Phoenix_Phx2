@@ -54,9 +54,9 @@ _STAGE_26_1_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # tree with the denominator / outcome-eligibility surface.
         # The Stage 26.1 boundary tests still apply uniformly to
         # every Stage 26 production module (Stage 26.1 + Stage 26.2 +
-        # Stage 26.3 + Stage 26.4 + Stage 26.5) except where a later
-        # sub-stage's vocabulary supersedes a Stage 26.1 lock (see
-        # ``_FORBIDDEN_DOMAIN_SUBSTRINGS``).
+        # Stage 26.3 + Stage 26.4 + Stage 26.5 + Stage 26.6) except
+        # where a later sub-stage's vocabulary supersedes a Stage
+        # 26.1 lock (see ``_FORBIDDEN_DOMAIN_SUBSTRINGS``).
         "eligibility_constants.py",
         "eligibility_models.py",
         "eligibility_classifier.py",
@@ -73,24 +73,40 @@ _STAGE_26_1_PRODUCTION_FILENAMES: frozenset[str] = frozenset(
         # Stage 26.5 narrowly extended the locked Stage 26 production
         # tree with the observe-only policy candidate artifact
         # builder + writer surface. ``policy_candidate_writer.py``
-        # is the ONLY Stage 26 production module narrowly admitted
+        # was the first Stage 26 production module narrowly admitted
         # to call ``Path.write_bytes`` -- see
-        # ``_STAGE_26_5_WRITER_FILENAME`` /
+        # ``_STAGE_26_WRITER_FILENAMES`` /
         # ``test_no_stage26_production_calls_filesystem_writer_apis``
-        # for the writer exemption.
+        # for the writer exemption set (Stage 26.6 extends it).
         "policy_candidate_constants.py",
         "policy_candidate_models.py",
         "policy_candidate_builder.py",
         "policy_candidate_writer.py",
+        # Stage 26.6 narrowly extended the locked Stage 26 production
+        # tree with the operator review packet / approval handoff
+        # builder + writer surface. ``review_packet_writer.py`` is
+        # the second Stage 26 production module narrowly admitted to
+        # call ``Path.write_bytes`` (review packets are review-only
+        # offline artifacts; the broader Stage 26.1 read-only stance
+        # still applies to every other Stage 26 production module).
+        "review_packet_constants.py",
+        "review_packet_models.py",
+        "review_packet_builder.py",
+        "review_packet_writer.py",
     }
 )
 
 
-# Narrow Stage 26.5 writer exemption -- the only Stage 26 production
-# file admitted to call ``Path.write_bytes``. Stage 26.5 explicitly
-# admits a deterministic offline observe-only artifact writer (see
-# Stage 26.5 charter); the broader Stage 26.1 read-only stance still
-# applies to every other Stage 26 production module.
+# Narrow Stage 26.5 / 26.6 writer exemption -- the only Stage 26
+# production files admitted to call ``Path.write_bytes``. Stage 26.5
+# explicitly admits a deterministic offline observe-only policy
+# candidate writer; Stage 26.6 explicitly admits a deterministic
+# offline review-only operator review packet writer. The broader
+# Stage 26.1 read-only stance still applies to every other Stage 26
+# production module.
+_STAGE_26_WRITER_FILENAMES: frozenset[str] = frozenset(
+    {"policy_candidate_writer.py", "review_packet_writer.py"}
+)
 _STAGE_26_5_WRITER_FILENAME: str = "policy_candidate_writer.py"
 
 
@@ -224,24 +240,33 @@ _FORBIDDEN_DOMAIN_SUBSTRINGS: tuple[str, ...] = (
 )
 
 
-# Stage 26.5 narrowly admits the substring ``enforcement`` solely as
-# part of the locked safety-lock label ``enforcement_enabled``
-# (every emitted Stage 26.5 policy candidate carries
+# Stage 26.5 narrowly admits the substring ``enforcement`` as part
+# of the locked safety-lock label ``enforcement_enabled`` (every
+# emitted Stage 26.5 policy candidate carries
 # ``enforcement_enabled=False`` as one of the five safety locks).
-# Identifier matches that pair ``enforcement`` with anything other
-# than ``enforcement_enabled`` (e.g. ``enforcement_action``,
-# ``enforcement_policy``) remain forbidden.
+# Stage 26.6 narrowly admits the same substring as part of the
+# locked review-packet defensive label ``enforcement_leak`` (the
+# Stage 26.6 review packet exposes ``BLOCKED_ENFORCEMENT_LEAK`` /
+# ``STG26_CAL_REVIEW_PACKET_ENFORCEMENT_LEAK`` so a downstream
+# operator can distinguish an enforcement leak from a runtime or
+# approval leak). Identifier matches that pair ``enforcement`` with
+# anything other than ``enforcement_enabled`` / ``enforcement_leak``
+# (e.g. ``enforcement_action``, ``enforcement_policy``) remain
+# forbidden.
 _ENFORCEMENT_ENABLED_FRAGMENT: str = "enforcement_enabled"
+_ENFORCEMENT_LEAK_FRAGMENT: str = "enforcement_leak"
 
 
 def _identifier_admits_enforcement_enabled(ident_lower: str) -> bool:
     """Return True if every ``enforcement`` substring in ``ident_lower``
     is part of the locked Stage 26.5 safety-lock label
-    ``enforcement_enabled``.
+    ``enforcement_enabled`` or the locked Stage 26.6 review-packet
+    defensive label ``enforcement_leak``.
     """
     if "enforcement" not in ident_lower:
         return True
     stripped = ident_lower.replace(_ENFORCEMENT_ENABLED_FRAGMENT, "")
+    stripped = stripped.replace(_ENFORCEMENT_LEAK_FRAGMENT, "")
     return "enforcement" not in stripped
 
 
@@ -385,8 +410,13 @@ def test_no_forbidden_future_substage_files_present():
     # ``_STAGE_26_1_PRODUCTION_FILENAMES`` lock above; the generic
     # ``threshold.py`` / ``threshold_generator.py`` basenames remain
     # forbidden so a future contributor cannot ship a thin
-    # alternative threshold surface under those names. Stage 26.5+
-    # basenames remain forbidden.
+    # alternative threshold surface under those names. Stage 26.6
+    # narrowly unlocks the multi-file ``review_packet_*.py`` family
+    # for the operator review packet surface, so the generic
+    # single-file ``review_packet.py`` / ``operator_review.py``
+    # basenames remain forbidden so a future contributor cannot
+    # ship a thin alternative review-packet surface under those
+    # names. Stage 26.7+ basenames remain forbidden.
     forbidden_basenames = (
         "denominator.py",
         "threshold.py",
@@ -396,6 +426,9 @@ def test_no_forbidden_future_substage_files_present():
         "policy_writer.py",
         "review_packet.py",
         "operator_review.py",
+        "operator_approval.py",
+        "approval.py",
+        "approval_packet.py",
         "runner.py",
         "writer.py",
         "cli.py",
@@ -408,10 +441,13 @@ def test_no_forbidden_future_substage_files_present():
         "discord.py",
         "x_api.py",
         "social.py",
+        "enforcement.py",
+        "live_router.py",
+        "subscriber_router.py",
     )
     for basename in forbidden_basenames:
         assert not (STAGE26_ROOT / basename).exists(), (
-            f"Stage 26 must not ship {basename!r}; reserved for Stage 26.5+"
+            f"Stage 26 must not ship {basename!r}; reserved for Stage 26.7+"
         )
 
 
@@ -606,20 +642,20 @@ def test_no_stage26_production_calls_filesystem_writer_apis():
     """Stage 26 production modules MUST NOT call ``write_text`` /
     ``unlink`` / ``rmdir`` / ``rmtree`` / ``replace`` / ``rename`` /
     ``touch`` / ``mkdir``. ``write_bytes`` is narrowly admitted in
-    ``policy_candidate_writer.py`` because Stage 26.5 explicitly
-    admits a deterministic offline observe-only artifact writer
-    (Stage 26.5 charter); every other Stage 26 production module
-    remains read-only against the filesystem.
+    ``policy_candidate_writer.py`` (Stage 26.5 observe-only policy
+    candidate writer) and ``review_packet_writer.py`` (Stage 26.6
+    review-only operator review packet writer); every other Stage
+    26 production module remains read-only against the filesystem.
     """
     forbidden_in_writer = (
         _FORBIDDEN_WRITER_ATTRIBUTE_NAMES - {"write_bytes"}
     )
     for path in _iter_stage26_production_files():
         called_names = _collect_call_func_chain_names(_read_source(path))
-        if path.name == _STAGE_26_5_WRITER_FILENAME:
+        if path.name in _STAGE_26_WRITER_FILENAMES:
             leaked = sorted(called_names & forbidden_in_writer)
             assert not leaked, (
-                f"{path.name}: Stage 26.5 writer narrowly admits "
+                f"{path.name}: Stage 26 writer narrowly admits "
                 f"write_bytes only; forbidden writer call(s) {leaked}"
             )
         else:
@@ -628,7 +664,7 @@ def test_no_stage26_production_calls_filesystem_writer_apis():
             )
             assert not leaked, (
                 f"{path.name}: forbidden writer call(s) outside "
-                f"policy_candidate_writer.py: {leaked}"
+                f"{sorted(_STAGE_26_WRITER_FILENAMES)}: {leaked}"
             )
 
 
@@ -738,6 +774,13 @@ def test_each_stage26_production_module_imports_cleanly():
         "PHX2.stage26.policy_candidate_models",
         "PHX2.stage26.policy_candidate_builder",
         "PHX2.stage26.policy_candidate_writer",
+        # Stage 26.6 added the operator review packet / approval
+        # handoff builder + writer surface; the import check was
+        # narrowly extended to cover it.
+        "PHX2.stage26.review_packet_constants",
+        "PHX2.stage26.review_packet_models",
+        "PHX2.stage26.review_packet_builder",
+        "PHX2.stage26.review_packet_writer",
     }
     for name in expected:
         module = importlib.import_module(name)

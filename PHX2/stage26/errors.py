@@ -65,6 +65,14 @@ Error hierarchy:
                                        ``STG26_CAL_POLICY_CANDIDATE_*``
                                        code tokens declared in
                                        ``PHX2.stage26.policy_candidate_constants``.
+  * ``Stage26ReviewPacketError``    -- Stage 26.6 operator review
+                                       packet builder / writer
+                                       rejected its inputs or
+                                       detected a safety-lock
+                                       violation. Carries one of the
+                                       ``STG26_CAL_REVIEW_PACKET_*``
+                                       code tokens declared in
+                                       ``PHX2.stage26.review_packet_constants``.
 
 Stage 26.1 errors NEVER carry any of the following: a network URL,
 a webhook host literal, an environment-variable name, a secret-
@@ -290,6 +298,70 @@ class Stage26PolicyCandidateError(Stage26Error):
     """
 
 
+class Stage26ReviewPacketError(Stage26Error):
+    """Raised by the Stage 26.6 operator review packet builder / writer.
+
+    The error wraps one of the Stage 26.6 typed-error code tokens
+    declared in ``PHX2.stage26.review_packet_constants``:
+
+      * ``STG26_CAL_REVIEW_PACKET_INVALID_INPUT`` -- the builder
+        received a Stage 26.5 policy candidate / build result with a
+        kind / status / readiness token outside its locked Stage
+        26.5 closed set.
+      * ``STG26_CAL_REVIEW_PACKET_APPROVAL_LEAK`` -- a Stage 26.5
+        source candidate (or an emitted Stage 26.6 review candidate)
+        ended up with ``operator_approved=True``. Stage 26.6
+        candidates are NEVER operator-approved; the check is a
+        defensive invariant against an upstream / future refactor.
+      * ``STG26_CAL_REVIEW_PACKET_RUNTIME_LEAK`` -- a Stage 26.5
+        source candidate (or an emitted Stage 26.6 review candidate)
+        ended up with ``runtime_consumable=True``. Stage 26.6
+        outputs are NEVER runtime-consumable.
+      * ``STG26_CAL_REVIEW_PACKET_ENFORCEMENT_LEAK`` -- a Stage 26.5
+        source candidate (or an emitted Stage 26.6 review candidate)
+        ended up with ``enforcement_enabled=True``. Stage 26.6
+        outputs are NEVER enforcement-enabled.
+      * ``STG26_CAL_REVIEW_PACKET_REDACTION_FAILED`` -- the writer's
+        redaction sweep over the packet / row / summary / manifest
+        bytes detected a forbidden substring (a URL fragment, a
+        webhook host, a secret-shaped token, an approval-leak
+        marker).
+      * ``STG26_CAL_REVIEW_PACKET_MANIFEST_INVALID`` -- the manifest
+        body the writer assembled is structurally invalid (e.g.
+        missing self-entry sentinel, missing required artifact
+        entry).
+      * ``STG26_CAL_REVIEW_PACKET_HASH_MISMATCH`` -- the writer
+        recomputed an artifact's sha256 / byte_count / row_count
+        and the manifest entry does not match.
+      * ``STG26_CAL_REVIEW_PACKET_OUTPUT_DIR_INVALID`` -- the
+        caller-supplied output directory does not exist or is not a
+        directory; the writer refuses to create arbitrary parent
+        directories.
+      * ``STG26_CAL_REVIEW_PACKET_RUNTIME_FILENAME_LEAK`` -- the
+        writer was asked (or attempted) to emit an artifact under a
+        runtime-policy / approval-decision / live-routing basename.
+        Stage 26.6 writers ONLY emit the locked review-only
+        basenames.
+      * ``STG26_CAL_REVIEW_PACKET_MIXED_MANIFEST_HASH`` -- the
+        Stage 26.5 input set carries policy candidates whose
+        ``stage25_manifest_hash`` disagrees with the build result's
+        pin.
+      * ``STG26_CAL_REVIEW_PACKET_UNKNOWN_CANDIDATE_KIND`` -- a
+        Stage 26.5 candidate carried a ``candidate_kind`` token
+        outside the locked Stage 26.5
+        ``POLICY_CANDIDATE_KINDS`` closed set; Stage 26.6 refuses to
+        invent a fallback review-candidate kind.
+      * ``STG26_CAL_REVIEW_PACKET_INVALID_STATUS`` -- the builder
+        produced (or was asked to produce) a review candidate /
+        packet with a status outside its locked closed set.
+
+    The error deliberately does NOT label any non-``MEASURED`` truth
+    class as a failure -- Stage 26.6 preserves Stage 26.2 / 26.3 /
+    26.4 / 26.5 truth-class semantics verbatim and treats every
+    Stage 25 truth class as a first-class category.
+    """
+
+
 __all__ = [
     "Stage26CohortError",
     "Stage26EligibilityError",
@@ -297,6 +369,7 @@ __all__ = [
     "Stage26ManifestError",
     "Stage26PolicyCandidateError",
     "Stage26ReaderError",
+    "Stage26ReviewPacketError",
     "Stage26SchemaError",
     "Stage26ThresholdError",
     "Stage26ValidationError",

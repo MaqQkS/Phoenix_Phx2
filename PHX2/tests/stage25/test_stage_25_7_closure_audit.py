@@ -23,11 +23,12 @@ Pins:
     the approved Stage 26.3 calibration cohort builder surface +
     the approved Stage 26.4 threshold candidate generator surface +
     the approved Stage 26.5 observe-only policy candidate artifact
-    builder + writer surface. Stage 26.5 admits: ``__init__.py`` +
-    ``STAGE_26_0_SPEC_LOCK.md`` + ``constants.py`` + ``errors.py`` +
-    ``models.py`` + ``stage25_schema_whitelist.py`` +
-    ``stage25_artifact_reader.py`` +
-    ``stage25_artifact_validation.py`` +
+    builder + writer surface + the approved Stage 26.6 operator
+    review packet / approval handoff builder + writer surface.
+    Stage 26.6 admits: ``__init__.py`` + ``STAGE_26_0_SPEC_LOCK.md``
+    + ``constants.py`` + ``errors.py`` + ``models.py`` +
+    ``stage25_schema_whitelist.py`` + ``stage25_artifact_reader.py``
+    + ``stage25_artifact_validation.py`` +
     ``calibration_input_contracts.py`` + ``eligibility_constants.py``
     + ``eligibility_models.py`` + ``eligibility_classifier.py`` +
     ``cohort_constants.py`` + ``cohort_models.py`` +
@@ -35,13 +36,15 @@ Pins:
     ``threshold_models.py`` + ``threshold_candidate_generator.py`` +
     ``policy_candidate_constants.py`` + ``policy_candidate_models.py``
     + ``policy_candidate_builder.py`` +
-    ``policy_candidate_writer.py``. Any other entry is treated as
-    Stage 26.6+ implementation and is rejected (Stage 26.6+
-    surfaces -- operator review packet / approval handoff / runner
-    / CLI -- remain blocked).
+    ``policy_candidate_writer.py`` + ``review_packet_constants.py``
+    + ``review_packet_models.py`` + ``review_packet_builder.py`` +
+    ``review_packet_writer.py``. Any other entry is treated as
+    Stage 26.7+ implementation and is rejected (Stage 26.7+
+    surfaces -- closure audit / Stage 27 handoff / runner / CLI --
+    remain blocked).
   * ``PHX2/stage27/`` does NOT exist (no Stage 27 scaffold is
     admitted at Stage 25.7 / Stage 26.0 / Stage 26.1 / Stage 26.2 /
-    Stage 26.3 / Stage 26.4 / Stage 26.5).
+    Stage 26.3 / Stage 26.4 / Stage 26.5 / Stage 26.6).
 """
 
 from __future__ import annotations
@@ -653,7 +656,7 @@ def test_no_url_literal_in_closure_docs():
             )
 
 
-_STAGE_26_5_ALLOWED_ENTRIES: frozenset[str] = frozenset(
+_STAGE_26_6_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 26.0 spec-lock scaffold.
         "__init__.py",
@@ -685,12 +688,18 @@ _STAGE_26_5_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "policy_candidate_models.py",
         "policy_candidate_builder.py",
         "policy_candidate_writer.py",
+        # Stage 26.6 operator review packet / approval handoff
+        # builder + writer surface.
+        "review_packet_constants.py",
+        "review_packet_models.py",
+        "review_packet_builder.py",
+        "review_packet_writer.py",
     }
 )
 
 
-def test_stage26_tree_is_only_stage26_5_approved_files():
-    """``PHX2/stage26/`` carries only the approved Stage 26.0-26.5 surface.
+def test_stage26_tree_is_only_stage26_6_approved_files():
+    """``PHX2/stage26/`` carries only the approved Stage 26.0-26.6 surface.
 
     Stage 25.7 originally asserted ``PHX2/stage26/`` did not exist.
     Stage 26.0 materialized the directory with a spec-lock-only
@@ -700,8 +709,9 @@ def test_stage26_tree_is_only_stage26_5_approved_files():
     the calibration cohort builder surface. Stage 26.4 added the
     threshold candidate generator surface. Stage 26.5 added the
     observe-only policy candidate artifact builder + writer
-    surface; this test was narrowly extended to admit exactly that
-    locked file set:
+    surface. Stage 26.6 added the operator review packet /
+    approval handoff builder + writer surface; this test was
+    narrowly extended to admit exactly that locked file set:
 
       * ``__init__.py``                          -- Stage 26 package
                                                     marker.
@@ -710,7 +720,8 @@ def test_stage26_tree_is_only_stage26_5_approved_files():
       * ``constants.py``                         -- Stage 26.1 closed-
                                                     set vocabularies.
       * ``errors.py``                            -- Stage 26.1 / 26.2 /
-                                                    26.3 / 26.4 typed
+                                                    26.3 / 26.4 / 26.5
+                                                    / 26.6 typed
                                                     errors.
       * ``models.py``                            -- Stage 26.1 immutable
                                                     input record
@@ -767,12 +778,28 @@ def test_stage26_tree_is_only_stage26_5_approved_files():
                                                     26.5 offline
                                                     observe-only
                                                     artifact writer.
+      * ``review_packet_constants.py``           -- Stage 26.6 closed-
+                                                    set operator review
+                                                    packet / approval
+                                                    handoff vocabularies.
+      * ``review_packet_models.py``              -- Stage 26.6 immutable
+                                                    review packet record
+                                                    NamedTuples.
+      * ``review_packet_builder.py``             -- pure deterministic
+                                                    Stage 26.6 operator
+                                                    review packet
+                                                    builder.
+      * ``review_packet_writer.py``              -- deterministic Stage
+                                                    26.6 offline
+                                                    review-only operator
+                                                    review packet
+                                                    artifact writer.
 
     Any other top-level entry under ``PHX2/stage26/`` -- a Stage
-    26.6 operator review packet / approval module, a runner / CLI
-    / dispatch surface, or a subdirectory other than the
-    interpreter's ``__pycache__`` -- is treated as Stage 26.6+
-    implementation and is forbidden. Stage 26.6+ implementation
+    26.7 closure audit / Stage 27 handoff module, a runner / CLI /
+    dispatch surface, or a subdirectory other than the
+    interpreter's ``__pycache__`` -- is treated as Stage 26.7+
+    implementation and is forbidden. Stage 26.7+ implementation
     remains blocked until each respective sub-stage is operator-
     authorized.
     """
@@ -790,12 +817,12 @@ def test_stage26_tree_is_only_stage26_5_approved_files():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    forbidden = actual - _STAGE_26_5_ALLOWED_ENTRIES
+    forbidden = actual - _STAGE_26_6_ALLOWED_ENTRIES
     assert not forbidden, (
         f"PHX2/stage26 admits only the locked Stage 26.0 + Stage 26.1 "
-        f"+ Stage 26.2 + Stage 26.3 + Stage 26.4 + Stage 26.5 file "
-        f"set ({sorted(_STAGE_26_5_ALLOWED_ENTRIES)!r}). Stage 26.6+ "
-        f"implementation (operator review packet / approval handoff "
+        f"+ Stage 26.2 + Stage 26.3 + Stage 26.4 + Stage 26.5 + Stage "
+        f"26.6 file set ({sorted(_STAGE_26_6_ALLOWED_ENTRIES)!r}). "
+        f"Stage 26.7+ implementation (closure audit / Stage 27 handoff "
         f"/ runner / CLI / dispatch) remains blocked until each "
         f"sub-stage is operator-authorized. Forbidden entries found: "
         f"{sorted(forbidden)!r}"
