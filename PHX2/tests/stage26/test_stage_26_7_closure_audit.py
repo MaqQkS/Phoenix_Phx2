@@ -557,39 +557,21 @@ def test_stage27_handoff_doc_includes_stage25_measurement_aware_context():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.0 / 27.1 / 27.2 / 27.3 / 27.4 / 27.5 / 27.6 narrow
-# amendment: ``PHX2/stage27/`` is materialized at Stage 27.0 with
-# the scaffold, extended at Stage 27.1 with the operator-config /
-# secrets-readiness / run-identity / config-errors / config-models
-# production surface, extended at Stage 27.2 with the pair-
-# detection production surface (closed-set vocabularies + immutable
-# record shapes + module-local exception hierarchy + deterministic
-# classifier skeleton), extended at Stage 27.3 with the provider-
-# ingest composition production surface (closed-set status / reason
-# vocabularies + immutable input / output records + Stage 21 / 22
-# normalized-event adapter Protocol + composition pipeline that
-# invokes the Stage 27.2 classifier + Stage 27.3 manifest
-# constants), extended at Stage 27.4 with the price / ATH /
-# migration context surface (closed-set vocabularies + immutable
-# record shapes + injectable source-reader Protocol + combined
-# measurement-context assembler + Stage 27.4 manifest constants),
-# extended at Stage 27.5 with the private-ping renderer /
-# provenance / dry-run artifact-writer surface (closed-set
-# render-status / artifact-kind / redaction-status vocabularies +
-# immutable payload / provenance record shapes + pure renderer +
-# injectable Stage27_5Clock Protocol + deterministic offline dry-
-# run writer + Stage 27.5 manifest constants), and extended at
-# Stage 27.6 with the live-candidate assembler / bounded dry-run
-# runner / run-local dedupe surface (closed-set candidate_status /
-# candidate_reason / run_mode / stop_reason vocabularies +
-# immutable candidate / run-summary / dedupe-key record shapes +
-# pure assembler + bounded dry-run runner + run-local dedupe
-# ledger + Stage 27.6 manifest constants). No Discord sender, no
-# real provider client, no persistent dedupe ledger, no
-# enforcement, no public routing, no X / social. The narrow
-# allowlist admits exactly the Stage 27.0 + 27.1 + 27.2 + 27.3 +
-# 27.4 + 27.5 + 27.6 file set; every Stage 27.7+ implementation
-# surface remains blocked.
+# Stage 27.0 through 27.7a narrow amendment: ``PHX2/stage27/`` is
+# materialized at Stage 27.0 with the scaffold, then extended in
+# turn through Stage 27.1 (operator-config / secrets-readiness),
+# Stage 27.2 (pair detection), Stage 27.3 (provider-ingest
+# composition), Stage 27.4 (price / ATH / migration context),
+# Stage 27.5 (private-ping renderer / provenance / dry-run
+# artifact-writer), Stage 27.6 (live-candidate assembler / bounded
+# dry-run runner / run-local dedupe), and Stage 27.7a (operator
+# runbook + dry-run smoke checklist + deterministic in-process
+# dry-run smoke harness + Stage 27.7a manifest). No Discord
+# sender, no real provider client, no persistent dedupe ledger,
+# no enforcement, no public routing, no X / social. The narrow
+# allowlist admits exactly the Stage 27.0 through 27.7a file
+# set; every Stage 27.7b+ implementation surface remains
+# blocked.
 _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -631,13 +613,20 @@ _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "live_candidate_assembler.py",
         "bounded_tradeable_ping_runner.py",
         "stage27_6_manifest.py",
+        # Stage 27.7a operator runbook + dry-run smoke checklist
+        # + deterministic dry-run smoke harness + Stage 27.7a
+        # manifest.
+        "STAGE_27_OPERATOR_RUNBOOK.md",
+        "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+        "dry_run_smoke_harness.py",
+        "stage27_7_manifest.py",
     }
 )
 
 
 def test_stage27_implementation_tree_does_not_exist():
-    """Stage 27.0 / 27.1 / 27.2 / 27.3 / 27.4 / 27.5 / 27.6 narrow
-    amendment to the legacy Stage 27 tree check.
+    """Stage 27.0 through 27.7a narrow amendment to the legacy
+    Stage 27 tree check.
 
     Stage 26.7 originally asserted ``PHX2/stage27/`` did not exist.
     Stage 27.0 ships a scaffold-only Stage 27 package; Stage 27.1
@@ -648,15 +637,16 @@ def test_stage27_implementation_tree_does_not_exist():
     Stage 27.4 further extended it with the price / ATH / migration
     context production surface; Stage 27.5 further extended it with
     the private-ping renderer / provenance / dry-run artifact-
-    writer surface; Stage 27.6 further extends it with the live-
+    writer surface; Stage 27.6 further extended it with the live-
     candidate assembler / bounded dry-run runner / run-local
-    dedupe surface (closed-set candidate_status / candidate_reason
-    / run_mode / stop_reason vocabularies + immutable candidate /
-    run-summary / dedupe-key record shapes + pure assembler +
-    bounded dry-run runner + run-local dedupe ledger + Stage 27.6
-    manifest constants). The interpreter's ``__pycache__``
-    directory is build noise and is excluded. Every Stage 27.7+
-    implementation file remains forbidden at Stage 27.6 closure.
+    dedupe surface; Stage 27.7a further extends it with the
+    operator runbook + dry-run smoke checklist + deterministic
+    dry-run smoke harness + Stage 27.7a manifest (docs + in-
+    process harness; no Discord, no live, no real API, no env
+    reads outside ``live_secrets_readiness.py``). The
+    interpreter's ``__pycache__`` directory is build noise and is
+    excluded. Every Stage 27.7b+ implementation file remains
+    forbidden at Stage 27.7a closure.
     """
     stage27 = PHX2_ROOT / "stage27"
     if not stage27.exists():
@@ -671,10 +661,10 @@ def test_stage27_implementation_tree_does_not_exist():
         actual.add(entry.name)
     forbidden = actual - _STAGE_27_0_NARROW_ALLOWED_ENTRIES
     assert not forbidden, (
-        f"PHX2/stage27 admits only the Stage 27.0 + 27.1 + 27.2 + "
-        f"27.3 + 27.4 + 27.5 + 27.6 file set ("
+        f"PHX2/stage27 admits only the Stage 27.0 through 27.7a "
+        f"file set ("
         f"{sorted(_STAGE_27_0_NARROW_ALLOWED_ENTRIES)!r}); Stage "
-        f"27.7+ implementation files (Discord sender / public "
+        f"27.7b+ implementation files (Discord sender / public "
         f"routing / enforcement / X-social) remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )

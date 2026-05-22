@@ -607,17 +607,13 @@ def test_spec_lock_documents_no_tag_creation_by_implementation():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.6 narrow amendment: the Stage 27.0 allowlist is
-# further extended to admit the Stage 27.6 live-candidate assembler
-# + bounded dry-run runner + run-local dedupe production surface
-# (closed-set candidate_status / candidate_reason / run_mode /
-# stop_reason vocabularies + immutable candidate / run-summary /
-# dedupe-key record shapes + pure assembler + bounded dry-run
-# runner + run-local dedupe ledger + stage-27.6 manifest
-# constants). No Discord sender, no real provider client, no
+# Stage 27.7a narrow amendment: the Stage 27.0 allowlist is
+# further extended to admit the Stage 27.7a operator runbook +
+# dry-run smoke checklist + dry-run smoke harness + Stage 27.7a
+# manifest. No Discord sender, no real provider client, no
 # persistent dedupe ledger, no enforcement, no public routing, no
-# X / social. Every Stage 27.7+ implementation basename remains
-# blocked below.
+# X / social. Every Stage 27.7b+ implementation basename
+# (``private_discord_sender.py``) remains blocked below.
 _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -659,17 +655,24 @@ _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "live_candidate_assembler.py",
         "bounded_tradeable_ping_runner.py",
         "stage27_6_manifest.py",
+        # Stage 27.7a operator runbook + dry-run smoke harness +
+        # manifest surface (docs + deterministic in-process
+        # harness; no Discord, no live, no real API).
+        "STAGE_27_OPERATOR_RUNBOOK.md",
+        "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+        "dry_run_smoke_harness.py",
+        "stage27_7_manifest.py",
     }
 )
 
 
 def test_stage27_root_is_only_stage_27_0_scaffold():
-    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 + 27.2 + 27.3 + 27.4 + 27.5 + 27.6 surface.
+    """``PHX2/stage27/`` carries only the Stage 27.0 through 27.7a surface.
 
     The ``__pycache__`` bytecode directory is build noise, not
     Stage 27 source surface, and is excluded from this check.
     Every other top-level entry must be inside the locked
-    allowlist. Stage 27.7+ implementation files remain blocked.
+    allowlist. Stage 27.7b+ implementation files remain blocked.
     """
     assert STAGE27_ROOT.is_dir(), (
         f"Stage 27.0 requires the package directory {STAGE27_ROOT}"
@@ -681,10 +684,10 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
         actual.add(entry.name)
     forbidden = actual - _STAGE_27_0_ALLOWED_ENTRIES
     assert not forbidden, (
-        "PHX2/stage27 admits only the Stage 27.0 + 27.1 + 27.2 + "
-        f"27.3 + 27.4 + 27.5 + 27.6 file set "
+        "PHX2/stage27 admits only the Stage 27.0 through 27.7a "
+        f"file set "
         f"({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). "
-        f"Stage 27.7+ implementation files remain blocked. "
+        f"Stage 27.7b+ implementation files remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )
 
@@ -694,12 +697,11 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.6 narrow amendment: ``live_candidate_assembler.py``,
-# ``bounded_tradeable_ping_runner.py``, ``live_dedupe.py``, and
-# ``stage27_6_manifest.py`` have been promoted to the Stage 27.6
-# production surface and removed from the forbidden list. The LIVE
-# dispatch surface (``private_discord_sender.py``) remains blocked
-# at Stage 27.6 closure.
+# Stage 27.7a narrow amendment: ``dry_run_smoke_harness.py`` and
+# ``stage27_7_manifest.py`` have been promoted to the Stage 27.7a
+# production surface and removed from the forbidden list. The
+# LIVE dispatch surface (``private_discord_sender.py``) remains
+# blocked at Stage 27.7a closure (reserved for Stage 27.7b).
 _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "private_discord_sender.py",
 )
@@ -713,7 +715,7 @@ def test_no_stage_27_5_plus_implementation_file_under_stage27(
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.6 must not ship Stage 27.7+ implementation "
+        f"Stage 27.7a must not ship Stage 27.7b+ implementation "
         f"file {basename!r} under PHX2/stage27/; got {path}"
     )
 
@@ -755,12 +757,15 @@ _STAGE_27_5_LOCKED_PY_MODULES: frozenset[str] = frozenset(
         "live_candidate_assembler.py",
         "bounded_tradeable_ping_runner.py",
         "stage27_6_manifest.py",
+        # Stage 27.7a dry-run smoke harness + manifest.
+        "dry_run_smoke_harness.py",
+        "stage27_7_manifest.py",
     }
 )
 
 
 def test_stage27_root_py_modules_match_locked_27_5_set():
-    """Stage 27.6 admits exactly the locked production .py set.
+    """Stage 27.7a admits exactly the locked production .py set.
 
     Stage 27.0 originally asserted only ``__init__.py`` could exist
     under ``PHX2/stage27/``. Stage 27.1 promoted the five operator-
@@ -769,9 +774,11 @@ def test_stage27_root_py_modules_match_locked_27_5_set():
     provider-ingest composition modules. Stage 27.4 promoted the
     six price / ATH / migration context modules. Stage 27.5
     promoted the five private-ping renderer / provenance modules.
-    Stage 27.6 promotes the four live-candidate assembler / bounded
-    dry-run runner / run-local dedupe modules. Every other .py is
-    rejected (would indicate Stage 27.7+ implementation creep).
+    Stage 27.6 promoted the four live-candidate assembler / bounded
+    dry-run runner / run-local dedupe modules. Stage 27.7a promotes
+    the dry-run smoke harness + Stage 27.7a manifest. Every other
+    .py is rejected (would indicate Stage 27.7b+ implementation
+    creep).
 
     The function name is preserved verbatim so cross-stage closure-
     audit self-reference checks continue to find this allowlist.
@@ -783,21 +790,39 @@ def test_stage27_root_py_modules_match_locked_27_5_set():
     }
     unexpected = py_files - _STAGE_27_5_LOCKED_PY_MODULES
     assert not unexpected, (
-        f"Stage 27.6 must ship only the locked production .py set "
-        f"({sorted(_STAGE_27_5_LOCKED_PY_MODULES)!r}); unexpected "
-        f".py files under PHX2/stage27/: {sorted(unexpected)!r}"
+        f"Stage 27.7a must ship only the locked production .py "
+        f"set ({sorted(_STAGE_27_5_LOCKED_PY_MODULES)!r}); "
+        f"unexpected .py files under PHX2/stage27/: "
+        f"{sorted(unexpected)!r}"
     )
 
 
+_STAGE_27_7A_ALLOWED_MD_BASENAMES: frozenset[str] = frozenset(
+    {
+        "STAGE_27_0_SPEC_LOCK.md",
+        "STAGE_27_OPERATOR_RUNBOOK.md",
+        "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+    }
+)
+
+
 def test_stage27_root_has_only_spec_lock_md():
+    """Stage 27.7a admits the Stage 27.0 spec lock + the two
+    Stage 27.7a docs (operator runbook + dry-run smoke
+    checklist).
+
+    The function name is preserved verbatim so future closure-
+    audit self-reference checks continue to find this check.
+    """
     md_files = {
         p.name
         for p in STAGE27_ROOT.iterdir()
         if p.is_file() and p.suffix == ".md"
     }
-    assert md_files == {"STAGE_27_0_SPEC_LOCK.md"}, (
-        f"Stage 27.0 must ship exactly one markdown document "
-        f"(STAGE_27_0_SPEC_LOCK.md); got {sorted(md_files)!r}"
+    assert md_files == _STAGE_27_7A_ALLOWED_MD_BASENAMES, (
+        f"Stage 27.7a must ship exactly the locked markdown set "
+        f"({sorted(_STAGE_27_7A_ALLOWED_MD_BASENAMES)!r}); got "
+        f"{sorted(md_files)!r}"
     )
 
 

@@ -107,6 +107,14 @@ _STAGE_27_0_THROUGH_27_3_LOCKED_PY_MODULES: frozenset[str] = (
             "live_candidate_assembler.py",
             "bounded_tradeable_ping_runner.py",
             "stage27_6_manifest.py",
+            # Stage 27.7a dry-run smoke harness + Stage 27.7a
+            # manifest. Stage 27.3 boundary admits these because
+            # the ``PHX2/stage27/`` directory now carries them;
+            # the Stage 27.3 production-file allowlist and
+            # identifier scan still scope only the five Stage
+            # 27.3 files.
+            "dry_run_smoke_harness.py",
+            "stage27_7_manifest.py",
         }
     )
 )
@@ -114,7 +122,17 @@ _STAGE_27_0_THROUGH_27_3_LOCKED_PY_MODULES: frozenset[str] = (
 
 _STAGE_27_0_THROUGH_27_3_LOCKED_ENTRIES: frozenset[str] = (
     _STAGE_27_0_THROUGH_27_3_LOCKED_PY_MODULES
-    | frozenset({"STAGE_27_0_SPEC_LOCK.md"})
+    | frozenset(
+        {
+            "STAGE_27_0_SPEC_LOCK.md",
+            # Stage 27.7a docs admitted by the directory scan
+            # only; the Stage 27.3 production-file allowlist and
+            # identifier scan still scope only the five Stage
+            # 27.3 files.
+            "STAGE_27_OPERATOR_RUNBOOK.md",
+            "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+        }
+    )
 )
 
 

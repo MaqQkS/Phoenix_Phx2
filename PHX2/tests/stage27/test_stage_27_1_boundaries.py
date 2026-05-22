@@ -110,6 +110,16 @@ _STAGE_27_LOCKED_DIRECTORY_ENTRIES: frozenset[str] = frozenset(
         "live_candidate_assembler.py",
         "bounded_tradeable_ping_runner.py",
         "stage27_6_manifest.py",
+        # Stage 27.7a operator runbook + dry-run smoke checklist
+        # + deterministic in-process dry-run smoke harness +
+        # Stage 27.7a manifest. Stage 27.1 boundary admits these
+        # because the ``PHX2/stage27/`` directory now carries
+        # them; the Stage 27.1 production-file allowlist still
+        # scopes only the five Stage 27.1 files.
+        "STAGE_27_OPERATOR_RUNBOOK.md",
+        "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+        "dry_run_smoke_harness.py",
+        "stage27_7_manifest.py",
     }
 )
 
