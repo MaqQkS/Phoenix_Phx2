@@ -110,9 +110,27 @@ _STAGE_26_WRITER_FILENAMES: frozenset[str] = frozenset(
 _STAGE_26_5_WRITER_FILENAME: str = "policy_candidate_writer.py"
 
 
+# Stage 26.7 narrowly added the closure-audit document and the
+# Stage 27 handoff document under ``PHX2/stage26/`` (docs only --
+# no Stage 26 production code was added in 26.7); the Stage 26.1
+# locked-inventory set is narrowly extended to admit exactly those
+# two markdown filenames. Stage 27 implementation surfaces (runner /
+# CLI / dispatcher / live-router / Discord / Telegram / X / social /
+# Axiom / approval / enforcement) remain forbidden via the existing
+# ``_FORBIDDEN_*`` lists and the existing forbidden-future-substage
+# basename check.
+_STAGE_26_7_CLOSURE_MARKDOWN_FILENAMES: frozenset[str] = frozenset(
+    {
+        "STAGE_26_CLOSURE_AUDIT.md",
+        "STAGE_27_HANDOFF.md",
+    }
+)
+
+
 _LOCKED_STAGE26_ENTRIES: frozenset[str] = (
     _STAGE_26_1_PRODUCTION_FILENAMES
     | frozenset({"STAGE_26_0_SPEC_LOCK.md"})
+    | _STAGE_26_7_CLOSURE_MARKDOWN_FILENAMES
 )
 
 
