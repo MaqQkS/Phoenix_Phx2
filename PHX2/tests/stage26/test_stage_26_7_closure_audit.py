@@ -557,14 +557,25 @@ def test_stage27_handoff_doc_includes_stage25_measurement_aware_context():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.0 narrow amendment: ``PHX2/stage27/`` is materialized at
-# Stage 27.0 as a scaffold-only spec-lock surface. The narrow
-# allowlist below admits exactly the Stage 27.0 scaffold; every
-# Stage 27.1+ implementation surface remains blocked.
+# Stage 27.0 / 27.1 narrow amendment: ``PHX2/stage27/`` is
+# materialized at Stage 27.0 with the scaffold and extended at
+# Stage 27.1 with the operator-config / secrets-readiness / run-
+# identity / config-errors / config-models production surface
+# (no provider client, no Discord sender, no ping renderer, no
+# bounded runner, no dedupe, no pair classifier, no enforcement).
+# The narrow allowlist admits exactly the Stage 27.0 + 27.1 file
+# set; every Stage 27.2+ implementation surface remains blocked.
 _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
+        # Stage 27.0 scaffold.
         "__init__.py",
         "STAGE_27_0_SPEC_LOCK.md",
+        # Stage 27.1 production surface.
+        "live_config_errors.py",
+        "live_config_models.py",
+        "live_run_identity.py",
+        "live_secrets_readiness.py",
+        "live_operator_config.py",
     }
 )
 
@@ -595,12 +606,11 @@ def test_stage27_implementation_tree_does_not_exist():
         actual.add(entry.name)
     forbidden = actual - _STAGE_27_0_NARROW_ALLOWED_ENTRIES
     assert not forbidden, (
-        f"PHX2/stage27 admits only the Stage 27.0 scaffold "
+        f"PHX2/stage27 admits only the Stage 27.0 + 27.1 file set "
         f"({sorted(_STAGE_27_0_NARROW_ALLOWED_ENTRIES)!r}); Stage "
-        f"27.1+ implementation files (runner / classifier / "
+        f"27.2+ implementation files (runner / classifier / "
         f"Discord sender / dedupe / provider client / price "
-        f"reader / candidate assembler / live config / live "
-        f"secrets readiness) remain blocked at Stage 27.0. "
+        f"reader / candidate assembler) remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )
 

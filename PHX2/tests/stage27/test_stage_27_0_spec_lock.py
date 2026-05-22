@@ -607,21 +607,33 @@ def test_spec_lock_documents_no_tag_creation_by_implementation():
 # ---------------------------------------------------------------------------
 
 
+# Stage 27.1 narrow amendment: the Stage 27.0 allowlist is
+# extended to admit the Stage 27.1 production surface (operator
+# config + secrets readiness + run identity + config errors +
+# config models). Every Stage 27.2+ implementation basename
+# remains blocked below.
 _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
+        # Stage 27.0 scaffold.
         "__init__.py",
         "STAGE_27_0_SPEC_LOCK.md",
+        # Stage 27.1 production surface.
+        "live_config_errors.py",
+        "live_config_models.py",
+        "live_run_identity.py",
+        "live_secrets_readiness.py",
+        "live_operator_config.py",
     }
 )
 
 
 def test_stage27_root_is_only_stage_27_0_scaffold():
-    """``PHX2/stage27/`` carries only the Stage 27.0 scaffold.
+    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 surface.
 
     The ``__pycache__`` bytecode directory is build noise, not
     Stage 27 source surface, and is excluded from this check.
     Every other top-level entry must be inside the locked
-    Stage 27.0 allowlist.
+    allowlist. Stage 27.2+ implementation files remain blocked.
     """
     assert STAGE27_ROOT.is_dir(), (
         f"Stage 27.0 requires the package directory {STAGE27_ROOT}"
@@ -633,21 +645,24 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
         actual.add(entry.name)
     forbidden = actual - _STAGE_27_0_ALLOWED_ENTRIES
     assert not forbidden, (
-        "PHX2/stage27 admits only the Stage 27.0 scaffold "
-        f"({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). Stage 27.1+ "
-        f"implementation files remain blocked at Stage 27.0. "
-        f"Forbidden entries found: {sorted(forbidden)!r}"
+        "PHX2/stage27 admits only the Stage 27.0 + 27.1 file set "
+        f"({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). Stage 27.2+ "
+        f"implementation files remain blocked. Forbidden entries "
+        f"found: {sorted(forbidden)!r}"
     )
 
 
 # ---------------------------------------------------------------------------
-# 21. Forbidden Stage 27.1+ implementation files do NOT exist yet
+# 21. Forbidden Stage 27.2+ implementation files do NOT exist yet
 # ---------------------------------------------------------------------------
 
 
-_STAGE_27_1_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "live_operator_config.py",
-    "live_secrets_readiness.py",
+# Stage 27.1 narrow amendment: ``live_operator_config.py`` and
+# ``live_secrets_readiness.py`` have been promoted to the
+# Stage 27.1 production surface and removed from the forbidden
+# list. Every other Stage 27.2+ implementation basename remains
+# blocked.
+_STAGE_27_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "pair_detection_contracts.py",
     "pump_pair_classifier.py",
     "live_provider_composition.py",
@@ -661,32 +676,48 @@ _STAGE_27_1_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
 
 
 @pytest.mark.parametrize(
-    "basename", _STAGE_27_1_PLUS_FORBIDDEN_BASENAMES
+    "basename", _STAGE_27_2_PLUS_FORBIDDEN_BASENAMES
 )
-def test_no_stage_27_1_plus_implementation_file_under_stage27(
+def test_no_stage_27_2_plus_implementation_file_under_stage27(
     basename,
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.0 must not ship Stage 27.1+ implementation "
+        f"Stage 27.1 must not ship Stage 27.2+ implementation "
         f"file {basename!r} under PHX2/stage27/; got {path}"
     )
 
 
-def test_stage27_root_has_no_py_module_other_than_init():
-    """Stage 27.0 is docs-and-tests-only: the only ``.py`` under
-    ``PHX2/stage27/`` is ``__init__.py``.
+_STAGE_27_1_LOCKED_PY_MODULES: frozenset[str] = frozenset(
+    {
+        "__init__.py",
+        "live_config_errors.py",
+        "live_config_models.py",
+        "live_run_identity.py",
+        "live_secrets_readiness.py",
+        "live_operator_config.py",
+    }
+)
+
+
+def test_stage27_root_py_modules_match_locked_27_1_set():
+    """Stage 27.1 admits exactly the locked production .py set.
+
+    Stage 27.0 originally asserted only ``__init__.py`` could exist
+    under ``PHX2/stage27/``. Stage 27.1 promotes the five operator-
+    config production modules. Every other .py is rejected (would
+    indicate Stage 27.2+ implementation creep).
     """
     py_files = {
         p.name
         for p in STAGE27_ROOT.iterdir()
         if p.is_file() and p.suffix == ".py"
     }
-    unexpected = py_files - {"__init__.py"}
+    unexpected = py_files - _STAGE_27_1_LOCKED_PY_MODULES
     assert not unexpected, (
-        f"Stage 27.0 must ship no Python module beyond the "
-        f"package marker; unexpected .py files under "
-        f"PHX2/stage27/: {sorted(unexpected)!r}"
+        f"Stage 27.1 must ship only the locked production .py set "
+        f"({sorted(_STAGE_27_1_LOCKED_PY_MODULES)!r}); unexpected "
+        f".py files under PHX2/stage27/: {sorted(unexpected)!r}"
     )
 
 
