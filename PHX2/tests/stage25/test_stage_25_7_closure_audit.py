@@ -848,11 +848,62 @@ def test_stage26_tree_is_only_stage26_7_approved_files():
     )
 
 
+# Stage 27.0 narrow amendment: ``PHX2/stage27/`` is materialized at
+# Stage 27.0 as a scaffold-only spec-lock surface (the package
+# marker + the Stage 27.0 spec-lock markdown document, nothing
+# else). The function name and the ``stage27 = PHX2_ROOT / "stage27"``
+# expression are preserved verbatim so the Stage 26.7 self-reference
+# check (``test_stage_25_7_allowlist_still_forbids_stage27_implementation_tree``)
+# continues to find them. The narrow allowlist below admits exactly
+# the Stage 27.0 scaffold; every Stage 27.1+ implementation surface
+# (runner / classifier / Discord sender / dedupe / provider client
+# / price reader / candidate assembler / live config / live secrets
+# readiness) remains blocked.
+_STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
+    {
+        "__init__.py",
+        "STAGE_27_0_SPEC_LOCK.md",
+    }
+)
+
+
 def test_stage27_implementation_tree_does_not_exist():
+    """Stage 27.0 narrow amendment to the legacy Stage 27 tree check.
+
+    Stage 25.7 originally asserted ``PHX2/stage27/`` did not exist.
+    Stage 27.0 ships a scaffold-only Stage 27 package (the package
+    marker + the spec-lock document), so this assertion has been
+    narrowed: if ``PHX2/stage27/`` exists, every top-level entry
+    must be inside the locked Stage 27.0 narrow allowlist
+    (``__init__.py`` + ``STAGE_27_0_SPEC_LOCK.md``). The
+    interpreter's ``__pycache__`` directory is build noise and is
+    excluded. Every Stage 27.1+ implementation file remains
+    forbidden at Stage 27.0 closure.
+
+    The function name and the ``stage27 = PHX2_ROOT / "stage27"``
+    expression are preserved verbatim so the Stage 26.7 closure-
+    audit self-reference check continues to find them.
+    """
     stage27 = PHX2_ROOT / "stage27"
-    assert not stage27.exists(), (
-        f"Stage 25.7 must not ship a Stage 27 implementation tree: "
-        f"{stage27}"
+    if not stage27.exists():
+        return
+    assert stage27.is_dir(), (
+        f"PHX2/stage27 must be a directory if it exists: {stage27}"
+    )
+    actual: set[str] = set()
+    for entry in stage27.iterdir():
+        if entry.is_dir() and entry.name == "__pycache__":
+            continue
+        actual.add(entry.name)
+    forbidden = actual - _STAGE_27_0_NARROW_ALLOWED_ENTRIES
+    assert not forbidden, (
+        f"PHX2/stage27 admits only the Stage 27.0 scaffold "
+        f"({sorted(_STAGE_27_0_NARROW_ALLOWED_ENTRIES)!r}); Stage "
+        f"27.1+ implementation files (runner / classifier / "
+        f"Discord sender / dedupe / provider client / price "
+        f"reader / candidate assembler / live config / live "
+        f"secrets readiness) remain blocked at Stage 27.0. "
+        f"Forbidden entries found: {sorted(forbidden)!r}"
     )
 
 
