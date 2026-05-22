@@ -86,6 +86,18 @@ _STAGE_27_LOCKED_DIRECTORY_ENTRIES: frozenset[str] = frozenset(
         "migration_context_models.py",
         "live_measurement_context.py",
         "stage27_4_manifest.py",
+        # Stage 27.5 private-ping renderer / provenance / dry-run
+        # artifact-writer surface (closed-set render-status /
+        # artifact-kind / redaction-status vocabularies + immutable
+        # payload / provenance record shapes + pure renderer +
+        # injectable Stage27_5Clock Protocol + deterministic
+        # offline dry-run writer + manifest constants). No Discord
+        # sender, no bounded runner, no live dedupe, no env reads.
+        "private_ping_models.py",
+        "private_ping_renderer.py",
+        "private_ping_provenance.py",
+        "private_ping_artifact_writer.py",
+        "stage27_5_manifest.py",
     }
 )
 
@@ -390,7 +402,6 @@ def test_no_stage27_production_identifier_implements_later_substage():
 # forbidden list. Every Stage 27.5+ implementation basename remains
 # blocked.
 _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "private_ping_renderer.py",
     "private_discord_sender.py",
     "live_candidate_assembler.py",
     "bounded_tradeable_ping_runner.py",

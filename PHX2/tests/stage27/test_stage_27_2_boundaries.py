@@ -335,13 +335,11 @@ def test_no_stage_27_2_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.4 narrow amendment: ``price_ath_context_reader.py`` and
-# the other five Stage 27.4 production basenames have been promoted
-# to the Stage 27.4 production surface and removed from the
-# forbidden list. Every Stage 27.5+ implementation basename remains
-# blocked.
+# Stage 27.5 narrow amendment: ``private_ping_renderer.py`` and the
+# other four Stage 27.5 production basenames have been promoted to
+# the Stage 27.5 production surface and removed from the forbidden
+# list. Every Stage 27.6+ implementation basename remains blocked.
 _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "private_ping_renderer.py",
     "private_discord_sender.py",
     "live_candidate_assembler.py",
     "bounded_tradeable_ping_runner.py",

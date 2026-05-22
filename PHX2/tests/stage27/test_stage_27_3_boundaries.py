@@ -87,6 +87,16 @@ _STAGE_27_0_THROUGH_27_3_LOCKED_PY_MODULES: frozenset[str] = (
             "migration_context_models.py",
             "live_measurement_context.py",
             "stage27_4_manifest.py",
+            # Stage 27.5 private-ping renderer / provenance surface.
+            # Stage 27.3 boundary admits these for the same reason:
+            # the directory now carries them. The Stage 27.3
+            # production-file allowlist and identifier scan still
+            # scope only the five Stage 27.3 files.
+            "private_ping_models.py",
+            "private_ping_renderer.py",
+            "private_ping_provenance.py",
+            "private_ping_artifact_writer.py",
+            "stage27_5_manifest.py",
         }
     )
 )
@@ -399,12 +409,11 @@ def test_no_stage_27_3_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.4 narrow amendment: ``price_ath_context_reader.py`` has
-# been promoted to the Stage 27.4 production surface and removed
-# from the forbidden list. Every Stage 27.5+ implementation
+# Stage 27.5 narrow amendment: ``private_ping_renderer.py`` has
+# been promoted to the Stage 27.5 production surface and removed
+# from the forbidden list. Every Stage 27.6+ implementation
 # basename remains blocked.
 _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "private_ping_renderer.py",
     "private_discord_sender.py",
     "live_candidate_assembler.py",
     "bounded_tradeable_ping_runner.py",
