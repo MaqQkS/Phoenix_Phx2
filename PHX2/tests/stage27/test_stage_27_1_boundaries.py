@@ -98,6 +98,18 @@ _STAGE_27_LOCKED_DIRECTORY_ENTRIES: frozenset[str] = frozenset(
         "private_ping_provenance.py",
         "private_ping_artifact_writer.py",
         "stage27_5_manifest.py",
+        # Stage 27.6 live-candidate assembler / bounded dry-run
+        # runner / run-local dedupe surface (closed-set
+        # candidate_status / candidate_reason / run_mode /
+        # stop_reason vocabularies + immutable candidate / run-
+        # summary / dedupe-key record shapes + pure assembler +
+        # bounded dry-run runner + run-local dedupe ledger +
+        # manifest constants). No Discord sender, no real provider
+        # client, no persistent dedupe ledger, no env reads.
+        "live_dedupe.py",
+        "live_candidate_assembler.py",
+        "bounded_tradeable_ping_runner.py",
+        "stage27_6_manifest.py",
     }
 )
 
@@ -396,16 +408,14 @@ def test_no_stage27_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.4 narrow amendment: ``price_ath_context_reader.py`` and
-# the other five Stage 27.4 production basenames have been promoted
-# to the Stage 27.4 production surface and removed from the
-# forbidden list. Every Stage 27.5+ implementation basename remains
-# blocked.
+# Stage 27.6 narrow amendment: ``live_candidate_assembler.py``,
+# ``bounded_tradeable_ping_runner.py``, ``live_dedupe.py``, and
+# ``stage27_6_manifest.py`` have been promoted to the Stage 27.6
+# production surface and removed from the forbidden list. The LIVE
+# dispatch basename (``private_discord_sender.py``) remains blocked
+# at Stage 27.6 closure.
 _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "private_discord_sender.py",
-    "live_candidate_assembler.py",
-    "bounded_tradeable_ping_runner.py",
-    "live_dedupe.py",
 )
 
 

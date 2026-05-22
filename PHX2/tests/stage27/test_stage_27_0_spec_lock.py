@@ -607,15 +607,17 @@ def test_spec_lock_documents_no_tag_creation_by_implementation():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.5 narrow amendment: the Stage 27.0 allowlist is
-# further extended to admit the Stage 27.5 private-ping renderer +
-# provenance + dry-run artifact-writer production surface (closed-
-# set vocabularies + immutable payload / provenance record shapes
-# + pure renderer + injectable Stage27_5Clock Protocol +
-# deterministic offline dry-run writer + stage-27.5 manifest
-# constants). No Discord sender, no live runner, no live dedupe,
-# no enforcement, no public routing, no X / social. Every Stage
-# 27.6+ implementation basename remains blocked below.
+# Stage 27.6 narrow amendment: the Stage 27.0 allowlist is
+# further extended to admit the Stage 27.6 live-candidate assembler
+# + bounded dry-run runner + run-local dedupe production surface
+# (closed-set candidate_status / candidate_reason / run_mode /
+# stop_reason vocabularies + immutable candidate / run-summary /
+# dedupe-key record shapes + pure assembler + bounded dry-run
+# runner + run-local dedupe ledger + stage-27.6 manifest
+# constants). No Discord sender, no real provider client, no
+# persistent dedupe ledger, no enforcement, no public routing, no
+# X / social. Every Stage 27.7+ implementation basename remains
+# blocked below.
 _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -651,17 +653,23 @@ _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "private_ping_provenance.py",
         "private_ping_artifact_writer.py",
         "stage27_5_manifest.py",
+        # Stage 27.6 live-candidate assembler / bounded dry-run
+        # runner / run-local dedupe surface.
+        "live_dedupe.py",
+        "live_candidate_assembler.py",
+        "bounded_tradeable_ping_runner.py",
+        "stage27_6_manifest.py",
     }
 )
 
 
 def test_stage27_root_is_only_stage_27_0_scaffold():
-    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 + 27.2 + 27.3 + 27.4 + 27.5 surface.
+    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 + 27.2 + 27.3 + 27.4 + 27.5 + 27.6 surface.
 
     The ``__pycache__`` bytecode directory is build noise, not
     Stage 27 source surface, and is excluded from this check.
     Every other top-level entry must be inside the locked
-    allowlist. Stage 27.6+ implementation files remain blocked.
+    allowlist. Stage 27.7+ implementation files remain blocked.
     """
     assert STAGE27_ROOT.is_dir(), (
         f"Stage 27.0 requires the package directory {STAGE27_ROOT}"
@@ -674,29 +682,26 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
     forbidden = actual - _STAGE_27_0_ALLOWED_ENTRIES
     assert not forbidden, (
         "PHX2/stage27 admits only the Stage 27.0 + 27.1 + 27.2 + "
-        f"27.3 + 27.4 + 27.5 file set "
+        f"27.3 + 27.4 + 27.5 + 27.6 file set "
         f"({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). "
-        f"Stage 27.6+ implementation files remain blocked. "
+        f"Stage 27.7+ implementation files remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )
 
 
 # ---------------------------------------------------------------------------
-# 21. Forbidden Stage 27.4+ implementation files do NOT exist yet
+# 21. Forbidden Stage 27.7+ implementation files do NOT exist yet
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.5 narrow amendment: ``private_ping_models.py``,
-# ``private_ping_renderer.py``, ``private_ping_provenance.py``,
-# ``private_ping_artifact_writer.py``, and ``stage27_5_manifest.py``
-# have been promoted to the Stage 27.5 production surface and
-# removed from the forbidden list. Every Stage 27.6+
-# implementation basename remains blocked.
+# Stage 27.6 narrow amendment: ``live_candidate_assembler.py``,
+# ``bounded_tradeable_ping_runner.py``, ``live_dedupe.py``, and
+# ``stage27_6_manifest.py`` have been promoted to the Stage 27.6
+# production surface and removed from the forbidden list. The LIVE
+# dispatch surface (``private_discord_sender.py``) remains blocked
+# at Stage 27.6 closure.
 _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "private_discord_sender.py",
-    "live_candidate_assembler.py",
-    "bounded_tradeable_ping_runner.py",
-    "live_dedupe.py",
 )
 
 
@@ -708,7 +713,7 @@ def test_no_stage_27_5_plus_implementation_file_under_stage27(
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.5 must not ship Stage 27.6+ implementation "
+        f"Stage 27.6 must not ship Stage 27.7+ implementation "
         f"file {basename!r} under PHX2/stage27/; got {path}"
     )
 
@@ -744,12 +749,18 @@ _STAGE_27_5_LOCKED_PY_MODULES: frozenset[str] = frozenset(
         "private_ping_provenance.py",
         "private_ping_artifact_writer.py",
         "stage27_5_manifest.py",
+        # Stage 27.6 live-candidate assembler / bounded dry-run
+        # runner / run-local dedupe surface.
+        "live_dedupe.py",
+        "live_candidate_assembler.py",
+        "bounded_tradeable_ping_runner.py",
+        "stage27_6_manifest.py",
     }
 )
 
 
 def test_stage27_root_py_modules_match_locked_27_5_set():
-    """Stage 27.5 admits exactly the locked production .py set.
+    """Stage 27.6 admits exactly the locked production .py set.
 
     Stage 27.0 originally asserted only ``__init__.py`` could exist
     under ``PHX2/stage27/``. Stage 27.1 promoted the five operator-
@@ -757,9 +768,13 @@ def test_stage27_root_py_modules_match_locked_27_5_set():
     detection production modules. Stage 27.3 promoted the five
     provider-ingest composition modules. Stage 27.4 promoted the
     six price / ATH / migration context modules. Stage 27.5
-    promotes the five private-ping renderer / provenance modules.
-    Every other .py is rejected (would indicate Stage 27.6+
-    implementation creep).
+    promoted the five private-ping renderer / provenance modules.
+    Stage 27.6 promotes the four live-candidate assembler / bounded
+    dry-run runner / run-local dedupe modules. Every other .py is
+    rejected (would indicate Stage 27.7+ implementation creep).
+
+    The function name is preserved verbatim so cross-stage closure-
+    audit self-reference checks continue to find this allowlist.
     """
     py_files = {
         p.name
@@ -768,7 +783,7 @@ def test_stage27_root_py_modules_match_locked_27_5_set():
     }
     unexpected = py_files - _STAGE_27_5_LOCKED_PY_MODULES
     assert not unexpected, (
-        f"Stage 27.5 must ship only the locked production .py set "
+        f"Stage 27.6 must ship only the locked production .py set "
         f"({sorted(_STAGE_27_5_LOCKED_PY_MODULES)!r}); unexpected "
         f".py files under PHX2/stage27/: {sorted(unexpected)!r}"
     )

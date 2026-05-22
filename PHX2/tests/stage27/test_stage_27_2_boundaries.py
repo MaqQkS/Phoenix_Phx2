@@ -335,15 +335,14 @@ def test_no_stage_27_2_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.5 narrow amendment: ``private_ping_renderer.py`` and the
-# other four Stage 27.5 production basenames have been promoted to
-# the Stage 27.5 production surface and removed from the forbidden
-# list. Every Stage 27.6+ implementation basename remains blocked.
+# Stage 27.6 narrow amendment: ``live_candidate_assembler.py``,
+# ``bounded_tradeable_ping_runner.py``, ``live_dedupe.py``, and
+# ``stage27_6_manifest.py`` have been promoted to the Stage 27.6
+# production surface and removed from the forbidden list. The LIVE
+# dispatch basename (``private_discord_sender.py``) remains blocked
+# at Stage 27.6 closure.
 _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "private_discord_sender.py",
-    "live_candidate_assembler.py",
-    "bounded_tradeable_ping_runner.py",
-    "live_dedupe.py",
 )
 
 

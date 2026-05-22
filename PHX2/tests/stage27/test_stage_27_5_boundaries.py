@@ -21,10 +21,12 @@ Pins:
     implementation identifier substrings (Discord sender /
     candidate assembler / bounded runner / live dedupe / public
     router / X-social).
-  * Every Stage 27.6+ implementation basename is still absent
-    under ``PHX2/stage27/`` (``private_discord_sender.py`` /
-    ``live_candidate_assembler.py`` /
-    ``bounded_tradeable_ping_runner.py`` / ``live_dedupe.py``).
+  * Every Stage 27.7+ implementation basename is still absent
+    under ``PHX2/stage27/`` (``private_discord_sender.py``). Stage
+    27.6 narrow amendment: ``live_candidate_assembler.py`` /
+    ``bounded_tradeable_ping_runner.py`` / ``live_dedupe.py`` /
+    ``stage27_6_manifest.py`` have been promoted to the Stage 27.6
+    production surface and are no longer in the forbidden list.
   * ``PHX2/stage27/`` admits only the locked Stage 27.0 through
     27.5 file set.
   * The Stage 27.0 spec-lock-allowlist amendment admits the Stage
@@ -89,6 +91,16 @@ _STAGE_27_0_THROUGH_27_5_LOCKED_PY_MODULES: frozenset[str] = (
             "private_ping_provenance.py",
             "private_ping_artifact_writer.py",
             "stage27_5_manifest.py",
+            # Stage 27.6 live-candidate assembler / bounded dry-run
+            # runner / run-local dedupe surface. Stage 27.5 boundary
+            # admits these because the ``PHX2/stage27/`` directory
+            # now carries them; the Stage 27.5 production-file
+            # allowlist and identifier scan still scope only the
+            # five Stage 27.5 files.
+            "live_dedupe.py",
+            "live_candidate_assembler.py",
+            "bounded_tradeable_ping_runner.py",
+            "stage27_6_manifest.py",
         }
     )
 )
@@ -421,9 +433,6 @@ def test_no_stage_27_5_production_identifier_implements_later_substage():
 
 _STAGE_27_6_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "private_discord_sender.py",
-    "live_candidate_assembler.py",
-    "bounded_tradeable_ping_runner.py",
-    "live_dedupe.py",
 )
 
 
