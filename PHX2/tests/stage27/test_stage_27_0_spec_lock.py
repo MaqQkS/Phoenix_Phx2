@@ -607,13 +607,13 @@ def test_spec_lock_documents_no_tag_creation_by_implementation():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.3 narrow amendment: the Stage 27.0 allowlist is
-# further extended to admit the Stage 27.3 provider-ingest
-# composition production surface (closed-set vocabularies +
-# immutable record shapes + module-local exception hierarchy +
-# provider-event adapter + deterministic composition pipeline +
-# stage-27.3 manifest constants). Every Stage 27.4+ implementation
-# basename remains blocked below.
+# Stage 27.4 narrow amendment: the Stage 27.0 allowlist is
+# further extended to admit the Stage 27.4 price / ATH / migration
+# context production surface (closed-set vocabularies + immutable
+# record shapes + module-local exception hierarchy + injectable
+# reader Protocol boundary + combined measurement-context
+# assembler + stage-27.4 manifest constants). Every Stage 27.5+
+# implementation basename remains blocked below.
 _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -636,17 +636,24 @@ _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "provider_event_adapter.py",
         "live_provider_composition.py",
         "stage27_3_manifest.py",
+        # Stage 27.4 price / ATH / migration context surface.
+        "price_ath_context_models.py",
+        "price_ath_context_contracts.py",
+        "price_ath_context_reader.py",
+        "migration_context_models.py",
+        "live_measurement_context.py",
+        "stage27_4_manifest.py",
     }
 )
 
 
 def test_stage27_root_is_only_stage_27_0_scaffold():
-    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 + 27.2 + 27.3 surface.
+    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 + 27.2 + 27.3 + 27.4 surface.
 
     The ``__pycache__`` bytecode directory is build noise, not
     Stage 27 source surface, and is excluded from this check.
     Every other top-level entry must be inside the locked
-    allowlist. Stage 27.4+ implementation files remain blocked.
+    allowlist. Stage 27.5+ implementation files remain blocked.
     """
     assert STAGE27_ROOT.is_dir(), (
         f"Stage 27.0 requires the package directory {STAGE27_ROOT}"
@@ -659,8 +666,9 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
     forbidden = actual - _STAGE_27_0_ALLOWED_ENTRIES
     assert not forbidden, (
         "PHX2/stage27 admits only the Stage 27.0 + 27.1 + 27.2 + "
-        f"27.3 file set ({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). "
-        f"Stage 27.4+ implementation files remain blocked. "
+        f"27.3 + 27.4 file set "
+        f"({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). "
+        f"Stage 27.5+ implementation files remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )
 
@@ -670,14 +678,13 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.3 narrow amendment: ``provider_ingest_models.py``,
-# ``provider_ingest_contracts.py``, ``provider_event_adapter.py``,
-# ``live_provider_composition.py``, and ``stage27_3_manifest.py``
-# have been promoted to the Stage 27.3 production surface and
-# removed from the forbidden list. Every other Stage 27.4+
-# implementation basename remains blocked.
-_STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "price_ath_context_reader.py",
+# Stage 27.4 narrow amendment: ``price_ath_context_models.py``,
+# ``price_ath_context_contracts.py``, ``price_ath_context_reader.py``,
+# ``migration_context_models.py``, ``live_measurement_context.py``,
+# and ``stage27_4_manifest.py`` have been promoted to the Stage
+# 27.4 production surface and removed from the forbidden list.
+# Every other Stage 27.5+ implementation basename remains blocked.
+_STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "private_ping_renderer.py",
     "private_discord_sender.py",
     "live_candidate_assembler.py",
@@ -687,19 +694,19 @@ _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
 
 
 @pytest.mark.parametrize(
-    "basename", _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES
+    "basename", _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES
 )
-def test_no_stage_27_3_plus_implementation_file_under_stage27(
+def test_no_stage_27_5_plus_implementation_file_under_stage27(
     basename,
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.3 must not ship Stage 27.4+ implementation "
+        f"Stage 27.4 must not ship Stage 27.5+ implementation "
         f"file {basename!r} under PHX2/stage27/; got {path}"
     )
 
 
-_STAGE_27_2_LOCKED_PY_MODULES: frozenset[str] = frozenset(
+_STAGE_27_4_LOCKED_PY_MODULES: frozenset[str] = frozenset(
     {
         "__init__.py",
         "live_config_errors.py",
@@ -717,29 +724,37 @@ _STAGE_27_2_LOCKED_PY_MODULES: frozenset[str] = frozenset(
         "provider_event_adapter.py",
         "live_provider_composition.py",
         "stage27_3_manifest.py",
+        # Stage 27.4 price / ATH / migration context surface.
+        "price_ath_context_models.py",
+        "price_ath_context_contracts.py",
+        "price_ath_context_reader.py",
+        "migration_context_models.py",
+        "live_measurement_context.py",
+        "stage27_4_manifest.py",
     }
 )
 
 
-def test_stage27_root_py_modules_match_locked_27_2_set():
-    """Stage 27.3 admits exactly the locked production .py set.
+def test_stage27_root_py_modules_match_locked_27_4_set():
+    """Stage 27.4 admits exactly the locked production .py set.
 
     Stage 27.0 originally asserted only ``__init__.py`` could exist
     under ``PHX2/stage27/``. Stage 27.1 promoted the five operator-
     config production modules. Stage 27.2 promoted the four pair-
-    detection production modules. Stage 27.3 promotes the five
-    provider-ingest composition modules. Every other .py is
-    rejected (would indicate Stage 27.4+ implementation creep).
+    detection production modules. Stage 27.3 promoted the five
+    provider-ingest composition modules. Stage 27.4 promotes the
+    six price / ATH / migration context modules. Every other .py is
+    rejected (would indicate Stage 27.5+ implementation creep).
     """
     py_files = {
         p.name
         for p in STAGE27_ROOT.iterdir()
         if p.is_file() and p.suffix == ".py"
     }
-    unexpected = py_files - _STAGE_27_2_LOCKED_PY_MODULES
+    unexpected = py_files - _STAGE_27_4_LOCKED_PY_MODULES
     assert not unexpected, (
-        f"Stage 27.3 must ship only the locked production .py set "
-        f"({sorted(_STAGE_27_2_LOCKED_PY_MODULES)!r}); unexpected "
+        f"Stage 27.4 must ship only the locked production .py set "
+        f"({sorted(_STAGE_27_4_LOCKED_PY_MODULES)!r}); unexpected "
         f".py files under PHX2/stage27/: {sorted(unexpected)!r}"
     )
 

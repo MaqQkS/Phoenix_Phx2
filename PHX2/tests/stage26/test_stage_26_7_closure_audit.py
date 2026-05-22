@@ -596,27 +596,35 @@ _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "provider_event_adapter.py",
         "live_provider_composition.py",
         "stage27_3_manifest.py",
+        # Stage 27.4 price / ATH / migration context surface.
+        "price_ath_context_models.py",
+        "price_ath_context_contracts.py",
+        "price_ath_context_reader.py",
+        "migration_context_models.py",
+        "live_measurement_context.py",
+        "stage27_4_manifest.py",
     }
 )
 
 
 def test_stage27_implementation_tree_does_not_exist():
-    """Stage 27.0 / 27.1 / 27.2 / 27.3 narrow amendment to the
-    legacy Stage 27 tree check.
+    """Stage 27.0 / 27.1 / 27.2 / 27.3 / 27.4 narrow amendment to
+    the legacy Stage 27 tree check.
 
     Stage 26.7 originally asserted ``PHX2/stage27/`` did not exist.
     Stage 27.0 ships a scaffold-only Stage 27 package; Stage 27.1
     extended that surface with the operator-config / secrets-
     readiness modules; Stage 27.2 further extended it with the
-    pair-detection production surface (vocabularies + models +
-    contracts + deterministic classifier skeleton); Stage 27.3
-    further extended it with the provider-ingest composition
-    production surface (closed-set status / reason vocabularies +
-    immutable input / output records + Stage 21 / 22 normalized-
-    event adapter Protocol + composition pipeline + Stage 27.3
-    manifest constants). The interpreter's ``__pycache__``
-    directory is build noise and is excluded. Every Stage 27.4+
-    implementation file remains forbidden at Stage 27.3 closure.
+    pair-detection production surface; Stage 27.3 further extended
+    it with the provider-ingest composition production surface;
+    Stage 27.4 further extends it with the price / ATH / migration
+    context production surface (closed-set vocabularies +
+    immutable record shapes + module-local exception hierarchy +
+    injectable source-reader Protocol boundary + combined
+    measurement-context assembler + Stage 27.4 manifest
+    constants). The interpreter's ``__pycache__`` directory is
+    build noise and is excluded. Every Stage 27.5+ implementation
+    file remains forbidden at Stage 27.4 closure.
     """
     stage27 = PHX2_ROOT / "stage27"
     if not stage27.exists():
@@ -632,12 +640,12 @@ def test_stage27_implementation_tree_does_not_exist():
     forbidden = actual - _STAGE_27_0_NARROW_ALLOWED_ENTRIES
     assert not forbidden, (
         f"PHX2/stage27 admits only the Stage 27.0 + 27.1 + 27.2 + "
-        f"27.3 file set ("
+        f"27.3 + 27.4 file set ("
         f"{sorted(_STAGE_27_0_NARROW_ALLOWED_ENTRIES)!r}); Stage "
-        f"27.4+ implementation files (Discord sender / dedupe / "
-        f"price / ATH reader / candidate assembler / bounded "
-        f"runner / ping renderer) remain blocked. Forbidden "
-        f"entries found: {sorted(forbidden)!r}"
+        f"27.5+ implementation files (Discord sender / dedupe / "
+        f"candidate assembler / bounded runner / ping renderer) "
+        f"remain blocked. Forbidden entries found: "
+        f"{sorted(forbidden)!r}"
     )
 
 

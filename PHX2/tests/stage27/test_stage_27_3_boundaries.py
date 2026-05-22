@@ -76,6 +76,17 @@ _STAGE_27_0_THROUGH_27_3_LOCKED_PY_MODULES: frozenset[str] = (
             "provider_event_adapter.py",
             "live_provider_composition.py",
             "stage27_3_manifest.py",
+            # Stage 27.4 price / ATH / migration context surface.
+            # Stage 27.3 boundary admits these because the
+            # ``PHX2/stage27/`` directory now carries them; the
+            # Stage 27.3 production-file allowlist and identifier
+            # scan still scope only the five Stage 27.3 files.
+            "price_ath_context_models.py",
+            "price_ath_context_contracts.py",
+            "price_ath_context_reader.py",
+            "migration_context_models.py",
+            "live_measurement_context.py",
+            "stage27_4_manifest.py",
         }
     )
 )
@@ -388,8 +399,11 @@ def test_no_stage_27_3_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-_STAGE_27_4_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "price_ath_context_reader.py",
+# Stage 27.4 narrow amendment: ``price_ath_context_reader.py`` has
+# been promoted to the Stage 27.4 production surface and removed
+# from the forbidden list. Every Stage 27.5+ implementation
+# basename remains blocked.
+_STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "private_ping_renderer.py",
     "private_discord_sender.py",
     "live_candidate_assembler.py",
@@ -399,14 +413,14 @@ _STAGE_27_4_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
 
 
 @pytest.mark.parametrize(
-    "basename", _STAGE_27_4_PLUS_FORBIDDEN_BASENAMES
+    "basename", _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES
 )
-def test_stage_27_4_plus_basename_does_not_exist_in_stage27_root(
+def test_stage_27_5_plus_basename_does_not_exist_in_stage27_root(
     basename,
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.3 must not introduce Stage 27.4+ implementation "
+        f"Stage 27.4 must not introduce Stage 27.5+ implementation "
         f"basename {basename!r} under PHX2/stage27/; got {path}"
     )
 
@@ -480,16 +494,16 @@ def test_spec_lock_allowlist_admits_stage_27_3_basenames():
         )
 
 
-def test_spec_lock_forbidden_list_still_forbids_stage_27_4_plus():
+def test_spec_lock_forbidden_list_still_forbids_stage_27_5_plus():
     """The Stage 27.0 spec-lock test must continue to forbid every
-    Stage 27.4+ implementation basename.
+    Stage 27.5+ implementation basename.
     """
     spec_lock_test_path = (
         TESTS_STAGE27_ROOT / "test_stage_27_0_spec_lock.py"
     )
     text = spec_lock_test_path.read_text(encoding="utf-8")
-    for basename in _STAGE_27_4_PLUS_FORBIDDEN_BASENAMES:
+    for basename in _STAGE_27_5_PLUS_FORBIDDEN_BASENAMES:
         assert f'"{basename}"' in text or f"'{basename}'" in text, (
             f"Stage 27.0 spec-lock test forbidden list missing "
-            f"Stage 27.4+ basename {basename!r}"
+            f"Stage 27.5+ basename {basename!r}"
         )
