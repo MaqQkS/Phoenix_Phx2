@@ -335,8 +335,11 @@ def test_no_stage_27_2_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
+# Stage 27.3 narrow amendment: ``live_provider_composition.py``
+# has been promoted to the Stage 27.3 production surface and
+# removed from the forbidden list. Every Stage 27.4+ implementation
+# basename remains blocked.
 _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "live_provider_composition.py",
     "price_ath_context_reader.py",
     "private_ping_renderer.py",
     "private_discord_sender.py",
@@ -352,7 +355,7 @@ _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
 def test_stage_27_3_plus_basename_does_not_exist_in_stage27_root(basename):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.2 must not introduce Stage 27.3+ implementation "
+        f"Stage 27.3 must not introduce Stage 27.4+ implementation "
         f"basename {basename!r} under PHX2/stage27/; got {path}"
     )
 

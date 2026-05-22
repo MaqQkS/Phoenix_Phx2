@@ -61,6 +61,18 @@ _STAGE_27_LOCKED_DIRECTORY_ENTRIES: frozenset[str] = frozenset(
         "pair_detection_models.py",
         "pair_detection_contracts.py",
         "pump_pair_classifier.py",
+        # Stage 27.3 provider-ingest composition surface
+        # (closed-set status / reason vocabularies + immutable
+        # input / output records + Stage 21 / 22 normalized-event
+        # adapter Protocol + composition pipeline that invokes the
+        # Stage 27.2 classifier + manifest constants). No provider
+        # client, no Discord sender, no ping renderer, no bounded
+        # runner, no dedupe, no price / ATH module, no env reads.
+        "provider_ingest_models.py",
+        "provider_ingest_contracts.py",
+        "provider_event_adapter.py",
+        "live_provider_composition.py",
+        "stage27_3_manifest.py",
     }
 )
 
@@ -359,12 +371,13 @@ def test_no_stage27_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.2 narrow amendment: ``pair_detection_contracts.py`` and
-# ``pump_pair_classifier.py`` have been promoted to the Stage 27.2
-# production surface and removed from the forbidden list. Every
-# Stage 27.3+ implementation basename remains blocked.
+# Stage 27.3 narrow amendment: ``live_provider_composition.py``,
+# ``provider_ingest_models.py``, ``provider_ingest_contracts.py``,
+# ``provider_event_adapter.py``, and ``stage27_3_manifest.py``
+# have been promoted to the Stage 27.3 production surface and
+# removed from the forbidden list. Every Stage 27.4+ implementation
+# basename remains blocked.
 _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "live_provider_composition.py",
     "price_ath_context_reader.py",
     "private_ping_renderer.py",
     "private_discord_sender.py",
@@ -380,7 +393,7 @@ _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
 def test_stage_27_3_plus_basename_does_not_exist(basename):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.2 must not introduce Stage 27.3+ implementation "
+        f"Stage 27.3 must not introduce Stage 27.4+ implementation "
         f"basename {basename!r} under PHX2/stage27/; got {path}"
     )
 
