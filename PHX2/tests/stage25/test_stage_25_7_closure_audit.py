@@ -848,20 +848,23 @@ def test_stage26_tree_is_only_stage26_7_approved_files():
     )
 
 
-# Stage 27.0 / 27.1 narrow amendment: ``PHX2/stage27/`` is
+# Stage 27.0 / 27.1 / 27.2 narrow amendment: ``PHX2/stage27/`` is
 # materialized at Stage 27.0 with the scaffold (the package marker
-# + the Stage 27.0 spec-lock markdown document) and extended at
+# + the Stage 27.0 spec-lock markdown document), extended at
 # Stage 27.1 with the operator-config / secrets-readiness / run-
-# identity / config-errors / config-models production surface
-# (no provider client, no Discord sender, no ping renderer, no
-# bounded runner, no dedupe, no pair classifier, no enforcement).
-# The function name and the ``stage27 = PHX2_ROOT / "stage27"``
-# expression below are preserved verbatim so the Stage 26.7
-# self-reference check
+# identity / config-errors / config-models production surface,
+# and extended at Stage 27.2 with the pair-detection production
+# surface (closed-set vocabularies + immutable record shapes +
+# module-local exception hierarchy + deterministic classifier
+# skeleton). No provider client, no Discord sender, no ping
+# renderer, no bounded runner, no dedupe, no enforcement, no
+# public routing, no X / social. The function name and the
+# ``stage27 = PHX2_ROOT / "stage27"`` expression below are
+# preserved verbatim so the Stage 26.7 self-reference check
 # (``test_stage_25_7_allowlist_still_forbids_stage27_implementation_tree``)
 # continues to find them. The narrow allowlist admits exactly the
-# Stage 27.0 + 27.1 file set; every Stage 27.2+ implementation
-# surface remains blocked.
+# Stage 27.0 + 27.1 + 27.2 file set; every Stage 27.3+
+# implementation surface remains blocked.
 _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -873,22 +876,29 @@ _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "live_run_identity.py",
         "live_secrets_readiness.py",
         "live_operator_config.py",
+        # Stage 27.2 pair-detection production surface.
+        "pair_detection_constants.py",
+        "pair_detection_models.py",
+        "pair_detection_contracts.py",
+        "pump_pair_classifier.py",
     }
 )
 
 
 def test_stage27_implementation_tree_does_not_exist():
-    """Stage 27.0 narrow amendment to the legacy Stage 27 tree check.
+    """Stage 27.0 / 27.1 / 27.2 narrow amendment to the legacy
+    Stage 27 tree check.
 
     Stage 25.7 originally asserted ``PHX2/stage27/`` did not exist.
     Stage 27.0 ships a scaffold-only Stage 27 package (the package
-    marker + the spec-lock document), so this assertion has been
-    narrowed: if ``PHX2/stage27/`` exists, every top-level entry
-    must be inside the locked Stage 27.0 narrow allowlist
-    (``__init__.py`` + ``STAGE_27_0_SPEC_LOCK.md``). The
-    interpreter's ``__pycache__`` directory is build noise and is
-    excluded. Every Stage 27.1+ implementation file remains
-    forbidden at Stage 27.0 closure.
+    marker + the spec-lock document); Stage 27.1 extended that
+    surface with the operator-config / secrets-readiness modules;
+    Stage 27.2 further extended it with the pair-detection
+    production surface (vocabularies + models + contracts +
+    deterministic classifier skeleton). The interpreter's
+    ``__pycache__`` directory is build noise and is excluded.
+    Every Stage 27.3+ implementation file remains forbidden at
+    Stage 27.2 closure.
 
     The function name and the ``stage27 = PHX2_ROOT / "stage27"``
     expression are preserved verbatim so the Stage 26.7 closure-
@@ -907,12 +917,12 @@ def test_stage27_implementation_tree_does_not_exist():
         actual.add(entry.name)
     forbidden = actual - _STAGE_27_0_NARROW_ALLOWED_ENTRIES
     assert not forbidden, (
-        f"PHX2/stage27 admits only the Stage 27.0 + 27.1 file set "
-        f"({sorted(_STAGE_27_0_NARROW_ALLOWED_ENTRIES)!r}); Stage "
-        f"27.2+ implementation files (runner / classifier / "
-        f"Discord sender / dedupe / provider client / price "
-        f"reader / candidate assembler) remain blocked. "
-        f"Forbidden entries found: {sorted(forbidden)!r}"
+        f"PHX2/stage27 admits only the Stage 27.0 + 27.1 + 27.2 "
+        f"file set ({sorted(_STAGE_27_0_NARROW_ALLOWED_ENTRIES)!r}); "
+        f"Stage 27.3+ implementation files (provider composition / "
+        f"Discord sender / dedupe / price reader / candidate "
+        f"assembler / bounded runner / ping renderer) remain "
+        f"blocked. Forbidden entries found: {sorted(forbidden)!r}"
     )
 
 

@@ -607,11 +607,12 @@ def test_spec_lock_documents_no_tag_creation_by_implementation():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.1 narrow amendment: the Stage 27.0 allowlist is
-# extended to admit the Stage 27.1 production surface (operator
-# config + secrets readiness + run identity + config errors +
-# config models). Every Stage 27.2+ implementation basename
-# remains blocked below.
+# Stage 27.2 narrow amendment: the Stage 27.0 allowlist is
+# extended to admit the Stage 27.2 pair-detection production
+# surface (closed-set vocabularies + immutable record shapes +
+# module-local exception hierarchy + deterministic classifier
+# skeleton). Every Stage 27.3+ implementation basename remains
+# blocked below.
 _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -623,17 +624,22 @@ _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "live_run_identity.py",
         "live_secrets_readiness.py",
         "live_operator_config.py",
+        # Stage 27.2 pair-detection production surface.
+        "pair_detection_constants.py",
+        "pair_detection_models.py",
+        "pair_detection_contracts.py",
+        "pump_pair_classifier.py",
     }
 )
 
 
 def test_stage27_root_is_only_stage_27_0_scaffold():
-    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 surface.
+    """``PHX2/stage27/`` carries only the Stage 27.0 + 27.1 + 27.2 surface.
 
     The ``__pycache__`` bytecode directory is build noise, not
     Stage 27 source surface, and is excluded from this check.
     Every other top-level entry must be inside the locked
-    allowlist. Stage 27.2+ implementation files remain blocked.
+    allowlist. Stage 27.3+ implementation files remain blocked.
     """
     assert STAGE27_ROOT.is_dir(), (
         f"Stage 27.0 requires the package directory {STAGE27_ROOT}"
@@ -645,10 +651,10 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
         actual.add(entry.name)
     forbidden = actual - _STAGE_27_0_ALLOWED_ENTRIES
     assert not forbidden, (
-        "PHX2/stage27 admits only the Stage 27.0 + 27.1 file set "
-        f"({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). Stage 27.2+ "
-        f"implementation files remain blocked. Forbidden entries "
-        f"found: {sorted(forbidden)!r}"
+        "PHX2/stage27 admits only the Stage 27.0 + 27.1 + 27.2 file "
+        f"set ({sorted(_STAGE_27_0_ALLOWED_ENTRIES)!r}). Stage "
+        f"27.3+ implementation files remain blocked. Forbidden "
+        f"entries found: {sorted(forbidden)!r}"
     )
 
 
@@ -657,14 +663,11 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.1 narrow amendment: ``live_operator_config.py`` and
-# ``live_secrets_readiness.py`` have been promoted to the
-# Stage 27.1 production surface and removed from the forbidden
-# list. Every other Stage 27.2+ implementation basename remains
-# blocked.
-_STAGE_27_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "pair_detection_contracts.py",
-    "pump_pair_classifier.py",
+# Stage 27.2 narrow amendment: ``pair_detection_contracts.py`` and
+# ``pump_pair_classifier.py`` have been promoted to the Stage 27.2
+# production surface and removed from the forbidden list. Every
+# other Stage 27.3+ implementation basename remains blocked.
+_STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "live_provider_composition.py",
     "price_ath_context_reader.py",
     "private_ping_renderer.py",
@@ -676,19 +679,19 @@ _STAGE_27_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
 
 
 @pytest.mark.parametrize(
-    "basename", _STAGE_27_2_PLUS_FORBIDDEN_BASENAMES
+    "basename", _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES
 )
-def test_no_stage_27_2_plus_implementation_file_under_stage27(
+def test_no_stage_27_3_plus_implementation_file_under_stage27(
     basename,
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.1 must not ship Stage 27.2+ implementation "
+        f"Stage 27.2 must not ship Stage 27.3+ implementation "
         f"file {basename!r} under PHX2/stage27/; got {path}"
     )
 
 
-_STAGE_27_1_LOCKED_PY_MODULES: frozenset[str] = frozenset(
+_STAGE_27_2_LOCKED_PY_MODULES: frozenset[str] = frozenset(
     {
         "__init__.py",
         "live_config_errors.py",
@@ -696,27 +699,32 @@ _STAGE_27_1_LOCKED_PY_MODULES: frozenset[str] = frozenset(
         "live_run_identity.py",
         "live_secrets_readiness.py",
         "live_operator_config.py",
+        "pair_detection_constants.py",
+        "pair_detection_models.py",
+        "pair_detection_contracts.py",
+        "pump_pair_classifier.py",
     }
 )
 
 
-def test_stage27_root_py_modules_match_locked_27_1_set():
-    """Stage 27.1 admits exactly the locked production .py set.
+def test_stage27_root_py_modules_match_locked_27_2_set():
+    """Stage 27.2 admits exactly the locked production .py set.
 
     Stage 27.0 originally asserted only ``__init__.py`` could exist
-    under ``PHX2/stage27/``. Stage 27.1 promotes the five operator-
-    config production modules. Every other .py is rejected (would
-    indicate Stage 27.2+ implementation creep).
+    under ``PHX2/stage27/``. Stage 27.1 promoted the five operator-
+    config production modules. Stage 27.2 promotes the four
+    pair-detection production modules. Every other .py is rejected
+    (would indicate Stage 27.3+ implementation creep).
     """
     py_files = {
         p.name
         for p in STAGE27_ROOT.iterdir()
         if p.is_file() and p.suffix == ".py"
     }
-    unexpected = py_files - _STAGE_27_1_LOCKED_PY_MODULES
+    unexpected = py_files - _STAGE_27_2_LOCKED_PY_MODULES
     assert not unexpected, (
-        f"Stage 27.1 must ship only the locked production .py set "
-        f"({sorted(_STAGE_27_1_LOCKED_PY_MODULES)!r}); unexpected "
+        f"Stage 27.2 must ship only the locked production .py set "
+        f"({sorted(_STAGE_27_2_LOCKED_PY_MODULES)!r}); unexpected "
         f".py files under PHX2/stage27/: {sorted(unexpected)!r}"
     )
 

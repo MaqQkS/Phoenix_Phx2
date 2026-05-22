@@ -52,6 +52,15 @@ _STAGE_27_LOCKED_DIRECTORY_ENTRIES: frozenset[str] = frozenset(
         "live_run_identity.py",
         "live_secrets_readiness.py",
         "live_operator_config.py",
+        # Stage 27.2 pair-detection production surface (closed-set
+        # vocabularies + immutable record shapes + module-local
+        # exception hierarchy + deterministic classifier skeleton).
+        # No provider client, no Discord sender, no ping renderer,
+        # no bounded runner, no dedupe, no env reads.
+        "pair_detection_constants.py",
+        "pair_detection_models.py",
+        "pair_detection_contracts.py",
+        "pump_pair_classifier.py",
     }
 )
 
@@ -350,9 +359,11 @@ def test_no_stage27_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-_STAGE_27_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "pair_detection_contracts.py",
-    "pump_pair_classifier.py",
+# Stage 27.2 narrow amendment: ``pair_detection_contracts.py`` and
+# ``pump_pair_classifier.py`` have been promoted to the Stage 27.2
+# production surface and removed from the forbidden list. Every
+# Stage 27.3+ implementation basename remains blocked.
+_STAGE_27_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "live_provider_composition.py",
     "price_ath_context_reader.py",
     "private_ping_renderer.py",
@@ -364,12 +375,12 @@ _STAGE_27_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
 
 
 @pytest.mark.parametrize(
-    "basename", _STAGE_27_2_PLUS_FORBIDDEN_BASENAMES
+    "basename", _STAGE_27_3_PLUS_FORBIDDEN_BASENAMES
 )
-def test_stage_27_2_plus_basename_does_not_exist(basename):
+def test_stage_27_3_plus_basename_does_not_exist(basename):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.1 must not introduce Stage 27.2+ implementation "
+        f"Stage 27.2 must not introduce Stage 27.3+ implementation "
         f"basename {basename!r} under PHX2/stage27/; got {path}"
     )
 
