@@ -642,6 +642,64 @@ authorized:
 - `longer_session_smoke_harness.py`
 - `stage28_manifest.py`
 
+Stage 28.6 narrow amendment (authorized 2026-05-23): the
+longer-session bounded private runner substage is authorized and
+adds the following Stage 28.6 production .py inventory under
+`PHX2/stage28/`:
+
+- `session_runner_models.py`
+- `bounded_private_session_runner.py`
+- `stage28_6_manifest.py`
+
+and the following Stage 28.6 test inventory under
+`PHX2/tests/stage28/`:
+
+- `test_stage_28_6_session_runner_models.py`
+- `test_stage_28_6_bounded_private_session_runner.py`
+- `test_stage_28_6_boundaries.py`
+
+Stage 28.6 is the longer-session bounded private runner substage
+only. It composes the Stage 28.2 dispatch ledger, the Stage 28.3a
+failure-classification layer, the Stage 28.3b retry-policy layer,
+the Stage 28.4 audited HTTP transport models (closed-set token
+reuse only), and the Stage 28.5 heartbeat / health-snapshot /
+final-summary writers into a single, deterministic, redaction-
+safe, bounded private session runner with graceful shutdown
+semantics. The runner accepts a transport implementing the
+`Stage28_6PrivateTransport` protocol via dependency injection;
+tests inject a deterministic `Stage28_6FakeTransport` and the
+runner NEVER opens a real network connection, NEVER reads the
+process environment, NEVER sleeps, NEVER schedules, NEVER spawns
+threads / async tasks / subprocesses.
+
+Stage 28.6 may execute bounded immediate retry attempts against
+the injected transport. Every retry attempt is counted in the
+run summary, bounded by the per-failure Stage 28.3b retry
+profile, bounded by the session-wide `max_total_retries` budget,
+bounded by a hard local cap that prevents an unbounded loop even
+if the policy somehow returns RETRY_ALLOWED forever, and executed
+without sleeping, scheduling, queuing, or spawning a thread /
+async task / subprocess.
+
+Stage 28.6 ships NO live smoke, NO real Discord send, NO real
+provider connection, NO uncontrolled session, NO daemon / service
+/ watchdog / autorestart service, NO Stage 29 enforcement, NO X /
+social, NO Telegram, NO public routing, NO subscriber routing, NO
+paid tier routing, NO automated trading, NO wallet / private-key
+/ signer logic, NO position sizing, NO trade execution, NO
+dashboard / HTTP control server. Stage 28.6 reads NO process
+environment variables; every dependency is a caller-injected
+primitive.
+
+Any other `PHX2/stage28/*.py` file or other Stage 28.7+
+production file is out of Stage 28.6 scope and must trip the
+Stage 28 boundary scan. Examples of basenames the boundary scan
+must continue to block until the matching substage is explicitly
+authorized:
+
+- `longer_session_smoke_harness.py`
+- `stage28_manifest.py`
+
 ---
 
 ## 12. Closed-set vocabulary placeholders

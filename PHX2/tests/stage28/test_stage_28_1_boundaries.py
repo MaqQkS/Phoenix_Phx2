@@ -154,8 +154,7 @@ _STAGE_28_4_TEST_BASENAMES: tuple[str, ...] = (
 
 # Stage 28.5 narrow amendment (authorized 2026-05-23): the
 # heartbeat / health-snapshot / CLI-status substage is authorized
-# and adds the production / test inventory below. Stage 28.6+
-# basenames remain blocked.
+# and adds the production / test inventory below.
 _STAGE_28_5_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
     "health_status_models.py",
     "heartbeat_writer.py",
@@ -171,6 +170,24 @@ _STAGE_28_5_TEST_BASENAMES: tuple[str, ...] = (
     "test_stage_28_5_health_snapshot_writer.py",
     "test_stage_28_5_cli_status_line.py",
     "test_stage_28_5_boundaries.py",
+)
+
+
+# Stage 28.6 narrow amendment (authorized 2026-05-23): the
+# longer-session bounded private runner substage is authorized
+# and adds the production / test inventory below. Stage 28.7+
+# basenames remain blocked.
+_STAGE_28_6_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "session_runner_models.py",
+    "bounded_private_session_runner.py",
+    "stage28_6_manifest.py",
+)
+
+
+_STAGE_28_6_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_6_session_runner_models.py",
+    "test_stage_28_6_bounded_private_session_runner.py",
+    "test_stage_28_6_boundaries.py",
 )
 
 
@@ -199,9 +216,10 @@ STAGE28_1_ENV_READ_MODULE: str = "provider_neutral_readiness.py"
 # surface; Stage 28.5 amendment moved ``heartbeat_writer.py``,
 # ``health_snapshot_writer.py``, ``cli_status_line.py``,
 # ``health_status_models.py``, and ``stage28_5_manifest.py`` to
-# the production surface.)
+# the production surface; Stage 28.6 amendment moved
+# ``session_runner_models.py``, ``bounded_private_session_runner.py``,
+# and ``stage28_6_manifest.py`` to the production surface.)
 _STAGE_28_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "bounded_private_session_runner.py",
     "longer_session_smoke_harness.py",
     "stage28_manifest.py",
 )
@@ -291,19 +309,20 @@ def test_stage28_root_admits_only_stage_28_0_scaffold_plus_stage_28_1_surface():
         | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_4_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_5_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/stage28 admits only Stage 28.0 scaffold + Stage 28.1 "
         f"+ Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage 28.4 + "
-        f"Stage 28.5 production surface ({sorted(allowed)!r}); "
-        f"Stage 28.6+ files remain blocked. Forbidden entries: "
-        f"{sorted(forbidden)!r}"
+        f"Stage 28.5 + Stage 28.6 production surface "
+        f"({sorted(allowed)!r}); Stage 28.7+ files remain blocked. "
+        f"Forbidden entries: {sorted(forbidden)!r}"
     )
     missing = allowed - actual
     assert not missing, (
-        f"Stage 28.1 / 28.2 / 28.3a / 28.3b / 28.4 / 28.5 inventory "
-        f"missing entries: {sorted(missing)!r}"
+        f"Stage 28.1 / 28.2 / 28.3a / 28.3b / 28.4 / 28.5 / 28.6 "
+        f"inventory missing entries: {sorted(missing)!r}"
     )
 
 
@@ -321,13 +340,14 @@ def test_tests_stage28_root_admits_only_stage_28_0_plus_stage_28_1_tests():
         | set(_STAGE_28_3B_TEST_BASENAMES)
         | set(_STAGE_28_4_TEST_BASENAMES)
         | set(_STAGE_28_5_TEST_BASENAMES)
+        | set(_STAGE_28_6_TEST_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/tests/stage28 admits only Stage 28.0 + Stage 28.1 + "
         f"Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage 28.4 + "
-        f"Stage 28.5 test files ({sorted(allowed)!r}); Stage 28.6+ "
-        f"tests remain blocked. Forbidden entries: "
+        f"Stage 28.5 + Stage 28.6 test files ({sorted(allowed)!r}); "
+        f"Stage 28.7+ tests remain blocked. Forbidden entries: "
         f"{sorted(forbidden)!r}"
     )
 
@@ -642,8 +662,8 @@ def test_no_stage_28_1_identifier_implements_trading_verdict():
 )
 def test_no_stage_28_2_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.6+ implementation "
-        f"basename {basename!r} during Stage 28.5"
+        f"PHX2/stage28 must not ship Stage 28.7+ implementation "
+        f"basename {basename!r} during Stage 28.6"
     )
 
 

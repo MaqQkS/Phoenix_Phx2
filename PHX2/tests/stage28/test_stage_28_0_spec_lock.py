@@ -692,7 +692,7 @@ _STAGE_28_4_TEST_BASENAMES: frozenset[str] = frozenset(
 
 # Stage 28.5 narrow amendment: the heartbeat / health-snapshot /
 # CLI-status substage is authorized and ships the inventory
-# below. Stage 28.6+ implementation files remain blocked.
+# below.
 _STAGE_28_5_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
     {
         "health_status_models.py",
@@ -715,6 +715,27 @@ _STAGE_28_5_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 28.6 narrow amendment: the longer-session bounded private
+# runner substage is authorized and ships the inventory below.
+# Stage 28.7+ implementation files remain blocked.
+_STAGE_28_6_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "session_runner_models.py",
+        "bounded_private_session_runner.py",
+        "stage28_6_manifest.py",
+    }
+)
+
+
+_STAGE_28_6_TEST_BASENAMES: frozenset[str] = frozenset(
+    {
+        "test_stage_28_6_session_runner_models.py",
+        "test_stage_28_6_bounded_private_session_runner.py",
+        "test_stage_28_6_boundaries.py",
+    }
+)
+
+
 _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -728,6 +749,7 @@ _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     | _STAGE_28_3B_PRODUCTION_PY_BASENAMES
     | _STAGE_28_4_PRODUCTION_PY_BASENAMES
     | _STAGE_28_5_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_6_PRODUCTION_PY_BASENAMES
 )
 
 
@@ -744,6 +766,7 @@ _STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_28_3B_TEST_BASENAMES
     | _STAGE_28_4_TEST_BASENAMES
     | _STAGE_28_5_TEST_BASENAMES
+    | _STAGE_28_6_TEST_BASENAMES
 )
 
 
@@ -816,10 +839,12 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
 # list. Stage 28.5 narrow amendment: ``heartbeat_writer.py``,
 # ``health_snapshot_writer.py``, ``cli_status_line.py``,
 # ``health_status_models.py``, and ``stage28_5_manifest.py`` have
-# been promoted to the Stage 28.5 production surface. Stage 28.6+
-# basenames remain blocked.
+# been promoted to the Stage 28.5 production surface. Stage 28.6
+# narrow amendment: ``session_runner_models.py``,
+# ``bounded_private_session_runner.py``, and
+# ``stage28_6_manifest.py`` have been promoted to the Stage 28.6
+# production surface. Stage 28.7+ basenames remain blocked.
 _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
-    "bounded_private_session_runner.py",
     "longer_session_smoke_harness.py",
     "stage28_manifest.py",
 )
@@ -830,18 +855,18 @@ _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
 )
 def test_no_stage_28_2_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.6+ implementation "
-        f"basename {basename!r} during Stage 28.5"
+        f"PHX2/stage28 must not ship Stage 28.7+ implementation "
+        f"basename {basename!r} during Stage 28.6"
     )
 
 
 def test_no_extra_python_module_under_stage28():
     """Stage 28 .py inventory is the package marker plus the
     Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage
-    28.4 + Stage 28.5 production .py surface; nothing else ships
-    under ``PHX2/stage28/`` at Stage 28.5.
+    28.4 + Stage 28.5 + Stage 28.6 production .py surface; nothing
+    else ships under ``PHX2/stage28/`` at Stage 28.6.
 
-    Stage 28.6+ substages must each land their .py surface under
+    Stage 28.7+ substages must each land their .py surface under
     their own explicitly authorized narrow amendment here.
     """
     actual_py = {
@@ -857,13 +882,14 @@ def test_no_extra_python_module_under_stage28():
         | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_4_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_5_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
         f"Stage 28 must not add new production .py modules beyond "
         f"the package marker and the Stage 28.1 + Stage 28.2 + "
-        f"Stage 28.3a + Stage 28.3b + Stage 28.4 + Stage 28.5 "
-        f"surface; unexpected files: {sorted(unexpected)}"
+        f"Stage 28.3a + Stage 28.3b + Stage 28.4 + Stage 28.5 + "
+        f"Stage 28.6 surface; unexpected files: {sorted(unexpected)}"
     )
 
 

@@ -77,10 +77,12 @@ _STAGE_28_5_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
-# Stage 28.6+ implementation basenames that remain blocked at
-# Stage 28.5.
+# Stage 28.7+ implementation basenames that remain blocked at
+# Stage 28.6. (Stage 28.6 amendment moved
+# ``session_runner_models.py``, ``bounded_private_session_runner.py``,
+# and ``stage28_6_manifest.py`` off this list. ``stage28_6_manifest.py``
+# is a per-substage manifest filename and is not blocked.)
 _STAGE_28_6_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "bounded_private_session_runner.py",
     "longer_session_smoke_harness.py",
     "stage28_manifest.py",
 )
@@ -533,8 +535,8 @@ def test_no_stage_28_5_production_identifier_implements_later_or_public_surface(
 )
 def test_no_stage_28_6_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.6+ implementation "
-        f"basename {basename!r} during Stage 28.5"
+        f"PHX2/stage28 must not ship Stage 28.7+ implementation "
+        f"basename {basename!r} during Stage 28.6"
     )
 
 
@@ -866,12 +868,30 @@ def test_manifest_counter_field_names_match_locked_model_values():
 # ---------------------------------------------------------------------------
 
 
+# Stage 28.6 narrow amendment: the longer-session bounded private
+# runner substage is authorized and adds the production / test
+# inventory below.
+_STAGE_28_6_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "session_runner_models.py",
+    "bounded_private_session_runner.py",
+    "stage28_6_manifest.py",
+)
+
+
+_STAGE_28_6_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_6_session_runner_models.py",
+    "test_stage_28_6_bounded_private_session_runner.py",
+    "test_stage_28_6_boundaries.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_5_surface():
-    """At Stage 28.5 the ``PHX2/stage28`` tree must admit exactly
+    """At Stage 28.6 the ``PHX2/stage28`` tree must admit exactly
     the union of Stage 28.0 scaffold + Stage 28.1 production
     surface + Stage 28.2 production surface + Stage 28.3a
     production surface + Stage 28.3b production surface + Stage
-    28.4 production surface + Stage 28.5 production surface.
+    28.4 production surface + Stage 28.5 production surface +
+    Stage 28.6 production surface.
     """
     actual: set[str] = set()
     for entry in STAGE28_ROOT.iterdir():
@@ -903,7 +923,9 @@ def test_stage28_root_admits_only_28_0_through_28_5_surface():
         "audited_http_transport_models.py",
         "audited_http_transport.py",
         "stage28_4_manifest.py",
-    } | set(_STAGE_28_5_PRODUCTION_PY_BASENAMES)
+    } | set(_STAGE_28_5_PRODUCTION_PY_BASENAMES) | set(
+        _STAGE_28_6_PRODUCTION_PY_BASENAMES
+    )
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -940,7 +962,9 @@ def test_tests_stage28_root_admits_only_28_0_through_28_5_tests():
         "test_stage_28_4_audited_http_transport_models.py",
         "test_stage_28_4_audited_http_transport.py",
         "test_stage_28_4_boundaries.py",
-    } | set(_STAGE_28_5_TEST_BASENAMES)
+    } | set(_STAGE_28_5_TEST_BASENAMES) | set(
+        _STAGE_28_6_TEST_BASENAMES
+    )
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
