@@ -89,8 +89,8 @@ _STAGE_28_4_TEST_BASENAMES: tuple[str, ...] = (
 STAGE28_4_HTTP_MODULE: str = "audited_http_transport.py"
 
 
-# Stage 28.7+ implementation basenames that remain blocked at
-# Stage 28.6. (Stage 28.4 amendment moved
+# Stage 28.8+ implementation basenames that remain blocked at
+# Stage 28.7. (Stage 28.4 amendment moved
 # ``audited_http_transport.py`` + ``audited_http_transport_models.py``
 # off the previously-forbidden list. Stage 28.5 amendment moved
 # ``heartbeat_writer.py``, ``health_snapshot_writer.py``,
@@ -98,13 +98,16 @@ STAGE28_4_HTTP_MODULE: str = "audited_http_transport.py"
 # ``stage28_5_manifest.py`` off this list. Stage 28.6 amendment
 # moved ``session_runner_models.py``,
 # ``bounded_private_session_runner.py``, and
-# ``stage28_6_manifest.py`` off this list. Each per-substage
+# ``stage28_6_manifest.py`` off this list. Stage 28.7 amendment
+# moved ``longer_session_smoke_harness.py`` and
+# ``stage28_7_manifest.py`` off this list. Each per-substage
 # manifest filename is intentionally not blocked because that is
-# a per-substage manifest filename, not a future Stage 28-wide
-# manifest.)
+# a per-substage manifest filename, not the future Stage 28-wide
+# closure manifest.)
 _STAGE_28_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "longer_session_smoke_harness.py",
     "stage28_manifest.py",
+    "STAGE_28_CLOSURE_AUDIT.md",
+    "STAGE_29_HANDOFF.md",
 )
 
 
@@ -970,13 +973,36 @@ _STAGE_28_6_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.7 narrow amendment: the longer-session smoke harness +
+# controlled live smoke runbook substage is authorized and adds
+# the production / doc / test inventory below.
+_STAGE_28_7_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "longer_session_smoke_harness.py",
+    "stage28_7_manifest.py",
+)
+
+
+_STAGE_28_7_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_LONGER_SESSION_SMOKE_CHECKLIST.md",
+    "STAGE_28_CONTROLLED_LIVE_SMOKE_RUNBOOK.md",
+)
+
+
+_STAGE_28_7_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_7_longer_session_smoke_harness.py",
+    "test_stage_28_7_boundaries.py",
+    "test_stage_28_7_smoke_docs.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_4_surface():
-    """Sanity: at Stage 28.6 the ``PHX2/stage28`` tree must
+    """Sanity: at Stage 28.7 the ``PHX2/stage28`` tree must
     admit exactly the union of Stage 28.0 scaffold + Stage 28.1
     production surface + Stage 28.2 production surface + Stage
     28.3a production surface + Stage 28.3b production surface +
     Stage 28.4 production surface + Stage 28.5 production surface
-    + Stage 28.6 production surface.
+    + Stage 28.6 production surface + Stage 28.7 production / doc
+    surface.
     """
     actual: set[str] = set()
     for entry in STAGE28_ROOT.iterdir():
@@ -1006,7 +1032,9 @@ def test_stage28_root_admits_only_28_0_through_28_4_surface():
         "stage28_3b_manifest.py",
     } | set(_STAGE_28_4_PRODUCTION_PY_BASENAMES) | set(
         _STAGE_28_5_PRODUCTION_PY_BASENAMES
-    ) | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES)
+    ) | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES) | set(
+        _STAGE_28_7_PRODUCTION_PY_BASENAMES
+    ) | set(_STAGE_28_7_DOC_BASENAMES)
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -1041,7 +1069,9 @@ def test_tests_stage28_root_admits_only_28_0_through_28_4_tests():
         "test_stage_28_3b_boundaries.py",
     } | set(_STAGE_28_4_TEST_BASENAMES) | set(
         _STAGE_28_5_TEST_BASENAMES
-    ) | set(_STAGE_28_6_TEST_BASENAMES)
+    ) | set(_STAGE_28_6_TEST_BASENAMES) | set(
+        _STAGE_28_7_TEST_BASENAMES
+    )
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

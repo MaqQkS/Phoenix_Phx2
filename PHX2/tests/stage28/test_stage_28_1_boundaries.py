@@ -175,8 +175,7 @@ _STAGE_28_5_TEST_BASENAMES: tuple[str, ...] = (
 
 # Stage 28.6 narrow amendment (authorized 2026-05-23): the
 # longer-session bounded private runner substage is authorized
-# and adds the production / test inventory below. Stage 28.7+
-# basenames remain blocked.
+# and adds the production / test inventory below.
 _STAGE_28_6_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
     "session_runner_models.py",
     "bounded_private_session_runner.py",
@@ -191,6 +190,29 @@ _STAGE_28_6_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.7 narrow amendment: the longer-session smoke harness +
+# controlled live smoke runbook substage is authorized and adds
+# the production / doc / test inventory below. Stage 28.8+
+# basenames remain blocked.
+_STAGE_28_7_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "longer_session_smoke_harness.py",
+    "stage28_7_manifest.py",
+)
+
+
+_STAGE_28_7_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_LONGER_SESSION_SMOKE_CHECKLIST.md",
+    "STAGE_28_CONTROLLED_LIVE_SMOKE_RUNBOOK.md",
+)
+
+
+_STAGE_28_7_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_7_longer_session_smoke_harness.py",
+    "test_stage_28_7_boundaries.py",
+    "test_stage_28_7_smoke_docs.py",
+)
+
+
 _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
     "__init__.py",
     "test_stage_28_0_spec_lock.py",
@@ -202,8 +224,8 @@ _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
 STAGE28_1_ENV_READ_MODULE: str = "provider_neutral_readiness.py"
 
 
-# Stage 28.6+ implementation basenames that must remain blocked at
-# Stage 28.5. (Stage 28.1 amendment moved ``provider_neutral_config.py``
+# Stage 28.8+ implementation basenames that must remain blocked at
+# Stage 28.7. (Stage 28.1 amendment moved ``provider_neutral_config.py``
 # to the production surface; Stage 28.2 amendment moved
 # ``dispatch_ledger.py`` and ``dispatch_ledger_models.py`` to the
 # production surface; Stage 28.3a amendment moved
@@ -218,10 +240,13 @@ STAGE28_1_ENV_READ_MODULE: str = "provider_neutral_readiness.py"
 # ``health_status_models.py``, and ``stage28_5_manifest.py`` to
 # the production surface; Stage 28.6 amendment moved
 # ``session_runner_models.py``, ``bounded_private_session_runner.py``,
-# and ``stage28_6_manifest.py`` to the production surface.)
+# and ``stage28_6_manifest.py`` to the production surface; Stage
+# 28.7 amendment moved ``longer_session_smoke_harness.py`` and
+# ``stage28_7_manifest.py`` to the production surface.)
 _STAGE_28_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "longer_session_smoke_harness.py",
     "stage28_manifest.py",
+    "STAGE_28_CLOSURE_AUDIT.md",
+    "STAGE_29_HANDOFF.md",
 )
 
 
@@ -310,19 +335,21 @@ def test_stage28_root_admits_only_stage_28_0_scaffold_plus_stage_28_1_surface():
         | set(_STAGE_28_4_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_5_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_7_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_7_DOC_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/stage28 admits only Stage 28.0 scaffold + Stage 28.1 "
         f"+ Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage 28.4 + "
-        f"Stage 28.5 + Stage 28.6 production surface "
-        f"({sorted(allowed)!r}); Stage 28.7+ files remain blocked. "
-        f"Forbidden entries: {sorted(forbidden)!r}"
+        f"Stage 28.5 + Stage 28.6 + Stage 28.7 production / doc "
+        f"surface ({sorted(allowed)!r}); Stage 28.8+ files remain "
+        f"blocked. Forbidden entries: {sorted(forbidden)!r}"
     )
     missing = allowed - actual
     assert not missing, (
-        f"Stage 28.1 / 28.2 / 28.3a / 28.3b / 28.4 / 28.5 / 28.6 "
-        f"inventory missing entries: {sorted(missing)!r}"
+        f"Stage 28.1 / 28.2 / 28.3a / 28.3b / 28.4 / 28.5 / 28.6 / "
+        f"28.7 inventory missing entries: {sorted(missing)!r}"
     )
 
 
@@ -341,14 +368,15 @@ def test_tests_stage28_root_admits_only_stage_28_0_plus_stage_28_1_tests():
         | set(_STAGE_28_4_TEST_BASENAMES)
         | set(_STAGE_28_5_TEST_BASENAMES)
         | set(_STAGE_28_6_TEST_BASENAMES)
+        | set(_STAGE_28_7_TEST_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/tests/stage28 admits only Stage 28.0 + Stage 28.1 + "
         f"Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage 28.4 + "
-        f"Stage 28.5 + Stage 28.6 test files ({sorted(allowed)!r}); "
-        f"Stage 28.7+ tests remain blocked. Forbidden entries: "
-        f"{sorted(forbidden)!r}"
+        f"Stage 28.5 + Stage 28.6 + Stage 28.7 test files "
+        f"({sorted(allowed)!r}); Stage 28.8+ tests remain blocked. "
+        f"Forbidden entries: {sorted(forbidden)!r}"
     )
 
 
