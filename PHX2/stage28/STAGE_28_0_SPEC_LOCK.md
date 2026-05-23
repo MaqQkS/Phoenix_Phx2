@@ -281,7 +281,7 @@ to block, the following surfaces:
 - HTTP control server
 - daemon / systemd / watchdog / autorestart service
 
-Stage 28 scaffold may admit only:
+Stage 28.0 scaffold admits only:
 
 - `PHX2/stage28/__init__.py`
 - `PHX2/stage28/STAGE_28_0_SPEC_LOCK.md`
@@ -291,13 +291,42 @@ and tests package files:
 - `PHX2/tests/stage28/__init__.py`
 - `PHX2/tests/stage28/test_stage_28_0_spec_lock.py`
 
-Any other `PHX2/stage28/*.py` file or other Stage 28.1+
-production file is out of Stage 28.0 scope and must trip the
-Stage 28.0 boundary scan. Examples of basenames the Stage 28.0
-boundary scan must continue to block until the matching
-substage is explicitly authorized:
+Stage 28.1 narrow amendment (authorized 2026-05-22): the
+provider-neutral config wrapper substage is authorized and adds
+the following Stage 28.1 production .py inventory under
+`PHX2/stage28/`:
 
+- `provider_neutral_models.py`
 - `provider_neutral_config.py`
+- `provider_neutral_readiness.py`
+- `stage28_1_manifest.py`
+
+and the following Stage 28.1 test inventory under
+`PHX2/tests/stage28/`:
+
+- `test_stage_28_1_provider_neutral_models.py`
+- `test_stage_28_1_provider_neutral_config.py`
+- `test_stage_28_1_provider_neutral_readiness.py`
+- `test_stage_28_1_boundaries.py`
+
+Stage 28.1 is the provider-neutral config / secrets-readiness
+cleanup layer only. It ships no network calls, no Discord
+dispatch, no provider connection, no dispatch ledger, no retry /
+backoff, no failure classification, no audited HTTP transport,
+no heartbeat / health snapshot, no CLI status line, no bounded
+private session runner, no longer-session smoke harness, no
+Stage 29 enforcement, no X / social, no Telegram, no public
+routing, no subscriber routing, no paid tier routing, no
+automated trading, no wallet / private-key / signer logic, no
+position sizing, no trade execution, no dashboard / HTTP control
+server, and no daemon / systemd / watchdog / autorestart service.
+
+Any other `PHX2/stage28/*.py` file or other Stage 28.2+
+production file is out of Stage 28.1 scope and must trip the
+Stage 28 boundary scan. Examples of basenames the boundary scan
+must continue to block until the matching substage is explicitly
+authorized:
+
 - `dispatch_ledger.py`
 - `dispatch_ledger_models.py`
 - `failure_classification.py`
