@@ -62,6 +62,7 @@ from PHX2.stage27.bounded_tradeable_ping_runner import (
 )
 from PHX2.stage27.pair_detection_constants import (
     CALIBRATION_LANE_EXISTING_SOL_LANE,
+    CALIBRATION_LANE_USDC_OBSERVE_ONLY,
     PAIR_DETECTION_STATUS_DISAGREE,
     PAIR_DETECTION_STATUS_UNRESOLVED,
     QUOTE_ASSET_SOL,
@@ -81,9 +82,11 @@ from PHX2.stage27.private_discord_models import (
     DISPATCH_REASON_PAIR_SUPPRESS_DISAGREE,
     DISPATCH_REASON_PAIR_SUPPRESS_UNKNOWN,
     DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY,
+    DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE,
     DISPATCH_REASON_SMOKE_DISPATCH_REQUEST_MISSING,
     DISPATCH_REASON_UNKNOWN_DISPATCH_MODE,
     DISPATCH_REASON_WEBHOOK_IDENTITY_MISSING,
+    DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE,
     DISPATCH_REASON_WEBHOOK_URL_MISSING,
     DISPATCH_STATUS_DRY_RUN_NOT_SENT,
     DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK,
@@ -95,6 +98,8 @@ from PHX2.stage27.private_discord_models import (
     REDACTION_STATUS_REDACTED,
     STAGE27_7B_DISPATCH_RESULT_SCHEMA_VERSION,
     Stage27_7bDispatchResultRecord,
+    WEBHOOK_IDENTITY_REDACTED_UNSAFE,
+    is_unsafe_webhook_identity,
 )
 from PHX2.stage27.private_discord_sender import (
     Stage27_7bDiscordTransport,
@@ -226,6 +231,23 @@ def _pair_refusal_for_payload(
                 DISPATCH_STATUS_REFUSED_SUPPRESSED_PAIR,
                 DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY,
             )
+        # Stage 27.7b remediation: USDC live send must ALSO be on
+        # the USDC observe-only calibration lane. A USDC payload
+        # carrying ``EXISTING_SOL_LANE`` (or any other lane) is a
+        # malformed upstream verdict and MUST be refused before
+        # transport. Stage 27.2 / 27.5 enforce this upstream; the
+        # dispatch defensive re-check keeps a future regression
+        # from leaking a malformed payload through.
+        if (
+            payload.calibration_lane
+            != CALIBRATION_LANE_USDC_OBSERVE_ONLY
+        ):
+            return (
+                DISPATCH_STATUS_REFUSED_SUPPRESSED_PAIR,
+                (
+                    DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE
+                ),
+            )
         return None
 
     if payload.quote_asset == QUOTE_ASSET_SOL:
@@ -255,17 +277,36 @@ def _pair_refusal_for_payload(
 # ---------------------------------------------------------------------------
 
 
-def _webhook_identity_or_missing(webhook_identity: object) -> str:
-    """Return ``webhook_identity`` when it is a non-empty string;
-    otherwise the ``"<missing>"`` literal.
+def _safe_webhook_identity_or_placeholder(
+    webhook_identity: object,
+) -> str:
+    """Return a safe-to-echo Stage 27.7b webhook identity literal.
 
-    Stamping the literal keeps the dispatch result record schema-
-    stable (every field is a string) without ever populating the
-    raw URL anywhere.
+    Three-way projection:
+
+      * non-string / empty            -> ``"<missing>"``
+      * non-empty + unsafe shape       -> ``WEBHOOK_IDENTITY_REDACTED_UNSAFE``
+                                          (locked placeholder; the
+                                          caller-provided value is
+                                          NEVER echoed onto a result),
+      * non-empty + safe shape         -> the value verbatim.
+
+    Stage 27.7b dispatch + sender both call this projector before
+    stamping the identity onto a dispatch result. The redacted
+    placeholder for unsafe inputs is what makes the
+    ``WEBHOOK_IDENTITY_UNSAFE`` audit finding a non-leak even when
+    the caller supplies a raw webhook URL: the URL never reaches
+    a result field, an exception message, ``repr()``, or
+    ``str()``.
     """
-    if isinstance(webhook_identity, str) and webhook_identity != "":
-        return webhook_identity
-    return "<missing>"
+    if (
+        not isinstance(webhook_identity, str)
+        or webhook_identity == ""
+    ):
+        return "<missing>"
+    if is_unsafe_webhook_identity(webhook_identity):
+        return WEBHOOK_IDENTITY_REDACTED_UNSAFE
+    return webhook_identity
 
 
 # ---------------------------------------------------------------------------
@@ -341,8 +382,39 @@ def dispatch_one_private_ping_smoke(
       * ``run_id`` / ``session_id``   -- caller-supplied; ``None``
                                          when not attached.
     """
-    safe_identity = _webhook_identity_or_missing(webhook_identity)
+    safe_identity = _safe_webhook_identity_or_placeholder(
+        webhook_identity
+    )
     sent_at_utc = clock.now_utc_iso()
+
+    # Gate 0: Unsafe webhook identity. A non-empty caller-provided
+    # ``webhook_identity`` that fails the locked safe-identity
+    # allowlist (URL-shaped, mixed-case, contains slashes /
+    # whitespace / dots / colons / hyphens, etc.) is refused
+    # BEFORE any other gate runs. ``safe_identity`` is already the
+    # locked redacted placeholder when the input is unsafe, so the
+    # refusal result never echoes the raw value. The transport is
+    # never approached on this path.
+    if is_unsafe_webhook_identity(webhook_identity):
+        dispatch_mode_for_result = (
+            dispatch_mode
+            if isinstance(dispatch_mode, str)
+            else str(dispatch_mode)
+        )
+        return _build_refusal_result(
+            dispatch_status=(
+                DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK
+            ),
+            dispatch_reason=(
+                DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE
+            ),
+            dispatch_mode=dispatch_mode_for_result,
+            webhook_identity=safe_identity,
+            payload=None,
+            run_id=run_id,
+            session_id=session_id,
+            sent_at_utc=sent_at_utc,
+        )
 
     # Gate 1: payload count.
     if not isinstance(payloads, (list, tuple)):

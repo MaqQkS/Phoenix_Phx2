@@ -487,3 +487,63 @@ def test_clock_is_injected_and_used_for_sent_at_utc():
         clock=clock,
     )
     assert result.sent_at_utc == "2026-05-22T13:00:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+# Audit remediation: sender-level unsafe-identity defense-in-depth
+# ---------------------------------------------------------------------------
+
+
+def test_remediation_sender_refuses_url_shaped_webhook_identity():
+    """Defense-in-depth: a direct sender caller (bypassing the
+    dispatch layer) that passes a URL-shaped identity must still
+    refuse and must NOT leak the raw value.
+    """
+    transport = Stage27_7bFakeDiscordTransport()
+    payload = _sol_payload()
+    result = send_one_private_ping(
+        payload,
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=FAKE_WEBHOOK_URL_CANARY,
+        transport=transport,
+        clock=_frozen_clock(),
+    )
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE
+    )
+    # Locked redacted placeholder is on the result, NOT the URL.
+    assert result.webhook_identity == (
+        m.WEBHOOK_IDENTITY_REDACTED_UNSAFE
+    )
+    # Transport was NEVER called.
+    assert transport.call_count == 0
+    # Canary substring nowhere on the result.
+    assert FAKE_WEBHOOK_URL_CANARY not in repr(result)
+    assert FAKE_WEBHOOK_URL_CANARY not in str(result)
+    for field_name in result._fields:
+        value = getattr(result, field_name)
+        if isinstance(value, str):
+            assert FAKE_WEBHOOK_URL_CANARY not in value
+
+
+def test_remediation_sender_safe_identity_still_sends():
+    """Regression guard: the sender's existing happy path still
+    works after the unsafe-identity check is inserted.
+    """
+    transport = Stage27_7bFakeDiscordTransport()
+    payload = _sol_payload()
+    result = send_one_private_ping(
+        payload,
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+    )
+    assert result.dispatch_status == m.DISPATCH_STATUS_SENT
+    assert result.webhook_identity == (
+        m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR
+    )
+    assert transport.call_count == 1

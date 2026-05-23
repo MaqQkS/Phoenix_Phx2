@@ -44,16 +44,17 @@ safe-to-display webhook identity label. No field on the record
 ever takes a raw webhook URL, a raw API key, a raw RPC URL, a
 secret canary, or a raw provider payload blob.
 
-This module imports only stdlib (``typing``). It does NOT import
-Stage 21-26 production code, does NOT import Stage 27.1 production
-code, does NOT import any network / RPC / messaging / DB /
-scheduler / secrets-management library, does NOT read the process
-environment, does NOT define a CLI surface, and contains no
-top-level I/O.
+This module imports only stdlib (``re`` / ``typing``). It does NOT
+import Stage 21-26 production code, does NOT import Stage 27.1
+production code, does NOT import any network / RPC / messaging /
+DB / scheduler / secrets-management library, does NOT read the
+process environment, does NOT define a CLI surface, and contains
+no top-level I/O.
 """
 
 from __future__ import annotations
 
+import re
 from typing import NamedTuple, Optional
 
 
@@ -159,6 +160,9 @@ DISPATCH_REASON_WEBHOOK_URL_MISSING: str = "WEBHOOK_URL_MISSING"
 DISPATCH_REASON_WEBHOOK_IDENTITY_MISSING: str = (
     "WEBHOOK_IDENTITY_MISSING"
 )
+DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE: str = (
+    "WEBHOOK_IDENTITY_UNSAFE"
+)
 DISPATCH_REASON_MULTIPLE_PAYLOADS_REFUSED: str = (
     "MULTIPLE_PAYLOADS_REFUSED"
 )
@@ -171,6 +175,9 @@ DISPATCH_REASON_PAIR_SUPPRESS_DISAGREE: str = (
 )
 DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY: str = (
     "PAIR_USDC_REQUIRES_OBSERVE_ONLY"
+)
+DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE: str = (
+    "PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE"
 )
 DISPATCH_REASON_PAIR_SOL_NOT_ON_EXISTING_LANE: str = (
     "PAIR_SOL_NOT_ON_EXISTING_LANE"
@@ -190,11 +197,13 @@ DISPATCH_REASON_VALUES: tuple[str, ...] = (
     DISPATCH_REASON_UNKNOWN_DISPATCH_MODE,
     DISPATCH_REASON_WEBHOOK_URL_MISSING,
     DISPATCH_REASON_WEBHOOK_IDENTITY_MISSING,
+    DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE,
     DISPATCH_REASON_MULTIPLE_PAYLOADS_REFUSED,
     DISPATCH_REASON_NO_PAYLOAD_PROVIDED,
     DISPATCH_REASON_PAIR_SUPPRESS_UNKNOWN,
     DISPATCH_REASON_PAIR_SUPPRESS_DISAGREE,
     DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY,
+    DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE,
     DISPATCH_REASON_PAIR_SOL_NOT_ON_EXISTING_LANE,
     DISPATCH_REASON_TRANSPORT_EXCEPTION,
     DISPATCH_REASON_TRANSPORT_NON_SUCCESS,
@@ -244,6 +253,86 @@ REDACTION_STATUS_VALUES: tuple[str, ...] = (
 
 
 WEBHOOK_IDENTITY_PRIVATE_OPERATOR: str = "PRIVATE_OPERATOR_WEBHOOK"
+
+
+# Safe-to-display placeholder stamped onto a dispatch result when
+# the caller-supplied ``webhook_identity`` is non-empty but fails
+# the locked safe-identity allowlist regex (URL-shaped /
+# secret-shaped / mixed-case / contains slashes or whitespace or
+# dots / etc.). The literal is deliberately distinctive so a test
+# scanning for the canary value of a fake webhook URL cannot
+# collide with a legitimate identity label, and so an audit log
+# reviewer can see that the dispatch suppressed an unsafe input.
+WEBHOOK_IDENTITY_REDACTED_UNSAFE: str = (
+    "REDACTED_UNSAFE_WEBHOOK_IDENTITY"
+)
+
+
+# ---------------------------------------------------------------------------
+# Safe-identity allowlist regex
+# ---------------------------------------------------------------------------
+#
+# Stage 27.7b webhook identity labels are short ALL_CAPS_WITH_UNDERSCORES
+# tokens such as ``PRIVATE_OPERATOR_WEBHOOK``. The locked allowlist
+# regex below rejects:
+#
+#   * URL-shaped strings (lowercase letters, slashes, colons, dots),
+#   * the audit canary substring (mixed case, hyphens, digits),
+#   * bearer / API / RPC / private-key markers (mixed case, spaces),
+#   * leading / trailing whitespace,
+#   * any string that does not start with an uppercase letter,
+#   * any string longer than 64 characters,
+#
+# and admits identifier-like labels of length 1..64 made of
+# ``A-Z`` / ``0-9`` / ``_`` starting with an uppercase letter.
+
+
+_SAFE_WEBHOOK_IDENTITY_PATTERN: re.Pattern[str] = re.compile(
+    r"^[A-Z][A-Z0-9_]{0,63}$"
+)
+
+
+def is_safe_webhook_identity(value: object) -> bool:
+    """Return ``True`` iff ``value`` is a safe-to-echo Stage 27.7b webhook identity.
+
+    Safe identities are non-empty strings that match the locked
+    allowlist regex ``^[A-Z][A-Z0-9_]{0,63}$``.
+
+    Pure / deterministic. Stage 27.7b dispatch + sender both call
+    this helper before stamping a caller-provided identity onto a
+    dispatch result record; URL-shaped, secret-shaped, mixed-case,
+    hyphen-containing, whitespace-containing, dot-containing, or
+    slash-containing values fail the regex and are unsafe.
+
+    A non-string input or an empty string returns ``False`` (the
+    caller treats those as the separate ``WEBHOOK_IDENTITY_MISSING``
+    refusal path, NOT as an unsafe-shape refusal).
+    """
+    if not isinstance(value, str):
+        return False
+    if value == "":
+        return False
+    return _SAFE_WEBHOOK_IDENTITY_PATTERN.match(value) is not None
+
+
+def is_unsafe_webhook_identity(value: object) -> bool:
+    """Return ``True`` iff ``value`` is a non-empty string that
+    fails the locked safe-identity allowlist regex.
+
+    Pure / deterministic. The Stage 27.7b dispatch + sender use this
+    helper to detect URL-shaped / secret-shaped identities that
+    must be rejected before any transport call and that must NEVER
+    be echoed onto a dispatch result.
+
+    Empty / non-string inputs return ``False`` because those are
+    classified as ``WEBHOOK_IDENTITY_MISSING`` rather than
+    ``WEBHOOK_IDENTITY_UNSAFE``.
+    """
+    if not isinstance(value, str):
+        return False
+    if value == "":
+        return False
+    return _SAFE_WEBHOOK_IDENTITY_PATTERN.match(value) is None
 
 
 # ---------------------------------------------------------------------------

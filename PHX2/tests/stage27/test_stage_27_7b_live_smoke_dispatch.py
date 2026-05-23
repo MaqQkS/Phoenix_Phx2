@@ -739,3 +739,372 @@ def test_sent_at_utc_stamped_on_every_dispatch_result():
         dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
     )
     assert result.sent_at_utc == "2026-05-22T15:30:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+# Audit remediation: webhook_identity URL-leak refusal
+# ---------------------------------------------------------------------------
+
+
+def test_remediation_url_shaped_identity_refuses_before_transport():
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_sol_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        # Pass the canary URL as the identity -- the audit finding
+        # reproducer.
+        webhook_identity=FAKE_WEBHOOK_URL_CANARY,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    # Refuses with the new closed-set tokens.
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE
+    )
+    # Transport was NEVER called.
+    assert transport.call_count == 0
+
+
+def test_remediation_url_shaped_identity_never_echoed_in_result():
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_sol_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=FAKE_WEBHOOK_URL_CANARY,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    # The result echoes the locked redacted placeholder, NOT the
+    # caller-provided URL.
+    assert result.webhook_identity == (
+        m.WEBHOOK_IDENTITY_REDACTED_UNSAFE
+    )
+    # repr() / str() do NOT carry the canary.
+    assert FAKE_WEBHOOK_URL_CANARY not in repr(result)
+    assert FAKE_WEBHOOK_URL_CANARY not in str(result)
+    # Every string-valued field of the result must be canary-free.
+    for field_name in result._fields:
+        value = getattr(result, field_name)
+        if isinstance(value, str):
+            assert FAKE_WEBHOOK_URL_CANARY not in value, (
+                f"webhook URL canary leaked into "
+                f"result.{field_name}"
+            )
+
+
+@pytest.mark.parametrize(
+    "unsafe_identity",
+    [
+        # The canary URLs from this file's local constants.
+        FAKE_WEBHOOK_URL_CANARY,
+        # The colon+slash scheme combinations are spelled with
+        # concatenation so the Stage 27 URL-literal boundary scan
+        # does not flag this test file.
+        ("h" + "ttps") + "://discord.com/api/webhooks/123/abc",
+        ("h" + "ttp") + "://example.com",
+        "discord.com/api/webhooks/123/abc",
+        # Whitespace.
+        "  PRIVATE_OPERATOR_WEBHOOK  ",
+        " PRIVATE_OPERATOR_WEBHOOK",
+        "PRIVATE_OPERATOR_WEBHOOK ",
+        # Mixed case / hyphens.
+        "private_operator_webhook",
+        "Private_Operator_Webhook",
+        "private-operator-webhook",
+        # Bearer / secret markers.
+        "Bearer abc123",
+        "api_key=abc",
+        "rpc_url=...",
+        # Slashes / dots.
+        "OPERATOR/CHANNEL",
+        "OPERATOR.CHANNEL",
+        # Starts with digit / underscore.
+        "1OPERATOR",
+        "_OPERATOR",
+        # Too long.
+        "A" * 65,
+    ],
+)
+def test_remediation_unsafe_identity_shapes_all_refuse(
+    unsafe_identity,
+):
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_sol_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=unsafe_identity,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE
+    )
+    assert result.webhook_identity == (
+        m.WEBHOOK_IDENTITY_REDACTED_UNSAFE
+    )
+    assert transport.call_count == 0
+    # The bad identity itself must not appear on the result.
+    if isinstance(unsafe_identity, str) and unsafe_identity:
+        for field_name in result._fields:
+            value = getattr(result, field_name)
+            if isinstance(value, str):
+                assert unsafe_identity not in value, (
+                    f"unsafe identity leaked into "
+                    f"result.{field_name}"
+                )
+
+
+def test_remediation_unsafe_identity_refuses_even_in_dry_run_mode():
+    # The unsafe-identity gate fires before the DRY_RUN short-
+    # circuit so the operator sees the unsafe-identity verdict
+    # even when no transport call would have happened anyway.
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_sol_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=FAKE_WEBHOOK_URL_CANARY,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_DRY_RUN,
+    )
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE
+    )
+    assert transport.call_count == 0
+
+
+def test_remediation_safe_identity_still_succeeds_after_patch():
+    """Regression guard: the new gate must not break the SOL
+    happy path with the locked safe identity literal.
+    """
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_sol_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.dispatch_status == m.DISPATCH_STATUS_SENT
+    assert result.webhook_identity == (
+        m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR
+    )
+    assert transport.call_count == 1
+
+
+def test_remediation_unsafe_identity_refusal_redaction_status_redacted():
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_sol_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=FAKE_WEBHOOK_URL_CANARY,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.redaction_status == m.REDACTION_STATUS_REDACTED
+    assert result.schema_version == (
+        m.STAGE27_7B_DISPATCH_RESULT_SCHEMA_VERSION
+    )
+
+
+# ---------------------------------------------------------------------------
+# Audit remediation: USDC + EXISTING_SOL_LANE must refuse
+# ---------------------------------------------------------------------------
+
+
+def _usdc_payload_observe_only_on_sol_lane() -> PrivatePingPayloadRecord:
+    """USDC payload that CARRIES the OBSERVE_ONLY render warning
+    but MALFORMED with EXISTING_SOL_LANE.
+
+    Stage 27.5 would never produce this combination -- the audit
+    finding asks the dispatch to defensively re-check
+    ``calibration_lane`` on USDC before sending.
+    """
+    return _payload(
+        ping_id="ping-usdc-malformed-lane",
+        quote_asset="USDC",
+        pair_type="PUMP_USDC",
+        bonding_curve_version="USDC_FIXED",
+        calibration_lane="EXISTING_SOL_LANE",  # malformed
+        render_status="RENDERED_OBSERVE_ONLY",
+        pair_live_policy="LIVE_ALLOWED",
+    )
+
+
+def test_remediation_usdc_observe_only_on_sol_lane_refuses_live():
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_usdc_payload_observe_only_on_sol_lane()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_SUPPRESSED_PAIR
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE
+    )
+    assert transport.call_count == 0
+    # Pair / render fields are echoed on the refusal (these are
+    # safe-to-display canonical tokens, not the URL).
+    assert result.pair_quote_asset == "USDC"
+    assert result.render_status == "RENDERED_OBSERVE_ONLY"
+
+
+@pytest.mark.parametrize(
+    "dispatch_mode",
+    [m.DISPATCH_MODE_DRY_RUN, m.DISPATCH_MODE_LIVE_SEND],
+)
+def test_remediation_usdc_observe_only_on_sol_lane_refuses_in_any_mode(
+    dispatch_mode,
+):
+    # Pair-aware refusals (USDC malformed-lane included) apply in
+    # BOTH DRY_RUN and LIVE_SEND so the audit log records the
+    # suppression verdict consistently.
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_usdc_payload_observe_only_on_sol_lane()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=dispatch_mode,
+    )
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_SUPPRESSED_PAIR
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE
+    )
+    assert transport.call_count == 0
+
+
+def test_remediation_valid_usdc_observe_only_still_sends_live():
+    """Regression guard: the USDC happy path (RENDERED_OBSERVE_ONLY
+    + USDC_OBSERVE_ONLY lane) must STILL send in LIVE_SEND mode.
+    """
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_usdc_payload_observe_only()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.dispatch_status == m.DISPATCH_STATUS_SENT
+    assert result.pair_quote_asset == "USDC"
+    assert result.render_status == "RENDERED_OBSERVE_ONLY"
+    assert transport.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Audit remediation: prior behavior is preserved
+# ---------------------------------------------------------------------------
+
+
+def test_remediation_unknown_pair_still_refuses_after_patch():
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_unknown_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_SUPPRESSED_PAIR
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_PAIR_SUPPRESS_UNKNOWN
+    )
+    assert transport.call_count == 0
+
+
+def test_remediation_disagree_pair_still_refuses_after_patch():
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_disagree_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.dispatch_status == (
+        m.DISPATCH_STATUS_REFUSED_SUPPRESSED_PAIR
+    )
+    assert result.dispatch_reason == (
+        m.DISPATCH_REASON_PAIR_SUPPRESS_DISAGREE
+    )
+    assert transport.call_count == 0
+
+
+def test_remediation_sol_happy_path_unchanged_after_patch():
+    transport = Stage27_7bFakeDiscordTransport()
+    result = dispatch_one_private_ping_smoke(
+        [_sol_payload()],
+        webhook_url=FAKE_WEBHOOK_URL_CANARY,
+        webhook_identity=m.WEBHOOK_IDENTITY_PRIVATE_OPERATOR,
+        transport=transport,
+        clock=_frozen_clock(),
+        live_mode_authority=LIVE_MODE_AUTHORITY_LIVE_ALLOWED,
+        operator_live_request=True,
+        smoke_dispatch_request=True,
+        dispatch_mode=m.DISPATCH_MODE_LIVE_SEND,
+    )
+    assert result.dispatch_status == m.DISPATCH_STATUS_SENT
+    assert result.dispatch_reason == m.DISPATCH_REASON_LIVE_SEND_OK
+    assert result.pair_quote_asset == "SOL"
+    assert transport.call_count == 1

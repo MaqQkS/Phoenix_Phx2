@@ -50,6 +50,7 @@ from PHX2.stage27.private_discord_models import (
     DISPATCH_REASON_TRANSPORT_EXCEPTION,
     DISPATCH_REASON_TRANSPORT_NON_SUCCESS,
     DISPATCH_REASON_WEBHOOK_IDENTITY_MISSING,
+    DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE,
     DISPATCH_REASON_WEBHOOK_URL_MISSING,
     DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK,
     DISPATCH_STATUS_SENT,
@@ -57,6 +58,8 @@ from PHX2.stage27.private_discord_models import (
     REDACTION_STATUS_REDACTED,
     STAGE27_7B_DISPATCH_RESULT_SCHEMA_VERSION,
     Stage27_7bDispatchResultRecord,
+    WEBHOOK_IDENTITY_REDACTED_UNSAFE,
+    is_unsafe_webhook_identity,
 )
 from PHX2.stage27.private_ping_models import (
     PrivatePingPayloadRecord,
@@ -486,6 +489,24 @@ def send_one_private_ping(
             dispatch_reason=DISPATCH_REASON_WEBHOOK_IDENTITY_MISSING,
             dispatch_mode=DISPATCH_MODE_LIVE_SEND,
             webhook_identity="<missing>",
+            payload=payload,
+            run_id=run_id,
+            session_id=session_id,
+            sent_at_utc=clock.now_utc_iso(),
+            no_payload_sentinel="<no_payload>",
+        )
+    if is_unsafe_webhook_identity(webhook_identity):
+        # Stage 27.7b remediation: defense-in-depth. The dispatch
+        # layer normally pre-validates this, but a direct sender
+        # caller (e.g. a test that bypasses the dispatch) must also
+        # get a clean refusal rather than a leaked URL on the
+        # result. The caller-supplied identity is NEVER echoed; the
+        # locked redacted placeholder is stamped instead.
+        return _build_refusal_result(
+            dispatch_status=DISPATCH_STATUS_REFUSED_MISSING_WEBHOOK,
+            dispatch_reason=DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE,
+            dispatch_mode=DISPATCH_MODE_LIVE_SEND,
+            webhook_identity=WEBHOOK_IDENTITY_REDACTED_UNSAFE,
             payload=payload,
             run_id=run_id,
             session_id=session_id,

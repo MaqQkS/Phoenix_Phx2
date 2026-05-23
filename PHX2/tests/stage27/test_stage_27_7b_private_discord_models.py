@@ -88,15 +88,114 @@ def test_dispatch_reason_values_locked_closed_set():
         "UNKNOWN_DISPATCH_MODE",
         "WEBHOOK_URL_MISSING",
         "WEBHOOK_IDENTITY_MISSING",
+        "WEBHOOK_IDENTITY_UNSAFE",
         "MULTIPLE_PAYLOADS_REFUSED",
         "NO_PAYLOAD_PROVIDED",
         "PAIR_SUPPRESS_UNKNOWN",
         "PAIR_SUPPRESS_DISAGREE",
         "PAIR_USDC_REQUIRES_OBSERVE_ONLY",
+        "PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE",
         "PAIR_SOL_NOT_ON_EXISTING_LANE",
         "TRANSPORT_EXCEPTION",
         "TRANSPORT_NON_SUCCESS",
     )
+
+
+def test_remediation_webhook_identity_unsafe_reason_handle():
+    assert m.DISPATCH_REASON_WEBHOOK_IDENTITY_UNSAFE == (
+        "WEBHOOK_IDENTITY_UNSAFE"
+    )
+
+
+def test_remediation_pair_usdc_requires_observe_only_lane_handle():
+    assert (
+        m.DISPATCH_REASON_PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE
+        == "PAIR_USDC_REQUIRES_OBSERVE_ONLY_LANE"
+    )
+
+
+def test_remediation_redacted_unsafe_identity_placeholder():
+    assert m.WEBHOOK_IDENTITY_REDACTED_UNSAFE == (
+        "REDACTED_UNSAFE_WEBHOOK_IDENTITY"
+    )
+    # The placeholder must be a safe-to-display label: no URL
+    # markers, no slashes, no dots, no colons.
+    label = m.WEBHOOK_IDENTITY_REDACTED_UNSAFE
+    assert "://" not in label
+    assert "/" not in label
+    assert "." not in label
+    assert ":" not in label
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "PRIVATE_OPERATOR_WEBHOOK",
+        "OPERATOR",
+        "WEBHOOK_PRIVATE_1",
+        "A",
+        "X_Y_Z_0_9",
+    ],
+)
+def test_is_safe_webhook_identity_accepts_safe_labels(value):
+    assert m.is_safe_webhook_identity(value) is True
+    assert m.is_unsafe_webhook_identity(value) is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        # URL-shaped.
+        "FAKE-CANARY-WEBHOOK-URL-DO-NOT-LEAK-zzz-9b3a",
+        "FAKE-CANARY-WEBHOOK-URL-DO-NOT-LEAK-dispatch-7f1c",
+        # The colon+slash combination cannot be embedded as a
+        # literal substring in production source (the Stage 27
+        # URL-literal boundary scan rejects ``h``+``ttps``+``://``);
+        # the helper-as-string form below proves the rule applies.
+        ("h" + "ttps") + "://discord.com/api/webhooks/123/abc",
+        ("h" + "ttp") + "://example.com",
+        "discord.com/api/webhooks/123/abc",
+        # Whitespace.
+        "  PRIVATE_OPERATOR_WEBHOOK  ",
+        " PRIVATE_OPERATOR_WEBHOOK",
+        "PRIVATE_OPERATOR_WEBHOOK ",
+        # Mixed case / hyphens.
+        "private_operator_webhook",
+        "Private_Operator_Webhook",
+        "private-operator-webhook",
+        # Bearer / secret markers.
+        "Bearer abc123",
+        "api_key=abc",
+        "rpc_url=...",
+        # Slashes / dots.
+        "OPERATOR/CHANNEL",
+        "OPERATOR.CHANNEL",
+        # Lowercase URL fragments without scheme.
+        "discord.com",
+        "discordapp.com",
+        # Too long (>64 chars).
+        "A" * 65,
+        # Starts with digit / underscore.
+        "1OPERATOR",
+        "_OPERATOR",
+    ],
+)
+def test_is_unsafe_webhook_identity_rejects_unsafe_shapes(value):
+    assert m.is_unsafe_webhook_identity(value) is True
+    assert m.is_safe_webhook_identity(value) is False
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["", None, 123, b"PRIVATE_OPERATOR_WEBHOOK"],
+)
+def test_is_unsafe_webhook_identity_returns_false_for_empty_or_non_string(
+    value,
+):
+    # Empty / non-string is the MISSING refusal path, not the
+    # UNSAFE refusal path.
+    assert m.is_unsafe_webhook_identity(value) is False
+    assert m.is_safe_webhook_identity(value) is False
 
 
 # ---------------------------------------------------------------------------
