@@ -925,6 +925,9 @@ _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "private_discord_sender.py",
         "live_smoke_dispatch.py",
         "stage27_7b_manifest.py",
+        # Stage 27.8 closure audit + Stage 28 handoff docs only.
+        "STAGE_27_CLOSURE_AUDIT.md",
+        "STAGE_28_HANDOFF.md",
     }
 )
 

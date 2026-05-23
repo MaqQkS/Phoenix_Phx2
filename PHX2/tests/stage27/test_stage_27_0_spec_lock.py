@@ -674,6 +674,9 @@ _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "private_discord_sender.py",
         "live_smoke_dispatch.py",
         "stage27_7b_manifest.py",
+        # Stage 27.8 closure audit + Stage 28 handoff docs only.
+        "STAGE_27_CLOSURE_AUDIT.md",
+        "STAGE_28_HANDOFF.md",
     }
 )
 
@@ -824,6 +827,8 @@ _STAGE_27_7A_ALLOWED_MD_BASENAMES: frozenset[str] = frozenset(
         "STAGE_27_0_SPEC_LOCK.md",
         "STAGE_27_OPERATOR_RUNBOOK.md",
         "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+        "STAGE_27_CLOSURE_AUDIT.md",
+        "STAGE_28_HANDOFF.md",
     }
 )
 

@@ -141,6 +141,10 @@ _STAGE_27_0_THROUGH_27_3_LOCKED_ENTRIES: frozenset[str] = (
             # 27.3 files.
             "STAGE_27_OPERATOR_RUNBOOK.md",
             "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+            # Stage 27.8 closure audit + Stage 28 handoff docs
+            # admitted by the directory scan only.
+            "STAGE_27_CLOSURE_AUDIT.md",
+            "STAGE_28_HANDOFF.md",
         }
     )
 )

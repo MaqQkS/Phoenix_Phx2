@@ -681,6 +681,8 @@ _STAGE_27_0_THROUGH_27_7B_LOCKED_ENTRIES: frozenset[str] = (
             "STAGE_27_0_SPEC_LOCK.md",
             "STAGE_27_OPERATOR_RUNBOOK.md",
             "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
+            "STAGE_27_CLOSURE_AUDIT.md",
+            "STAGE_28_HANDOFF.md",
         }
     )
 )
