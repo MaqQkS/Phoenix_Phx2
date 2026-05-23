@@ -78,12 +78,13 @@ _STAGE_28_2_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
-# Stage 28.3+ implementation basenames that remain blocked at
-# Stage 28.2. (Stage 28.1 amendment moved provider_neutral_config.py
+# Stage 28.3b+ implementation basenames that remain blocked at
+# Stage 28.3a. (Stage 28.1 amendment moved provider_neutral_config.py
 # off this list. Stage 28.2 amendment moved dispatch_ledger.py and
-# dispatch_ledger_models.py off this list.)
+# dispatch_ledger_models.py off this list. Stage 28.3a amendment
+# moved failure_classification.py and
+# failure_classification_models.py off this list.)
 _STAGE_28_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "failure_classification.py",
     "retry_policy.py",
     "audited_http_transport.py",
     "heartbeat_writer.py",
@@ -92,6 +93,22 @@ _STAGE_28_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
     "bounded_private_session_runner.py",
     "longer_session_smoke_harness.py",
     "stage28_manifest.py",
+)
+
+
+# Stage 28.3a production .py inventory now admitted under
+# ``PHX2/stage28/`` alongside Stage 28.1 and Stage 28.2.
+_STAGE_28_3A_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "failure_classification_models.py",
+    "failure_classification.py",
+    "stage28_3a_manifest.py",
+)
+
+
+_STAGE_28_3A_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_3a_failure_classification_models.py",
+    "test_stage_28_3a_failure_classification.py",
+    "test_stage_28_3a_boundaries.py",
 )
 
 
@@ -480,8 +497,8 @@ def test_no_stage_28_2_production_identifier_implements_later_or_public_surface(
 )
 def test_no_stage_28_3_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.3+ implementation "
-        f"basename {basename!r} during Stage 28.2"
+        f"PHX2/stage28 must not ship Stage 28.3b+ implementation "
+        f"basename {basename!r} during Stage 28.3a"
     )
 
 
@@ -803,25 +820,30 @@ def test_dedupe_key_named_tuple_field_set_is_exactly_locked_five():
 
 
 def test_stage28_root_admits_only_28_0_28_1_28_2_surface():
-    """Sanity: at Stage 28.2 the PHX2/stage28 tree must admit
+    """Sanity: at Stage 28.3a the PHX2/stage28 tree must admit
     exactly the union of the Stage 28.0 scaffold + Stage 28.1
-    production surface + Stage 28.2 production surface (plus the
-    interpreter's ``__pycache__`` cache, which is build noise).
+    production surface + Stage 28.2 production surface + Stage
+    28.3a production surface (plus the interpreter's
+    ``__pycache__`` cache, which is build noise).
     """
     actual: set[str] = set()
     for entry in STAGE28_ROOT.iterdir():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    expected = {
-        "__init__.py",
-        "STAGE_28_0_SPEC_LOCK.md",
-        # Stage 28.1 production .py surface.
-        "provider_neutral_models.py",
-        "provider_neutral_config.py",
-        "provider_neutral_readiness.py",
-        "stage28_1_manifest.py",
-    } | set(_STAGE_28_2_PRODUCTION_PY_BASENAMES)
+    expected = (
+        {
+            "__init__.py",
+            "STAGE_28_0_SPEC_LOCK.md",
+            # Stage 28.1 production .py surface.
+            "provider_neutral_models.py",
+            "provider_neutral_config.py",
+            "provider_neutral_readiness.py",
+            "stage28_1_manifest.py",
+        }
+        | set(_STAGE_28_2_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_3A_PRODUCTION_PY_BASENAMES)
+    )
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -834,15 +856,19 @@ def test_tests_stage28_root_admits_only_28_0_28_1_28_2_tests():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    expected = {
-        "__init__.py",
-        "test_stage_28_0_spec_lock.py",
-        # Stage 28.1 test surface.
-        "test_stage_28_1_provider_neutral_models.py",
-        "test_stage_28_1_provider_neutral_config.py",
-        "test_stage_28_1_provider_neutral_readiness.py",
-        "test_stage_28_1_boundaries.py",
-    } | set(_STAGE_28_2_TEST_BASENAMES)
+    expected = (
+        {
+            "__init__.py",
+            "test_stage_28_0_spec_lock.py",
+            # Stage 28.1 test surface.
+            "test_stage_28_1_provider_neutral_models.py",
+            "test_stage_28_1_provider_neutral_config.py",
+            "test_stage_28_1_provider_neutral_readiness.py",
+            "test_stage_28_1_boundaries.py",
+        }
+        | set(_STAGE_28_2_TEST_BASENAMES)
+        | set(_STAGE_28_3A_TEST_BASENAMES)
+    )
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

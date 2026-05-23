@@ -590,8 +590,10 @@ def test_spec_lock_locks_no_prometheus_or_exporter_scope():
 # Stage 28.1 narrow amendment: the provider-neutral config
 # wrapper substage is authorized and ships the inventory below.
 # Stage 28.2 narrow amendment: the restart-safe dispatch ledger
+# substage is authorized and ships the inventory below.
+# Stage 28.3a narrow amendment: the failure-classification
 # substage is authorized and ships the inventory below. Stage
-# 28.3+ implementation files remain blocked.
+# 28.3b+ implementation files remain blocked.
 _STAGE_28_1_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
     {
         "provider_neutral_models.py",
@@ -630,20 +632,48 @@ _STAGE_28_2_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
-_STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = frozenset(
+_STAGE_28_3A_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
     {
-        "__init__.py",
-        "STAGE_28_0_SPEC_LOCK.md",
+        "failure_classification_models.py",
+        "failure_classification.py",
+        "stage28_3a_manifest.py",
     }
-) | _STAGE_28_1_PRODUCTION_PY_BASENAMES | _STAGE_28_2_PRODUCTION_PY_BASENAMES
+)
 
 
-_STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = frozenset(
+_STAGE_28_3A_TEST_BASENAMES: frozenset[str] = frozenset(
     {
-        "__init__.py",
-        "test_stage_28_0_spec_lock.py",
+        "test_stage_28_3a_failure_classification_models.py",
+        "test_stage_28_3a_failure_classification.py",
+        "test_stage_28_3a_boundaries.py",
     }
-) | _STAGE_28_1_TEST_BASENAMES | _STAGE_28_2_TEST_BASENAMES
+)
+
+
+_STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
+    frozenset(
+        {
+            "__init__.py",
+            "STAGE_28_0_SPEC_LOCK.md",
+        }
+    )
+    | _STAGE_28_1_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_2_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_3A_PRODUCTION_PY_BASENAMES
+)
+
+
+_STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
+    frozenset(
+        {
+            "__init__.py",
+            "test_stage_28_0_spec_lock.py",
+        }
+    )
+    | _STAGE_28_1_TEST_BASENAMES
+    | _STAGE_28_2_TEST_BASENAMES
+    | _STAGE_28_3A_TEST_BASENAMES
+)
 
 
 def test_stage28_root_admits_only_28_0_scaffold_plus_28_1_surface():
@@ -655,15 +685,16 @@ def test_stage28_root_admits_only_28_0_scaffold_plus_28_1_surface():
     forbidden = actual - _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES
     assert not forbidden, (
         f"PHX2/stage28 admits only the Stage 28.0 scaffold plus "
-        f"the Stage 28.1 + Stage 28.2 production surface "
+        f"the Stage 28.1 + Stage 28.2 + Stage 28.3a production "
+        f"surface "
         f"({sorted(_STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES)!r}); "
-        f"Stage 28.3+ implementation files remain blocked. "
+        f"Stage 28.3b+ implementation files remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )
     missing = _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES - actual
     assert not missing, (
-        f"Stage 28.0 / 28.1 / 28.2 inventory missing required "
-        f"entries: {sorted(missing)!r}"
+        f"Stage 28.0 / 28.1 / 28.2 / 28.3a inventory missing "
+        f"required entries: {sorted(missing)!r}"
     )
 
 
@@ -676,15 +707,16 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
     forbidden = actual - _STAGE_28_0_ALLOWED_TEST_ENTRIES
     assert not forbidden, (
         f"PHX2/tests/stage28 admits only the Stage 28.0 test set "
-        f"plus the Stage 28.1 + Stage 28.2 test surface "
+        f"plus the Stage 28.1 + Stage 28.2 + Stage 28.3a test "
+        f"surface "
         f"({sorted(_STAGE_28_0_ALLOWED_TEST_ENTRIES)!r}); Stage "
-        f"28.3+ test files remain blocked. Forbidden entries "
+        f"28.3b+ test files remain blocked. Forbidden entries "
         f"found: {sorted(forbidden)!r}"
     )
     missing = _STAGE_28_0_ALLOWED_TEST_ENTRIES - actual
     assert not missing, (
-        f"Stage 28.0 / 28.1 / 28.2 tests package missing required "
-        f"entries: {sorted(missing)!r}"
+        f"Stage 28.0 / 28.1 / 28.2 / 28.3a tests package missing "
+        f"required entries: {sorted(missing)!r}"
     )
 
 
@@ -698,9 +730,11 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
 # Stage 28.2 narrow amendment: ``dispatch_ledger.py`` and
 # ``dispatch_ledger_models.py`` have been promoted to the Stage
 # 28.2 production surface and removed from this forbidden list.
-# Stage 28.3+ basenames remain blocked.
+# Stage 28.3a narrow amendment: ``failure_classification.py`` and
+# ``failure_classification_models.py`` have been promoted to the
+# Stage 28.3a production surface and removed from this forbidden
+# list. Stage 28.3b+ basenames remain blocked.
 _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
-    "failure_classification.py",
     "retry_policy.py",
     "audited_http_transport.py",
     "heartbeat_writer.py",
@@ -717,17 +751,17 @@ _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
 )
 def test_no_stage_28_2_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.3+ implementation "
-        f"basename {basename!r} during Stage 28.2"
+        f"PHX2/stage28 must not ship Stage 28.3b+ implementation "
+        f"basename {basename!r} during Stage 28.3a"
     )
 
 
 def test_no_extra_python_module_under_stage28():
     """Stage 28 .py inventory is the package marker plus the
-    Stage 28.1 + Stage 28.2 production .py surface; nothing else
-    ships under ``PHX2/stage28/`` at Stage 28.2.
+    Stage 28.1 + Stage 28.2 + Stage 28.3a production .py surface;
+    nothing else ships under ``PHX2/stage28/`` at Stage 28.3a.
 
-    Stage 28.3+ substages must each land their .py surface under
+    Stage 28.3b+ substages must each land their .py surface under
     their own explicitly authorized narrow amendment here.
     """
     actual_py = {
@@ -739,12 +773,14 @@ def test_no_extra_python_module_under_stage28():
         {"__init__.py"}
         | set(_STAGE_28_1_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_2_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_3A_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
         f"Stage 28 must not add new production .py modules beyond "
-        f"the package marker and the Stage 28.1 + Stage 28.2 "
-        f"surface; unexpected files: {sorted(unexpected)}"
+        f"the package marker and the Stage 28.1 + Stage 28.2 + "
+        f"Stage 28.3a surface; unexpected files: "
+        f"{sorted(unexpected)}"
     )
 
 

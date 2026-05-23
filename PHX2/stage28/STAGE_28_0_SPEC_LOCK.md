@@ -379,6 +379,68 @@ authorized:
 - `longer_session_smoke_harness.py`
 - `stage28_manifest.py`
 
+Stage 28.3a narrow amendment (authorized 2026-05-23): the
+failure-classification substage is authorized and adds the
+following Stage 28.3a production .py inventory under
+`PHX2/stage28/`:
+
+- `failure_classification_models.py`
+- `failure_classification.py`
+- `stage28_3a_manifest.py`
+
+and the following Stage 28.3a test inventory under
+`PHX2/tests/stage28/`:
+
+- `test_stage_28_3a_failure_classification_models.py`
+- `test_stage_28_3a_failure_classification.py`
+- `test_stage_28_3a_boundaries.py`
+
+Stage 28.3a is the failure-classification layer only. It ships
+pure, deterministic, redaction-safe closed-set primitives that
+map an opaque failure description (failure kind hint + optional
+domain / status / exception / state hints) to a stable
+`Stage28_3aFailureClassification` record over the locked Stage
+28.3a closed-set vocabularies (failure kinds, domains,
+recommended actions, severities, dispatch-safety status,
+session-continuation status, operator-visibility, safe reason
+codes, redaction status). Stage 28.3a is NOT retry policy;
+Stage 28.3a is the vocabulary + classifier layer that the Stage
+28.3b retry policy will consume.
+
+Stage 28.3a ships NO retry / backoff policy, NO audited Discord
+HTTP transport, NO heartbeat / health snapshot, NO CLI status
+line, NO bounded private session runner, NO longer-session smoke
+harness, NO live smoke, NO Stage 29 enforcement, NO X / social,
+NO Telegram, NO public routing, NO subscriber routing, NO paid
+tier routing, NO automated trading, NO wallet / private-key /
+signer logic, NO position sizing, NO trade execution, NO
+dashboard / HTTP control server, and NO daemon / systemd /
+watchdog / autorestart service. Stage 28.3a reads NO process
+environment variables; all classifier inputs are caller-supplied
+closed-set hints.
+
+The Stage 28.3a classifier output surface is closed-set and
+redaction-safe by construction: even when a caller supplies a
+`raw_message` field (accepted for test fixtures), the classifier
+NEVER copies it onto the output record. The output exposes only
+closed-set tokens + a closed-set `safe_reason_code` snake_case
+derivation of the failure-kind token.
+
+Any other `PHX2/stage28/*.py` file or other Stage 28.3b+
+production file is out of Stage 28.3a scope and must trip the
+Stage 28 boundary scan. Examples of basenames the boundary scan
+must continue to block until the matching substage is explicitly
+authorized:
+
+- `retry_policy.py`
+- `audited_http_transport.py`
+- `heartbeat_writer.py`
+- `health_snapshot_writer.py`
+- `cli_status_line.py`
+- `bounded_private_session_runner.py`
+- `longer_session_smoke_harness.py`
+- `stage28_manifest.py`
+
 ---
 
 ## 12. Closed-set vocabulary placeholders
