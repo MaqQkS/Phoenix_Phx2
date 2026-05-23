@@ -321,14 +321,54 @@ automated trading, no wallet / private-key / signer logic, no
 position sizing, no trade execution, no dashboard / HTTP control
 server, and no daemon / systemd / watchdog / autorestart service.
 
-Any other `PHX2/stage28/*.py` file or other Stage 28.2+
-production file is out of Stage 28.1 scope and must trip the
+Stage 28.2 narrow amendment (authorized 2026-05-22): the
+restart-safe dispatch ledger substage is authorized and adds the
+following Stage 28.2 production .py inventory under
+`PHX2/stage28/`:
+
+- `dispatch_ledger_models.py`
+- `dispatch_ledger.py`
+- `stage28_2_manifest.py`
+
+and the following Stage 28.2 test inventory under
+`PHX2/tests/stage28/`:
+
+- `test_stage_28_2_dispatch_ledger_models.py`
+- `test_stage_28_2_dispatch_ledger.py`
+- `test_stage_28_2_boundaries.py`
+
+Stage 28.2 is the restart-safe private dispatch ledger only. It
+is an append-only, replayable, redaction-safe ledger of dispatch
+intent + pre-send provenance reference + terminal dispatch
+result. It exists to prevent duplicate private Discord pings
+across process restarts and to expose closed-set decisions for
+duplicate-terminal and ambiguous-non-terminal replay outcomes.
+
+Stage 28.2 ships no network calls, no HTTP, no gRPC, no Discord
+dispatch, no provider connection, no retry / backoff logic, no
+failure classification beyond a closed-set placeholder, no
+audited HTTP transport, no heartbeat / health snapshot, no CLI
+status line, no bounded private session runner, no longer-
+session smoke harness, no live smoke, no Stage 29 enforcement,
+no X / social, no Telegram, no public routing, no subscriber
+routing, no paid tier routing, no automated trading, no wallet /
+private-key / signer logic, no position sizing, no trade
+execution, no dashboard / HTTP control server, and no daemon /
+systemd / watchdog / autorestart service. Stage 28.2 reads no
+process environment variables; the ledger path is always an
+explicit caller-supplied path.
+
+The Stage 28.2 dedupe key fields are closed-set and exclude
+`run_id`, `session_id`, wall-clock timestamps as uniqueness
+sources, webhook URLs, provider endpoints, API keys, raw secret
+values, and recipient / channel / subscriber fields.
+
+Any other `PHX2/stage28/*.py` file or other Stage 28.3+
+production file is out of Stage 28.2 scope and must trip the
 Stage 28 boundary scan. Examples of basenames the boundary scan
 must continue to block until the matching substage is explicitly
 authorized:
 
-- `dispatch_ledger.py`
-- `dispatch_ledger_models.py`
 - `failure_classification.py`
 - `retry_policy.py`
 - `audited_http_transport.py`

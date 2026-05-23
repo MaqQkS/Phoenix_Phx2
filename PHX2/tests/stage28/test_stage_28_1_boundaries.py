@@ -83,6 +83,24 @@ _STAGE_28_1_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.2 narrow amendment (authorized 2026-05-22): the
+# restart-safe dispatch ledger substage is authorized and adds the
+# production / test inventory below. Stage 28.3+ basenames remain
+# blocked.
+_STAGE_28_2_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "dispatch_ledger_models.py",
+    "dispatch_ledger.py",
+    "stage28_2_manifest.py",
+)
+
+
+_STAGE_28_2_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_2_dispatch_ledger_models.py",
+    "test_stage_28_2_dispatch_ledger.py",
+    "test_stage_28_2_boundaries.py",
+)
+
+
 _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
     "__init__.py",
     "test_stage_28_0_spec_lock.py",
@@ -94,11 +112,12 @@ _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
 STAGE28_1_ENV_READ_MODULE: str = "provider_neutral_readiness.py"
 
 
-# Stage 28.2+ implementation basenames that must remain blocked
-# at Stage 28.1.
+# Stage 28.3+ implementation basenames that must remain blocked at
+# Stage 28.2. (Stage 28.1 amendment moved ``provider_neutral_config.py``
+# to the production surface; Stage 28.2 amendment moved
+# ``dispatch_ledger.py`` and ``dispatch_ledger_models.py`` to the
+# production surface.)
 _STAGE_28_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "dispatch_ledger.py",
-    "dispatch_ledger_models.py",
     "failure_classification.py",
     "retry_policy.py",
     "audited_http_transport.py",
@@ -187,19 +206,22 @@ def test_stage28_root_admits_only_stage_28_0_scaffold_plus_stage_28_1_surface():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    allowed = set(_STAGE_28_0_PRODUCTION_BASENAMES) | set(
-        _STAGE_28_1_PRODUCTION_PY_BASENAMES
+    allowed = (
+        set(_STAGE_28_0_PRODUCTION_BASENAMES)
+        | set(_STAGE_28_1_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_2_PRODUCTION_PY_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/stage28 admits only Stage 28.0 scaffold + Stage 28.1 "
-        f"production surface ({sorted(allowed)!r}); Stage 28.2+ "
-        f"files remain blocked. Forbidden entries: "
+        f"+ Stage 28.2 production surface ({sorted(allowed)!r}); "
+        f"Stage 28.3+ files remain blocked. Forbidden entries: "
         f"{sorted(forbidden)!r}"
     )
     missing = allowed - actual
     assert not missing, (
-        f"Stage 28.1 inventory missing entries: {sorted(missing)!r}"
+        f"Stage 28.1 / 28.2 inventory missing entries: "
+        f"{sorted(missing)!r}"
     )
 
 
@@ -209,14 +231,17 @@ def test_tests_stage28_root_admits_only_stage_28_0_plus_stage_28_1_tests():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    allowed = set(_STAGE_28_0_TEST_BASENAMES) | set(
-        _STAGE_28_1_TEST_BASENAMES
+    allowed = (
+        set(_STAGE_28_0_TEST_BASENAMES)
+        | set(_STAGE_28_1_TEST_BASENAMES)
+        | set(_STAGE_28_2_TEST_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
-        f"PHX2/tests/stage28 admits only Stage 28.0 + Stage 28.1 test "
-        f"files ({sorted(allowed)!r}); Stage 28.2+ tests remain "
-        f"blocked. Forbidden entries: {sorted(forbidden)!r}"
+        f"PHX2/tests/stage28 admits only Stage 28.0 + Stage 28.1 + "
+        f"Stage 28.2 test files ({sorted(allowed)!r}); Stage 28.3+ "
+        f"tests remain blocked. Forbidden entries: "
+        f"{sorted(forbidden)!r}"
     )
 
 
