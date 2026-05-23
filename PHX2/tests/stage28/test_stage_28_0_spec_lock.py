@@ -651,8 +651,7 @@ _STAGE_28_3A_TEST_BASENAMES: frozenset[str] = frozenset(
 
 
 # Stage 28.3b narrow amendment: the retry-policy substage is
-# authorized and ships the inventory below. Stage 28.4+
-# implementation files remain blocked.
+# authorized and ships the inventory below.
 _STAGE_28_3B_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
     {
         "retry_policy_models.py",
@@ -671,6 +670,27 @@ _STAGE_28_3B_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 28.4 narrow amendment: the audited private Discord HTTP
+# transport substage is authorized and ships the inventory below.
+# Stage 28.5+ implementation files remain blocked.
+_STAGE_28_4_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "audited_http_transport_models.py",
+        "audited_http_transport.py",
+        "stage28_4_manifest.py",
+    }
+)
+
+
+_STAGE_28_4_TEST_BASENAMES: frozenset[str] = frozenset(
+    {
+        "test_stage_28_4_audited_http_transport_models.py",
+        "test_stage_28_4_audited_http_transport.py",
+        "test_stage_28_4_boundaries.py",
+    }
+)
+
+
 _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -682,6 +702,7 @@ _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     | _STAGE_28_2_PRODUCTION_PY_BASENAMES
     | _STAGE_28_3A_PRODUCTION_PY_BASENAMES
     | _STAGE_28_3B_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_4_PRODUCTION_PY_BASENAMES
 )
 
 
@@ -696,6 +717,7 @@ _STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_28_2_TEST_BASENAMES
     | _STAGE_28_3A_TEST_BASENAMES
     | _STAGE_28_3B_TEST_BASENAMES
+    | _STAGE_28_4_TEST_BASENAMES
 )
 
 
@@ -708,16 +730,17 @@ def test_stage28_root_admits_only_28_0_scaffold_plus_28_1_surface():
     forbidden = actual - _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES
     assert not forbidden, (
         f"PHX2/stage28 admits only the Stage 28.0 scaffold plus "
-        f"the Stage 28.1 + Stage 28.2 + Stage 28.3a production "
-        f"surface "
+        f"the Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage 28.3b "
+        f"+ Stage 28.4 production surface "
         f"({sorted(_STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES)!r}); "
-        f"Stage 28.3b+ implementation files remain blocked. "
+        f"Stage 28.5+ implementation files remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )
     missing = _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES - actual
     assert not missing, (
-        f"Stage 28.0 / 28.1 / 28.2 / 28.3a inventory missing "
-        f"required entries: {sorted(missing)!r}"
+        f"Stage 28.0 / 28.1 / 28.2 / 28.3a / 28.3b / 28.4 "
+        f"inventory missing required entries: "
+        f"{sorted(missing)!r}"
     )
 
 
@@ -730,16 +753,16 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
     forbidden = actual - _STAGE_28_0_ALLOWED_TEST_ENTRIES
     assert not forbidden, (
         f"PHX2/tests/stage28 admits only the Stage 28.0 test set "
-        f"plus the Stage 28.1 + Stage 28.2 + Stage 28.3a test "
-        f"surface "
+        f"plus the Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage "
+        f"28.3b + Stage 28.4 test surface "
         f"({sorted(_STAGE_28_0_ALLOWED_TEST_ENTRIES)!r}); Stage "
-        f"28.3b+ test files remain blocked. Forbidden entries "
+        f"28.5+ test files remain blocked. Forbidden entries "
         f"found: {sorted(forbidden)!r}"
     )
     missing = _STAGE_28_0_ALLOWED_TEST_ENTRIES - actual
     assert not missing, (
-        f"Stage 28.0 / 28.1 / 28.2 / 28.3a tests package missing "
-        f"required entries: {sorted(missing)!r}"
+        f"Stage 28.0 / 28.1 / 28.2 / 28.3a / 28.3b / 28.4 tests "
+        f"package missing required entries: {sorted(missing)!r}"
     )
 
 
@@ -760,9 +783,11 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
 # Stage 28.3b narrow amendment: ``retry_policy.py`` and
 # ``retry_policy_models.py`` have been promoted to the Stage
 # 28.3b production surface and removed from this forbidden list.
-# Stage 28.4+ basenames remain blocked.
+# Stage 28.4 narrow amendment: ``audited_http_transport.py`` and
+# ``audited_http_transport_models.py`` have been promoted to the
+# Stage 28.4 production surface and removed from this forbidden
+# list. Stage 28.5+ basenames remain blocked.
 _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
-    "audited_http_transport.py",
     "heartbeat_writer.py",
     "health_snapshot_writer.py",
     "cli_status_line.py",
@@ -777,18 +802,18 @@ _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
 )
 def test_no_stage_28_2_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.4+ implementation "
-        f"basename {basename!r} during Stage 28.3b"
+        f"PHX2/stage28 must not ship Stage 28.5+ implementation "
+        f"basename {basename!r} during Stage 28.4"
     )
 
 
 def test_no_extra_python_module_under_stage28():
     """Stage 28 .py inventory is the package marker plus the
-    Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage 28.3b production
-    .py surface; nothing else ships under ``PHX2/stage28/`` at
-    Stage 28.3b.
+    Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage
+    28.4 production .py surface; nothing else ships under
+    ``PHX2/stage28/`` at Stage 28.4.
 
-    Stage 28.4+ substages must each land their .py surface under
+    Stage 28.5+ substages must each land their .py surface under
     their own explicitly authorized narrow amendment here.
     """
     actual_py = {
@@ -802,13 +827,14 @@ def test_no_extra_python_module_under_stage28():
         | set(_STAGE_28_2_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_3A_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_4_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
         f"Stage 28 must not add new production .py modules beyond "
         f"the package marker and the Stage 28.1 + Stage 28.2 + "
-        f"Stage 28.3a + Stage 28.3b surface; unexpected files: "
-        f"{sorted(unexpected)}"
+        f"Stage 28.3a + Stage 28.3b + Stage 28.4 surface; "
+        f"unexpected files: {sorted(unexpected)}"
     )
 
 

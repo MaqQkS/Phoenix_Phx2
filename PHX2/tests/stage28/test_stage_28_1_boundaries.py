@@ -120,7 +120,7 @@ _STAGE_28_3A_TEST_BASENAMES: tuple[str, ...] = (
 
 # Stage 28.3b narrow amendment (authorized 2026-05-23): the
 # retry-policy substage is authorized and adds the production /
-# test inventory below. Stage 28.4+ basenames remain blocked.
+# test inventory below.
 _STAGE_28_3B_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
     "retry_policy_models.py",
     "retry_policy.py",
@@ -135,6 +135,24 @@ _STAGE_28_3B_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.4 narrow amendment (authorized 2026-05-23): the
+# audited private Discord HTTP transport substage is authorized
+# and adds the production / test inventory below. Stage 28.5+
+# basenames remain blocked.
+_STAGE_28_4_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "audited_http_transport_models.py",
+    "audited_http_transport.py",
+    "stage28_4_manifest.py",
+)
+
+
+_STAGE_28_4_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_4_audited_http_transport_models.py",
+    "test_stage_28_4_audited_http_transport.py",
+    "test_stage_28_4_boundaries.py",
+)
+
+
 _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
     "__init__.py",
     "test_stage_28_0_spec_lock.py",
@@ -146,17 +164,19 @@ _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
 STAGE28_1_ENV_READ_MODULE: str = "provider_neutral_readiness.py"
 
 
-# Stage 28.4+ implementation basenames that must remain blocked at
-# Stage 28.3b. (Stage 28.1 amendment moved ``provider_neutral_config.py``
+# Stage 28.5+ implementation basenames that must remain blocked at
+# Stage 28.4. (Stage 28.1 amendment moved ``provider_neutral_config.py``
 # to the production surface; Stage 28.2 amendment moved
 # ``dispatch_ledger.py`` and ``dispatch_ledger_models.py`` to the
 # production surface; Stage 28.3a amendment moved
 # ``failure_classification.py`` and ``failure_classification_models.py``
 # to the production surface; Stage 28.3b amendment moved
 # ``retry_policy.py`` and ``retry_policy_models.py`` to the
-# production surface.)
+# production surface; Stage 28.4 amendment moved
+# ``audited_http_transport.py`` and
+# ``audited_http_transport_models.py`` to the production
+# surface.)
 _STAGE_28_2_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "audited_http_transport.py",
     "heartbeat_writer.py",
     "health_snapshot_writer.py",
     "cli_status_line.py",
@@ -248,18 +268,20 @@ def test_stage28_root_admits_only_stage_28_0_scaffold_plus_stage_28_1_surface():
         | set(_STAGE_28_2_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_3A_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_4_PRODUCTION_PY_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/stage28 admits only Stage 28.0 scaffold + Stage 28.1 "
-        f"+ Stage 28.2 + Stage 28.3a + Stage 28.3b production "
-        f"surface ({sorted(allowed)!r}); Stage 28.4+ files remain "
-        f"blocked. Forbidden entries: {sorted(forbidden)!r}"
+        f"+ Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage 28.4 "
+        f"production surface ({sorted(allowed)!r}); Stage 28.5+ "
+        f"files remain blocked. Forbidden entries: "
+        f"{sorted(forbidden)!r}"
     )
     missing = allowed - actual
     assert not missing, (
-        f"Stage 28.1 / 28.2 / 28.3a / 28.3b inventory missing "
-        f"entries: {sorted(missing)!r}"
+        f"Stage 28.1 / 28.2 / 28.3a / 28.3b / 28.4 inventory "
+        f"missing entries: {sorted(missing)!r}"
     )
 
 
@@ -275,13 +297,14 @@ def test_tests_stage28_root_admits_only_stage_28_0_plus_stage_28_1_tests():
         | set(_STAGE_28_2_TEST_BASENAMES)
         | set(_STAGE_28_3A_TEST_BASENAMES)
         | set(_STAGE_28_3B_TEST_BASENAMES)
+        | set(_STAGE_28_4_TEST_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/tests/stage28 admits only Stage 28.0 + Stage 28.1 + "
-        f"Stage 28.2 + Stage 28.3a + Stage 28.3b test files "
-        f"({sorted(allowed)!r}); Stage 28.4+ tests remain "
-        f"blocked. Forbidden entries: {sorted(forbidden)!r}"
+        f"Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage 28.4 "
+        f"test files ({sorted(allowed)!r}); Stage 28.5+ tests "
+        f"remain blocked. Forbidden entries: {sorted(forbidden)!r}"
     )
 
 
@@ -595,8 +618,8 @@ def test_no_stage_28_1_identifier_implements_trading_verdict():
 )
 def test_no_stage_28_2_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.2+ implementation "
-        f"basename {basename!r} during Stage 28.1"
+        f"PHX2/stage28 must not ship Stage 28.5+ implementation "
+        f"basename {basename!r} during Stage 28.4"
     )
 
 

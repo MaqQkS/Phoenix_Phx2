@@ -76,13 +76,15 @@ _STAGE_28_3B_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
-# Stage 28.4+ implementation basenames that remain blocked at
-# Stage 28.3b. (Stage 28.3b amendment moved ``retry_policy.py``
+# Stage 28.5+ implementation basenames that remain blocked at
+# Stage 28.4. (Stage 28.3b amendment moved ``retry_policy.py``
 # and ``retry_policy_models.py`` off the previously-forbidden
-# list; ``stage28_3b_manifest.py`` was not previously forbidden
-# because it is a per-substage manifest filename.)
+# list. Stage 28.4 amendment moved ``audited_http_transport.py``
+# and ``audited_http_transport_models.py`` off this list;
+# ``stage28_3b_manifest.py`` / ``stage28_4_manifest.py`` are not
+# previously forbidden because each is a per-substage manifest
+# filename.)
 _STAGE_28_4_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "audited_http_transport.py",
     "heartbeat_writer.py",
     "health_snapshot_writer.py",
     "cli_status_line.py",
@@ -534,8 +536,8 @@ def test_no_stage_28_3b_production_identifier_implements_later_or_public_surface
 )
 def test_no_stage_28_4_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.4+ implementation "
-        f"basename {basename!r} during Stage 28.3b"
+        f"PHX2/stage28 must not ship Stage 28.5+ implementation "
+        f"basename {basename!r} during Stage 28.4"
     )
 
 
@@ -878,17 +880,34 @@ def test_manifest_retry_after_cap_is_locked_at_30():
 
 
 # ---------------------------------------------------------------------------
-# Stage 28 root admits exactly the locked surface through Stage 28.3b
+# Stage 28 root admits exactly the locked surface through Stage 28.4
 # ---------------------------------------------------------------------------
 
 
+# Stage 28.4 narrow amendment (authorized 2026-05-23): the audited
+# private Discord HTTP transport substage is authorized and adds
+# the production / test inventory below.
+_STAGE_28_4_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "audited_http_transport_models.py",
+    "audited_http_transport.py",
+    "stage28_4_manifest.py",
+)
+
+
+_STAGE_28_4_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_4_audited_http_transport_models.py",
+    "test_stage_28_4_audited_http_transport.py",
+    "test_stage_28_4_boundaries.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_3b_surface():
-    """Sanity: at Stage 28.3b the ``PHX2/stage28`` tree must
+    """Sanity: at Stage 28.4 the ``PHX2/stage28`` tree must
     admit exactly the union of the Stage 28.0 scaffold + Stage
     28.1 production surface + Stage 28.2 production surface +
     Stage 28.3a production surface + Stage 28.3b production
-    surface (plus the interpreter's ``__pycache__`` cache, which
-    is build noise).
+    surface + Stage 28.4 production surface (plus the
+    interpreter's ``__pycache__`` cache, which is build noise).
     """
     actual: set[str] = set()
     for entry in STAGE28_ROOT.iterdir():
@@ -912,7 +931,9 @@ def test_stage28_root_admits_only_28_0_through_28_3b_surface():
         "failure_classification_models.py",
         "failure_classification.py",
         "stage28_3a_manifest.py",
-    } | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES)
+    } | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES) | set(
+        _STAGE_28_4_PRODUCTION_PY_BASENAMES
+    )
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -941,7 +962,9 @@ def test_tests_stage28_root_admits_only_28_0_through_28_3b_tests():
         "test_stage_28_3a_failure_classification_models.py",
         "test_stage_28_3a_failure_classification.py",
         "test_stage_28_3a_boundaries.py",
-    } | set(_STAGE_28_3B_TEST_BASENAMES)
+    } | set(_STAGE_28_3B_TEST_BASENAMES) | set(
+        _STAGE_28_4_TEST_BASENAMES
+    )
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

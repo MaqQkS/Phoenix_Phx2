@@ -503,6 +503,78 @@ authorized:
 - `longer_session_smoke_harness.py`
 - `stage28_manifest.py`
 
+Stage 28.4 narrow amendment (authorized 2026-05-23): the
+audited private Discord HTTP transport substage is authorized
+and adds the following Stage 28.4 production .py inventory under
+`PHX2/stage28/`:
+
+- `audited_http_transport_models.py`
+- `audited_http_transport.py`
+- `stage28_4_manifest.py`
+
+and the following Stage 28.4 test inventory under
+`PHX2/tests/stage28/`:
+
+- `test_stage_28_4_audited_http_transport_models.py`
+- `test_stage_28_4_audited_http_transport.py`
+- `test_stage_28_4_boundaries.py`
+
+Stage 28.4 is the audited private Discord HTTP transport layer
+only. It ships an in-repo, redaction-safe, private-operator-only
+HTTP transport primitive that future Stage 28 runner / smoke
+substages will inject into the existing private Discord send
+path. The Stage 28.4 transport sends exactly one HTTP POST per
+send invocation to one private operator Discord webhook URL,
+returns a closed-set redaction-safe transport result, and never
+exposes the raw webhook URL on records, exceptions, repr / str,
+public dicts, or audit outputs.
+
+Stage 28.4 ships NO runner, NO retry execution, NO retry
+scheduler, NO sleep / no scheduling / no backoff execution, NO
+heartbeat / health snapshot, NO CLI status line, NO bounded
+private session runner, NO longer-session smoke harness, NO live
+smoke, NO Stage 29 enforcement, NO X / social, NO Telegram, NO
+public routing, NO subscriber routing, NO paid tier routing, NO
+automated trading, NO wallet / private-key / signer logic, NO
+position sizing, NO trade execution, NO dashboard / HTTP control
+server, and NO daemon / systemd / watchdog / autorestart service.
+Stage 28.4 reads NO process environment variables; the webhook
+URL is always a caller-supplied argument passed at the dispatch
+boundary.
+
+Stage 28.4 may import standard-library HTTP primitives
+(`urllib.request`, `urllib.error`, `json`, `ssl`), but only in
+`audited_http_transport.py`. The Stage 28.4 models / manifest
+modules must remain network-library-free. Stage 28.4 must NOT
+import `requests` / `httpx` / `aiohttp` / `urllib3` / `discord.py`
+/ Telegram libraries / webhook libraries / `grpc` / async / queue
+/ threading / subprocess libraries.
+
+The Stage 28.4 transport closed-set status vocabulary covers
+`SENT_OK`, `RATE_LIMITED`, `SERVER_ERROR`, `NETWORK_ERROR`,
+`AUTH_OR_WEBHOOK_REFUSED`, `VALIDATION_FAILED`, and
+`PAYLOAD_REFUSED`. Each transport call records a
+`send_attempt_count` of `0` (rejected before send) or `1`
+(exactly one POST attempted). The Stage 28.4 transport may
+parse a `Retry-After` header into a clamped non-negative numeric
+field (capped at the locked Stage 28.4 retry-after maximum of
+`30` seconds), but it must never sleep, must never retry, and
+must never call the Stage 28.3b retry policy itself; the future
+Stage 28 runner substage owns that orchestration.
+
+Any other `PHX2/stage28/*.py` file or other Stage 28.5+
+production file is out of Stage 28.4 scope and must trip the
+Stage 28 boundary scan. Examples of basenames the boundary scan
+must continue to block until the matching substage is explicitly
+authorized:
+
+- `heartbeat_writer.py`
+- `health_snapshot_writer.py`
+- `cli_status_line.py`
+- `bounded_private_session_runner.py`
+- `longer_session_smoke_harness.py`
+- `stage28_manifest.py`
+
 ---
 
 ## 12. Closed-set vocabulary placeholders
