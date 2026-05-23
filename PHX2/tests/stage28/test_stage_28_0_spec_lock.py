@@ -650,6 +650,27 @@ _STAGE_28_3A_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 28.3b narrow amendment: the retry-policy substage is
+# authorized and ships the inventory below. Stage 28.4+
+# implementation files remain blocked.
+_STAGE_28_3B_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "retry_policy_models.py",
+        "retry_policy.py",
+        "stage28_3b_manifest.py",
+    }
+)
+
+
+_STAGE_28_3B_TEST_BASENAMES: frozenset[str] = frozenset(
+    {
+        "test_stage_28_3b_retry_policy_models.py",
+        "test_stage_28_3b_retry_policy.py",
+        "test_stage_28_3b_boundaries.py",
+    }
+)
+
+
 _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -660,6 +681,7 @@ _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     | _STAGE_28_1_PRODUCTION_PY_BASENAMES
     | _STAGE_28_2_PRODUCTION_PY_BASENAMES
     | _STAGE_28_3A_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_3B_PRODUCTION_PY_BASENAMES
 )
 
 
@@ -673,6 +695,7 @@ _STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_28_1_TEST_BASENAMES
     | _STAGE_28_2_TEST_BASENAMES
     | _STAGE_28_3A_TEST_BASENAMES
+    | _STAGE_28_3B_TEST_BASENAMES
 )
 
 
@@ -733,9 +756,12 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
 # Stage 28.3a narrow amendment: ``failure_classification.py`` and
 # ``failure_classification_models.py`` have been promoted to the
 # Stage 28.3a production surface and removed from this forbidden
-# list. Stage 28.3b+ basenames remain blocked.
+# list.
+# Stage 28.3b narrow amendment: ``retry_policy.py`` and
+# ``retry_policy_models.py`` have been promoted to the Stage
+# 28.3b production surface and removed from this forbidden list.
+# Stage 28.4+ basenames remain blocked.
 _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
-    "retry_policy.py",
     "audited_http_transport.py",
     "heartbeat_writer.py",
     "health_snapshot_writer.py",
@@ -751,17 +777,18 @@ _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
 )
 def test_no_stage_28_2_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.3b+ implementation "
-        f"basename {basename!r} during Stage 28.3a"
+        f"PHX2/stage28 must not ship Stage 28.4+ implementation "
+        f"basename {basename!r} during Stage 28.3b"
     )
 
 
 def test_no_extra_python_module_under_stage28():
     """Stage 28 .py inventory is the package marker plus the
-    Stage 28.1 + Stage 28.2 + Stage 28.3a production .py surface;
-    nothing else ships under ``PHX2/stage28/`` at Stage 28.3a.
+    Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage 28.3b production
+    .py surface; nothing else ships under ``PHX2/stage28/`` at
+    Stage 28.3b.
 
-    Stage 28.3b+ substages must each land their .py surface under
+    Stage 28.4+ substages must each land their .py surface under
     their own explicitly authorized narrow amendment here.
     """
     actual_py = {
@@ -774,12 +801,13 @@ def test_no_extra_python_module_under_stage28():
         | set(_STAGE_28_1_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_2_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_3A_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
         f"Stage 28 must not add new production .py modules beyond "
         f"the package marker and the Stage 28.1 + Stage 28.2 + "
-        f"Stage 28.3a surface; unexpected files: "
+        f"Stage 28.3a + Stage 28.3b surface; unexpected files: "
         f"{sorted(unexpected)}"
     )
 

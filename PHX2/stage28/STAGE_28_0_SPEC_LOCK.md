@@ -441,6 +441,68 @@ authorized:
 - `longer_session_smoke_harness.py`
 - `stage28_manifest.py`
 
+Stage 28.3b narrow amendment (authorized 2026-05-23): the
+retry-policy substage is authorized and adds the following Stage
+28.3b production .py inventory under `PHX2/stage28/`:
+
+- `retry_policy_models.py`
+- `retry_policy.py`
+- `stage28_3b_manifest.py`
+
+and the following Stage 28.3b test inventory under
+`PHX2/tests/stage28/`:
+
+- `test_stage_28_3b_retry_policy_models.py`
+- `test_stage_28_3b_retry_policy.py`
+- `test_stage_28_3b_boundaries.py`
+
+Stage 28.3b is the retry-policy contracts layer only. It ships
+pure, deterministic, redaction-safe closed-set primitives that
+consume Stage 28.3a failure-classification outputs and produce
+bounded retry decisions (closed-set retry outcomes / closed-set
+retry profile names / closed-set terminal reasons) for future
+Stage 28 runner / transport substages. Stage 28.3b never sleeps,
+never schedules, never queues, never spawns threads / async
+tasks / subprocesses; the decision record is the only output the
+policy emits, and a future Stage 28 substage owns the retry
+executor.
+
+Stage 28.3b ships NO audited Discord HTTP transport, NO
+heartbeat / health snapshot, NO CLI status line, NO bounded
+private session runner, NO longer-session smoke harness, NO live
+smoke, NO Stage 29 enforcement, NO X / social, NO Telegram, NO
+public routing, NO subscriber routing, NO paid tier routing, NO
+automated trading, NO wallet / private-key / signer logic, NO
+position sizing, NO trade execution, NO dashboard / HTTP control
+server, and NO daemon / systemd / watchdog / autorestart
+service. Stage 28.3b reads NO process environment variables;
+every policy input is a caller-supplied closed-set Stage 28.3a
+classification record plus caller-supplied bounded attempt /
+budget counters.
+
+The Stage 28.3b retry-after handling is bounded: any caller-
+supplied numeric retry-after hint is clamped to a locked cap of
+30 seconds before the decision is emitted. Negative, NaN,
+infinite, or non-numeric retry-after hints are refused (the
+policy falls back to the profile's scheduled delay). Every
+Stage 28.3b retry profile has a finite delay schedule; no
+profile uses unbounded exponential backoff and no profile uses
+jitter.
+
+Any other `PHX2/stage28/*.py` file or other Stage 28.4+
+production file is out of Stage 28.3b scope and must trip the
+Stage 28 boundary scan. Examples of basenames the boundary scan
+must continue to block until the matching substage is explicitly
+authorized:
+
+- `audited_http_transport.py`
+- `heartbeat_writer.py`
+- `health_snapshot_writer.py`
+- `cli_status_line.py`
+- `bounded_private_session_runner.py`
+- `longer_session_smoke_harness.py`
+- `stage28_manifest.py`
+
 ---
 
 ## 12. Closed-set vocabulary placeholders
