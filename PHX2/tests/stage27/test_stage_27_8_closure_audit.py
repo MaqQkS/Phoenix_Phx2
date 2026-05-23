@@ -164,15 +164,61 @@ def test_closure_audit_states_no_tag_yet_and_operator_authorization():
     assert "does not create that tag" in normalized
 
 
-def test_stage_27_closed_tag_does_not_exist_yet():
-    result = subprocess.run(
+def test_stage_27_closed_tag_exists_and_peels_to_closure_commit():
+    """Stage 27.8 closure-audit tag hygiene check.
+
+    The Stage 27.8 closure audit was authored before the operator
+    created the annotated ``stage-27-closed`` tag; this test now
+    pins the post-authorization state instead of the pre-
+    authorization absence:
+
+      * the tag exists,
+      * it is an annotated tag (not lightweight),
+      * it peels to the Stage 27.8 closure commit (HEAD at the
+        time of tag creation).
+
+    The closure-audit document text itself continues to record
+    the pre-authorization narrative ("no tag exists yet" /
+    "explicit operator authorization" / "does not create that
+    tag") because that narrative captures what the closure pass
+    itself shipped; the tag was an operator action that happened
+    after closure.
+    """
+    list_result = subprocess.run(
         ["git", "tag", "--list", "stage-27-closed"],
         cwd=REPO_ROOT,
         check=True,
         capture_output=True,
         text=True,
     )
-    assert result.stdout.strip() == ""
+    assert list_result.stdout.strip() == "stage-27-closed", (
+        "stage-27-closed annotated tag must exist locally"
+    )
+
+    type_result = subprocess.run(
+        ["git", "cat-file", "-t", "stage-27-closed"],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert type_result.stdout.strip() == "tag", (
+        "stage-27-closed must be an annotated tag, not lightweight"
+    )
+
+    peel_result = subprocess.run(
+        ["git", "rev-parse", "stage-27-closed^{}"],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert peel_result.stdout.strip() == (
+        "f0a23d580b64173be35a31d6646896de7b7339ee"
+    ), (
+        "stage-27-closed must peel to the Stage 27.8 closure "
+        "commit f0a23d580b64173be35a31d6646896de7b7339ee"
+    )
 
 
 def test_closure_audit_lists_scope_exclusions():
