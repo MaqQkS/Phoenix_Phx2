@@ -188,3 +188,136 @@ Stage 27.7a does **not** authorize Stage 27.7b. Stage 27.7a does
 **not** authorize a tag or a push. Stage 27.7a does **not**
 authorize any Stage 28 hardening surface or Stage 29 enforcement
 surface.
+
+---
+
+## G. Stage 27.7b controlled private Discord live smoke
+
+Stage 27.7b ships the first controlled private operator-only
+Discord smoke. The smoke runs ONLY when every box below is
+satisfied. If any box fails, abort — there is no second pass.
+
+- [ ] **The operator authorization is explicit.** The dispatch
+      call must receive `operator_live_request=True`,
+      `smoke_dispatch_request=True`, and
+      `dispatch_mode="LIVE_SEND"`. A missing or false flag is a
+      `REFUSED_UNAUTHORIZED_MODE` / `REFUSED_NOT_LIVE` refusal.
+- [ ] **Stage 27.1 LIVE composite resolves `LIVE_ALLOWED`.** The
+      Stage 27.1 readiness report MUST show
+      `all_required_live_present is True` and the resolved
+      authority token MUST be `LIVE_ALLOWED`. The dispatch
+      cross-checks the token against
+      `LIVE_MODE_AUTHORITY_LIVE_ALLOWED`; any other value fails
+      closed with `REFUSED_NOT_LIVE`.
+- [ ] **Exactly ONE payload is being dispatched.** The
+      `payloads` sequence length MUST be exactly `1`. The
+      dispatch refuses any other length with
+      `REFUSED_MULTIPLE_PAYLOADS`. The Stage 27.7b
+      `STAGE27_7B_MAX_PAYLOADS_PER_DISPATCH` constant is locked
+      to `1`.
+- [ ] **The webhook identity is a safe-to-display label.** The
+      `webhook_identity` argument MUST be a short label (e.g.
+      `PRIVATE_OPERATOR_WEBHOOK`); it MUST NOT contain the URL.
+      The Stage 27.7b dispatch result echoes only this label,
+      never the URL.
+- [ ] **The webhook URL was read through
+      `live_secrets_readiness.py` only.** Stage 27.7b adds no
+      second env-read site. Confirm:
+      `grep -nE "os\.environ|os\.getenv|os\.environb" PHX2/stage27`
+      reports only hits inside `live_secrets_readiness.py`.
+- [ ] **The injected transport is operator-audited.** Tests use
+      `Stage27_7bFakeDiscordTransport`. The
+      `Stage27_7bRealHttpDiscordTransport` placeholder raises
+      `NotImplementedError`; an operator-authored live transport
+      must be injected explicitly.
+- [ ] **The pair-aware verdict allows live send.** UNKNOWN and
+      DISAGREE pairs ALWAYS refuse with
+      `REFUSED_SUPPRESSED_PAIR`. USDC pairs refuse unless the
+      Stage 27.5 payload carries
+      `render_status="RENDERED_OBSERVE_ONLY"`. SOL pairs refuse
+      unless the Stage 27.5 payload carries
+      `calibration_lane="EXISTING_SOL_LANE"`. The forbidden
+      promotion of USDC / UNKNOWN / DISAGREE into the existing-
+      SOL lane remains blocked.
+
+---
+
+## H. Stage 27.7b post-smoke verification
+
+After the controlled smoke:
+
+- [ ] **`dispatch_status == "SENT"`** for the happy path. Any
+      other status is a refusal / transport error — inspect the
+      closed-set `dispatch_reason` token before retrying.
+- [ ] **`transport_status_code` is the expected success code**
+      (typically `200` for a Discord webhook). A non-success
+      status returns `TRANSPORT_ERROR` /
+      `TRANSPORT_NON_SUCCESS`.
+- [ ] **The injected transport recorded exactly ONE call.** For
+      the fake transport,
+      `Stage27_7bFakeDiscordTransport.call_count == 1`. For an
+      operator-audited live transport, confirm the operator's
+      audit log shows exactly one outbound webhook call.
+- [ ] **The webhook URL does NOT appear in the dispatch result
+      `repr()` / `str()`.** Confirm by inspecting
+      `repr(dispatch_result)` — only the safe webhook identity
+      label and closed-set tokens may appear.
+- [ ] **The webhook URL does NOT appear in any artifact.** The
+      Stage 27.5 dry-run artifacts (ping payload + provenance)
+      never carried the URL. The Stage 27.7b dispatch result is
+      not persisted to disk by the sender; if the operator
+      writes it to an audit log, the operator MUST verify the
+      log does not include the URL.
+- [ ] **No raw provider payload blob, no API canary, and no
+      RPC URL appears in any artifact or dispatch result.**
+      Grep:
+      `grep -rE "raw_payload|payload_blob|raw_response|response_body|api[_-]?key|bearer|authorization" <output_root>`.
+      The grep MUST return nothing.
+- [ ] **The dispatch result `mode` is `LIVE_SEND` only for the
+      one successful smoke.** Every refusal / abort path keeps
+      `dispatch_mode` reflecting the caller's request; tests
+      assert each closed-set status pairs with the matching
+      `dispatch_reason` token.
+
+---
+
+## I. Stage 27.7b out-of-scope confirmations
+
+The following items MUST remain absent at Stage 27.7b closure:
+
+- [ ] No public router / subscriber router / paid tier router /
+      live router.
+- [ ] No Telegram or X / social module.
+- [ ] No broad Discord community distribution / role-gated
+      community routing / Discord slash commands / Discord bot
+      command tree.
+- [ ] No Stage 29 enforcement gate / `enforce_policy.py` /
+      `enforcement_gate.py`.
+- [ ] No automated trading / `auto_trade*.py` /
+      `position_size*.py`.
+- [ ] No persistent dedupe ledger / database / scheduler /
+      queue / daemon / background worker.
+- [ ] No second env-read site outside
+      `live_secrets_readiness.py`.
+
+---
+
+## J. Stage 27.7b is not Stage 28 hardening
+
+Stage 27.7b is the controlled FIRST smoke, not the reliability
+pass. Crash recovery, retries / backoff, health checks, restart-
+safe dedupe, richer provider failure handling, monitoring, and
+longer-running reliability belong to Stage 28. Stage 27.7b ships
+none of those surfaces.
+
+---
+
+## K. Stage 27.7b is not Stage 29 enforcement
+
+Stage 29 is where approved enforcement and live gating live.
+Stage 26 candidate policies remain review-only at Stage 27.7b;
+they become enforcement only through Stage 29's explicit
+authorization gate. Stage 27.7b ships no enforcement surface and
+NO BUY / SELL / APPROVED / GATE / BLOCK / EXECUTE / POSITION-
+SIZE / AUTO-TRADE language ever appears in a Stage 27.7b
+dispatch result, in any artifact, or in any operator surface.

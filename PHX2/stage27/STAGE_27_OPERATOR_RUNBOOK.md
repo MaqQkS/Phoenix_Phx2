@@ -387,3 +387,272 @@ Stage 27.7a is closed when:
 Tag creation (`stage-27-7a-closed` or any other Stage 27 tag) is
 an operator-only action and is not performed by Stage 27.7a
 implementation.
+
+---
+
+## 16. Stage 27.7b — controlled private Discord live smoke
+
+Stage 27.7b is the FIRST controlled private operator-only Discord
+smoke pass on top of the Stage 27.0 → 27.7a architecture. It is
+**not** broad production. It is **not** public routing. It is
+**not** a subscriber feed. It is **not** a paid tier. It is
+**not** a Telegram or X / social surface. It is **not** Stage 29
+enforcement. It is **not** automated trading.
+
+What Stage 27.7b ships under `PHX2/stage27/`:
+
+- `private_discord_models.py` — closed-set dispatch status /
+  reason / mode / redaction vocabularies plus the immutable
+  `Stage27_7bDispatchResultRecord`.
+- `private_discord_sender.py` — operator-only injectable sender
+  that accepts a `Stage27_7bDiscordTransport` Protocol; tests
+  inject `Stage27_7bFakeDiscordTransport`. The module's
+  `Stage27_7bRealHttpDiscordTransport` is the isolated real-
+  network surface and intentionally raises `NotImplementedError`
+  until an operator-audited transport implementation is injected.
+- `live_smoke_dispatch.py` — controlled one-ping smoke dispatcher
+  that enforces three live-auth factors plus the pair-aware
+  refuse rules plus the one-ping bound.
+- `stage27_7b_manifest.py` — locked Stage 27.7b schema axes and
+  basename inventories.
+
+What Stage 27.7b deliberately does NOT ship:
+
+- No `public_router.py` / `subscriber_router.py` /
+  `paid_tier_router.py` / `live_router.py`.
+- No `telegram_sender.py` / `x_social*.py` / `social_sidecar.py`.
+- No `enforcement_gate.py` / `enforce_policy.py` / any Stage 29
+  enforcement surface.
+- No automated trading / `auto_trade*.py` / `position_size*.py`.
+- No broad Discord community distribution / role-gated community
+  routing / Discord slash commands / Discord bot command tree.
+- No persistent dedupe ledger / database / scheduler / queue.
+- No new env-read site outside `live_secrets_readiness.py`.
+
+---
+
+## 17. Stage 27.7b live smoke preconditions
+
+Every precondition below MUST be satisfied before an operator
+initiates a controlled live smoke. The Stage 27.7b dispatch
+returns one of the closed-set refusal statuses
+(`REFUSED_NOT_LIVE`, `REFUSED_UNAUTHORIZED_MODE`,
+`REFUSED_MISSING_WEBHOOK`, `REFUSED_MULTIPLE_PAYLOADS`,
+`REFUSED_SUPPRESSED_PAIR`) on any missing factor, and the
+transport is NOT called.
+
+1. **Stage 27.1 composite resolves `LIVE_ALLOWED`.** The
+   composite resolves only when BOTH the `PHX2_LIVE_MODE_ALLOWED`
+   env / config flag parses as truthy AND the explicit operator
+   CLI / argument LIVE request is set AND every required live
+   secret in `STAGE27_LIVE_REQUIRED_FIELD_NAMES` is `PRESENT` and
+   not `MALFORMED`.
+2. **`operator_live_request=True`** is passed to
+   `dispatch_one_private_ping_smoke(...)` as a second cross-check
+   factor (NOT just the Stage 27.1 composite).
+3. **`smoke_dispatch_request=True`** is passed as a third
+   explicit smoke-gating factor.
+4. **`dispatch_mode="LIVE_SEND"`** is passed; the default is
+   `DRY_RUN`.
+5. **Exactly ONE** Stage 27.5 rendered ping payload is in the
+   `payloads` sequence (length must equal 1).
+6. The injected transport is an operator-audited live transport
+   (NOT the placeholder `Stage27_7bRealHttpDiscordTransport`).
+7. The injected webhook URL is for ONE private operator Discord
+   webhook only; no broad community channel, no subscriber
+   channel, no paid tier channel.
+8. The injected `webhook_identity` is a short safe-to-display
+   label (e.g. `PRIVATE_OPERATOR_WEBHOOK`); it MUST NOT contain
+   the URL.
+
+---
+
+## 18. Stage 27.7b — how to set `.env` safely
+
+The Stage 27 env-read boundary remains exactly
+`PHX2/stage27/live_secrets_readiness.py`. Stage 27.7b adds no
+second env-read site. The expected env / config variable names
+(SECRET-kind redaction discipline applies on every name in the
+`STAGE27_SECRET_NAMES` tuple) are:
+
+- `PHX2_LIVE_MODE_ALLOWED` — truthy bool literal to authorize
+  LIVE; falsy / missing fails closed.
+- `PHX2_PRIVATE_DISCORD_WEBHOOK_URL` — the private operator
+  webhook URL. SECRET-kind: Stage 27.1 redacts it on the
+  readiness summary; the raw value never lands on a Stage 27.1
+  record, on a Stage 27.5 artifact, or on a Stage 27.7b dispatch
+  result.
+- `HELIUS_API_KEY` / `HELIUS_RPC_URL` / `HELIUS_GRPC_ENDPOINT` /
+  `BIRDEYE_API_KEY` — required-LIVE secrets.
+- `PHX2_PROVIDER_ID` — required-LIVE config label (non-secret).
+- `PHX2_STAGE27_SCRATCH_DIR` / `PHX2_RUNNER_MAX_EVENTS` /
+  `PHX2_RUNNER_MAX_SECONDS` — optional config values.
+
+Safe `.env` discipline:
+
+- Store the `.env` outside any tracked path.
+- Set the file mode to operator-only (`chmod 600` on POSIX).
+- NEVER paste the webhook URL into a doc, a checklist, an issue,
+  a pull-request description, a Slack / chat message, a runbook
+  step, or a screenshot. The Stage 27.1 redaction surface, the
+  Stage 27.7b dispatch result, and the Stage 27.5 artifacts MUST
+  NOT carry the URL.
+- Inspect the `Stage27SecretsReadinessReport` (via the operator
+  config builder) before initiating the smoke; verify
+  `all_required_live_present is True` and every SECRET-kind
+  field is reported as `PRESENT` with kind `SECRET` and
+  `safe_value is None`.
+
+---
+
+## 19. Stage 27.7b — how to verify private Discord channel only
+
+- The injected `webhook_url` MUST be for ONE private operator
+  Discord channel. The Stage 27.7b dispatch sends to that one
+  URL or refuses; there is no fan-out, no per-tier routing, no
+  subscriber list, no community broadcast.
+- The injected `webhook_identity` SHOULD be a short label like
+  `PRIVATE_OPERATOR_WEBHOOK`; the label is the only webhook-
+  identifying string admitted onto the dispatch result.
+- Confirm `Stage27_7bDispatchResultRecord.dispatch_status` is
+  `SENT` and `transport_status_code` is the expected success
+  code (e.g. `200`) for the one smoke ping. Any other status is
+  a refusal / transport error — inspect the closed-set
+  `dispatch_reason` token.
+
+---
+
+## 20. Stage 27.7b — how to verify no public routing
+
+- `git ls-files PHX2/stage27 | grep -E 'public_router|subscriber_router|paid_tier_router|live_router|telegram|x_social|social_sidecar|tweet_ranking'`
+  MUST return nothing. None of those basenames exist in Stage 27.
+- `git ls-files PHX2/stage27 | grep -i 'enforcement'` MUST
+  return nothing. Stage 29 owns enforcement, not Stage 27.
+- The Stage 27.7b boundary tests assert no Stage 27.7b
+  production .py module imports a network / messaging library.
+
+---
+
+## 21. Stage 27.7b — how to verify the one-ping bound
+
+- `STAGE27_7B_MAX_PAYLOADS_PER_DISPATCH` is locked to `1`. The
+  dispatch refuses (`REFUSED_MULTIPLE_PAYLOADS`) any `payloads`
+  sequence whose length is not exactly `1`.
+- The injected transport's `call_count` MUST be exactly `1`
+  after a successful `SENT` smoke. The Stage 27.7b
+  `Stage27_7bFakeDiscordTransport.call_count` property reports
+  this.
+- A second consecutive dispatch is a NEW one-ping smoke; the
+  Stage 27.7b dispatch surface does NOT batch, does NOT queue,
+  and does NOT schedule background work.
+
+---
+
+## 22. Stage 27.7b — how to inspect artifacts after the smoke
+
+- The Stage 27.7b dispatch returns one
+  `Stage27_7bDispatchResultRecord` per call. Inspect:
+  - `dispatch_status` — closed-set status token.
+  - `dispatch_reason` — closed-set reason code.
+  - `dispatch_mode` — `DRY_RUN` or `LIVE_SEND`.
+  - `webhook_identity` — safe-to-display label (NEVER the URL).
+  - `ping_id` / `run_id` / `session_id` — provenance IDs
+    preserved from the Stage 27.5 payload + the operator's
+    session identity.
+  - `sent_at_utc` — ISO-8601 UTC stamp from the injected
+    dispatch clock.
+  - `transport_status_code` — numeric status when the transport
+    was called; `None` on refusal / dry-run.
+  - `redaction_status` — always `REDACTED` on the happy path.
+  - `schema_version` — locked Stage 27.7b dispatch result
+    schema version (`stage27_v0_private_discord_dispatch_result`).
+  - `pair_quote_asset` / `render_status` — pair-class echo for
+    audit.
+- The Stage 27.5 dry-run artifacts (`ping_<id>_payload.json` and
+  `ping_<id>_provenance.json`) are still produced upstream of
+  Stage 27.7b dispatch and are still safe to inspect. The Stage
+  27.7b dispatch result does NOT re-emit the payload body or
+  provenance artifact; the payload is rendered once by Stage
+  27.5 and consumed once by the sender.
+
+---
+
+## 23. Stage 27.7b — how to confirm the webhook URL did not leak
+
+The Stage 27.7b sender / dispatch / models surface NEVER stores
+the webhook URL on any returned record and NEVER includes the URL
+in any raised exception message. The Stage 27.7b tests assert:
+
+- `Stage27_7bDispatchResultRecord` has NO `webhook_url` /
+  `discord_webhook_url` field;
+  `is_forbidden_dispatch_result_field_name(...)` rejects any such
+  substring.
+- `repr()` and `str()` of every Stage 27.7b dispatch result
+  contain only safe-to-display closed-set tokens and provenance
+  IDs.
+- The Stage 27.7b sender error type
+  (`Stage27_7bSenderArgumentError`) carries only the argument
+  NAME, a closed-set reason, and an optional length integer.
+- The Stage 27.7b transport error
+  (`Stage27_7bTransportError`) carries only a closed-set `kind`
+  token and an optional numeric `status_code`.
+
+A defensive post-smoke check:
+
+- The smoke fixture in
+  `PHX2/tests/stage27/test_stage_27_7b_private_discord_sender.py`
+  uses a deliberately-distinctive fake webhook URL canary and
+  asserts the canary substring never appears in the dispatch
+  result `repr()`, the dispatch result `str()`, any raised
+  exception message, or the dispatch result fields.
+
+---
+
+## 24. Stage 27.7b — how to abort before sending
+
+The Stage 27.7b dispatch has multiple natural abort paths. To
+abort a smoke before any transport call, choose whichever is
+easiest:
+
+- Leave `dispatch_mode` at the `DRY_RUN` default. The dispatch
+  returns `DRY_RUN_NOT_SENT` and the transport is never called.
+- Pass `operator_live_request=False`. The dispatch returns
+  `REFUSED_UNAUTHORIZED_MODE` / `OPERATOR_LIVE_REQUEST_MISSING`.
+- Pass `smoke_dispatch_request=False`. The dispatch returns
+  `REFUSED_UNAUTHORIZED_MODE` / `SMOKE_DISPATCH_REQUEST_MISSING`.
+- Pass `live_mode_authority="LIVE_REFUSED"` (or `"DRY_RUN"`).
+  The dispatch returns `REFUSED_NOT_LIVE` /
+  `LIVE_AUTHORITY_NOT_ALLOWED`.
+- Pass an empty `payloads` sequence. The dispatch returns
+  `REFUSED_MULTIPLE_PAYLOADS` / `NO_PAYLOAD_PROVIDED`.
+- Pass `webhook_url=""` (or `webhook_identity=""`). The dispatch
+  returns `REFUSED_MISSING_WEBHOOK`.
+
+In every abort case the dispatch result still records the
+verdict (with `sent_at_utc` stamped from the injected clock) so
+the operator audit log captures the decision. There is no live
+network side-effect on any abort path.
+
+---
+
+## 25. Stage 27.7b is not broad production
+
+Stage 27.7b is a CONTROLLED FIRST private operator Discord smoke
+ping. It is not:
+
+- a production routing surface,
+- a subscriber feed,
+- a paid tier surface,
+- a Telegram or X / social surface,
+- a broad Discord community feed,
+- an automated trading surface,
+- a Stage 29 enforcement surface.
+
+Stage 28 owns hardening (crash recovery, retries / backoff,
+health checks, longer-running reliability). Stage 29 owns
+approved enforcement and live gating. Stage 30+ owns X / social.
+Stage 27.7b does NOT pre-authorize any of those surfaces.
+
+Tag creation (`stage-27-7b-closed` or any other Stage 27 tag) is
+an operator-only action and is not performed by Stage 27.7b
+implementation.

@@ -607,13 +607,15 @@ def test_spec_lock_documents_no_tag_creation_by_implementation():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.7a narrow amendment: the Stage 27.0 allowlist is
-# further extended to admit the Stage 27.7a operator runbook +
-# dry-run smoke checklist + dry-run smoke harness + Stage 27.7a
-# manifest. No Discord sender, no real provider client, no
-# persistent dedupe ledger, no enforcement, no public routing, no
-# X / social. Every Stage 27.7b+ implementation basename
-# (``private_discord_sender.py``) remains blocked below.
+# Stage 27.7b narrow amendment: the Stage 27.0 allowlist is
+# further extended to admit the Stage 27.7b private Discord
+# sender / dispatch boundary (one-ping controlled private
+# operator-only smoke). No public router, no subscriber router,
+# no paid tier router, no Telegram, no X / social, no Stage 29
+# enforcement, no automated trading. The Stage 27.7a operator
+# runbook + dry-run smoke checklist are extended in place with
+# Stage 27.7b sections rather than introducing new markdown
+# files.
 _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -662,6 +664,16 @@ _STAGE_27_0_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
         "dry_run_smoke_harness.py",
         "stage27_7_manifest.py",
+        # Stage 27.7b private Discord sender + dispatch + models +
+        # manifest surface (controlled one-ping private operator-
+        # only smoke; tests use Stage27_7bFakeDiscordTransport;
+        # no public routing, no subscriber routing, no paid tier
+        # routing, no Telegram, no X / social, no Stage 29
+        # enforcement, no automated trading).
+        "private_discord_models.py",
+        "private_discord_sender.py",
+        "live_smoke_dispatch.py",
+        "stage27_7b_manifest.py",
     }
 )
 
@@ -697,14 +709,17 @@ def test_stage27_root_is_only_stage_27_0_scaffold():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.7a narrow amendment: ``dry_run_smoke_harness.py`` and
-# ``stage27_7_manifest.py`` have been promoted to the Stage 27.7a
-# production surface and removed from the forbidden list. The
-# LIVE dispatch surface (``private_discord_sender.py``) remains
-# blocked at Stage 27.7a closure (reserved for Stage 27.7b).
-_STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "private_discord_sender.py",
-)
+# Stage 27.7b narrow amendment: ``private_discord_sender.py`` has
+# been promoted to the Stage 27.7b production surface (alongside
+# ``private_discord_models.py`` / ``live_smoke_dispatch.py`` /
+# ``stage27_7b_manifest.py``) and removed from the forbidden list.
+# The forbidden tuple is now empty -- no Stage 27.5+ basename
+# is reserved for a later substage. The Stage 27.8+ implementation
+# surfaces (public routing / subscriber routing / enforcement /
+# X-social) remain blocked by the
+# ``test_no_public_or_enforcement_basename_under_stage27`` check
+# in ``test_stage_27_7b_boundaries.py``.
+_STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = ()
 
 
 @pytest.mark.parametrize(
@@ -715,7 +730,7 @@ def test_no_stage_27_5_plus_implementation_file_under_stage27(
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.7a must not ship Stage 27.7b+ implementation "
+        f"Stage 27.7b must not ship Stage 27.8+ implementation "
         f"file {basename!r} under PHX2/stage27/; got {path}"
     )
 
@@ -760,6 +775,13 @@ _STAGE_27_5_LOCKED_PY_MODULES: frozenset[str] = frozenset(
         # Stage 27.7a dry-run smoke harness + manifest.
         "dry_run_smoke_harness.py",
         "stage27_7_manifest.py",
+        # Stage 27.7b private Discord sender + dispatch + models +
+        # manifest (controlled one-ping smoke; tests use the fake
+        # transport; no public routing / no enforcement).
+        "private_discord_models.py",
+        "private_discord_sender.py",
+        "live_smoke_dispatch.py",
+        "stage27_7b_manifest.py",
     }
 )
 

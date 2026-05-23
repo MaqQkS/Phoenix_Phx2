@@ -66,6 +66,11 @@ _STAGE_27_7A_PRODUCTION_MD_FILENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 27.7b narrow amendment: the Stage 27.0 -> 27.7a locked
+# .py set is extended in place with the Stage 27.7b private
+# Discord sender + dispatch + models + manifest. The constant
+# name is preserved verbatim so downstream stage-pin checks keep
+# finding it.
 _STAGE_27_0_THROUGH_27_7A_LOCKED_PY_MODULES: frozenset[str] = (
     frozenset(
         {
@@ -110,6 +115,14 @@ _STAGE_27_0_THROUGH_27_7A_LOCKED_PY_MODULES: frozenset[str] = (
             # Stage 27.7a dry-run smoke harness + manifest.
             "dry_run_smoke_harness.py",
             "stage27_7_manifest.py",
+            # Stage 27.7b private Discord sender + dispatch +
+            # models + manifest (controlled one-ping smoke;
+            # tests use the fake transport; no public routing,
+            # no enforcement, no X / social).
+            "private_discord_models.py",
+            "private_discord_sender.py",
+            "live_smoke_dispatch.py",
+            "stage27_7b_manifest.py",
         }
     )
 )
@@ -487,9 +500,15 @@ def test_no_stage_27_7a_identifier_implements_trading_verdict():
 # ---------------------------------------------------------------------------
 
 
-_STAGE_27_7B_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "private_discord_sender.py",
-)
+# Stage 27.7b narrow amendment: ``private_discord_sender.py`` has
+# been promoted to the Stage 27.7b production surface and removed
+# from the forbidden list. The tuple is now empty -- no Stage
+# 27.5+ basename is reserved for a later substage from this
+# specific check. Stage 27.8+ implementation surfaces (public
+# routing / subscriber routing / enforcement / X-social) are
+# enforced by ``test_no_public_or_enforcement_basename_under_stage27``
+# below and by ``test_stage_27_7b_boundaries.py``.
+_STAGE_27_7B_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = ()
 
 
 @pytest.mark.parametrize(
@@ -500,7 +519,7 @@ def test_stage_27_7b_plus_basename_does_not_exist_in_stage27_root(
 ):
     path = STAGE27_ROOT / basename
     assert not path.exists(), (
-        f"Stage 27.7a must not introduce Stage 27.7b+ "
+        f"Stage 27.7b must not introduce Stage 27.8+ "
         f"implementation basename {basename!r} under "
         f"PHX2/stage27/; got {path}"
     )

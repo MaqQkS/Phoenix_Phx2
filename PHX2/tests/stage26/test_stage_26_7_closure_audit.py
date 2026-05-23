@@ -557,21 +557,23 @@ def test_stage27_handoff_doc_includes_stage25_measurement_aware_context():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.0 through 27.7a narrow amendment: ``PHX2/stage27/`` is
+# Stage 27.0 through 27.7b narrow amendment: ``PHX2/stage27/`` is
 # materialized at Stage 27.0 with the scaffold, then extended in
 # turn through Stage 27.1 (operator-config / secrets-readiness),
 # Stage 27.2 (pair detection), Stage 27.3 (provider-ingest
 # composition), Stage 27.4 (price / ATH / migration context),
 # Stage 27.5 (private-ping renderer / provenance / dry-run
 # artifact-writer), Stage 27.6 (live-candidate assembler / bounded
-# dry-run runner / run-local dedupe), and Stage 27.7a (operator
+# dry-run runner / run-local dedupe), Stage 27.7a (operator
 # runbook + dry-run smoke checklist + deterministic in-process
-# dry-run smoke harness + Stage 27.7a manifest). No Discord
-# sender, no real provider client, no persistent dedupe ledger,
-# no enforcement, no public routing, no X / social. The narrow
-# allowlist admits exactly the Stage 27.0 through 27.7a file
-# set; every Stage 27.7b+ implementation surface remains
-# blocked.
+# dry-run smoke harness + Stage 27.7a manifest), and Stage 27.7b
+# (private Discord sender + dispatch + models + manifest for a
+# controlled one-ping operator-only smoke; tests use the fake
+# transport; no public routing, no subscriber routing, no paid
+# tier routing, no Telegram, no X / social, no Stage 29
+# enforcement, no automated trading). The narrow allowlist admits
+# exactly the Stage 27.0 through 27.7b file set; every Stage
+# 27.8+ implementation surface remains blocked.
 _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
     {
         # Stage 27.0 scaffold.
@@ -620,6 +622,13 @@ _STAGE_27_0_NARROW_ALLOWED_ENTRIES: frozenset[str] = frozenset(
         "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
         "dry_run_smoke_harness.py",
         "stage27_7_manifest.py",
+        # Stage 27.7b private Discord sender + dispatch + models +
+        # manifest (controlled one-ping operator-only smoke; tests
+        # use the fake transport; no public routing / no enforcement).
+        "private_discord_models.py",
+        "private_discord_sender.py",
+        "live_smoke_dispatch.py",
+        "stage27_7b_manifest.py",
     }
 )
 

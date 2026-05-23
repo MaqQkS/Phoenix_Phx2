@@ -120,6 +120,19 @@ _STAGE_27_LOCKED_DIRECTORY_ENTRIES: frozenset[str] = frozenset(
         "STAGE_27_DRY_RUN_SMOKE_CHECKLIST.md",
         "dry_run_smoke_harness.py",
         "stage27_7_manifest.py",
+        # Stage 27.7b private Discord sender + dispatch + models +
+        # manifest (controlled one-ping operator-only smoke; tests
+        # use the fake transport; no public routing, no
+        # subscriber routing, no paid tier routing, no Telegram,
+        # no X / social, no Stage 29 enforcement, no automated
+        # trading). Stage 27.1 boundary admits these because
+        # ``PHX2/stage27/`` now carries them; the Stage 27.1
+        # production-file allowlist still scopes only the five
+        # Stage 27.1 files.
+        "private_discord_models.py",
+        "private_discord_sender.py",
+        "live_smoke_dispatch.py",
+        "stage27_7b_manifest.py",
     }
 )
 
@@ -418,15 +431,10 @@ def test_no_stage27_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-# Stage 27.6 narrow amendment: ``live_candidate_assembler.py``,
-# ``bounded_tradeable_ping_runner.py``, ``live_dedupe.py``, and
-# ``stage27_6_manifest.py`` have been promoted to the Stage 27.6
-# production surface and removed from the forbidden list. The LIVE
-# dispatch basename (``private_discord_sender.py``) remains blocked
-# at Stage 27.6 closure.
-_STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "private_discord_sender.py",
-)
+# Stage 27.7b narrow amendment: ``private_discord_sender.py`` has
+# been promoted to the Stage 27.7b production surface and removed
+# from the forbidden list. The tuple is now empty.
+_STAGE_27_5_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = ()
 
 
 @pytest.mark.parametrize(

@@ -108,6 +108,16 @@ _STAGE_27_0_THROUGH_27_5_LOCKED_PY_MODULES: frozenset[str] = (
             # scan still scope only the five Stage 27.5 files.
             "dry_run_smoke_harness.py",
             "stage27_7_manifest.py",
+            # Stage 27.7b private Discord sender + dispatch +
+            # models + manifest. Stage 27.5 boundary admits these
+            # because the ``PHX2/stage27/`` directory now carries
+            # them; the Stage 27.5 production-file allowlist and
+            # identifier scan still scope only the five Stage 27.5
+            # files.
+            "private_discord_models.py",
+            "private_discord_sender.py",
+            "live_smoke_dispatch.py",
+            "stage27_7b_manifest.py",
         }
     )
 )
@@ -448,9 +458,10 @@ def test_no_stage_27_5_production_identifier_implements_later_substage():
 # ---------------------------------------------------------------------------
 
 
-_STAGE_27_6_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "private_discord_sender.py",
-)
+# Stage 27.7b narrow amendment: ``private_discord_sender.py`` has
+# been promoted to the Stage 27.7b production surface and removed
+# from the forbidden list. The tuple is now empty.
+_STAGE_27_6_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = ()
 
 
 @pytest.mark.parametrize(
