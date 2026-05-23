@@ -575,6 +575,73 @@ authorized:
 - `longer_session_smoke_harness.py`
 - `stage28_manifest.py`
 
+Stage 28.5 narrow amendment (authorized 2026-05-23): the
+heartbeat / health-snapshot / CLI-status substage is authorized
+and adds the following Stage 28.5 production .py inventory under
+`PHX2/stage28/`:
+
+- `health_status_models.py`
+- `heartbeat_writer.py`
+- `health_snapshot_writer.py`
+- `cli_status_line.py`
+- `stage28_5_manifest.py`
+
+and the following Stage 28.5 test inventory under
+`PHX2/tests/stage28/`:
+
+- `test_stage_28_5_health_status_models.py`
+- `test_stage_28_5_heartbeat_writer.py`
+- `test_stage_28_5_health_snapshot_writer.py`
+- `test_stage_28_5_cli_status_line.py`
+- `test_stage_28_5_boundaries.py`
+
+Stage 28.5 is the operator-visibility primitives layer only. It
+ships redaction-safe, deterministic, closed-set record models for
+heartbeat lines, health-snapshot JSON, final-run-summary JSON,
+and CLI status-line input, plus the matching append-only
+heartbeat writer, atomic snapshot writer, atomic final-summary
+writer, and pure CLI status-line formatter. Stage 28.5 records
+expose only closed-set status tokens (provider / price /
+dispatch / ledger / transport / artifact / health / stop reason /
+last-event / last-ping / retry-budget / redaction), non-negative
+integer counters, safe-shape run / session identifiers, and the
+locked Stage 28.5 redaction-status verdict; no webhook URL, RPC
+URL, API key, bearer token, auth header, wallet / signer field,
+public-routing / subscriber / paid-tier / trade / enforcement
+field ever reaches a Stage 28.5 record.
+
+Stage 28.5 ships NO runner, NO retry execution, NO retry
+scheduler, NO sleep / no scheduling / no backoff execution, NO
+audited HTTP transport changes, NO bounded private session
+runner, NO longer-session smoke harness, NO live smoke, NO Stage
+29 enforcement, NO X / social, NO Telegram, NO public routing,
+NO subscriber routing, NO paid tier routing, NO automated
+trading, NO wallet / private-key / signer logic, NO position
+sizing, NO trade execution, NO dashboard / HTTP control server,
+and NO daemon / systemd / watchdog / autorestart service. Stage
+28.5 reads NO process environment variables; every artifact path
+is a caller-supplied `pathlib.Path`.
+
+The Stage 28.5 writers perform local filesystem I/O ONLY against
+caller-supplied paths. They never broadcast to any Discord
+channel, never forward to any subscriber, never send to any
+public router, never call into any provider client, never call
+HTTP / gRPC / sockets. The CLI status formatter is pure: it
+returns a single-line string and performs no I/O at all. The
+heartbeat writer is append-only; the snapshot and final-summary
+writers use a temp-write-then-replace pattern so the on-disk
+artifact is never observed in a half-written state.
+
+Any other `PHX2/stage28/*.py` file or other Stage 28.6+
+production file is out of Stage 28.5 scope and must trip the
+Stage 28 boundary scan. Examples of basenames the boundary scan
+must continue to block until the matching substage is explicitly
+authorized:
+
+- `bounded_private_session_runner.py`
+- `longer_session_smoke_harness.py`
+- `stage28_manifest.py`
+
 ---
 
 ## 12. Closed-set vocabulary placeholders

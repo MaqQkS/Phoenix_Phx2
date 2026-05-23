@@ -76,18 +76,18 @@ _STAGE_28_3B_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
-# Stage 28.5+ implementation basenames that remain blocked at
-# Stage 28.4. (Stage 28.3b amendment moved ``retry_policy.py``
+# Stage 28.6+ implementation basenames that remain blocked at
+# Stage 28.5. (Stage 28.3b amendment moved ``retry_policy.py``
 # and ``retry_policy_models.py`` off the previously-forbidden
 # list. Stage 28.4 amendment moved ``audited_http_transport.py``
-# and ``audited_http_transport_models.py`` off this list;
-# ``stage28_3b_manifest.py`` / ``stage28_4_manifest.py`` are not
-# previously forbidden because each is a per-substage manifest
-# filename.)
+# and ``audited_http_transport_models.py`` off this list. Stage
+# 28.5 amendment moved ``heartbeat_writer.py``,
+# ``health_snapshot_writer.py``, ``cli_status_line.py``,
+# ``health_status_models.py``, and ``stage28_5_manifest.py`` off
+# this list; ``stage28_3b_manifest.py`` / ``stage28_4_manifest.py``
+# / ``stage28_5_manifest.py`` are not previously forbidden because
+# each is a per-substage manifest filename.)
 _STAGE_28_4_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "heartbeat_writer.py",
-    "health_snapshot_writer.py",
-    "cli_status_line.py",
     "bounded_private_session_runner.py",
     "longer_session_smoke_harness.py",
     "stage28_manifest.py",
@@ -536,8 +536,8 @@ def test_no_stage_28_3b_production_identifier_implements_later_or_public_surface
 )
 def test_no_stage_28_4_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.5+ implementation "
-        f"basename {basename!r} during Stage 28.4"
+        f"PHX2/stage28 must not ship Stage 28.6+ implementation "
+        f"basename {basename!r} during Stage 28.5"
     )
 
 
@@ -901,13 +901,35 @@ _STAGE_28_4_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.5 narrow amendment (authorized 2026-05-23): the
+# heartbeat / health-snapshot / CLI-status substage is authorized
+# and adds the production / test inventory below.
+_STAGE_28_5_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "health_status_models.py",
+    "heartbeat_writer.py",
+    "health_snapshot_writer.py",
+    "cli_status_line.py",
+    "stage28_5_manifest.py",
+)
+
+
+_STAGE_28_5_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_5_health_status_models.py",
+    "test_stage_28_5_heartbeat_writer.py",
+    "test_stage_28_5_health_snapshot_writer.py",
+    "test_stage_28_5_cli_status_line.py",
+    "test_stage_28_5_boundaries.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_3b_surface():
-    """Sanity: at Stage 28.4 the ``PHX2/stage28`` tree must
+    """Sanity: at Stage 28.5 the ``PHX2/stage28`` tree must
     admit exactly the union of the Stage 28.0 scaffold + Stage
     28.1 production surface + Stage 28.2 production surface +
     Stage 28.3a production surface + Stage 28.3b production
-    surface + Stage 28.4 production surface (plus the
-    interpreter's ``__pycache__`` cache, which is build noise).
+    surface + Stage 28.4 production surface + Stage 28.5
+    production surface (plus the interpreter's ``__pycache__``
+    cache, which is build noise).
     """
     actual: set[str] = set()
     for entry in STAGE28_ROOT.iterdir():
@@ -933,7 +955,7 @@ def test_stage28_root_admits_only_28_0_through_28_3b_surface():
         "stage28_3a_manifest.py",
     } | set(_STAGE_28_3B_PRODUCTION_PY_BASENAMES) | set(
         _STAGE_28_4_PRODUCTION_PY_BASENAMES
-    )
+    ) | set(_STAGE_28_5_PRODUCTION_PY_BASENAMES)
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -964,7 +986,7 @@ def test_tests_stage28_root_admits_only_28_0_through_28_3b_tests():
         "test_stage_28_3a_boundaries.py",
     } | set(_STAGE_28_3B_TEST_BASENAMES) | set(
         _STAGE_28_4_TEST_BASENAMES
-    )
+    ) | set(_STAGE_28_5_TEST_BASENAMES)
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
