@@ -525,18 +525,61 @@ def test_no_stage_28_11_production_imports_stage_29():
 # ---------------------------------------------------------------------------
 
 
+# Stage 29.0 narrow amendment: allow ``PHX2/stage29/`` to exist
+# iff it contains only the Stage 29.0 scaffold (package marker +
+# spec-lock doc). Stage 29.1+ implementation files remain blocked
+# from Stage 28.11.
+_STAGE_29_0_ALLOWED_PROD_BASENAMES: frozenset[str] = frozenset(
+    {"__init__.py", "STAGE_29_0_SPEC_LOCK.md"}
+)
+
+
+_STAGE_29_0_ALLOWED_TEST_BASENAMES: frozenset[str] = frozenset(
+    {"__init__.py", "test_stage_29_0_spec_lock.py"}
+)
+
+
 def test_no_stage29_implementation_tree_exists():
-    assert not STAGE29_ROOT.exists(), (
-        f"Stage 28.11 must not create PHX2/stage29/; saw "
-        f"{STAGE29_ROOT}"
+    # Stage 29.0 narrow amendment: PHX2/stage29/ may exist iff
+    # it ships only the Stage 29.0 scaffold. Stage 29.1+
+    # implementation files remain blocked from Stage 28.11.
+    if not STAGE29_ROOT.exists():
+        return
+    actual = {
+        entry.name
+        for entry in STAGE29_ROOT.iterdir()
+        if not (entry.is_dir() and entry.name == "__pycache__")
+    }
+    forbidden = actual - _STAGE_29_0_ALLOWED_PROD_BASENAMES
+    assert not forbidden, (
+        f"Stage 28.11 narrow amendment: PHX2/stage29 admits "
+        f"only the Stage 29.0 scaffold "
+        f"({sorted(_STAGE_29_0_ALLOWED_PROD_BASENAMES)!r}); "
+        f"Stage 29.1+ files remain blocked. Forbidden entries: "
+        f"{sorted(forbidden)!r}"
     )
 
 
 def test_no_stage29_tests_tree_exists():
+    # Stage 29.0 narrow amendment: PHX2/tests/stage29/ may exist
+    # iff it ships only the Stage 29.0 tests package marker and
+    # the Stage 29.0 spec-lock test file. Stage 29.1+ test files
+    # remain blocked from Stage 28.11.
     tests_stage29 = PHX2_ROOT / "tests" / "stage29"
-    assert not tests_stage29.exists(), (
-        f"Stage 28.11 must not create PHX2/tests/stage29/; saw "
-        f"{tests_stage29}"
+    if not tests_stage29.exists():
+        return
+    actual = {
+        entry.name
+        for entry in tests_stage29.iterdir()
+        if not (entry.is_dir() and entry.name == "__pycache__")
+    }
+    forbidden = actual - _STAGE_29_0_ALLOWED_TEST_BASENAMES
+    assert not forbidden, (
+        f"Stage 28.11 narrow amendment: PHX2/tests/stage29 "
+        f"admits only the Stage 29.0 tests "
+        f"({sorted(_STAGE_29_0_ALLOWED_TEST_BASENAMES)!r}); "
+        f"Stage 29.1+ test files remain blocked. Forbidden "
+        f"entries: {sorted(forbidden)!r}"
     )
 
 
