@@ -75,15 +75,18 @@ _STAGE_28_6_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
-# Stage 28.7 narrow amendment: ``longer_session_smoke_harness.py``
-# has been promoted to the Stage 28.7 production surface and
-# removed from this forbidden list. Stage 28.8+ implementation
-# basenames (Stage 28-wide manifest, closure audit, Stage 29
-# handoff) remain blocked.
+# Stage 28.7 amendment moved ``longer_session_smoke_harness.py``
+# off this list; Stage 28.8 amendment moved
+# ``stage28_manifest.py`` (Stage 28-wide closure manifest),
+# ``STAGE_28_CLOSURE_AUDIT.md``, and ``STAGE_29_HANDOFF.md`` off
+# this list. Stage 29 (and later) basenames remain blocked under
+# ``PHX2/stage28/`` -- the scan keeps a small Stage 29-flavored
+# denylist so an accidentally-misfiled Stage 29 production /
+# closure / handoff file is still caught.
 _STAGE_28_7_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "stage28_manifest.py",
-    "STAGE_28_CLOSURE_AUDIT.md",
-    "STAGE_29_HANDOFF.md",
+    "stage29_manifest.py",
+    "STAGE_29_CLOSURE_AUDIT.md",
+    "STAGE_30_HANDOFF.md",
 )
 
 
@@ -902,11 +905,33 @@ _STAGE_28_7_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.8 narrow amendment: the closure audit + Stage 29
+# handoff + Stage 28-wide manifest substage is authorized and
+# adds the production / doc / test inventory below.
+_STAGE_28_8_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "stage28_manifest.py",
+)
+
+
+_STAGE_28_8_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_CLOSURE_AUDIT.md",
+    "STAGE_29_HANDOFF.md",
+)
+
+
+_STAGE_28_8_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_8_closure_audit.py",
+    "test_stage_28_8_stage29_handoff.py",
+    "test_stage_28_8_manifest.py",
+    "test_stage_28_8_boundaries.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_6_surface():
-    """At Stage 28.7 the ``PHX2/stage28`` tree must admit exactly
+    """At Stage 28.8 the ``PHX2/stage28`` tree must admit exactly
     the union of Stage 28.0 scaffold + Stage 28.1 + Stage 28.2 +
     Stage 28.3a + Stage 28.3b + Stage 28.4 + Stage 28.5 + Stage
-    28.6 + Stage 28.7 (production + doc) surface.
+    28.6 + Stage 28.7 + Stage 28.8 (production + doc) surface.
     """
     actual: set[str] = set()
     for entry in STAGE28_ROOT.iterdir():
@@ -946,7 +971,9 @@ def test_stage28_root_admits_only_28_0_through_28_6_surface():
         "stage28_5_manifest.py",
     } | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES) | set(
         _STAGE_28_7_PRODUCTION_PY_BASENAMES
-    ) | set(_STAGE_28_7_DOC_BASENAMES)
+    ) | set(_STAGE_28_7_DOC_BASENAMES) | set(
+        _STAGE_28_8_PRODUCTION_PY_BASENAMES
+    ) | set(_STAGE_28_8_DOC_BASENAMES)
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -991,7 +1018,7 @@ def test_tests_stage28_root_admits_only_28_0_through_28_6_tests():
         "test_stage_28_5_boundaries.py",
     } | set(_STAGE_28_6_TEST_BASENAMES) | set(
         _STAGE_28_7_TEST_BASENAMES
-    )
+    ) | set(_STAGE_28_8_TEST_BASENAMES)
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

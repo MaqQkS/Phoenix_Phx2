@@ -94,9 +94,9 @@ _STAGE_28_3B_TEST_BASENAMES: tuple[str, ...] = (
 # a per-substage manifest filename, not the future Stage 28-wide
 # closure manifest.)
 _STAGE_28_4_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "stage28_manifest.py",
-    "STAGE_28_CLOSURE_AUDIT.md",
-    "STAGE_29_HANDOFF.md",
+    "stage29_manifest.py",
+    "STAGE_29_CLOSURE_AUDIT.md",
+    "STAGE_30_HANDOFF.md",
 )
 
 
@@ -967,6 +967,28 @@ _STAGE_28_7_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.8 narrow amendment: the closure audit + Stage 29
+# handoff + Stage 28-wide manifest substage is authorized and
+# adds the production / doc / test inventory below.
+_STAGE_28_8_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "stage28_manifest.py",
+)
+
+
+_STAGE_28_8_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_CLOSURE_AUDIT.md",
+    "STAGE_29_HANDOFF.md",
+)
+
+
+_STAGE_28_8_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_8_closure_audit.py",
+    "test_stage_28_8_stage29_handoff.py",
+    "test_stage_28_8_manifest.py",
+    "test_stage_28_8_boundaries.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_3b_surface():
     """Sanity: at Stage 28.7 the ``PHX2/stage28`` tree must
     admit exactly the union of the Stage 28.0 scaffold + Stage
@@ -1005,6 +1027,8 @@ def test_stage28_root_admits_only_28_0_through_28_3b_surface():
         _STAGE_28_6_PRODUCTION_PY_BASENAMES
     ) | set(_STAGE_28_7_PRODUCTION_PY_BASENAMES) | set(
         _STAGE_28_7_DOC_BASENAMES
+    ) | set(_STAGE_28_8_PRODUCTION_PY_BASENAMES) | set(
+        _STAGE_28_8_DOC_BASENAMES
     )
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
@@ -1038,7 +1062,9 @@ def test_tests_stage28_root_admits_only_28_0_through_28_3b_tests():
         _STAGE_28_4_TEST_BASENAMES
     ) | set(_STAGE_28_5_TEST_BASENAMES) | set(
         _STAGE_28_6_TEST_BASENAMES
-    ) | set(_STAGE_28_7_TEST_BASENAMES)
+    ) | set(_STAGE_28_7_TEST_BASENAMES) | set(
+        _STAGE_28_8_TEST_BASENAMES
+    )
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

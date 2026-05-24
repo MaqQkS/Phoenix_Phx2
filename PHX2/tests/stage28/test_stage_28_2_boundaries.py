@@ -95,9 +95,9 @@ _STAGE_28_2_TEST_BASENAMES: tuple[str, ...] = (
 # longer_session_smoke_harness.py and stage28_7_manifest.py off
 # this list.)
 _STAGE_28_3_PLUS_FORBIDDEN_BASENAMES: tuple[str, ...] = (
-    "stage28_manifest.py",
-    "STAGE_28_CLOSURE_AUDIT.md",
-    "STAGE_29_HANDOFF.md",
+    "stage29_manifest.py",
+    "STAGE_29_CLOSURE_AUDIT.md",
+    "STAGE_30_HANDOFF.md",
 )
 
 
@@ -208,6 +208,28 @@ _STAGE_28_7_TEST_BASENAMES: tuple[str, ...] = (
     "test_stage_28_7_longer_session_smoke_harness.py",
     "test_stage_28_7_boundaries.py",
     "test_stage_28_7_smoke_docs.py",
+)
+
+
+# Stage 28.8 narrow amendment: the closure audit + Stage 29
+# handoff + Stage 28-wide manifest substage is authorized and
+# adds the production / doc / test inventory below.
+_STAGE_28_8_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "stage28_manifest.py",
+)
+
+
+_STAGE_28_8_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_CLOSURE_AUDIT.md",
+    "STAGE_29_HANDOFF.md",
+)
+
+
+_STAGE_28_8_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_8_closure_audit.py",
+    "test_stage_28_8_stage29_handoff.py",
+    "test_stage_28_8_manifest.py",
+    "test_stage_28_8_boundaries.py",
 )
 
 
@@ -951,6 +973,8 @@ def test_stage28_root_admits_only_28_0_28_1_28_2_surface():
         | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_7_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_7_DOC_BASENAMES)
+        | set(_STAGE_28_8_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_8_DOC_BASENAMES)
     )
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
@@ -981,6 +1005,7 @@ def test_tests_stage28_root_admits_only_28_0_28_1_28_2_tests():
         | set(_STAGE_28_5_TEST_BASENAMES)
         | set(_STAGE_28_6_TEST_BASENAMES)
         | set(_STAGE_28_7_TEST_BASENAMES)
+        | set(_STAGE_28_8_TEST_BASENAMES)
     )
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "

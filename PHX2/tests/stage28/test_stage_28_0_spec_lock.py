@@ -737,8 +737,7 @@ _STAGE_28_6_TEST_BASENAMES: frozenset[str] = frozenset(
 
 # Stage 28.7 narrow amendment: the longer-session smoke harness +
 # controlled live smoke runbook substage is authorized and ships
-# the inventory below. Stage 28.8+ implementation files remain
-# blocked.
+# the inventory below.
 _STAGE_28_7_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
     {
         "longer_session_smoke_harness.py",
@@ -764,6 +763,35 @@ _STAGE_28_7_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 28.8 narrow amendment: the closure audit + Stage 29
+# handoff + Stage 28-wide manifest substage is authorized and
+# ships the inventory below. Stage 29+ implementation files
+# remain blocked.
+_STAGE_28_8_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "stage28_manifest.py",
+    }
+)
+
+
+_STAGE_28_8_DOC_BASENAMES: frozenset[str] = frozenset(
+    {
+        "STAGE_28_CLOSURE_AUDIT.md",
+        "STAGE_29_HANDOFF.md",
+    }
+)
+
+
+_STAGE_28_8_TEST_BASENAMES: frozenset[str] = frozenset(
+    {
+        "test_stage_28_8_closure_audit.py",
+        "test_stage_28_8_stage29_handoff.py",
+        "test_stage_28_8_manifest.py",
+        "test_stage_28_8_boundaries.py",
+    }
+)
+
+
 _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -780,6 +808,8 @@ _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     | _STAGE_28_6_PRODUCTION_PY_BASENAMES
     | _STAGE_28_7_PRODUCTION_PY_BASENAMES
     | _STAGE_28_7_DOC_BASENAMES
+    | _STAGE_28_8_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_8_DOC_BASENAMES
 )
 
 
@@ -798,6 +828,7 @@ _STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_28_5_TEST_BASENAMES
     | _STAGE_28_6_TEST_BASENAMES
     | _STAGE_28_7_TEST_BASENAMES
+    | _STAGE_28_8_TEST_BASENAMES
 )
 
 
@@ -811,17 +842,17 @@ def test_stage28_root_admits_only_28_0_scaffold_plus_28_1_surface():
     assert not forbidden, (
         f"PHX2/stage28 admits only the Stage 28.0 scaffold plus "
         f"the Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage 28.3b "
-        f"+ Stage 28.4 + Stage 28.5 + Stage 28.6 + Stage 28.7 "
-        f"production / doc surface "
+        f"+ Stage 28.4 + Stage 28.5 + Stage 28.6 + Stage 28.7 + "
+        f"Stage 28.8 production / doc surface "
         f"({sorted(_STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES)!r}); "
-        f"Stage 28.8+ implementation files remain blocked. "
+        f"Stage 29+ implementation files remain blocked. "
         f"Forbidden entries found: {sorted(forbidden)!r}"
     )
     missing = _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES - actual
     assert not missing, (
         f"Stage 28.0 / 28.1 / 28.2 / 28.3a / 28.3b / 28.4 / 28.5 "
-        f"/ 28.6 / 28.7 inventory missing required entries: "
-        f"{sorted(missing)!r}"
+        f"/ 28.6 / 28.7 / 28.8 inventory missing required "
+        f"entries: {sorted(missing)!r}"
     )
 
 
@@ -836,16 +867,16 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
         f"PHX2/tests/stage28 admits only the Stage 28.0 test set "
         f"plus the Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage "
         f"28.3b + Stage 28.4 + Stage 28.5 + Stage 28.6 + Stage "
-        f"28.7 test surface "
+        f"28.7 + Stage 28.8 test surface "
         f"({sorted(_STAGE_28_0_ALLOWED_TEST_ENTRIES)!r}); Stage "
-        f"28.8+ test files remain blocked. Forbidden entries "
+        f"29+ test files remain blocked. Forbidden entries "
         f"found: {sorted(forbidden)!r}"
     )
     missing = _STAGE_28_0_ALLOWED_TEST_ENTRIES - actual
     assert not missing, (
         f"Stage 28.0 / 28.1 / 28.2 / 28.3a / 28.3b / 28.4 / 28.5 "
-        f"/ 28.6 / 28.7 tests package missing required entries: "
-        f"{sorted(missing)!r}"
+        f"/ 28.6 / 28.7 / 28.8 tests package missing required "
+        f"entries: {sorted(missing)!r}"
     )
 
 
@@ -880,13 +911,17 @@ def test_tests_stage28_root_admits_only_28_0_plus_28_1_test_files():
 # ``longer_session_smoke_harness.py``, ``stage28_7_manifest.py``,
 # ``STAGE_28_LONGER_SESSION_SMOKE_CHECKLIST.md``, and
 # ``STAGE_28_CONTROLLED_LIVE_SMOKE_RUNBOOK.md`` have been promoted
-# to the Stage 28.7 production / doc surface. Stage 28.8+
-# implementation files (Stage 28-wide manifest, closure audit,
-# Stage 29 handoff) remain blocked.
+# to the Stage 28.7 production / doc surface. Stage 28.8 narrow
+# amendment: ``stage28_manifest.py``,
+# ``STAGE_28_CLOSURE_AUDIT.md``, and ``STAGE_29_HANDOFF.md`` have
+# been promoted to the Stage 28.8 closure / handoff / manifest
+# surface. Stage 29+ basenames remain blocked under
+# ``PHX2/stage28/`` -- the scan keeps a small Stage 29-flavored
+# denylist so an accidentally-misfiled Stage 29 file is caught.
 _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
-    "stage28_manifest.py",
-    "STAGE_28_CLOSURE_AUDIT.md",
-    "STAGE_29_HANDOFF.md",
+    "stage29_manifest.py",
+    "STAGE_29_CLOSURE_AUDIT.md",
+    "STAGE_30_HANDOFF.md",
 )
 
 
@@ -895,20 +930,20 @@ _FORBIDDEN_STAGE_28_PLUS_BASENAMES: tuple[str, ...] = (
 )
 def test_no_stage_28_2_plus_basename_under_stage28(basename):
     assert not (STAGE28_ROOT / basename).exists(), (
-        f"PHX2/stage28 must not ship Stage 28.8+ implementation "
-        f"basename {basename!r} during Stage 28.7"
+        f"PHX2/stage28 must not ship Stage 29+ implementation "
+        f"basename {basename!r} under PHX2/stage28/"
     )
 
 
 def test_no_extra_python_module_under_stage28():
     """Stage 28 .py inventory is the package marker plus the
     Stage 28.1 + Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage
-    28.4 + Stage 28.5 + Stage 28.6 + Stage 28.7 production .py
-    surface; nothing else ships under ``PHX2/stage28/`` at Stage
-    28.7.
+    28.4 + Stage 28.5 + Stage 28.6 + Stage 28.7 + Stage 28.8
+    production .py surface; nothing else ships under
+    ``PHX2/stage28/`` at Stage 28.8.
 
-    Stage 28.8+ substages must each land their .py surface under
-    their own explicitly authorized narrow amendment here.
+    Stage 29+ substages live in ``PHX2/stage29/`` and must not
+    leak into the Stage 28 tree.
     """
     actual_py = {
         p.name
@@ -925,14 +960,15 @@ def test_no_extra_python_module_under_stage28():
         | set(_STAGE_28_5_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_7_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_8_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
         f"Stage 28 must not add new production .py modules beyond "
         f"the package marker and the Stage 28.1 + Stage 28.2 + "
         f"Stage 28.3a + Stage 28.3b + Stage 28.4 + Stage 28.5 + "
-        f"Stage 28.6 + Stage 28.7 surface; unexpected files: "
-        f"{sorted(unexpected)}"
+        f"Stage 28.6 + Stage 28.7 + Stage 28.8 surface; "
+        f"unexpected files: {sorted(unexpected)}"
     )
 
 
