@@ -249,9 +249,48 @@ STAGE28_9_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.10 post-closure operational amendment: the Chainstack
+# Yellowstone provider boundary substage is authorized after Stage
+# 28 closure as a narrow protocol / fake / models surface that
+# prepares the real Chainstack / Yellowstone gRPC provider path
+# for the Stage 28.9 adapter without installing grpc / grpcio /
+# protobuf dependencies, without generating ``pb2`` /
+# ``pb2_grpc`` stubs, without calling Chainstack, without sending
+# Discord, without Stage 29 enforcement, without public routing,
+# without subscriber routing, without paid tiers, without
+# Telegram, without X / social, without automated trading,
+# without wallet / private-key logic, and without movement of the
+# ``stage-28-closed`` tag. Stage 28.10 admits Stage 21 / Stage 27
+# imports only in the hint-aware candidate assembler module; every
+# other Stage 28.10 production module must remain Stage 21-27
+# import free.
+STAGE28_10_PRODUCTION_BASENAMES: tuple[str, ...] = (
+    "chainstack_yellowstone_models.py",
+    "chainstack_yellowstone_contracts.py",
+    "chainstack_yellowstone_event_source.py",
+    "chainstack_yellowstone_candidate_assembler.py",
+    "stage28_10_manifest.py",
+)
+
+
+STAGE28_10_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_10_CHAINSTACK_YELLOWSTONE_RUNBOOK.md",
+)
+
+
+STAGE28_10_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_10_chainstack_yellowstone_models.py",
+    "test_stage_28_10_chainstack_yellowstone_contracts.py",
+    "test_stage_28_10_chainstack_yellowstone_event_source.py",
+    "test_stage_28_10_chainstack_yellowstone_candidate_assembler.py",
+    "test_stage_28_10_runbook.py",
+    "test_stage_28_10_boundaries.py",
+)
+
+
 # Union of every Stage 28 production / doc basename admitted
-# under ``PHX2/stage28/`` at Stage 28.8 + the Stage 28.9
-# post-closure operational amendment.
+# under ``PHX2/stage28/`` at Stage 28.8 + the Stage 28.9 + Stage
+# 28.10 post-closure operational amendments.
 STAGE28_ALL_PRODUCTION_BASENAMES: tuple[str, ...] = (
     STAGE28_0_PRODUCTION_BASENAMES
     + STAGE28_1_PRODUCTION_BASENAMES
@@ -267,6 +306,8 @@ STAGE28_ALL_PRODUCTION_BASENAMES: tuple[str, ...] = (
     + STAGE28_8_DOC_BASENAMES
     + STAGE28_9_PRODUCTION_BASENAMES
     + STAGE28_9_DOC_BASENAMES
+    + STAGE28_10_PRODUCTION_BASENAMES
+    + STAGE28_10_DOC_BASENAMES
 )
 
 
@@ -467,6 +508,9 @@ __all__ = (
     "STAGE28_9_PRODUCTION_BASENAMES",
     "STAGE28_9_DOC_BASENAMES",
     "STAGE28_9_TEST_BASENAMES",
+    "STAGE28_10_PRODUCTION_BASENAMES",
+    "STAGE28_10_DOC_BASENAMES",
+    "STAGE28_10_TEST_BASENAMES",
     "STAGE28_ALL_PRODUCTION_BASENAMES",
     "STAGE28_CLOSURE_EVIDENCE_BASENAMES",
     "STAGE28_FORBIDDEN_SURFACES",

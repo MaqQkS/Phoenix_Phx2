@@ -824,6 +824,40 @@ _STAGE_28_9_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 28.10 narrow amendment: the Chainstack Yellowstone
+# provider boundary substage is a post-Stage-28-closure +
+# post-Stage-28.9 protocol / fake / models surface. It ships the
+# inventory below. Stage 29+ implementation files remain blocked.
+_STAGE_28_10_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "chainstack_yellowstone_models.py",
+        "chainstack_yellowstone_contracts.py",
+        "chainstack_yellowstone_event_source.py",
+        "chainstack_yellowstone_candidate_assembler.py",
+        "stage28_10_manifest.py",
+    }
+)
+
+
+_STAGE_28_10_DOC_BASENAMES: frozenset[str] = frozenset(
+    {
+        "STAGE_28_10_CHAINSTACK_YELLOWSTONE_RUNBOOK.md",
+    }
+)
+
+
+_STAGE_28_10_TEST_BASENAMES: frozenset[str] = frozenset(
+    {
+        "test_stage_28_10_chainstack_yellowstone_models.py",
+        "test_stage_28_10_chainstack_yellowstone_contracts.py",
+        "test_stage_28_10_chainstack_yellowstone_event_source.py",
+        "test_stage_28_10_chainstack_yellowstone_candidate_assembler.py",
+        "test_stage_28_10_runbook.py",
+        "test_stage_28_10_boundaries.py",
+    }
+)
+
+
 _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -844,6 +878,8 @@ _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     | _STAGE_28_8_DOC_BASENAMES
     | _STAGE_28_9_PRODUCTION_PY_BASENAMES
     | _STAGE_28_9_DOC_BASENAMES
+    | _STAGE_28_10_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_10_DOC_BASENAMES
 )
 
 
@@ -864,6 +900,7 @@ _STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_28_7_TEST_BASENAMES
     | _STAGE_28_8_TEST_BASENAMES
     | _STAGE_28_9_TEST_BASENAMES
+    | _STAGE_28_10_TEST_BASENAMES
 )
 
 
@@ -997,14 +1034,16 @@ def test_no_extra_python_module_under_stage28():
         | set(_STAGE_28_7_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_8_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_9_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_10_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
         f"Stage 28 must not add new production .py modules beyond "
         f"the package marker and the Stage 28.1 + Stage 28.2 + "
         f"Stage 28.3a + Stage 28.3b + Stage 28.4 + Stage 28.5 + "
-        f"Stage 28.6 + Stage 28.7 + Stage 28.8 + Stage 28.9 "
-        f"surface; unexpected files: {sorted(unexpected)}"
+        f"Stage 28.6 + Stage 28.7 + Stage 28.8 + Stage 28.9 + "
+        f"Stage 28.10 surface; unexpected files: "
+        f"{sorted(unexpected)}"
     )
 
 

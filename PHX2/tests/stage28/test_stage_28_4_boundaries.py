@@ -1041,6 +1041,33 @@ _STAGE_28_9_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.10 narrow amendment: the Chainstack Yellowstone
+# provider boundary substage is a post-Stage-28-closure +
+# post-Stage-28.9 protocol / fake / models surface.
+_STAGE_28_10_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "chainstack_yellowstone_models.py",
+    "chainstack_yellowstone_contracts.py",
+    "chainstack_yellowstone_event_source.py",
+    "chainstack_yellowstone_candidate_assembler.py",
+    "stage28_10_manifest.py",
+)
+
+
+_STAGE_28_10_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_10_CHAINSTACK_YELLOWSTONE_RUNBOOK.md",
+)
+
+
+_STAGE_28_10_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_10_chainstack_yellowstone_models.py",
+    "test_stage_28_10_chainstack_yellowstone_contracts.py",
+    "test_stage_28_10_chainstack_yellowstone_event_source.py",
+    "test_stage_28_10_chainstack_yellowstone_candidate_assembler.py",
+    "test_stage_28_10_runbook.py",
+    "test_stage_28_10_boundaries.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_4_surface():
     """Sanity: at Stage 28.7 the ``PHX2/stage28`` tree must
     admit exactly the union of Stage 28.0 scaffold + Stage 28.1
@@ -1084,7 +1111,9 @@ def test_stage28_root_admits_only_28_0_through_28_4_surface():
         _STAGE_28_8_PRODUCTION_PY_BASENAMES
     ) | set(_STAGE_28_8_DOC_BASENAMES) | set(
         _STAGE_28_9_PRODUCTION_PY_BASENAMES
-    ) | set(_STAGE_28_9_DOC_BASENAMES)
+    ) | set(_STAGE_28_9_DOC_BASENAMES) | set(
+        _STAGE_28_10_PRODUCTION_PY_BASENAMES
+    ) | set(_STAGE_28_10_DOC_BASENAMES)
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -1123,7 +1152,7 @@ def test_tests_stage28_root_admits_only_28_0_through_28_4_tests():
         _STAGE_28_7_TEST_BASENAMES
     ) | set(_STAGE_28_8_TEST_BASENAMES) | set(
         _STAGE_28_9_TEST_BASENAMES
-    )
+    ) | set(_STAGE_28_10_TEST_BASENAMES)
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

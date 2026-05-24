@@ -700,6 +700,45 @@ authorized:
 - `longer_session_smoke_harness.py`
 - `stage28_manifest.py`
 
+Stage 28.10 post-closure narrow amendment (authorized
+2026-05-24): the Chainstack Yellowstone provider boundary
+substage is authorized after Stage 28 closure as a narrow
+protocol / fake / models surface that prepares the real
+Chainstack / Yellowstone gRPC provider path for the Stage 28.9
+adapter without installing grpc / grpcio / protobuf
+dependencies, without generating `pb2` / `pb2_grpc` stubs,
+without calling Chainstack, without sending Discord, without
+Stage 29 enforcement, without public routing, without subscriber
+routing, without paid tiers, without Telegram, without X /
+social, without automated trading, without wallet / private-key
+logic, and without movement of the `stage-28-closed` tag. Stage
+28.10 adds the following production .py inventory under
+`PHX2/stage28/`:
+
+- `chainstack_yellowstone_models.py`
+- `chainstack_yellowstone_contracts.py`
+- `chainstack_yellowstone_event_source.py`
+- `chainstack_yellowstone_candidate_assembler.py`
+- `stage28_10_manifest.py`
+
+the following operator doc under `PHX2/stage28/`:
+
+- `STAGE_28_10_CHAINSTACK_YELLOWSTONE_RUNBOOK.md`
+
+and the following test inventory under `PHX2/tests/stage28/`:
+
+- `test_stage_28_10_chainstack_yellowstone_models.py`
+- `test_stage_28_10_chainstack_yellowstone_contracts.py`
+- `test_stage_28_10_chainstack_yellowstone_event_source.py`
+- `test_stage_28_10_chainstack_yellowstone_candidate_assembler.py`
+- `test_stage_28_10_runbook.py`
+- `test_stage_28_10_boundaries.py`
+
+Stage 28.10 admits Stage 21 / Stage 27 imports ONLY in
+`chainstack_yellowstone_candidate_assembler.py`; every other
+Stage 28.10 production module must remain Stage 21-27 import
+free. The Stage 28.10 boundary scan pins this discipline.
+
 ---
 
 ## 12. Closed-set vocabulary placeholders
