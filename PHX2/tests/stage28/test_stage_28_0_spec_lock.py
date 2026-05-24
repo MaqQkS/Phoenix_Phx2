@@ -858,6 +858,65 @@ _STAGE_28_10_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 28.11 narrow amendment: the Chainstack Yellowstone real
+# gRPC client substage is a post-Stage-28-closure + post-Stage-
+# 28.9 + post-Stage-28.10 real-provider-client surface. It ships
+# the inventory below. Stage 29+ implementation files remain
+# blocked.
+_STAGE_28_11_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "chainstack_yellowstone_grpc_models.py",
+        "chainstack_yellowstone_grpc_readiness.py",
+        "chainstack_yellowstone_grpc_decode.py",
+        "chainstack_yellowstone_grpc_client.py",
+        "chainstack_yellowstone_grpc_probe.py",
+        "stage28_11_manifest.py",
+    }
+)
+
+
+_STAGE_28_11_DEPENDENCY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "stage28_11_requirements.txt",
+    }
+)
+
+
+_STAGE_28_11_DOC_BASENAMES: frozenset[str] = frozenset(
+    {
+        "STAGE_28_11_CHAINSTACK_GRPC_RUNBOOK.md",
+    }
+)
+
+
+_STAGE_28_11_TEST_BASENAMES: frozenset[str] = frozenset(
+    {
+        (
+            "test_stage_28_11_"
+            "chainstack_yellowstone_grpc_models.py"
+        ),
+        (
+            "test_stage_28_11_"
+            "chainstack_yellowstone_grpc_readiness.py"
+        ),
+        (
+            "test_stage_28_11_"
+            "chainstack_yellowstone_grpc_decode.py"
+        ),
+        (
+            "test_stage_28_11_"
+            "chainstack_yellowstone_grpc_client.py"
+        ),
+        (
+            "test_stage_28_11_"
+            "chainstack_yellowstone_grpc_probe.py"
+        ),
+        "test_stage_28_11_runbook.py",
+        "test_stage_28_11_boundaries.py",
+    }
+)
+
+
 _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -880,6 +939,9 @@ _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     | _STAGE_28_9_DOC_BASENAMES
     | _STAGE_28_10_PRODUCTION_PY_BASENAMES
     | _STAGE_28_10_DOC_BASENAMES
+    | _STAGE_28_11_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_11_DEPENDENCY_BASENAMES
+    | _STAGE_28_11_DOC_BASENAMES
 )
 
 
@@ -901,6 +963,7 @@ _STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_28_8_TEST_BASENAMES
     | _STAGE_28_9_TEST_BASENAMES
     | _STAGE_28_10_TEST_BASENAMES
+    | _STAGE_28_11_TEST_BASENAMES
 )
 
 
@@ -1035,6 +1098,7 @@ def test_no_extra_python_module_under_stage28():
         | set(_STAGE_28_8_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_9_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_10_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_11_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
@@ -1042,7 +1106,7 @@ def test_no_extra_python_module_under_stage28():
         f"the package marker and the Stage 28.1 + Stage 28.2 + "
         f"Stage 28.3a + Stage 28.3b + Stage 28.4 + Stage 28.5 + "
         f"Stage 28.6 + Stage 28.7 + Stage 28.8 + Stage 28.9 + "
-        f"Stage 28.10 surface; unexpected files: "
+        f"Stage 28.10 + Stage 28.11 surface; unexpected files: "
         f"{sorted(unexpected)}"
     )
 

@@ -288,9 +288,105 @@ STAGE28_10_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.11 post-closure operational amendment: the Chainstack
+# Yellowstone real gRPC client substage is authorized after Stage
+# 28 closure as a narrow real-provider-client path that satisfies
+# the Stage 28.10 protocol boundary and exposes three locked
+# probe modes (readiness-only, provider-connect-only, one-event
+# decode dry run). Stage 28.11 ships NO Stage 28.9 wrapper
+# invocation, NO real Discord send, NO Stage 29 enforcement, NO
+# public routing, NO subscriber routing, NO paid tiers, NO
+# Telegram, NO X / social, NO automated trading, NO wallet /
+# private-key logic, NO position sizing, NO trade execution, and
+# NO movement of the ``stage-28-closed`` tag. Stage 28.11 admits
+# the runtime ``grpc`` / generated-protobuf imports only in the
+# Stage 28.11 client + decode modules; the Stage 28.11 readiness
+# module is the SINGLE Stage 28.11 surface that reads
+# ``os.environ``; the Stage 28.11 models module remains stdlib +
+# Stage 28.10 imports only. Stage 28.11 vendored the upstream
+# rpcpool / Triton One Yellowstone proto schema at tag
+# ``v13.1.0+solana.4.0.0`` (commit SHA
+# ``62893fb7644b1ceafd2f8d840f8e3997f44a483f``); the proto
+# sources live under ``PHX2/proto/stage28_11/source/`` and the
+# generated Python stubs live under
+# ``PHX2/proto/stage28_11/_generated/``. The Stage 28.10 ban on
+# generated ``*_pb2.py`` / ``*_pb2_grpc.py`` stubs under
+# ``PHX2/stage28/`` remains in force.
+STAGE28_11_PRODUCTION_BASENAMES: tuple[str, ...] = (
+    "chainstack_yellowstone_grpc_models.py",
+    "chainstack_yellowstone_grpc_readiness.py",
+    "chainstack_yellowstone_grpc_decode.py",
+    "chainstack_yellowstone_grpc_client.py",
+    "chainstack_yellowstone_grpc_probe.py",
+    "stage28_11_manifest.py",
+)
+
+
+STAGE28_11_DEPENDENCY_BASENAMES: tuple[str, ...] = (
+    "stage28_11_requirements.txt",
+)
+
+
+STAGE28_11_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_11_CHAINSTACK_GRPC_RUNBOOK.md",
+)
+
+
+STAGE28_11_TEST_BASENAMES: tuple[str, ...] = (
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_models.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_readiness.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_decode.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_client.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_probe.py"
+    ),
+    "test_stage_28_11_runbook.py",
+    "test_stage_28_11_boundaries.py",
+)
+
+
+# Stage 28.11 pinned dependency versions. Tracked in
+# ``PHX2/stage28/stage28_11_requirements.txt`` (Stage-28.11-
+# scoped); the rest of the PHX2 tree remains stdlib-only.
+STAGE28_11_PINNED_DEPENDENCY_VERSIONS: tuple[
+    tuple[str, str], ...
+] = (
+    ("grpcio", "1.66.2"),
+    ("grpcio-tools", "1.66.2"),
+    ("protobuf", "5.28.3"),
+)
+
+
+# Stage 28.11 vendored upstream Yellowstone proto pin.
+STAGE28_11_VENDORED_PROTO_REPO: str = (
+    "rpcpool/yellowstone-grpc"
+)
+STAGE28_11_VENDORED_PROTO_TAG: str = "v13.1.0+solana.4.0.0"
+STAGE28_11_VENDORED_PROTO_COMMIT_SHA: str = (
+    "62893fb7644b1ceafd2f8d840f8e3997f44a483f"
+)
+STAGE28_11_VENDORED_PROTO_FILES: tuple[str, ...] = (
+    "geyser.proto",
+    "solana-storage.proto",
+)
+
+
 # Union of every Stage 28 production / doc basename admitted
-# under ``PHX2/stage28/`` at Stage 28.8 + the Stage 28.9 + Stage
-# 28.10 post-closure operational amendments.
+# under ``PHX2/stage28/`` at Stage 28.8 + the Stage 28.9 +
+# Stage 28.10 + Stage 28.11 post-closure operational amendments.
 STAGE28_ALL_PRODUCTION_BASENAMES: tuple[str, ...] = (
     STAGE28_0_PRODUCTION_BASENAMES
     + STAGE28_1_PRODUCTION_BASENAMES
@@ -308,6 +404,9 @@ STAGE28_ALL_PRODUCTION_BASENAMES: tuple[str, ...] = (
     + STAGE28_9_DOC_BASENAMES
     + STAGE28_10_PRODUCTION_BASENAMES
     + STAGE28_10_DOC_BASENAMES
+    + STAGE28_11_PRODUCTION_BASENAMES
+    + STAGE28_11_DEPENDENCY_BASENAMES
+    + STAGE28_11_DOC_BASENAMES
 )
 
 
@@ -511,6 +610,15 @@ __all__ = (
     "STAGE28_10_PRODUCTION_BASENAMES",
     "STAGE28_10_DOC_BASENAMES",
     "STAGE28_10_TEST_BASENAMES",
+    "STAGE28_11_PRODUCTION_BASENAMES",
+    "STAGE28_11_DEPENDENCY_BASENAMES",
+    "STAGE28_11_DOC_BASENAMES",
+    "STAGE28_11_TEST_BASENAMES",
+    "STAGE28_11_PINNED_DEPENDENCY_VERSIONS",
+    "STAGE28_11_VENDORED_PROTO_REPO",
+    "STAGE28_11_VENDORED_PROTO_TAG",
+    "STAGE28_11_VENDORED_PROTO_COMMIT_SHA",
+    "STAGE28_11_VENDORED_PROTO_FILES",
     "STAGE28_ALL_PRODUCTION_BASENAMES",
     "STAGE28_CLOSURE_EVIDENCE_BASENAMES",
     "STAGE28_FORBIDDEN_SURFACES",

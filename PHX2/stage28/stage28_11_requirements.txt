@@ -1,0 +1,18 @@
+# Stage 28.11 Chainstack Yellowstone gRPC client dependencies.
+#
+# These pins are scoped to Stage 28.11 only. The rest of the PHX2 tree
+# (Stage 21 .. Stage 28.10) remains stdlib-only by design; the live
+# Chainstack Yellowstone gRPC path is the first PHX2 substage that
+# introduces a third-party Python dependency.
+#
+# Install only inside an isolated venv such as ``.venv/`` after explicit
+# operator authorization. Do NOT promote these pins to a repo-wide
+# ``requirements.txt`` without a separate authorized substage.
+#
+# Pinned exactly. Do NOT auto-upgrade. Do NOT silently float.
+#
+# Generated proto stubs live under ``PHX2/proto/stage28_11/_generated/``
+# (vendored in git); regeneration uses the same ``grpcio-tools`` pin.
+grpcio==1.66.2
+grpcio-tools==1.66.2
+protobuf==5.28.3

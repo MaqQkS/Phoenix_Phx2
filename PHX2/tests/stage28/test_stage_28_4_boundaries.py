@@ -1067,6 +1067,57 @@ _STAGE_28_10_TEST_BASENAMES: tuple[str, ...] = (
     "test_stage_28_10_boundaries.py",
 )
 
+# Stage 28.11 narrow amendment: the Chainstack Yellowstone real
+# gRPC client substage adds the production / dependency / doc /
+# test inventory below. Stage 28.11 introduces a second Stage 28
+# env-read site (chainstack_yellowstone_grpc_readiness.py).
+_STAGE_28_11_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "chainstack_yellowstone_grpc_models.py",
+    "chainstack_yellowstone_grpc_readiness.py",
+    "chainstack_yellowstone_grpc_decode.py",
+    "chainstack_yellowstone_grpc_client.py",
+    "chainstack_yellowstone_grpc_probe.py",
+    "stage28_11_manifest.py",
+)
+
+
+_STAGE_28_11_DEPENDENCY_BASENAMES: tuple[str, ...] = (
+    "stage28_11_requirements.txt",
+)
+
+
+_STAGE_28_11_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_11_CHAINSTACK_GRPC_RUNBOOK.md",
+)
+
+
+_STAGE_28_11_TEST_BASENAMES: tuple[str, ...] = (
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_models.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_readiness.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_decode.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_client.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_probe.py"
+    ),
+    "test_stage_28_11_runbook.py",
+    "test_stage_28_11_boundaries.py",
+)
+
+
+
 
 def test_stage28_root_admits_only_28_0_through_28_4_surface():
     """Sanity: at Stage 28.7 the ``PHX2/stage28`` tree must
@@ -1113,7 +1164,7 @@ def test_stage28_root_admits_only_28_0_through_28_4_surface():
         _STAGE_28_9_PRODUCTION_PY_BASENAMES
     ) | set(_STAGE_28_9_DOC_BASENAMES) | set(
         _STAGE_28_10_PRODUCTION_PY_BASENAMES
-    ) | set(_STAGE_28_10_DOC_BASENAMES)
+    ) | set(_STAGE_28_10_DOC_BASENAMES) | set(_STAGE_28_11_PRODUCTION_PY_BASENAMES) | set(_STAGE_28_11_DEPENDENCY_BASENAMES) | set(_STAGE_28_11_DOC_BASENAMES)
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"
@@ -1152,7 +1203,7 @@ def test_tests_stage28_root_admits_only_28_0_through_28_4_tests():
         _STAGE_28_7_TEST_BASENAMES
     ) | set(_STAGE_28_8_TEST_BASENAMES) | set(
         _STAGE_28_9_TEST_BASENAMES
-    ) | set(_STAGE_28_10_TEST_BASENAMES)
+    ) | set(_STAGE_28_10_TEST_BASENAMES) | set(_STAGE_28_11_TEST_BASENAMES)
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

@@ -285,6 +285,58 @@ _STAGE_28_10_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.11 narrow amendment: the Chainstack Yellowstone real
+# gRPC client substage adds the production / dependency / doc /
+# test inventory below. Stage 28.11 introduces a second Stage
+# 28 env-read site (``chainstack_yellowstone_grpc_readiness.py``)
+# admitted explicitly by ``STAGE28_ALLOWED_ENV_READ_MODULES``
+# below.
+_STAGE_28_11_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "chainstack_yellowstone_grpc_models.py",
+    "chainstack_yellowstone_grpc_readiness.py",
+    "chainstack_yellowstone_grpc_decode.py",
+    "chainstack_yellowstone_grpc_client.py",
+    "chainstack_yellowstone_grpc_probe.py",
+    "stage28_11_manifest.py",
+)
+
+
+_STAGE_28_11_DEPENDENCY_BASENAMES: tuple[str, ...] = (
+    "stage28_11_requirements.txt",
+)
+
+
+_STAGE_28_11_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_11_CHAINSTACK_GRPC_RUNBOOK.md",
+)
+
+
+_STAGE_28_11_TEST_BASENAMES: tuple[str, ...] = (
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_models.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_readiness.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_decode.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_client.py"
+    ),
+    (
+        "test_stage_28_11_"
+        "chainstack_yellowstone_grpc_probe.py"
+    ),
+    "test_stage_28_11_runbook.py",
+    "test_stage_28_11_boundaries.py",
+)
+
+
 _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
     "__init__.py",
     "test_stage_28_0_spec_lock.py",
@@ -292,8 +344,20 @@ _STAGE_28_0_TEST_BASENAMES: tuple[str, ...] = (
 
 
 # The Stage 28.1 env-read site -- the ONLY production .py module
-# allowed to touch ``os.environ`` / ``os.getenv`` / ``os.environb``.
+# allowed to touch ``os.environ`` / ``os.getenv`` / ``os.environb``
+# under the Stage 28.1 contract. Stage 28.11 introduces a second
+# Stage 28 env-read site
+# (``chainstack_yellowstone_grpc_readiness.py``), which is the
+# Stage-28.11-private parallel readiness boundary; both are
+# admitted by ``STAGE28_ALLOWED_ENV_READ_MODULES`` below.
 STAGE28_1_ENV_READ_MODULE: str = "provider_neutral_readiness.py"
+STAGE28_11_ENV_READ_MODULE: str = (
+    "chainstack_yellowstone_grpc_readiness.py"
+)
+STAGE28_ALLOWED_ENV_READ_MODULES: tuple[str, ...] = (
+    STAGE28_1_ENV_READ_MODULE,
+    STAGE28_11_ENV_READ_MODULE,
+)
 
 
 # Stage 28.8+ implementation basenames that must remain blocked at
@@ -415,15 +479,18 @@ def test_stage28_root_admits_only_stage_28_0_scaffold_plus_stage_28_1_surface():
         | set(_STAGE_28_9_DOC_BASENAMES)
         | set(_STAGE_28_10_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_10_DOC_BASENAMES)
+        | set(_STAGE_28_11_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_11_DEPENDENCY_BASENAMES)
+        | set(_STAGE_28_11_DOC_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
         f"PHX2/stage28 admits only Stage 28.0 scaffold + Stage 28.1 "
         f"+ Stage 28.2 + Stage 28.3a + Stage 28.3b + Stage 28.4 + "
-        f"Stage 28.5 + Stage 28.6 + Stage 28.7 + Stage 28.8 "
-        f"production / doc surface ({sorted(allowed)!r}); Stage 29+ "
-        f"files remain blocked. Forbidden entries: "
-        f"{sorted(forbidden)!r}"
+        f"Stage 28.5 + Stage 28.6 + Stage 28.7 + Stage 28.8 + "
+        f"Stage 28.9 + Stage 28.10 + Stage 28.11 production / doc "
+        f"surface ({sorted(allowed)!r}); Stage 29+ files remain "
+        f"blocked. Forbidden entries: {sorted(forbidden)!r}"
     )
     missing = allowed - actual
     assert not missing, (
@@ -452,6 +519,7 @@ def test_tests_stage28_root_admits_only_stage_28_0_plus_stage_28_1_tests():
         | set(_STAGE_28_8_TEST_BASENAMES)
         | set(_STAGE_28_9_TEST_BASENAMES)
         | set(_STAGE_28_10_TEST_BASENAMES)
+        | set(_STAGE_28_11_TEST_BASENAMES)
     )
     forbidden = actual - allowed
     assert not forbidden, (
@@ -523,22 +591,25 @@ def test_provider_neutral_readiness_actually_reads_environ():
 
 
 def test_no_other_stage28_module_reads_environ():
-    """Stage 28 env-read isolation must remain
-    ``provider_neutral_readiness.py`` only. Stage 28.1 must not
-    add a second env-read site anywhere under ``PHX2/stage28/``.
+    """Stage 28 env-read boundary must remain isolated to the
+    locked admitted modules
+    (``provider_neutral_readiness.py`` +
+    ``chainstack_yellowstone_grpc_readiness.py``). Stage 28.1
+    must not add a third env-read site anywhere under
+    ``PHX2/stage28/``.
     """
     env_read_modules: list[str] = []
     for entry in STAGE28_ROOT.iterdir():
         if not entry.is_file() or entry.suffix != ".py":
             continue
-        if entry.name == STAGE28_1_ENV_READ_MODULE:
+        if entry.name in STAGE28_ALLOWED_ENV_READ_MODULES:
             continue
         if _module_reads_environ(_read(entry)):
             env_read_modules.append(entry.name)
     assert not env_read_modules, (
         "Stage 28 env-read boundary must remain isolated to "
-        f"{STAGE28_1_ENV_READ_MODULE!r}; offenders: "
-        f"{env_read_modules!r}"
+        f"{sorted(STAGE28_ALLOWED_ENV_READ_MODULES)!r}; "
+        f"offenders: {env_read_modules!r}"
     )
 
 

@@ -806,3 +806,53 @@ authorization required for each substage past 28.0.
 
 This document is the Stage 28 spec lock. Stage 28.1+ substages
 must reference it.
+
+---
+
+## 15. Post-closure amendments (informational; not closure-blocking)
+
+Stage 28 was closed under the `stage-28-closed` annotated tag
+at the Stage 28.8 commit. The narrow post-closure operational
+amendments below were authorized AFTER closure and explicitly
+do NOT move, recreate, or override the `stage-28-closed` tag.
+They are noted here so that a future reader can reconcile the
+on-disk Stage 28 tree against the Section 3 / Section 14 scope
+locks; each amendment shipped with its own runbook /
+manifest / boundary tests.
+
+- **Stage 28.9** (private live provider session adapter) --
+  narrow Stage 21 / Stage 27 bridge into the already-closed
+  Stage 28.6 bounded private session runner. No Stage 29
+  enforcement; no public / subscriber / paid routing; no
+  Telegram / X / social; no automated trading / wallet /
+  private-key logic.
+- **Stage 28.10** (Chainstack Yellowstone provider boundary)
+  -- protocol / fake / models surface only. No real provider
+  client; no `grpc` / `grpcio` / `protobuf` imports; no
+  generated `*_pb2.py` / `*_pb2_grpc.py` stubs; no real
+  network access; no Discord send.
+- **Stage 28.11** (Chainstack Yellowstone real gRPC client)
+  -- first PHX2 substage that opens a real provider channel.
+  Three locked modes (readiness-only, provider-connect-only,
+  one-event decode dry run). Satisfies the Stage 28.10 client
+  Protocol. The Stage 28.10 ban on generated `*_pb2.py` /
+  `*_pb2_grpc.py` stubs under `PHX2/stage28/` remains in
+  force; Stage 28.11 vendored the upstream rpcpool / Triton
+  One Yellowstone proto schema under
+  `PHX2/proto/stage28_11/source/` and the generated Python
+  stubs under `PHX2/proto/stage28_11/_generated/` at tag
+  `v13.1.0+solana.4.0.0` (commit SHA
+  `62893fb7644b1ceafd2f8d840f8e3997f44a483f`). Stage 28.11
+  does NOT invoke the Stage 28.9 wrapper; does NOT send
+  Discord; does NOT add Stage 29 enforcement; does NOT add
+  public / subscriber / paid / Telegram / X / social /
+  trading / wallet / dashboard / daemon surfaces; does NOT
+  move the `stage-28-closed` tag.
+
+Each amendment beyond Stage 28.10 requires separate explicit
+operator authorization; the Stage 28.11 runbook documents the
+live order (readiness-only -> provider-connect-only ->
+one-event decode dry run) and refuses any escalation to a
+Stage 28.9 dispatch wrapper from inside Stage 28.11. Such an
+escalation, if ever authorized, lands in a separately
+authorized Stage 28.12 substage.
