@@ -217,8 +217,41 @@ STAGE28_8_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.9 post-closure operational amendment: the private
+# live provider session adapter substage is authorized after
+# Stage 28 closure as a narrow operational bridge that wires
+# real provider-backed candidate events from the existing
+# Stage 21 / Stage 27 chain into the already-closed Stage 28.6
+# bounded private session runner. Stage 28.9 ships NO Stage 29
+# enforcement, NO public routing, NO subscriber routing, NO
+# paid tiers, NO Telegram, NO X / social, NO automated trading,
+# NO wallet / private-key logic, and NO movement of the
+# ``stage-28-closed`` tag.
+STAGE28_9_PRODUCTION_BASENAMES: tuple[str, ...] = (
+    "live_provider_session_models.py",
+    "live_provider_session_adapter.py",
+    "live_provider_session_transport.py",
+    "stage28_9_manifest.py",
+)
+
+
+STAGE28_9_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_9_PRIVATE_LIVE_PROVIDER_RUNBOOK.md",
+)
+
+
+STAGE28_9_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_9_live_provider_session_models.py",
+    "test_stage_28_9_live_provider_session_adapter.py",
+    "test_stage_28_9_live_provider_session_transport.py",
+    "test_stage_28_9_runbook.py",
+    "test_stage_28_9_boundaries.py",
+)
+
+
 # Union of every Stage 28 production / doc basename admitted
-# under ``PHX2/stage28/`` at Stage 28.8.
+# under ``PHX2/stage28/`` at Stage 28.8 + the Stage 28.9
+# post-closure operational amendment.
 STAGE28_ALL_PRODUCTION_BASENAMES: tuple[str, ...] = (
     STAGE28_0_PRODUCTION_BASENAMES
     + STAGE28_1_PRODUCTION_BASENAMES
@@ -232,6 +265,8 @@ STAGE28_ALL_PRODUCTION_BASENAMES: tuple[str, ...] = (
     + STAGE28_7_DOC_BASENAMES
     + STAGE28_8_PRODUCTION_BASENAMES
     + STAGE28_8_DOC_BASENAMES
+    + STAGE28_9_PRODUCTION_BASENAMES
+    + STAGE28_9_DOC_BASENAMES
 )
 
 
@@ -429,6 +464,9 @@ __all__ = (
     "STAGE28_8_DOC_BASENAMES",
     "STAGE28_8_PRODUCTION_BASENAMES",
     "STAGE28_8_TEST_BASENAMES",
+    "STAGE28_9_PRODUCTION_BASENAMES",
+    "STAGE28_9_DOC_BASENAMES",
+    "STAGE28_9_TEST_BASENAMES",
     "STAGE28_ALL_PRODUCTION_BASENAMES",
     "STAGE28_CLOSURE_EVIDENCE_BASENAMES",
     "STAGE28_FORBIDDEN_SURFACES",

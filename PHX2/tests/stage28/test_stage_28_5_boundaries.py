@@ -935,6 +935,30 @@ _STAGE_28_8_TEST_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 28.9 narrow amendment: the private live provider session
+# adapter substage is a post-Stage-28-closure operational bridge.
+_STAGE_28_9_PRODUCTION_PY_BASENAMES: tuple[str, ...] = (
+    "live_provider_session_models.py",
+    "live_provider_session_adapter.py",
+    "live_provider_session_transport.py",
+    "stage28_9_manifest.py",
+)
+
+
+_STAGE_28_9_DOC_BASENAMES: tuple[str, ...] = (
+    "STAGE_28_9_PRIVATE_LIVE_PROVIDER_RUNBOOK.md",
+)
+
+
+_STAGE_28_9_TEST_BASENAMES: tuple[str, ...] = (
+    "test_stage_28_9_live_provider_session_models.py",
+    "test_stage_28_9_live_provider_session_adapter.py",
+    "test_stage_28_9_live_provider_session_transport.py",
+    "test_stage_28_9_runbook.py",
+    "test_stage_28_9_boundaries.py",
+)
+
+
 def test_stage28_root_admits_only_28_0_through_28_5_surface():
     """At Stage 28.8 the ``PHX2/stage28`` tree must admit exactly
     the union of Stage 28.0 scaffold + Stage 28.1 production
@@ -980,6 +1004,8 @@ def test_stage28_root_admits_only_28_0_through_28_5_surface():
         _STAGE_28_7_DOC_BASENAMES
     ) | set(_STAGE_28_8_PRODUCTION_PY_BASENAMES) | set(
         _STAGE_28_8_DOC_BASENAMES
+    ) | set(_STAGE_28_9_PRODUCTION_PY_BASENAMES) | set(
+        _STAGE_28_9_DOC_BASENAMES
     )
     assert actual == expected, (
         f"PHX2/stage28 tree drift: expected={sorted(expected)!r} "
@@ -1021,7 +1047,7 @@ def test_tests_stage28_root_admits_only_28_0_through_28_5_tests():
         _STAGE_28_6_TEST_BASENAMES
     ) | set(_STAGE_28_7_TEST_BASENAMES) | set(
         _STAGE_28_8_TEST_BASENAMES
-    )
+    ) | set(_STAGE_28_9_TEST_BASENAMES)
     assert actual == expected, (
         f"PHX2/tests/stage28 drift: expected={sorted(expected)!r} "
         f"actual={sorted(actual)!r}"

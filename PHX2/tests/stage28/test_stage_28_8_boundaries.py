@@ -698,17 +698,47 @@ def test_stage_28_7_smoke_harness_declares_live_send_false_in_summary():
 
 
 # ---------------------------------------------------------------------------
-# 9. stage-28-closed tag must remain absent at Stage 28.8
+# 9. stage-28-closed annotated tag exists at Stage 28.8 commit
 # ---------------------------------------------------------------------------
 
 
-def test_stage_28_closed_tag_does_not_exist():
-    """The ``stage-28-closed`` tag must remain absent until the
-    operator explicitly creates it after reviewing the Stage
-    28.8 closure pass.
+# Locked Stage 28.8 closure commit SHA that the ``stage-28-closed``
+# annotated tag must peel to. Captured here so a downstream
+# reader does not have to re-derive it from git history.
+_STAGE_28_8_CLOSURE_COMMIT_SHA: str = (
+    "a897bb0531259bbe065efb3e38703a7c3be156c7"
+)
+
+
+def test_stage_28_closed_tag_exists_at_stage_28_8_commit():
+    """The ``stage-28-closed`` annotated tag must exist locally,
+    must be an annotated tag (object type ``tag``), and must
+    peel to the locked Stage 28.8 closure commit SHA.
+
+    The assertion was inverted from "tag must remain absent" to
+    "tag must exist at the locked Stage 28.8 commit" after the
+    operator explicitly created the annotated tag on the Stage
+    28.8 closure commit (post-Stage-28.8). The Stage 28.9
+    operational adapter substage runs against the already-closed
+    Stage 28 reliability core; the tag's existence is the
+    locked closure marker.
+
+    Implementation note: the locked Stage 28.8 boundary scan
+    ``test_no_stage_28_8_boundaries_uses_anything_other_than_git_tag_list``
+    pins that every ``subprocess.run`` call in this file must
+    use ``["git", "tag", "--list", ...]`` argv. The single
+    ``git tag --list --format=...`` call below satisfies the
+    operator's three required assertions (name / object type /
+    peeled SHA) without widening that allowlist.
     """
     result = subprocess.run(
-        ["git", "tag", "--list", "stage-28*"],
+        [
+            "git",
+            "tag",
+            "--list",
+            "--format=%(refname:short) %(objecttype) %(object)",
+            "stage-28-closed",
+        ],
         cwd=str(REPO_ROOT),
         capture_output=True,
         text=True,
@@ -717,8 +747,41 @@ def test_stage_28_closed_tag_does_not_exist():
     assert result.returncode == 0, (
         f"git tag --list failed: stderr={result.stderr!r}"
     )
-    tags = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    assert "stage-28-closed" not in tags, (
-        f"stage-28-closed tag must not exist at Stage 28.8; "
-        f"saw tags {tags!r}"
+    lines = [
+        line.strip()
+        for line in result.stdout.splitlines()
+        if line.strip()
+    ]
+    # 1. The tag must exist (one line, refname == stage-28-closed).
+    assert lines == [
+        f"stage-28-closed tag {_STAGE_28_8_CLOSURE_COMMIT_SHA}"
+    ] or (
+        len(lines) == 1
+        and lines[0].startswith("stage-28-closed ")
+    ), (
+        f"stage-28-closed tag must exist locally; saw stdout="
+        f"{result.stdout!r}"
+    )
+    fields = lines[0].split(" ")
+    assert len(fields) == 3, (
+        f"unexpected git tag --list format output: {lines[0]!r}"
+    )
+    refname, objecttype, peeled_sha = fields
+    # 1. git tag --list returns stage-28-closed.
+    assert refname == "stage-28-closed", (
+        f"expected refname stage-28-closed; saw {refname!r}"
+    )
+    # 2. git cat-file -t stage-28-closed equivalent: the object
+    #    type must be ``tag`` (annotated tag, not lightweight).
+    assert objecttype == "tag", (
+        f"stage-28-closed must be an annotated tag (object type "
+        f"'tag'); saw object type {objecttype!r}"
+    )
+    # 3. git rev-parse stage-28-closed^{} equivalent: the peeled
+    #    commit SHA must match the locked Stage 28.8 closure
+    #    commit.
+    assert peeled_sha == _STAGE_28_8_CLOSURE_COMMIT_SHA, (
+        f"stage-28-closed must peel to Stage 28.8 closure "
+        f"commit {_STAGE_28_8_CLOSURE_COMMIT_SHA!r}; saw peeled "
+        f"SHA {peeled_sha!r}"
     )

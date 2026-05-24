@@ -792,6 +792,38 @@ _STAGE_28_8_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+# Stage 28.9 narrow amendment: the private live provider session
+# adapter substage is a post-Stage-28-closure operational bridge.
+# It ships the inventory below. Stage 29+ implementation files
+# remain blocked.
+_STAGE_28_9_PRODUCTION_PY_BASENAMES: frozenset[str] = frozenset(
+    {
+        "live_provider_session_models.py",
+        "live_provider_session_adapter.py",
+        "live_provider_session_transport.py",
+        "stage28_9_manifest.py",
+    }
+)
+
+
+_STAGE_28_9_DOC_BASENAMES: frozenset[str] = frozenset(
+    {
+        "STAGE_28_9_PRIVATE_LIVE_PROVIDER_RUNBOOK.md",
+    }
+)
+
+
+_STAGE_28_9_TEST_BASENAMES: frozenset[str] = frozenset(
+    {
+        "test_stage_28_9_live_provider_session_models.py",
+        "test_stage_28_9_live_provider_session_adapter.py",
+        "test_stage_28_9_live_provider_session_transport.py",
+        "test_stage_28_9_runbook.py",
+        "test_stage_28_9_boundaries.py",
+    }
+)
+
+
 _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -810,6 +842,8 @@ _STAGE_28_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
     | _STAGE_28_7_DOC_BASENAMES
     | _STAGE_28_8_PRODUCTION_PY_BASENAMES
     | _STAGE_28_8_DOC_BASENAMES
+    | _STAGE_28_9_PRODUCTION_PY_BASENAMES
+    | _STAGE_28_9_DOC_BASENAMES
 )
 
 
@@ -829,6 +863,7 @@ _STAGE_28_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_28_6_TEST_BASENAMES
     | _STAGE_28_7_TEST_BASENAMES
     | _STAGE_28_8_TEST_BASENAMES
+    | _STAGE_28_9_TEST_BASENAMES
 )
 
 
@@ -961,14 +996,15 @@ def test_no_extra_python_module_under_stage28():
         | set(_STAGE_28_6_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_7_PRODUCTION_PY_BASENAMES)
         | set(_STAGE_28_8_PRODUCTION_PY_BASENAMES)
+        | set(_STAGE_28_9_PRODUCTION_PY_BASENAMES)
     )
     unexpected = actual_py - allowed_py
     assert not unexpected, (
         f"Stage 28 must not add new production .py modules beyond "
         f"the package marker and the Stage 28.1 + Stage 28.2 + "
         f"Stage 28.3a + Stage 28.3b + Stage 28.4 + Stage 28.5 + "
-        f"Stage 28.6 + Stage 28.7 + Stage 28.8 surface; "
-        f"unexpected files: {sorted(unexpected)}"
+        f"Stage 28.6 + Stage 28.7 + Stage 28.8 + Stage 28.9 "
+        f"surface; unexpected files: {sorted(unexpected)}"
     )
 
 
