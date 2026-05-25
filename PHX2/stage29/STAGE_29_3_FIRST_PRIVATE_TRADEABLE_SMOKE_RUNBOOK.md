@@ -315,3 +315,162 @@ the following holds:
 
 PHX2 replacing PHX1 does NOT imply Stage 29 enforcement
 activation. Enforcement activation remains separately authorized.
+
+---
+
+## 12. Controlled live smoke proof (Stage 29.3D — 2026-05-25)
+
+Stage 29.3D records a sanitized acceptance note for the first
+mode-3 ceremony to reach `DISPATCHED` end-to-end. No secret value
+(webhook URL, API key, endpoint URL, auth token, signature, or
+env-name-paired-with-value) appears in this section; the operator
+audit log carries the full per-ceremony details out of the repo.
+
+### 12.1 Ceremony label
+
+- **Date**: 2026-05-25
+- **HEAD at ceremony**: `df09d98` (`phx2 stage 29.3c: accept usd
+  price context for sol-pair render`)
+- **Scratch root**: out-of-repo operator path under
+  `phx2_scratch/stage29_3_live_smoke_retry_3/` (not committed)
+- **Mode invoked**: `ONE_REAL_PRIVATE_TRADEABLE_PING_DRY_RUN`
+- **Operator-supplied bounds**: `max_events=1`, `max_dispatches=1`,
+  `max_total_retries=0`, `max_messages_to_scan=100`, 5-minute
+  wall-clock safety timeout
+
+### 12.2 Acceptance outcome
+
+The mode-3 ceremony returned `DISPATCHED` on the first attempt
+after Stage 29.3A / 29.3B / 29.3C all landed. Safe counter
+projection from `stage29_3_tradeable_smoke_result.json`:
+
+| Axis | Recorded value |
+|---|---|
+| `tradeable_smoke_outcome` | `DISPATCHED` |
+| `tradeable_smoke_refusal_reason` | `NONE` |
+| `events_seen` | `1` |
+| `candidates_assembled` | `1` |
+| `candidates_dispatched` | `1` |
+| `candidates_suppressed` | `0` |
+| `dispatch_success` | `1` |
+| `dispatch_failure` | `0` |
+| `hint_bearing_payload_present` | `True` |
+| `filter_enforcement_status` | `NOT_ACTIVE_STAGE_29_PENDING` |
+| `redaction_status` | `SAFE` |
+
+Stage 28.9 companion counters from `stage28_9_health_snapshot.json`
++ `stage28_9_final_run_summary.json`:
+
+| Axis | Recorded value |
+|---|---|
+| `current_health_status` | `HEALTHY` |
+| `last_event_status` | `OBSERVED` |
+| `last_ping_status` | `RENDERED` |
+| `event_count` / `candidate_count` / `ping_rendered_count` / `dispatch_success_count` | each `1` |
+| `dispatch_failure_count` | `0` |
+| `unknown_pair_suppressed_count` | `0` |
+| `disagree_pair_suppressed_count` | `0` |
+| `usdc_observe_only_count` | `0` |
+| `missing_price_count` | `0` |
+| `stale_price_count` | `0` |
+| `retry_count` | `0` |
+| `provider_status` / `price_status` / `transport_status` / `dispatch_status` / `ledger_status` / `artifact_status` | each `OK` |
+| `redaction_status` | `SAFE` |
+
+`stage28_9_dispatch_ledger.jsonl` recorded the canonical
+`RESERVE -> PRE_SEND -> TERMINAL` triple for the single
+`PRIVATE_OPERATOR_OBSERVE` ping; the terminal record's
+`terminal_status` was `DISPATCHED_OK` with `failure_reason=null`.
+
+### 12.3 The three repairs verified together
+
+The controlled live smoke proves the following three Stage 29.3
+follow-up commits work in concert end-to-end against a real
+Chainstack Yellowstone gRPC stream + a real Birdeye HTTP
+endpoint + the operator's private operator Discord webhook:
+
+1. **Stage 29.3A — scan-budget semantics** (`731a781`):
+   `Stage29_3HintAwareChainstackEventSource.iter_events` now lets
+   `max_messages_to_scan` control upstream provider messages
+   scanned independently of `max_events`. The retry_3 ceremony's
+   `max_messages_to_scan=100` is therefore honoured; pre-29.3A
+   it was capped at `min(max_events, max_messages_to_scan) = 1`.
+
+2. **Stage 29.3B — pair-hint forwarding** (`f73de0b`):
+   `Stage28_9DefaultCandidateAssembler.assemble` forwards
+   `pool_account` / `pool_program_id` / `base_mint` / `quote_mint`
+   / `bonding_curve_program_id` / `bonding_curve_version_hint` /
+   `provider_quote_asset_hint` / `provider_pair_type_hint` /
+   `provider_bonding_curve_version_hint` from the Stage 28.10
+   `NormalizedEvent` into the Stage 27.3 ingest input. The
+   ceremony's `pair_quote_asset=SOL` /
+   `pair_detection_status=CONFIRMED` resolution on the dispatch
+   ledger key proves the hint quartet reached the classifier.
+
+3. **Stage 29.3C — USD price context for SOL-pair render** (`df09d98`):
+   Stage 27.4 `build_price_context_record` admits
+   `PRICE_UNIT_USD` on a SOL or USDC pair, mirroring the
+   pre-existing `ATH_UNIT_USD` exception in
+   `build_ath_context_record`. Pair lane is unchanged (SOL stays
+   SOL; USDC stays USDC); only the display unit is USD. The
+   ceremony's `missing_price_count=0` /
+   `unknown_pair_suppressed_count=0` /
+   `last_ping_status=RENDERED` counters prove the USD-denominated
+   Birdeye snapshot rendered cleanly through the SOL-lane chain
+   instead of falling through the previous
+   `RENDERED_UNSUPPORTED` defensive branch to
+   `SUPPRESSED_UNKNOWN_PAIR`.
+
+### 12.4 Redaction scan
+
+The orchestrator-emitted `stage29_3_redaction_scan.json` reported
+`redaction_status: SAFE` with empty `hits_by_file`. An independent
+cross-cutting scan of all eight retry_3 artifact files against
+seventeen forbidden needles (the four canonical Stage 28.11
+endpoint / x-token-shaped literals; the four canonical Stage
+29.2 API-key / base-url-shaped literals; the operator-private
+webhook URL string; the Discord webhooks path prefix; the four
+canonical header literals; the two `sk-live-` / `sk-test-` API
+key prefixes; the five canonical `*_KEY=` / `*_TOKEN=` / `*_URL=`
+env literals) reported zero hits across every file. Both scans
+agree: `SAFE`.
+
+### 12.5 Scope confirmations
+
+- No Stage 26 policy enforcement was activated; the smoke result
+  carries `filter_enforcement_status=NOT_ACTIVE_STAGE_29_PENDING`.
+- Audience: private operator only (single
+  `PRIVATE_OPERATOR_OBSERVE` ping_type recorded in the dispatch
+  ledger).
+- No public routing was invoked.
+- No subscriber routing was invoked.
+- No paid-tier routing was invoked.
+- No Telegram send was invoked.
+- No X / social send was invoked.
+- No automated trading was invoked.
+- No wallet / private-key / signer surface was loaded.
+- No additional retry was performed after the terminal
+  `DISPATCHED` verdict; the operator's "do not retry
+  automatically" standing instruction was honoured.
+
+### 12.6 Known caveat (artifact projection — deferred)
+
+`stage29_3_extracted_hints.json` and
+`stage29_3_birdeye_evidence.json` still show the safe-shape
+`NO_EXTRACTION` / `MISSING` projections respectively, because
+the mode-3 orchestrator passes `extraction=None` /
+`price_snapshot=None` / `ath_snapshot=None` to the artifact
+writer (the per-event hint extraction result and the Birdeye
+price / ATH snapshots are consumed inside
+`Stage29_3HintAwareChainstackEventSource` and the Stage 27.4
+reader respectively, and not threaded back out to the
+orchestrator's artifact-write seam). The chain's authoritative
+proof of having resolved both hint axes and price / ATH axes is
+the Stage 28.9 health snapshot (`last_event_status=OBSERVED`,
+`last_ping_status=RENDERED`, `missing_price_count=0`,
+`unknown_pair_suppressed_count=0`) plus the dispatch ledger's
+`DISPATCHED_OK` terminal record — none of which would be
+producible if hint extraction or price / ATH resolution had
+failed. Threading the live extraction + Birdeye evidence back
+onto the mode-3 acceptance artifacts is a future cleanup
+substage and remains operator-gated.
