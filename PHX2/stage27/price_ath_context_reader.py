@@ -130,6 +130,7 @@ from PHX2.stage27.price_ath_context_models import (
     PRICE_STATUS_UNSUPPORTED_PAIR,
     PRICE_UNIT_SOL,
     PRICE_UNIT_UNKNOWN,
+    PRICE_UNIT_USD,
     PRICE_UNIT_USDC,
     PRICE_UNIT_VALUES,
     PriceContextRecord,
@@ -535,13 +536,18 @@ def build_price_context_record(
     # Locked: USDC measurement lane must stay USDC; never converted
     # into SOL-lane assumptions. A SOL-pair snapshot reporting a
     # USDC unit (or vice versa) is rejected as an unsupported quote
-    # asset.
+    # asset. ``PRICE_UNIT_USD`` is admitted on any pair as a Birdeye-
+    # compatible display unit -- SOL pair stays a SOL pair (the
+    # ``quote_asset`` field is unchanged); only the display unit is
+    # USD. The Stage 27.4 ATH path already admits ``ATH_UNIT_USD``
+    # the same way.
     expected_unit = _expected_unit_for_quote_asset(
         ingest_output.pair_quote_asset
     )
     if (
         expected_unit != PRICE_UNIT_UNKNOWN
         and snapshot.price_unit != expected_unit
+        and snapshot.price_unit != PRICE_UNIT_USD
     ):
         return PriceContextRecord(
             token_mint=ingest_output.token_mint,

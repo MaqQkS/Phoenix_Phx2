@@ -24,6 +24,7 @@ Pins:
 from __future__ import annotations
 
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Optional
 
@@ -263,7 +264,11 @@ class _FakeBirdeyeHttpTransport:
             refusal_reason=BIRDEYE_REFUSAL_REASON_NONE,
             http_status_code=200,
             body=body if body is not None else None,
-            fetched_at_utc="2026-05-25T03:13:25+00:00",
+            # Use wall-clock now so the Stage 27.4 staleness gate
+            # (300 s default) does not trip on the fake's fixed
+            # date. Stage 29.2's real transport stamps fetch time
+            # at call time too, so this matches realistic behavior.
+            fetched_at_utc=datetime.now(timezone.utc).isoformat(),
         )
 
 
@@ -288,7 +293,7 @@ class _FakeBirdeyeHttpTransportFailing:
             refusal_reason="HTTP_FAILED",
             http_status_code=0,
             body=None,
-            fetched_at_utc="2026-05-25T03:13:25+00:00",
+            fetched_at_utc=datetime.now(timezone.utc).isoformat(),
         )
 
 
@@ -655,29 +660,29 @@ def test_mode3_cap_5_events_at_most_1_dispatch():
     assert result.dispatch_success + result.dispatch_failure <= 1
     # 4. candidates_dispatched <= 1.
     assert result.candidates_dispatched <= 1
-    # 5. The outcome is one of the closed-set Stage 29.3 outcomes
-    #    and refusal_reason consistency holds (validation already
-    #    enforces this in the dataclass __post_init__).
-    # 6. If DISPATCHED, transport call count is exactly 1;
-    #    if SUPPRESSED_*, transport call count is exactly 0.
-    # NOTE: Stage 29.3B fixed the hint-forwarding seam (the Stage
-    # 27.2 classifier now resolves PUMP_SOL on this fake stream),
-    # but the orchestrator test still admits SUPPRESSED_UNKNOWN_PAIR
-    # as an outcome because Stage 27.5 / 27.4 currently emit
-    # RENDERED_UNSUPPORTED for the USD-priced Birdeye snapshot on a
-    # SOL pair, which the Stage 27.6 assembler maps via its
-    # defensive fallback to SUPPRESSED_UNKNOWN_PAIR. That downstream
-    # defect is out of Stage 29.3B's scope; tightening this
-    # assertion would require a separate Stage 29.3C / Stage 27.4
-    # USD-pair patch.
-    if (
+    # 5. With Stage 29.3B hint forwarding (PUMP_SOL CONFIRMED) and
+    #    Stage 29.3C USD-on-SOL price/ATH compatibility, the
+    #    hint-bearing fake PumpSwap stream MUST reach DISPATCHED,
+    #    NOT SUPPRESSED_UNKNOWN_PAIR. The earlier "either branch"
+    #    admission has been removed: a SUPPRESSED_UNKNOWN_PAIR
+    #    outcome on this fake stream would mean the Birdeye USD
+    #    display unit was silently rejected on a SOL pair, which
+    #    Stage 29.3C explicitly forbids.
+    assert (
         result.tradeable_smoke_outcome
         == TRADEABLE_SMOKE_OUTCOME_DISPATCHED
-    ):
-        assert fake_discord.call_count == 1
-        assert result.dispatch_success == 1
-    else:
-        assert fake_discord.call_count == 0
+    ), (
+        "Stage 29.3C: hint-bearing fake PumpSwap stream with "
+        "Birdeye USD price/ATH on a SOL pair must reach "
+        "DISPATCHED, not "
+        f"{result.tradeable_smoke_outcome!r}"
+    )
+    assert fake_discord.call_count == 1
+    assert result.dispatch_success == 1
+    assert (
+        result.tradeable_smoke_refusal_reason
+        == TRADEABLE_SMOKE_REFUSAL_REASON_NONE
+    )
 
 
 def test_mode3_no_event_received_no_dispatch():

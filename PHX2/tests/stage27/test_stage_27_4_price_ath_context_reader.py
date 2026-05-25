@@ -456,6 +456,116 @@ def test_price_context_sol_pair_with_usdc_unit_rejected():
 
 
 # ---------------------------------------------------------------------------
+# Stage 29.3C: USD price/ATH unit compatibility for SOL pair
+# ---------------------------------------------------------------------------
+#
+# Birdeye returns price/ATH in USD by default. Stage 27.4 admits
+# ``PRICE_UNIT_USD`` / ``ATH_UNIT_USD`` on a SOL pair as a Birdeye-
+# compatible display unit. The pair's ``quote_asset`` stays SOL;
+# only the display unit is USD. USDC and SOL units must still be
+# routed through their own lanes; UNKNOWN / DISAGREE pairs stay
+# suppressed regardless of unit.
+
+
+def test_price_context_sol_pair_with_usd_unit_present():
+    """SOL pair + Birdeye-style USD price unit MUST render as
+    PRESENT, with ``quote_asset`` staying SOL (no silent promotion
+    of the pair lane into USDC / UNKNOWN). The display unit stays
+    USD; only the lane stays SOL.
+    """
+    ingest = _ingest_output_sol_confirmed()
+    snapshot = reader.PriceSourceSnapshot(
+        price_value="0.000036",
+        price_unit=m.PRICE_UNIT_USD,
+        source_label="birdeye_defi_price",
+        fetched_at_utc="2026-05-22T12:00:25+00:00",
+    )
+    record = reader.build_price_context_record(
+        snapshot, ingest, clock=_frozen_clock(),
+        staleness_threshold_seconds=60,
+    )
+    assert record.price_status == m.PRICE_STATUS_PRESENT
+    assert record.price_reason == m.PRICE_REASON_OK
+    assert record.price_value == "0.000036"
+    assert record.price_unit == m.PRICE_UNIT_USD
+    # Pair lane is unchanged -- SOL stays SOL.
+    assert record.quote_asset == QUOTE_ASSET_SOL
+    assert record.pair_type == PAIR_TYPE_PUMP_SOL
+
+
+def test_price_context_unknown_pair_with_usd_unit_still_suppressed():
+    """UNKNOWN pair MUST stay UNSUPPORTED regardless of the
+    upstream display unit. USD does NOT unlock UNKNOWN pairs.
+    """
+    ingest = _ingest_output_unknown_pair()
+    snapshot = reader.PriceSourceSnapshot(
+        price_value="0.000036",
+        price_unit=m.PRICE_UNIT_USD,
+        source_label="birdeye_defi_price",
+        fetched_at_utc="2026-05-22T12:00:25+00:00",
+    )
+    record = reader.build_price_context_record(
+        snapshot, ingest, clock=_frozen_clock(),
+        staleness_threshold_seconds=60,
+    )
+    assert record.price_status == m.PRICE_STATUS_UNSUPPORTED_PAIR
+    assert (
+        record.price_reason
+        == m.PRICE_REASON_UNKNOWN_PAIR_OBSERVE_ONLY
+    )
+    assert record.price_value is None
+    assert record.quote_asset == QUOTE_ASSET_UNKNOWN
+
+
+def test_price_context_disagree_pair_with_usd_unit_still_suppressed():
+    """DISAGREE pair MUST stay UNSUPPORTED regardless of the
+    upstream display unit. USD does NOT unlock DISAGREE pairs.
+    """
+    ingest = _ingest_output_disagree_pair()
+    snapshot = reader.PriceSourceSnapshot(
+        price_value="0.000036",
+        price_unit=m.PRICE_UNIT_USD,
+        source_label="birdeye_defi_price",
+        fetched_at_utc="2026-05-22T12:00:25+00:00",
+    )
+    record = reader.build_price_context_record(
+        snapshot, ingest, clock=_frozen_clock(),
+        staleness_threshold_seconds=60,
+    )
+    assert record.price_status == m.PRICE_STATUS_UNSUPPORTED_PAIR
+    assert (
+        record.price_reason
+        == m.PRICE_REASON_DISAGREE_PAIR_OBSERVE_ONLY
+    )
+
+
+def test_price_context_usdc_pair_with_usd_unit_stays_observe_only():
+    """USDC pair with USD display unit MUST stay USDC observe-only.
+
+    USD is admitted on the USDC pair (since Birdeye reports USD for
+    every pair) but the lane stays USDC -- the price is NOT silently
+    promoted into the SOL calibration lane.
+    """
+    ingest = _ingest_output_usdc_confirmed()
+    snapshot = reader.PriceSourceSnapshot(
+        price_value="0.000036",
+        price_unit=m.PRICE_UNIT_USD,
+        source_label="birdeye_defi_price",
+        fetched_at_utc="2026-05-22T12:00:25+00:00",
+    )
+    record = reader.build_price_context_record(
+        snapshot, ingest, clock=_frozen_clock(),
+        staleness_threshold_seconds=60,
+    )
+    assert record.price_status == m.PRICE_STATUS_PRESENT
+    assert record.price_reason == m.PRICE_REASON_USDC_OBSERVE_ONLY
+    assert record.price_unit == m.PRICE_UNIT_USD
+    # USDC lane must NEVER be silently promoted into SOL.
+    assert record.quote_asset == QUOTE_ASSET_USDC
+    assert record.pair_type == PAIR_TYPE_PUMP_USDC
+
+
+# ---------------------------------------------------------------------------
 # ATH context: PRESENT (POST_MIGRATION_ONLY)
 # ---------------------------------------------------------------------------
 
