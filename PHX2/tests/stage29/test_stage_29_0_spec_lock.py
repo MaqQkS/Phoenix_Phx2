@@ -711,11 +711,35 @@ _STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES: frozenset[
 )
 
 
+# Stage 29.2 Birdeye price / ATH adapter (authorized 2026-05-25).
+# Stage 29.0 spec-lock narrow amendment widens the Stage-29-tree
+# allowlist to admit the Stage 29.2 inventory while continuing
+# to block Stage 29.3 implementation files + Pump.fun
+# bonding-curve.
+_STAGE_29_2_BIRDEYE_ALLOWED_PRODUCTION_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "birdeye_constants.py",
+        "stage29_2_birdeye_models.py",
+        "stage29_2_birdeye_readiness.py",
+        "stage29_2_birdeye_http_transport.py",
+        "stage29_2_birdeye_price_source.py",
+        "stage29_2_birdeye_ath_source.py",
+        "stage29_2_birdeye_probe_models.py",
+        "stage29_2_birdeye_probe.py",
+        "stage29_2_manifest.py",
+        "STAGE_29_2_BIRDEYE_PRICE_ATH_RUNBOOK.md",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     str
 ] = (
     _STAGE_29_0_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES
+    | _STAGE_29_2_BIRDEYE_ALLOWED_PRODUCTION_ENTRIES
 )
 
 
@@ -746,9 +770,28 @@ _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES: frozenset[str] = (
 )
 
 
+_STAGE_29_2_BIRDEYE_ALLOWED_TEST_ENTRIES: frozenset[str] = (
+    frozenset(
+        {
+            "test_stage_29_2_birdeye_constants.py",
+            "test_stage_29_2_birdeye_models.py",
+            "test_stage_29_2_birdeye_readiness.py",
+            "test_stage_29_2_birdeye_http_transport.py",
+            "test_stage_29_2_birdeye_price_source.py",
+            "test_stage_29_2_birdeye_ath_source.py",
+            "test_stage_29_2_birdeye_probe_models.py",
+            "test_stage_29_2_birdeye_probe.py",
+            "test_stage_29_2_runbook.py",
+            "test_stage_29_2_boundaries.py",
+        }
+    )
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_ENTRIES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES
+    | _STAGE_29_2_BIRDEYE_ALLOWED_TEST_ENTRIES
 )
 
 
@@ -803,9 +846,10 @@ def test_tests_stage29_root_admits_only_29_0_test_files():
 
 def test_no_python_module_under_stage29_beyond_init():
     """Stage 29.0 scaffold ships only ``__init__.py`` as a .py
-    module. Stage 29.1 PumpSwap-only narrow amendment widens
-    this to admit the Stage 29.1 hint-extractor production .py
-    set; Stage 29.2 / 29.3 production .py files remain blocked.
+    module. Stage 29.1 PumpSwap-only + Stage 29.2 Birdeye
+    narrow amendments widen this to admit the Stage 29.1 hint-
+    extractor + Stage 29.2 Birdeye adapter production .py sets;
+    Stage 29.3 production .py files remain blocked.
     """
     actual_py = {
         p.name
@@ -817,12 +861,18 @@ def test_no_python_module_under_stage29_beyond_init():
         for name
         in _STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES
         if name.endswith(".py")
+    } | {
+        name
+        for name
+        in _STAGE_29_2_BIRDEYE_ALLOWED_PRODUCTION_ENTRIES
+        if name.endswith(".py")
     }
     unexpected = actual_py - allowed_py
     assert not unexpected, (
-        f"Stage 29.0 scaffold + Stage 29.1 PumpSwap-only tree "
-        f"are the only authorized Stage 29 production .py "
-        f"modules; unexpected files: {sorted(unexpected)}"
+        f"Stage 29.0 scaffold + Stage 29.1 PumpSwap-only + "
+        f"Stage 29.2 Birdeye trees are the only authorized "
+        f"Stage 29 production .py modules; unexpected files: "
+        f"{sorted(unexpected)}"
     )
 
 
@@ -837,11 +887,16 @@ _FORBIDDEN_STAGE_29_1_PLUS_BASENAMES: tuple[str, ...] = (
     "instruction_decoder.py",
     "pump_fun_bonding_curve_decoder.py",
     "bonding_curve_program_constants.py",
-    # Stage 29.2 — Birdeye adapter implementation.
+    # Stage 29.2 — alternative naming (the authorized Birdeye
+    # tree uses the ``stage29_2_birdeye_*.py`` prefix-pinned
+    # convention; these bare basenames are blocked so a future
+    # change cannot silently shift to the unprefixed naming).
+    # Stage 29.2 was authorized 2026-05-25; the canonical
+    # ``stage29_2_manifest.py`` basename has been moved into the
+    # allowlist above.
     "birdeye_price_source.py",
     "birdeye_ath_source.py",
     "birdeye_readiness.py",
-    "stage29_2_manifest.py",
     # Stage 29.3 — tradeable smoke harness.
     "tradeable_smoke_harness.py",
     "stage29_3_manifest.py",

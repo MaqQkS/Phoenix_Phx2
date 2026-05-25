@@ -376,9 +376,32 @@ _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES: frozenset[str] = (
 )
 
 
+# Stage 29.2 Birdeye price / ATH adapter (authorized 2026-05-25).
+# Stage 28.10 narrow amendment widens the Stage-29-tree allowlist
+# to admit the Stage 29.2 inventory while continuing to block
+# Stage 29.3 implementation files + Pump.fun bonding-curve.
+_STAGE_29_2_BIRDEYE_ALLOWED_PROD_BASENAMES: frozenset[str] = (
+    frozenset(
+        {
+            "birdeye_constants.py",
+            "stage29_2_birdeye_models.py",
+            "stage29_2_birdeye_readiness.py",
+            "stage29_2_birdeye_http_transport.py",
+            "stage29_2_birdeye_price_source.py",
+            "stage29_2_birdeye_ath_source.py",
+            "stage29_2_birdeye_probe_models.py",
+            "stage29_2_birdeye_probe.py",
+            "stage29_2_manifest.py",
+            "STAGE_29_2_BIRDEYE_PRICE_ATH_RUNBOOK.md",
+        }
+    )
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_2_BIRDEYE_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -404,9 +427,28 @@ _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES: frozenset[str] = (
 )
 
 
+_STAGE_29_2_BIRDEYE_ALLOWED_TEST_BASENAMES: frozenset[str] = (
+    frozenset(
+        {
+            "test_stage_29_2_birdeye_constants.py",
+            "test_stage_29_2_birdeye_models.py",
+            "test_stage_29_2_birdeye_readiness.py",
+            "test_stage_29_2_birdeye_http_transport.py",
+            "test_stage_29_2_birdeye_price_source.py",
+            "test_stage_29_2_birdeye_ath_source.py",
+            "test_stage_29_2_birdeye_probe_models.py",
+            "test_stage_29_2_birdeye_probe.py",
+            "test_stage_29_2_runbook.py",
+            "test_stage_29_2_boundaries.py",
+        }
+    )
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_2_BIRDEYE_ALLOWED_TEST_BASENAMES
 )
 
 
