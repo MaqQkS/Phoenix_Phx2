@@ -688,6 +688,37 @@ _STAGE_29_0_ALLOWED_PRODUCTION_ENTRIES: frozenset[str] = (
 )
 
 
+# Stage 29.1 PumpSwap-only narrow amendment (authorized after
+# Stage 29.0): the Stage 29.1 hint-extractor tree may ship
+# alongside the Stage 29.0 scaffold. Stage 29.2 / 29.3
+# implementation files AND Pump.fun bonding-curve files remain
+# blocked. The Stage 29.0 SPEC DOC itself is NOT edited at Stage
+# 29.1; only this enclosing test file widens its inventory
+# allowlist.
+_STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "pumpswap_program_constants.py",
+        "pumpswap_hint_models.py",
+        "pumpswap_hint_extractor.py",
+        "pumpswap_hint_aware_decoder.py",
+        "stage29_1_hint_probe_models.py",
+        "stage29_1_pumpswap_hint_probe.py",
+        "stage29_1_manifest.py",
+        "STAGE_29_1_PUMPSWAP_HINT_EXTRACTOR_RUNBOOK.md",
+    }
+)
+
+
+_STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
+    str
+] = (
+    _STAGE_29_0_ALLOWED_PRODUCTION_ENTRIES
+    | _STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES
+)
+
+
 _STAGE_29_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     frozenset(
         {
@@ -698,18 +729,46 @@ _STAGE_29_0_ALLOWED_TEST_ENTRIES: frozenset[str] = (
 )
 
 
+_STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES: frozenset[str] = (
+    frozenset(
+        {
+            "test_stage_29_1_pumpswap_program_constants.py",
+            "test_stage_29_1_pumpswap_hint_models.py",
+            "test_stage_29_1_pumpswap_hint_extractor.py",
+            "test_stage_29_1_pumpswap_hint_aware_decoder.py",
+            "test_stage_29_1_hint_probe_models.py",
+            "test_stage_29_1_pumpswap_hint_probe.py",
+            "test_stage_29_1_runbook.py",
+            "test_stage_29_1_boundaries.py",
+            "test_stage_29_1_vendored_idl.py",
+        }
+    )
+)
+
+
+_STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
+    _STAGE_29_0_ALLOWED_TEST_ENTRIES
+    | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES
+)
+
+
 def test_stage29_root_admits_only_29_0_scaffold():
     actual: set[str] = set()
     for entry in STAGE29_ROOT.iterdir():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    forbidden = actual - _STAGE_29_0_ALLOWED_PRODUCTION_ENTRIES
+    forbidden = (
+        actual
+        - _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES
+    )
     assert not forbidden, (
-        f"PHX2/stage29 admits only the Stage 29.0 scaffold "
-        f"({sorted(_STAGE_29_0_ALLOWED_PRODUCTION_ENTRIES)!r}); "
-        f"Stage 29.1+ implementation files remain blocked. "
-        f"Forbidden entries found: {sorted(forbidden)!r}"
+        f"PHX2/stage29 admits only the Stage 29.0 scaffold + "
+        f"Stage 29.1 PumpSwap-only tree "
+        f"({sorted(_STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES)!r}); "
+        f"Stage 29.2 / 29.3 implementation files + Pump.fun "
+        f"bonding-curve files remain blocked. Forbidden "
+        f"entries found: {sorted(forbidden)!r}"
     )
     missing = _STAGE_29_0_ALLOWED_PRODUCTION_ENTRIES - actual
     assert not missing, (
@@ -724,12 +783,16 @@ def test_tests_stage29_root_admits_only_29_0_test_files():
         if entry.is_dir() and entry.name == "__pycache__":
             continue
         actual.add(entry.name)
-    forbidden = actual - _STAGE_29_0_ALLOWED_TEST_ENTRIES
+    forbidden = (
+        actual - _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES
+    )
     assert not forbidden, (
-        f"PHX2/tests/stage29 admits only the Stage 29.0 test "
-        f"set ({sorted(_STAGE_29_0_ALLOWED_TEST_ENTRIES)!r}); "
-        f"Stage 29.1+ test files remain blocked. Forbidden "
-        f"entries found: {sorted(forbidden)!r}"
+        f"PHX2/tests/stage29 admits only the Stage 29.0 tests + "
+        f"Stage 29.1 PumpSwap-only tests "
+        f"({sorted(_STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES)!r}); "
+        f"Stage 29.2 / 29.3 test files + Pump.fun bonding-curve "
+        f"test files remain blocked. Forbidden entries found: "
+        f"{sorted(forbidden)!r}"
     )
     missing = _STAGE_29_0_ALLOWED_TEST_ENTRIES - actual
     assert not missing, (
@@ -739,30 +802,41 @@ def test_tests_stage29_root_admits_only_29_0_test_files():
 
 
 def test_no_python_module_under_stage29_beyond_init():
-    """Stage 29.0 ships no Python production module beyond the
-    package marker. Stage 29.1+ production .py files remain
-    blocked.
+    """Stage 29.0 scaffold ships only ``__init__.py`` as a .py
+    module. Stage 29.1 PumpSwap-only narrow amendment widens
+    this to admit the Stage 29.1 hint-extractor production .py
+    set; Stage 29.2 / 29.3 production .py files remain blocked.
     """
     actual_py = {
         p.name
         for p in STAGE29_ROOT.iterdir()
         if p.is_file() and p.suffix == ".py"
     }
-    allowed_py = {"__init__.py"}
+    allowed_py = {"__init__.py"} | {
+        name
+        for name
+        in _STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES
+        if name.endswith(".py")
+    }
     unexpected = actual_py - allowed_py
     assert not unexpected, (
-        f"Stage 29.0 must ship no production .py modules "
-        f"beyond the package marker; unexpected files: "
-        f"{sorted(unexpected)}"
+        f"Stage 29.0 scaffold + Stage 29.1 PumpSwap-only tree "
+        f"are the only authorized Stage 29 production .py "
+        f"modules; unexpected files: {sorted(unexpected)}"
     )
 
 
 _FORBIDDEN_STAGE_29_1_PLUS_BASENAMES: tuple[str, ...] = (
-    # Stage 29.1 — hint extractor implementation.
+    # Stage 29.1 — alternative naming (the authorized PumpSwap-
+    # only tree uses ``pumpswap_hint_extractor.py`` /
+    # ``stage29_1_manifest.py`` etc.; the legacy generic
+    # ``pump_hint_extractor.py`` / ``instruction_decoder.py``
+    # names remain blocked because they would imply Pump.fun
+    # bonding-curve coverage, which is deferred).
     "pump_hint_extractor.py",
-    "pumpswap_hint_extractor.py",
     "instruction_decoder.py",
-    "stage29_1_manifest.py",
+    "pump_fun_bonding_curve_decoder.py",
+    "bonding_curve_program_constants.py",
     # Stage 29.2 — Birdeye adapter implementation.
     "birdeye_price_source.py",
     "birdeye_ath_source.py",

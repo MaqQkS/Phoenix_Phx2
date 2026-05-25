@@ -526,11 +526,36 @@ def test_no_stage_28_11_production_imports_stage_29():
 
 
 # Stage 29.0 narrow amendment: allow ``PHX2/stage29/`` to exist
-# iff it contains only the Stage 29.0 scaffold (package marker +
-# spec-lock doc). Stage 29.1+ implementation files remain blocked
-# from Stage 28.11.
+# iff it contains the Stage 29.0 scaffold (package marker +
+# spec-lock doc).
+# Stage 29.1 PumpSwap-only narrow amendment (authorized): also
+# admit the Stage 29.1 PumpSwap-only hint-extractor tree. Stage
+# 29.2 / 29.3 implementation files AND any Pump.fun
+# bonding-curve files remain blocked from Stage 28.11.
 _STAGE_29_0_ALLOWED_PROD_BASENAMES: frozenset[str] = frozenset(
     {"__init__.py", "STAGE_29_0_SPEC_LOCK.md"}
+)
+
+
+_STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES: frozenset[str] = (
+    frozenset(
+        {
+            "pumpswap_program_constants.py",
+            "pumpswap_hint_models.py",
+            "pumpswap_hint_extractor.py",
+            "pumpswap_hint_aware_decoder.py",
+            "stage29_1_hint_probe_models.py",
+            "stage29_1_pumpswap_hint_probe.py",
+            "stage29_1_manifest.py",
+            "STAGE_29_1_PUMPSWAP_HINT_EXTRACTOR_RUNBOOK.md",
+        }
+    )
+)
+
+
+_STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
+    _STAGE_29_0_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -539,10 +564,36 @@ _STAGE_29_0_ALLOWED_TEST_BASENAMES: frozenset[str] = frozenset(
 )
 
 
+_STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES: frozenset[str] = (
+    frozenset(
+        {
+            "test_stage_29_1_pumpswap_program_constants.py",
+            "test_stage_29_1_pumpswap_hint_models.py",
+            "test_stage_29_1_pumpswap_hint_extractor.py",
+            "test_stage_29_1_pumpswap_hint_aware_decoder.py",
+            "test_stage_29_1_hint_probe_models.py",
+            "test_stage_29_1_pumpswap_hint_probe.py",
+            "test_stage_29_1_runbook.py",
+            "test_stage_29_1_boundaries.py",
+            "test_stage_29_1_vendored_idl.py",
+        }
+    )
+)
+
+
+_STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
+    _STAGE_29_0_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
+)
+
+
 def test_no_stage29_implementation_tree_exists():
-    # Stage 29.0 narrow amendment: PHX2/stage29/ may exist iff
-    # it ships only the Stage 29.0 scaffold. Stage 29.1+
-    # implementation files remain blocked from Stage 28.11.
+    # Stage 29.0 + Stage 29.1 PumpSwap-only narrow amendment:
+    # PHX2/stage29/ may exist iff it ships only the Stage 29.0
+    # scaffold AND the Stage 29.1 PumpSwap-only hint-extractor
+    # tree. Stage 29.2 / 29.3 implementation files AND any
+    # Pump.fun bonding-curve files remain blocked from Stage
+    # 28.11.
     if not STAGE29_ROOT.exists():
         return
     actual = {
@@ -550,21 +601,27 @@ def test_no_stage29_implementation_tree_exists():
         for entry in STAGE29_ROOT.iterdir()
         if not (entry.is_dir() and entry.name == "__pycache__")
     }
-    forbidden = actual - _STAGE_29_0_ALLOWED_PROD_BASENAMES
+    forbidden = (
+        actual - _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES
+    )
     assert not forbidden, (
         f"Stage 28.11 narrow amendment: PHX2/stage29 admits "
-        f"only the Stage 29.0 scaffold "
-        f"({sorted(_STAGE_29_0_ALLOWED_PROD_BASENAMES)!r}); "
-        f"Stage 29.1+ files remain blocked. Forbidden entries: "
+        f"only the Stage 29.0 scaffold + Stage 29.1 PumpSwap-"
+        f"only tree "
+        f"({sorted(_STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES)!r}); "
+        f"Stage 29.2 / 29.3 files + Pump.fun bonding-curve "
+        f"files remain blocked. Forbidden entries: "
         f"{sorted(forbidden)!r}"
     )
 
 
 def test_no_stage29_tests_tree_exists():
-    # Stage 29.0 narrow amendment: PHX2/tests/stage29/ may exist
-    # iff it ships only the Stage 29.0 tests package marker and
-    # the Stage 29.0 spec-lock test file. Stage 29.1+ test files
-    # remain blocked from Stage 28.11.
+    # Stage 29.0 + Stage 29.1 PumpSwap-only narrow amendment:
+    # PHX2/tests/stage29/ may exist iff it ships only the Stage
+    # 29.0 tests package marker, the Stage 29.0 spec-lock test,
+    # and the Stage 29.1 PumpSwap-only test set. Stage 29.2 /
+    # 29.3 test files + Pump.fun bonding-curve test files
+    # remain blocked.
     tests_stage29 = PHX2_ROOT / "tests" / "stage29"
     if not tests_stage29.exists():
         return
@@ -573,13 +630,17 @@ def test_no_stage29_tests_tree_exists():
         for entry in tests_stage29.iterdir()
         if not (entry.is_dir() and entry.name == "__pycache__")
     }
-    forbidden = actual - _STAGE_29_0_ALLOWED_TEST_BASENAMES
+    forbidden = (
+        actual - _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES
+    )
     assert not forbidden, (
         f"Stage 28.11 narrow amendment: PHX2/tests/stage29 "
-        f"admits only the Stage 29.0 tests "
-        f"({sorted(_STAGE_29_0_ALLOWED_TEST_BASENAMES)!r}); "
-        f"Stage 29.1+ test files remain blocked. Forbidden "
-        f"entries: {sorted(forbidden)!r}"
+        f"admits only the Stage 29.0 tests + Stage 29.1 "
+        f"PumpSwap-only tests "
+        f"({sorted(_STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES)!r}); "
+        f"Stage 29.2 / 29.3 test files + Pump.fun bonding-curve "
+        f"test files remain blocked. Forbidden entries: "
+        f"{sorted(forbidden)!r}"
     )
 
 
