@@ -753,6 +753,25 @@ _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PRODUCTION_ENTRIES: frozenset[
 )
 
 
+# Stage 29.4 short-session private soak (authorized 2026-05-25).
+# Stage 29.4.0 is spec-lock-only: this narrow amendment widens
+# the Stage-29-tree allowlist to admit the Stage 29.4 runbook
+# only. Stage 29.4.1 production .py files
+# (stage29_4_soak_models.py / stage29_4_dedupe_index.py /
+# stage29_4_soak_orchestrator.py /
+# stage29_4_soak_artifact_writer.py / stage29_4_manifest.py)
+# remain blocked at Stage 29.4.0. The Stage 29.0 spec DOC
+# (``STAGE_29_0_SPEC_LOCK.md``) is NOT touched at Stage 29.4;
+# only this enclosing test file widens its inventory allowlist.
+_STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_4_SHORT_SESSION_PRIVATE_SOAK_RUNBOOK.md",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     str
 ] = (
@@ -760,6 +779,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_2_BIRDEYE_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PRODUCTION_ENTRIES
+    | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES
 )
 
 
@@ -826,11 +846,26 @@ _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_ENTRIES: frozenset[str] = (
 )
 
 
+# Stage 29.4 short-session private soak (authorized 2026-05-25).
+# Stage 29.4.0 is spec-lock-only: this narrow amendment widens
+# the Stage-29-tests allowlist to admit the Stage 29.4 spec-
+# lock test only. Stage 29.4.1 test files remain blocked at
+# Stage 29.4.0.
+_STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_ENTRIES: frozenset[str] = (
+    frozenset(
+        {
+            "test_stage_29_4_spec_lock.py",
+        }
+    )
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_ENTRIES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES
     | _STAGE_29_2_BIRDEYE_ALLOWED_TEST_ENTRIES
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_ENTRIES
+    | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_ENTRIES
 )
 
 
@@ -909,6 +944,11 @@ def test_no_python_module_under_stage29_beyond_init():
         name
         for name
         in _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PRODUCTION_ENTRIES
+        if name.endswith(".py")
+    } | {
+        name
+        for name
+        in _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES
         if name.endswith(".py")
     }
     unexpected = actual_py - allowed_py

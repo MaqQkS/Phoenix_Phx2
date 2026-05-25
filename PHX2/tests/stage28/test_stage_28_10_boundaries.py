@@ -413,11 +413,26 @@ _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.4 short-session private soak (authorized 2026-05-25).
+# Stage 29.4.0 is spec-lock-only: this narrow amendment widens
+# the Stage-29-tree allowlist to admit the Stage 29.4 runbook
+# only. Stage 29.4.1 production .py files remain blocked at
+# Stage 29.4.0.
+_STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_4_SHORT_SESSION_PRIVATE_SOAK_RUNBOOK.md",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
     | _STAGE_29_2_BIRDEYE_ALLOWED_PROD_BASENAMES
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -476,11 +491,25 @@ _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.4 short-session private soak (authorized 2026-05-25).
+# Stage 29.4.0 is spec-lock-only: this narrow amendment widens
+# the Stage-29-tests allowlist to admit the Stage 29.4 spec-
+# lock test only.
+_STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_4_spec_lock.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
     | _STAGE_29_2_BIRDEYE_ALLOWED_TEST_BASENAMES
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_BASENAMES
 )
 
 
