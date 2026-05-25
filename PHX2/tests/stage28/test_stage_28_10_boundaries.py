@@ -398,10 +398,26 @@ _STAGE_29_2_BIRDEYE_ALLOWED_PROD_BASENAMES: frozenset[str] = (
 )
 
 
+_STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "stage29_3_smoke_models.py",
+        "stage29_3_no_migration_evidence_source.py",
+        "stage29_3_hint_aware_event_source.py",
+        "stage29_3_artifact_writer.py",
+        "stage29_3_tradeable_smoke.py",
+        "stage29_3_manifest.py",
+        "STAGE_29_3_FIRST_PRIVATE_TRADEABLE_SMOKE_RUNBOOK.md",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
     | _STAGE_29_2_BIRDEYE_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -445,10 +461,26 @@ _STAGE_29_2_BIRDEYE_ALLOWED_TEST_BASENAMES: frozenset[str] = (
 )
 
 
+_STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_3_smoke_models.py",
+        "test_stage_29_3_no_migration_evidence_source.py",
+        "test_stage_29_3_hint_aware_event_source.py",
+        "test_stage_29_3_tradeable_smoke_orchestrator.py",
+        "test_stage_29_3_artifact_writer.py",
+        "test_stage_29_3_runbook.py",
+        "test_stage_29_3_boundaries.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
     | _STAGE_29_2_BIRDEYE_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_BASENAMES
 )
 
 

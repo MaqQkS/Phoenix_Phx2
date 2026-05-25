@@ -734,12 +734,32 @@ _STAGE_29_2_BIRDEYE_ALLOWED_PRODUCTION_ENTRIES: frozenset[
 )
 
 
+# Stage 29.3 first real private tradeable PHX2 ping (authorized
+# 2026-05-25). Stage 29.0 spec-lock narrow amendment widens the
+# Stage-29-tree allowlist to admit the Stage 29.3 inventory; the
+# Pump.fun bonding-curve files remain blocked.
+_STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PRODUCTION_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "stage29_3_smoke_models.py",
+        "stage29_3_no_migration_evidence_source.py",
+        "stage29_3_hint_aware_event_source.py",
+        "stage29_3_artifact_writer.py",
+        "stage29_3_tradeable_smoke.py",
+        "stage29_3_manifest.py",
+        "STAGE_29_3_FIRST_PRIVATE_TRADEABLE_SMOKE_RUNBOOK.md",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     str
 ] = (
     _STAGE_29_0_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_2_BIRDEYE_ALLOWED_PRODUCTION_ENTRIES
+    | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PRODUCTION_ENTRIES
 )
 
 
@@ -788,10 +808,29 @@ _STAGE_29_2_BIRDEYE_ALLOWED_TEST_ENTRIES: frozenset[str] = (
 )
 
 
+# Stage 29.3 first real private tradeable PHX2 ping (authorized
+# 2026-05-25). Spec-lock narrow amendment widens the Stage 29
+# tests allowlist to admit the Stage 29.3 test inventory.
+_STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_ENTRIES: frozenset[str] = (
+    frozenset(
+        {
+            "test_stage_29_3_smoke_models.py",
+            "test_stage_29_3_no_migration_evidence_source.py",
+            "test_stage_29_3_hint_aware_event_source.py",
+            "test_stage_29_3_tradeable_smoke_orchestrator.py",
+            "test_stage_29_3_artifact_writer.py",
+            "test_stage_29_3_runbook.py",
+            "test_stage_29_3_boundaries.py",
+        }
+    )
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_ENTRIES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES
     | _STAGE_29_2_BIRDEYE_ALLOWED_TEST_ENTRIES
+    | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_ENTRIES
 )
 
 
@@ -866,6 +905,11 @@ def test_no_python_module_under_stage29_beyond_init():
         for name
         in _STAGE_29_2_BIRDEYE_ALLOWED_PRODUCTION_ENTRIES
         if name.endswith(".py")
+    } | {
+        name
+        for name
+        in _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PRODUCTION_ENTRIES
+        if name.endswith(".py")
     }
     unexpected = actual_py - allowed_py
     assert not unexpected, (
@@ -897,9 +941,14 @@ _FORBIDDEN_STAGE_29_1_PLUS_BASENAMES: tuple[str, ...] = (
     "birdeye_price_source.py",
     "birdeye_ath_source.py",
     "birdeye_readiness.py",
-    # Stage 29.3 — tradeable smoke harness.
+    # Stage 29.3 — alternative naming (the authorized
+    # tradeable-smoke tree uses the ``stage29_3_*.py`` prefix-
+    # pinned convention; the legacy generic
+    # ``tradeable_smoke_harness.py`` name remains blocked).
+    # Stage 29.3 was authorized 2026-05-25; the canonical
+    # ``stage29_3_manifest.py`` basename has been moved into the
+    # allowlist above.
     "tradeable_smoke_harness.py",
-    "stage29_3_manifest.py",
     # Forbidden Stage 26/27/28-era surfaces that must not appear
     # under Stage 29 at any substage.
     "public_router.py",
