@@ -462,33 +462,36 @@ def test_runbook_lists_each_planned_29_4_1_production_basename(
 @pytest.mark.parametrize(
     "basename", _STAGE_29_4_1_PLANNED_PROD_BASENAMES
 )
-def test_no_stage_29_4_1_production_basename_exists_at_29_4_0(
+def test_stage_29_4_1_production_basename_present_at_29_4_1(
     basename,
 ):
-    # Stage 29.4.0 is spec-lock-only; no Stage 29.4.1 production
-    # .py file may exist under PHX2/stage29/ until Stage 29.4.1
-    # is authorized on a separate commit.
-    assert not (STAGE29_ROOT / basename).exists(), (
-        f"Stage 29.4.0 is spec-lock-only; Stage 29.4.1 "
-        f"production basename {basename!r} must NOT exist under "
-        f"PHX2/stage29/ at Stage 29.4.0"
+    # Stage 29.4.1 lands the Stage 29.4 production .py files
+    # planned by the Stage 29.4.0 runbook. Each planned basename
+    # must now exist under PHX2/stage29/.
+    assert (STAGE29_ROOT / basename).exists(), (
+        f"Stage 29.4.1 requires production basename "
+        f"{basename!r} under PHX2/stage29/"
     )
 
 
-def test_no_stage29_4_production_py_module_exists():
-    # Any other ``stage29_4_*.py`` basename also blocked. Only
-    # the runbook .md file ships at Stage 29.4.0.
+def test_only_planned_stage29_4_py_modules_exist():
+    # The set of ``stage29_4_*.py`` modules under PHX2/stage29/
+    # must equal the Stage 29.4.0 runbook's planned Stage 29.4.1
+    # production inventory. No unplanned Stage 29.4 module may
+    # ship without a spec-lock widening.
+    expected = set(_STAGE_29_4_1_PLANNED_PROD_BASENAMES)
+    actual: set[str] = set()
     for entry in STAGE29_ROOT.iterdir():
         if entry.is_dir():
             continue
         name = entry.name
         if name.startswith("stage29_4") and name.endswith(".py"):
-            raise AssertionError(
-                f"Stage 29.4.0 is spec-lock-only; no "
-                f"stage29_4_*.py module may exist under "
-                f"PHX2/stage29/ at Stage 29.4.0 (found "
-                f"{name!r})"
-            )
+            actual.add(name)
+    assert actual == expected, (
+        f"Stage 29.4 production .py inventory mismatch under "
+        f"PHX2/stage29/: expected={sorted(expected)!r} "
+        f"actual={sorted(actual)!r}"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -768,6 +768,16 @@ _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES: frozenset[
 ] = frozenset(
     {
         "STAGE_29_4_SHORT_SESSION_PRIVATE_SOAK_RUNBOOK.md",
+        # Stage 29.4.1 implementation widens the Stage 29.0
+        # inventory allowlist to admit the five Stage 29.4
+        # production .py basenames pinned by the Stage 29.4.0
+        # spec-lock runbook (Section 9). The runbook itself is
+        # not modified; only this enclosing test widens.
+        "stage29_4_soak_models.py",
+        "stage29_4_dedupe_index.py",
+        "stage29_4_soak_orchestrator.py",
+        "stage29_4_soak_artifact_writer.py",
+        "stage29_4_manifest.py",
     }
 )
 
@@ -855,6 +865,14 @@ _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     frozenset(
         {
             "test_stage_29_4_spec_lock.py",
+            # Stage 29.4.1 implementation widens the Stage 29.0
+            # tests allowlist to admit the focused Stage 29.4
+            # test files.
+            "test_stage_29_4_soak_models.py",
+            "test_stage_29_4_dedupe_index.py",
+            "test_stage_29_4_soak_orchestrator.py",
+            "test_stage_29_4_soak_artifact_writer.py",
+            "test_stage_29_4_boundaries.py",
         }
     )
 )
