@@ -296,8 +296,13 @@ class Stage29_3HintAwareChainstackEventSource:
         ``CHANNEL_FACTORY_NOT_CALLABLE``.
 
     The source's ``iter_events(max_events)`` method yields up to
-    ``min(max_events, max_messages_to_scan)`` hint-bearing
-    ``Stage28_10NormalizedEvent`` records. The source NEVER:
+    ``max_events`` hint-bearing ``Stage28_10NormalizedEvent``
+    records while scanning at most ``max_messages_to_scan``
+    upstream ``SubscribeUpdate`` messages. Non-hint-bearing
+    messages (ping / slot / block / non-PumpSwap or
+    baseline-shape transactions) do NOT consume the
+    ``max_events`` yield budget; they only consume the
+    ``max_messages_to_scan`` scan budget. The source NEVER:
 
       * fabricates a normalized event,
       * yields a baseline (hint-None) payload,
@@ -442,10 +447,12 @@ class Stage29_3HintAwareChainstackEventSource:
 
         Bounded discipline:
 
-          * the iterator scans at most
-            ``min(max_events, max_messages_to_scan)`` upstream
-            messages,
-          * the iterator returns on the first hint-bearing event,
+          * the iterator scans at most ``max_messages_to_scan``
+            upstream messages,
+          * the iterator yields at most ``max_events``
+            hint-bearing events (non-hint-bearing messages do NOT
+            consume the yield budget),
+          * the iterator returns once ``yielded == max_events``,
           * the iterator stops on the first decode-failure /
             stream-error / RPC error (recording a closed-set
             refusal reason),
@@ -478,9 +485,12 @@ class Stage29_3HintAwareChainstackEventSource:
         runtime_config = self._runtime_config
         provider_name = runtime_config.safe_config.provider_id
         timeout_seconds = runtime_config.timeout_seconds
-        effective_bound = min(
-            max_events, self._max_messages_to_scan,
-        )
+        # Stage 29.3A: scan budget is independent of the yield cap.
+        # The for-loop below scans up to ``max_messages_to_scan``
+        # upstream messages; the yield cap is enforced after each
+        # yield via ``yielded >= max_events``. Non-hint-bearing
+        # messages do not consume the yield budget.
+        effective_bound = self._max_messages_to_scan
 
         self._iter_count += 1
         # Reset per-iteration refusal to NONE; we set a refusal

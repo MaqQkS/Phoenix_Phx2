@@ -423,7 +423,11 @@ def test_bounded_scan_stops_at_max_messages():
         channel_factory=factory,
     )
     assert list(source.iter_events(max_events=1)) == []
-    assert source.events_scanned <= 3
+    # Stage 29.3A: scan budget is now independent of the yield cap.
+    # With max_messages_to_scan=3 and 10 non-matching messages
+    # available, the source MUST scan exactly 3 messages before
+    # surrendering, not 1.
+    assert source.events_scanned == 3
     assert source.hint_bearing_yielded == 0
     assert (
         source.last_refusal_reason
@@ -434,6 +438,137 @@ def test_bounded_scan_stops_at_max_messages():
 def test_default_max_messages_to_scan_is_64():
     # The default constant is a pinned 64 to mirror Stage 29.1.
     assert DEFAULT_MAX_MESSAGES_TO_SCAN == 64
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.3A: scan budget decoupled from yield cap
+# ---------------------------------------------------------------------------
+
+
+def test_99_non_hints_then_1_hint_yields_exactly_one_event():
+    """With max_events=1 and max_messages_to_scan=100, a stream
+    of 99 non-hint-bearing messages followed by 1 hint-bearing
+    PumpSwap transaction MUST yield exactly 1 normalized event.
+    Non-hint-bearing messages do not consume the yield budget;
+    the source keeps scanning until either a hint-bearing payload
+    appears or the scan budget is exhausted.
+    """
+    runtime_config = _build_test_runtime_config()
+    responses = [
+        _make_non_pumpswap_tx_update() for _ in range(99)
+    ] + [_make_pumpswap_tx_update()]
+    factory, _captured = _make_factory(responses=responses)
+    source = Stage29_3HintAwareChainstackEventSource(
+        runtime_config=runtime_config,
+        max_messages_to_scan=100,
+        channel_factory=factory,
+    )
+    yielded = list(source.iter_events(max_events=1))
+    assert len(yielded) == 1
+    event = yielded[0]
+    assert isinstance(event, Stage28_10NormalizedEvent)
+    assert event.base_mint == _TEST_BASE_MINT
+    assert source.hint_bearing_yielded == 1
+    # The source scanned all 100 messages: 99 non-hints + 1 hint.
+    assert source.events_scanned == 100
+    assert source.last_refusal_reason == REFUSAL_REASON_NONE
+
+
+def test_100_non_hints_yields_zero_events_cleanly():
+    """With max_events=1 and max_messages_to_scan=100, a stream
+    of 100 non-hint-bearing messages MUST yield zero events and
+    stop with the NO_HINT_BEARING_TRANSACTION_RECEIVED closed-set
+    refusal. The source MUST scan exactly the budget (100), not
+    short-circuit at 1.
+    """
+    runtime_config = _build_test_runtime_config()
+    responses = [
+        _make_non_pumpswap_tx_update() for _ in range(100)
+    ]
+    factory, captured = _make_factory(responses=responses)
+    source = Stage29_3HintAwareChainstackEventSource(
+        runtime_config=runtime_config,
+        max_messages_to_scan=100,
+        channel_factory=factory,
+    )
+    yielded = list(source.iter_events(max_events=1))
+    assert yielded == []
+    assert source.events_scanned == 100
+    assert source.hint_bearing_yielded == 0
+    assert (
+        source.last_refusal_reason
+        == REFUSAL_REASON_NO_HINT_BEARING_TRANSACTION_RECEIVED
+    )
+    assert captured["channel"].close_called is True
+
+
+def test_non_hints_do_not_consume_max_events_budget():
+    """3 non-hint-bearing messages followed by 1 hint-bearing
+    message with max_events=1, max_messages_to_scan=4 MUST yield
+    exactly 1 event after scanning all 4 messages. Verifies that
+    the 3 non-hints did NOT each "burn" the yield budget.
+    """
+    runtime_config = _build_test_runtime_config()
+    responses = [
+        _make_non_pumpswap_tx_update(),
+        _make_non_pumpswap_tx_update(),
+        _make_non_pumpswap_tx_update(),
+        _make_pumpswap_tx_update(),
+    ]
+    factory, _captured = _make_factory(responses=responses)
+    source = Stage29_3HintAwareChainstackEventSource(
+        runtime_config=runtime_config,
+        max_messages_to_scan=4,
+        channel_factory=factory,
+    )
+    yielded = list(source.iter_events(max_events=1))
+    assert len(yielded) == 1
+    assert source.hint_bearing_yielded == 1
+    assert source.events_scanned == 4
+    assert source.last_refusal_reason == REFUSAL_REASON_NONE
+
+
+def test_multiple_hints_capped_at_max_events():
+    """5 hint-bearing messages on the stream with max_events=2
+    and max_messages_to_scan=64 MUST yield exactly 2 events; the
+    source returns immediately after ``yielded == max_events``.
+    """
+    runtime_config = _build_test_runtime_config()
+    responses = [_make_pumpswap_tx_update() for _ in range(5)]
+    factory, _captured = _make_factory(responses=responses)
+    source = Stage29_3HintAwareChainstackEventSource(
+        runtime_config=runtime_config,
+        max_messages_to_scan=64,
+        channel_factory=factory,
+    )
+    yielded = list(source.iter_events(max_events=2))
+    assert len(yielded) == 2
+    assert source.hint_bearing_yielded == 2
+    # The source returned right after the 2nd yield; it did not
+    # exhaust the remaining 3 hint-bearing messages on the stream.
+    assert source.events_scanned == 2
+    assert source.last_refusal_reason == REFUSAL_REASON_NONE
+
+
+def test_scan_budget_independent_of_max_events_equal_one():
+    """The bug fixed in Stage 29.3A: with max_events=1 (the Stage
+    29.3 orchestrator's hardcoded yield cap) the effective scan
+    budget MUST equal max_messages_to_scan, not min(1, N). 50
+    non-hint-bearing messages with max_messages_to_scan=50 must
+    all be scanned.
+    """
+    runtime_config = _build_test_runtime_config()
+    responses = [
+        _make_non_pumpswap_tx_update() for _ in range(50)
+    ]
+    factory, _captured = _make_factory(responses=responses)
+    source = Stage29_3HintAwareChainstackEventSource(
+        runtime_config=runtime_config,
+        max_messages_to_scan=50,
+        channel_factory=factory,
+    )
+    list(source.iter_events(max_events=1))
+    assert source.events_scanned == 50
 
 
 # ---------------------------------------------------------------------------
