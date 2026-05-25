@@ -660,6 +660,16 @@ def test_mode3_cap_5_events_at_most_1_dispatch():
     #    enforces this in the dataclass __post_init__).
     # 6. If DISPATCHED, transport call count is exactly 1;
     #    if SUPPRESSED_*, transport call count is exactly 0.
+    # NOTE: Stage 29.3B fixed the hint-forwarding seam (the Stage
+    # 27.2 classifier now resolves PUMP_SOL on this fake stream),
+    # but the orchestrator test still admits SUPPRESSED_UNKNOWN_PAIR
+    # as an outcome because Stage 27.5 / 27.4 currently emit
+    # RENDERED_UNSUPPORTED for the USD-priced Birdeye snapshot on a
+    # SOL pair, which the Stage 27.6 assembler maps via its
+    # defensive fallback to SUPPRESSED_UNKNOWN_PAIR. That downstream
+    # defect is out of Stage 29.3B's scope; tightening this
+    # assertion would require a separate Stage 29.3C / Stage 27.4
+    # USD-pair patch.
     if (
         result.tradeable_smoke_outcome
         == TRADEABLE_SMOKE_OUTCOME_DISPATCHED

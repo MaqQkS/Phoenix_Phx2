@@ -1482,3 +1482,294 @@ def test_default_candidate_assembler_construction_requires_sources():
         Stage28_9DefaultCandidateAssembler(
             sources=None,  # type: ignore[arg-type]
         )
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.3B regression: Stage 28.9 default assembler must forward the
+# Stage 28.10 hint quartet (pool / quote / provider hints) into the
+# Stage 27.3 adapter so the Stage 27.2 pair classifier can resolve the
+# pair instead of UNRESOLVED -> SUPPRESSED_UNKNOWN_PAIR.
+# ---------------------------------------------------------------------------
+
+
+from datetime import datetime, timezone  # noqa: E402
+
+from PHX2.stage27 import (  # noqa: E402
+    price_ath_context_contracts as _stage27_4_src_errors,
+)
+from PHX2.stage27.live_candidate_assembler import (  # noqa: E402
+    Stage27_6Sources as _Stage27_6SourcesForBridge,
+)
+from PHX2.stage27.pair_detection_constants import (  # noqa: E402
+    KNOWN_USDC_MINT as _KNOWN_USDC_MINT,
+    KNOWN_WRAPPED_SOL_MINT as _KNOWN_WRAPPED_SOL_MINT,
+)
+from PHX2.stage27.price_ath_context_models import (  # noqa: E402
+    ATH_UNIT_SOL as _ATH_UNIT_SOL,
+    ATH_UNIT_USDC as _ATH_UNIT_USDC,
+    PRICE_UNIT_SOL as _PRICE_UNIT_SOL,
+    PRICE_UNIT_USDC as _PRICE_UNIT_USDC,
+)
+from PHX2.stage27.price_ath_context_reader import (  # noqa: E402
+    AthSourceSnapshot as _AthSourceSnapshot,
+    FrozenStage27_4Clock as _FrozenStage27_4Clock,
+    MigrationSourceSnapshot as _MigrationSourceSnapshot,
+    PriceSourceSnapshot as _PriceSourceSnapshot,
+)
+from PHX2.stage28.chainstack_yellowstone_models import (  # noqa: E402
+    build_normalized_event as _build_normalized_event,
+)
+
+
+_BRIDGE_FIXED_UTC = datetime(2026, 5, 22, 12, 0, 30, tzinfo=timezone.utc)
+_BRIDGE_FIXED_UTC_ISO = "2026-05-22T12:00:30+00:00"
+_BRIDGE_BASE_MINT = "TestBaseMintBridgeAAAA1111111111111111111B"
+_BRIDGE_POOL_ACCOUNT = "TestPoolBridgeXXXXXX3333333333333333333333"
+_BRIDGE_PUMPSWAP_PROGRAM_ID = (
+    "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"
+)
+
+
+class _BridgeFakePriceSource:
+    def __init__(self, snapshot: Optional[_PriceSourceSnapshot]) -> None:
+        self._snapshot = snapshot
+
+    def read_price_snapshot(
+        self, token_mint, *, pair_quote_asset,
+    ):
+        if self._snapshot is None:
+            raise _stage27_4_src_errors.Stage27PriceSourceError(
+                "SOURCE_FAILED", source_label="bridge_fake_price",
+            )
+        return self._snapshot
+
+
+class _BridgeFakeAthSource:
+    def __init__(self, snapshot: Optional[_AthSourceSnapshot]) -> None:
+        self._snapshot = snapshot
+
+    def read_ath_snapshot(
+        self, token_mint, *, pair_quote_asset,
+    ):
+        if self._snapshot is None:
+            raise _stage27_4_src_errors.Stage27AthSourceError(
+                "SOURCE_FAILED", source_label="bridge_fake_ath",
+            )
+        return self._snapshot
+
+
+class _BridgeFakeMigrationSource:
+    def __init__(
+        self, snapshot: Optional[_MigrationSourceSnapshot],
+    ) -> None:
+        self._snapshot = snapshot
+
+    def read_migration_snapshot(self, token_mint):
+        if self._snapshot is None:
+            raise (
+                _stage27_4_src_errors.Stage27MigrationSourceError(
+                    "SOURCE_FAILED",
+                    source_label="bridge_fake_migration",
+                )
+            )
+        return self._snapshot
+
+
+class _BridgeFrozenStage27_5Clock:
+    def __init__(self, iso: str = _BRIDGE_FIXED_UTC_ISO) -> None:
+        self._iso = iso
+
+    def now_utc_iso(self) -> str:
+        return self._iso
+
+
+def _bridge_sol_sources() -> _Stage27_6SourcesForBridge:
+    price = _PriceSourceSnapshot(
+        price_value="0.001",
+        price_unit=_PRICE_UNIT_SOL,
+        source_label="bridge_birdeye",
+        fetched_at_utc=_BRIDGE_FIXED_UTC_ISO,
+    )
+    ath = _AthSourceSnapshot(
+        ath_value="0.005",
+        ath_unit=_ATH_UNIT_SOL,
+        source_label="bridge_birdeye",
+        ath_observed_at_utc="2026-05-22T11:30:00+00:00",
+        window_starts_post_migration=True,
+    )
+    migration = _MigrationSourceSnapshot(
+        migration_event_id="bridge-mig-1",
+        migration_timestamp_utc="2026-05-22T11:00:00+00:00",
+        migration_source="ON_CHAIN_MIGRATION_EVENT",
+        source_event_ref="bridge-prov-mig-1",
+        raw_capture_ref="bridge-rcap-mig-1",
+    )
+    return _Stage27_6SourcesForBridge(
+        price_source=_BridgeFakePriceSource(snapshot=price),
+        ath_source=_BridgeFakeAthSource(snapshot=ath),
+        migration_source=_BridgeFakeMigrationSource(
+            snapshot=migration,
+        ),
+        stage27_4_clock=_FrozenStage27_4Clock(
+            fixed_utc=_BRIDGE_FIXED_UTC,
+        ),
+        stage27_5_clock=_BridgeFrozenStage27_5Clock(),
+        price_staleness_threshold_seconds=60,
+    )
+
+
+def _bridge_usdc_sources() -> _Stage27_6SourcesForBridge:
+    price = _PriceSourceSnapshot(
+        price_value="0.12",
+        price_unit=_PRICE_UNIT_USDC,
+        source_label="bridge_birdeye",
+        fetched_at_utc=_BRIDGE_FIXED_UTC_ISO,
+    )
+    ath = _AthSourceSnapshot(
+        ath_value="1.50",
+        ath_unit=_ATH_UNIT_USDC,
+        source_label="bridge_birdeye",
+        ath_observed_at_utc="2026-05-22T11:30:00+00:00",
+        window_starts_post_migration=True,
+    )
+    migration = _MigrationSourceSnapshot(
+        migration_event_id="bridge-mig-1",
+        migration_timestamp_utc="2026-05-22T11:00:00+00:00",
+        migration_source="ON_CHAIN_MIGRATION_EVENT",
+        source_event_ref="bridge-prov-mig-1",
+        raw_capture_ref="bridge-rcap-mig-1",
+    )
+    return _Stage27_6SourcesForBridge(
+        price_source=_BridgeFakePriceSource(snapshot=price),
+        ath_source=_BridgeFakeAthSource(snapshot=ath),
+        migration_source=_BridgeFakeMigrationSource(
+            snapshot=migration,
+        ),
+        stage27_4_clock=_FrozenStage27_4Clock(
+            fixed_utc=_BRIDGE_FIXED_UTC,
+        ),
+        stage27_5_clock=_BridgeFrozenStage27_5Clock(),
+        price_staleness_threshold_seconds=60,
+    )
+
+
+def _bridge_build_normalized_event(
+    *,
+    base_mint: Optional[str],
+    quote_mint: Optional[str],
+    pool_account: Optional[str],
+    pool_program_id: Optional[str],
+    provider_pair_type_hint: Optional[str],
+    provider_quote_asset_hint: Optional[str],
+):
+    """Build a Stage 28.10 NormalizedEvent with explicit hint axes.
+
+    The base_mint kwarg also doubles as the upstream ``mint`` field
+    (the Stage 27.3 adapter's ``token_mint`` projection reads ``mint``
+    from the upstream event). When ``base_mint`` is ``None`` we pass
+    the safe synthetic ``_BRIDGE_BASE_MINT`` as ``mint`` so the
+    Stage 27.3 composer still has a token mint and reaches the
+    classifier — the test then asserts the classifier returned
+    UNRESOLVED because every hint axis was None.
+    """
+    return _build_normalized_event(
+        event_id="stage28_10_bridge_evt_001",
+        provider_event_id="bridge_evt_001",
+        provider_name="bridge_provider",
+        mint=base_mint or _BRIDGE_BASE_MINT,
+        event_type="swap",
+        observed_at_utc=_BRIDGE_FIXED_UTC_ISO,
+        raw_event_hash="stage28_10_bridge_sig_001",
+        quote_mint=quote_mint,
+        pool_account=pool_account,
+        pool_program_id=pool_program_id,
+        base_mint=base_mint,
+        bonding_curve_program_id=None,
+        bonding_curve_version_hint=None,
+        provider_quote_asset_hint=provider_quote_asset_hint,
+        provider_pair_type_hint=provider_pair_type_hint,
+        provider_bonding_curve_version_hint=None,
+    )
+
+
+def test_stage29_3b_default_assembler_sol_hints_not_unknown_pair():
+    """Stage 29.3B regression: a Stage 28.10 NormalizedEvent carrying
+    the SOL hint quartet (quote_mint=WSOL, provider_pair_type_hint=
+    PUMP_SOL, provider_quote_asset_hint=SOL, pool_account /
+    pool_program_id / base_mint populated) MUST classify as a SOL
+    pair and NOT collapse to SUPPRESSED_UNKNOWN_PAIR.
+    """
+    sources = _bridge_sol_sources()
+    assembler = Stage28_9DefaultCandidateAssembler(sources=sources)
+    event = _bridge_build_normalized_event(
+        base_mint=_BRIDGE_BASE_MINT,
+        quote_mint=_KNOWN_WRAPPED_SOL_MINT,
+        pool_account=_BRIDGE_POOL_ACCOUNT,
+        pool_program_id=_BRIDGE_PUMPSWAP_PROGRAM_ID,
+        provider_pair_type_hint="PUMP_SOL",
+        provider_quote_asset_hint="SOL",
+    )
+    record = assembler.assemble(event, candidate_id="cand_sol_001")
+    assert record.candidate_status != (
+        CANDIDATE_STATUS_SUPPRESSED_UNKNOWN_PAIR
+    )
+    assert record.candidate_status != (
+        CANDIDATE_STATUS_SUPPRESSED_DISAGREE_PAIR
+    )
+    # Stage 27.6 with write_artifacts=False emits ASSEMBLED for a
+    # fully-classified SOL candidate.
+    assert record.candidate_status == CANDIDATE_STATUS_ASSEMBLED
+    assert record.candidate_reason == CANDIDATE_REASON_RENDERED_OK
+
+
+def test_stage29_3b_default_assembler_usdc_hints_not_unknown_pair():
+    """Stage 29.3B: a USDC hint quartet MUST classify as USDC (not
+    UNKNOWN). Stage 27.6 routes USDC into the USDC observe-only
+    lane via candidate_reason=USDC_OBSERVE_ONLY; the status is NOT
+    SUPPRESSED_UNKNOWN_PAIR.
+    """
+    sources = _bridge_usdc_sources()
+    assembler = Stage28_9DefaultCandidateAssembler(sources=sources)
+    event = _bridge_build_normalized_event(
+        base_mint=_BRIDGE_BASE_MINT,
+        quote_mint=_KNOWN_USDC_MINT,
+        pool_account=_BRIDGE_POOL_ACCOUNT,
+        pool_program_id=_BRIDGE_PUMPSWAP_PROGRAM_ID,
+        provider_pair_type_hint="PUMP_USDC",
+        provider_quote_asset_hint="USDC",
+    )
+    record = assembler.assemble(
+        event, candidate_id="cand_usdc_001",
+    )
+    assert record.candidate_status != (
+        CANDIDATE_STATUS_SUPPRESSED_UNKNOWN_PAIR
+    )
+    assert record.candidate_reason == CANDIDATE_REASON_USDC_OBSERVE_ONLY
+
+
+def test_stage29_3b_default_assembler_no_hints_stays_unknown_pair():
+    """Stage 29.3B: when EVERY hint axis is None (the pre-29.3B
+    behaviour for events that never carried hints) the candidate
+    MUST still collapse to SUPPRESSED_UNKNOWN_PAIR. Proves the
+    Stage 28.9 hint-forwarding never silently promotes UNKNOWN to
+    SOL.
+    """
+    sources = _bridge_sol_sources()
+    assembler = Stage28_9DefaultCandidateAssembler(sources=sources)
+    event = _bridge_build_normalized_event(
+        base_mint=None,
+        quote_mint=None,
+        pool_account=None,
+        pool_program_id=None,
+        provider_pair_type_hint=None,
+        provider_quote_asset_hint=None,
+    )
+    record = assembler.assemble(
+        event, candidate_id="cand_none_001",
+    )
+    assert record.candidate_status == (
+        CANDIDATE_STATUS_SUPPRESSED_UNKNOWN_PAIR
+    )
+    assert record.candidate_reason == (
+        CANDIDATE_REASON_UNKNOWN_PAIR_LIVE_SUPPRESSED
+    )

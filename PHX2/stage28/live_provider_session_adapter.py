@@ -684,8 +684,51 @@ class Stage28_9DefaultCandidateAssembler:
         *,
         candidate_id: str,
     ) -> Stage27_6LiveCandidateRecord:
+        # Stage 29.3B: forward the richer Stage 28.10 NormalizedEvent
+        # hint fields into the Stage 27.3 adapter so the Stage 27.2
+        # pair classifier sees the upstream pool / quote / provider
+        # hints. The Stage 27.3 NormalizedEventLike Protocol does not
+        # own these fields by contract, so we read them via getattr
+        # fallback — a caller passing a stricter NormalizedEventLike
+        # (without these attrs) still works because every getattr
+        # falls through to None.
         ingest_input = adapt_normalized_event_to_ingest_input(
-            normalized_event
+            normalized_event,
+            pool_account=getattr(
+                normalized_event, "pool_account", None,
+            ),
+            pool_program_id=getattr(
+                normalized_event, "pool_program_id", None,
+            ),
+            base_mint=getattr(
+                normalized_event, "base_mint", None,
+            ),
+            quote_mint=getattr(
+                normalized_event, "quote_mint", None,
+            ),
+            bonding_curve_program_id=getattr(
+                normalized_event, "bonding_curve_program_id", None,
+            ),
+            bonding_curve_version_hint=getattr(
+                normalized_event,
+                "bonding_curve_version_hint",
+                None,
+            ),
+            provider_quote_asset_hint=getattr(
+                normalized_event,
+                "provider_quote_asset_hint",
+                None,
+            ),
+            provider_pair_type_hint=getattr(
+                normalized_event,
+                "provider_pair_type_hint",
+                None,
+            ),
+            provider_bonding_curve_version_hint=getattr(
+                normalized_event,
+                "provider_bonding_curve_version_hint",
+                None,
+            ),
         )
         return assemble_live_candidate(
             ingest_input,
