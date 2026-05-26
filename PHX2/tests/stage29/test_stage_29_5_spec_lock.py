@@ -557,13 +557,23 @@ def test_only_planned_stage29_5_py_modules_exist_at_29_5_1():
     # additional ``stage29_5_*.py`` module is admitted; later
     # Stage 29.5 substages must widen this pin explicitly under
     # a separately authorized commit.
+    #
+    # Stage 29.5.2 narrow amendment (authorized 2026-05-26): the
+    # Stage 29.5.2 offline integration proof introduces sibling
+    # ``stage29_5_2_*.py`` files under PHX2/stage29/. Those files
+    # are part of the Stage 29.5.2 inventory, not the Stage 29.5
+    # inventory; the Stage 29.5 inventory stays pinned at the
+    # six-file tuple. This loop excludes ``stage29_5_2_*.py``
+    # files so the Stage 29.5 pin remains tight.
     actual: set[str] = set()
     for entry in STAGE29_ROOT.iterdir():
         if entry.is_dir():
             continue
         name = entry.name
-        if name.startswith("stage29_5") and name.endswith(
-            ".py"
+        if (
+            name.startswith("stage29_5")
+            and name.endswith(".py")
+            and not name.startswith("stage29_5_2_")
         ):
             actual.add(name)
     expected = set(_STAGE_29_5_1_PLANNED_PROD_BASENAMES)

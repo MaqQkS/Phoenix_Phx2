@@ -813,6 +813,23 @@ _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES: frozenset[
 )
 
 
+# Stage 29.5.2 offline integration proof (authorized 2026-05-26).
+# Stage 29.5.2 is the offline composition proof substage: this
+# narrow amendment widens the Stage 29.0 spec-lock production
+# allowlist to admit the Stage 29.5.2 production + doc inventory.
+# No runtime wiring into Stage 29.3 / 29.4 lands at Stage 29.5.2.
+_STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_PRODUCTION_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_2_OFFLINE_INTEGRATION_PROOF_RUNBOOK.md",
+        "stage29_5_2_offline_integration.py",
+        "stage29_5_2_synthetic_evidence_fixtures.py",
+        "stage29_5_2_manifest.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     str
 ] = (
@@ -822,6 +839,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES
+    | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_PRODUCTION_ENTRIES
 )
 
 
@@ -932,6 +950,22 @@ _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_ENTRIES: frozenset[str] = 
 )
 
 
+# Stage 29.5.2 offline integration proof tests (authorized
+# 2026-05-26). Narrow amendment widens the Stage 29.0 spec-lock
+# tests allowlist to admit the Stage 29.5.2 test inventory.
+_STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_TEST_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_2_offline_integration.py",
+        "test_stage_29_5_2_boundaries.py",
+        "test_stage_29_5_2_no_integration_into_stage_29_3.py",
+        "test_stage_29_5_2_manifest.py",
+        "test_stage_29_5_2_spec_lock.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_ENTRIES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES
@@ -939,6 +973,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_ENTRIES
     | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_ENTRIES
     | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_ENTRIES
+    | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_TEST_ENTRIES
 )
 
 
@@ -1027,6 +1062,11 @@ def test_no_python_module_under_stage29_beyond_init():
         name
         for name
         in _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PRODUCTION_ENTRIES
+        if name.endswith(".py")
+    } | {
+        name
+        for name
+        in _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_PRODUCTION_ENTRIES
         if name.endswith(".py")
     }
     unexpected = actual_py - allowed_py
