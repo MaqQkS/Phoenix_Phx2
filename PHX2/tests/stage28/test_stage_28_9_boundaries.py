@@ -434,12 +434,32 @@ _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5 Helius WS migration evidence adapter + live private
+# ping context join (authorized 2026-05-25). Stage 29.5.0 is
+# spec-lock-only: this narrow amendment widens the Stage-29-tree
+# allowlist to admit the Stage 29.5 spec-lock runbook only.
+# Stage 29.5.1 production .py files
+# (stage29_5_migration_models.py / stage29_5_helius_ws_adapter.py
+# / stage29_5_migration_artifact_reader.py /
+# stage29_5_candidate_to_migration_join.py /
+# stage29_5_private_ping_context_projection.py /
+# stage29_5_manifest.py) remain blocked at Stage 29.5.0.
+_STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK.md",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
     | _STAGE_29_2_BIRDEYE_ALLOWED_PROD_BASENAMES
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_PROD_BASENAMES
     | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -519,12 +539,27 @@ _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5 Helius WS migration evidence adapter + live private
+# ping context join (authorized 2026-05-25). Stage 29.5.0 is
+# spec-lock-only: this narrow amendment widens the Stage-29-
+# tests allowlist to admit the Stage 29.5 spec-lock test only.
+# Stage 29.5.1 test files remain blocked at Stage 29.5.0.
+_STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_spec_lock.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
     | _STAGE_29_2_BIRDEYE_ALLOWED_TEST_BASENAMES
     | _STAGE_29_3_TRADEABLE_SMOKE_ALLOWED_TEST_BASENAMES
     | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_BASENAMES
 )
 
 
