@@ -449,6 +449,13 @@ _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PROD_BASENAMES: frozenset[
 ] = frozenset(
     {
         "STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK.md",
+        # Stage 29.5.1 production .py files (authorized 2026-05-25).
+        "stage29_5_migration_models.py",
+        "stage29_5_helius_ws_adapter.py",
+        "stage29_5_migration_artifact_reader.py",
+        "stage29_5_candidate_to_migration_join.py",
+        "stage29_5_private_ping_context_projection.py",
+        "stage29_5_manifest.py",
     }
 )
 
@@ -549,6 +556,14 @@ _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_BASENAMES: frozenset[
 ] = frozenset(
     {
         "test_stage_29_5_spec_lock.py",
+        # Stage 29.5.1 focused test files (authorized 2026-05-25).
+        "test_stage_29_5_migration_models.py",
+        "test_stage_29_5_helius_ws_adapter.py",
+        "test_stage_29_5_migration_artifact_reader.py",
+        "test_stage_29_5_candidate_to_migration_join.py",
+        "test_stage_29_5_private_ping_context_projection.py",
+        "test_stage_29_5_manifest.py",
+        "test_stage_29_5_boundaries.py",
     }
 )
 

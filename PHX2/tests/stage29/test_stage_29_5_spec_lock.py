@@ -539,24 +539,25 @@ def test_runbook_lists_each_planned_29_5_1_production_basename(
 @pytest.mark.parametrize(
     "basename", _STAGE_29_5_1_PLANNED_PROD_BASENAMES
 )
-def test_stage_29_5_1_production_basename_absent_at_29_5_0(
+def test_stage_29_5_1_production_basename_present_at_29_5_1(
     basename,
 ):
-    # Stage 29.5.0 must not ship any Stage 29.5.1 production
-    # .py file. Every planned basename must be ABSENT under
-    # PHX2/stage29/ at Stage 29.5.0.
-    assert not (STAGE29_ROOT / basename).exists(), (
-        f"Stage 29.5.0 must not ship Stage 29.5.1 production "
-        f"basename {basename!r} under PHX2/stage29/"
+    # Stage 29.5.1 (authorized 2026-05-25) materializes the
+    # planned Stage 29.5 production basenames. Every planned
+    # basename must now be PRESENT under PHX2/stage29/.
+    assert (STAGE29_ROOT / basename).is_file(), (
+        f"Stage 29.5.1 requires production basename "
+        f"{basename!r} under PHX2/stage29/"
     )
 
 
-def test_no_stage29_5_py_module_exists_at_29_5_0():
-    # Stage 29.5.0 ships zero runtime production code. No
-    # ``stage29_5_*.py`` module may exist under PHX2/stage29/
-    # until Stage 29.5.1 materializes them under a separately
-    # authorized commit.
-    offenders: set[str] = set()
+def test_only_planned_stage29_5_py_modules_exist_at_29_5_1():
+    # Stage 29.5.1 ships exactly the planned Stage 29.5
+    # production .py basenames under PHX2/stage29/. No
+    # additional ``stage29_5_*.py`` module is admitted; later
+    # Stage 29.5 substages must widen this pin explicitly under
+    # a separately authorized commit.
+    actual: set[str] = set()
     for entry in STAGE29_ROOT.iterdir():
         if entry.is_dir():
             continue
@@ -564,11 +565,12 @@ def test_no_stage29_5_py_module_exists_at_29_5_0():
         if name.startswith("stage29_5") and name.endswith(
             ".py"
         ):
-            offenders.add(name)
-    assert not offenders, (
-        f"Stage 29.5.0 must ship no stage29_5_*.py production "
-        f"module under PHX2/stage29/. Forbidden files found: "
-        f"{sorted(offenders)!r}"
+            actual.add(name)
+    expected = set(_STAGE_29_5_1_PLANNED_PROD_BASENAMES)
+    assert actual == expected, (
+        f"Stage 29.5.1 admits exactly "
+        f"{sorted(expected)!r} under PHX2/stage29/; actual: "
+        f"{sorted(actual)!r}"
     )
 
 

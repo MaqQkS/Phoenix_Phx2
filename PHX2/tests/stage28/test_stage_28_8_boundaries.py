@@ -217,20 +217,22 @@ _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PROD_BASENAMES: frozenset[
 
 
 # Stage 29.5 Helius WS migration evidence adapter + live private
-# ping context join (authorized 2026-05-25). Stage 29.5.0 is
-# spec-lock-only: this narrow amendment widens the Stage-29-tree
-# allowlist to admit the Stage 29.5 spec-lock runbook only.
-# Stage 29.5.1 production .py files
-# (stage29_5_migration_models.py / stage29_5_helius_ws_adapter.py
-# / stage29_5_migration_artifact_reader.py /
-# stage29_5_candidate_to_migration_join.py /
-# stage29_5_private_ping_context_projection.py /
-# stage29_5_manifest.py) remain blocked at Stage 29.5.0.
+# ping context join (authorized 2026-05-25). Stage 29.5.0 was
+# spec-lock-only; Stage 29.5.1 (authorized 2026-05-25) widens
+# this allowlist to admit the six Stage 29.5 production .py
+# basenames pinned by the Stage 29.5.0 runbook (Section 9).
 _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PROD_BASENAMES: frozenset[
     str
 ] = frozenset(
     {
         "STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK.md",
+        # Stage 29.5.1 production .py files.
+        "stage29_5_migration_models.py",
+        "stage29_5_helius_ws_adapter.py",
+        "stage29_5_migration_artifact_reader.py",
+        "stage29_5_candidate_to_migration_join.py",
+        "stage29_5_private_ping_context_projection.py",
+        "stage29_5_manifest.py",
     }
 )
 
@@ -322,15 +324,22 @@ _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_BASENAMES: frozenset[
 
 
 # Stage 29.5 Helius WS migration evidence adapter + live private
-# ping context join (authorized 2026-05-25). Stage 29.5.0 is
-# spec-lock-only: this narrow amendment widens the Stage-29-
-# tests allowlist to admit the Stage 29.5 spec-lock test only.
-# Stage 29.5.1 test files remain blocked at Stage 29.5.0.
+# ping context join (authorized 2026-05-25). Stage 29.5.1 widens
+# the Stage-29-tests allowlist to admit the focused Stage 29.5
+# test files plus the spec-lock test from Stage 29.5.0.
 _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_BASENAMES: frozenset[
     str
 ] = frozenset(
     {
         "test_stage_29_5_spec_lock.py",
+        # Stage 29.5.1 focused test files.
+        "test_stage_29_5_migration_models.py",
+        "test_stage_29_5_helius_ws_adapter.py",
+        "test_stage_29_5_migration_artifact_reader.py",
+        "test_stage_29_5_candidate_to_migration_join.py",
+        "test_stage_29_5_private_ping_context_projection.py",
+        "test_stage_29_5_manifest.py",
+        "test_stage_29_5_boundaries.py",
     }
 )
 
