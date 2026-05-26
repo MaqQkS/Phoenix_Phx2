@@ -477,6 +477,26 @@ _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.3 soak pass-entrypoint wrapper (authorized
+# 2026-05-26). Stage 29.5.3 ships the runtime-adjacent wrapper +
+# side-channel artifact surface that bridges Stage 29.5.2's
+# offline composition into the Stage 29.4 soak path WITHOUT
+# editing any Stage 29.3 or Stage 29.4 production source. This
+# narrow amendment widens the Stage 28.9 Stage-29-prod allowlist
+# to admit the Stage 29.5.3 production + doc inventory.
+_STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_3_SOAK_PASS_WRAPPER_RUNBOOK.md",
+        "stage29_5_3_wrapped_pass_models.py",
+        "stage29_5_3_soak_pass_wrapper.py",
+        "stage29_5_3_side_channel_artifact_writer.py",
+        "stage29_5_3_manifest.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
@@ -485,6 +505,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -602,6 +623,24 @@ _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.3 soak pass-entrypoint wrapper tests (authorized
+# 2026-05-26). Narrow amendment widens the Stage 28.9 Stage-29-
+# tests allowlist to admit the Stage 29.5.3 test inventory.
+_STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_3_wrapped_pass_models.py",
+        "test_stage_29_5_3_soak_pass_wrapper.py",
+        "test_stage_29_5_3_side_channel_artifact_writer.py",
+        "test_stage_29_5_3_manifest.py",
+        "test_stage_29_5_3_boundaries.py",
+        "test_stage_29_5_3_no_modification_to_stage_29_3_or_29_4.py",
+        "test_stage_29_5_3_spec_lock.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
@@ -610,6 +649,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     | _STAGE_29_4_SOAK_SPEC_LOCK_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_TEST_BASENAMES
 )
 
 

@@ -235,10 +235,13 @@ def test_manifest_actual_inventory_matches_stage29_root():
     )
     # Stage 29.5.2 offline integration proof (authorized
     # 2026-05-26) introduces ``stage29_5_2_*.py`` files under
-    # PHX2/stage29/. Those files belong to the Stage 29.5.2
-    # inventory, not the Stage 29.5 inventory; the Stage 29.5
-    # manifest stays pinned at exactly six files. This filter
-    # excludes Stage 29.5.2 files so the Stage 29.5 inventory
+    # PHX2/stage29/. Stage 29.5.3 soak pass-entrypoint wrapper
+    # (authorized 2026-05-26) introduces ``stage29_5_3_*.py``
+    # files under PHX2/stage29/. Those files belong to the
+    # Stage 29.5.2 / Stage 29.5.3 inventories respectively, not
+    # the Stage 29.5 inventory; the Stage 29.5 manifest stays
+    # pinned at exactly six files. This filter excludes Stage
+    # 29.5.2 + Stage 29.5.3 files so the Stage 29.5 inventory
     # cross-check remains tight against the Stage 29.5 manifest.
     actual_py = {
         entry.name
@@ -247,6 +250,7 @@ def test_manifest_actual_inventory_matches_stage29_root():
         and entry.suffix == ".py"
         and entry.name.startswith("stage29_5_")
         and not entry.name.startswith("stage29_5_2_")
+        and not entry.name.startswith("stage29_5_3_")
     }
     expected = set(
         stage29_5_manifest.STAGE29_5_PRODUCTION_PY_BASENAMES
