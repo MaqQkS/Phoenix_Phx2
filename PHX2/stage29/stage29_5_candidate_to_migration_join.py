@@ -148,28 +148,40 @@ def _record_matches_candidate(
     record: Stage29_5MigrationEvidenceRecord,
     axes: Stage29_5CandidateAxes,
 ) -> bool:
+    """Stage 29.5.1 second remediation: tighter axis matcher.
+
+    Match rules:
+
+      * ``base_mint`` is always required to be supplied by both
+        the candidate and the evidence record. They must equal.
+      * For each of ``pool_account`` / ``pool_program_id`` /
+        ``quote_mint``: if the candidate supplies a non-None
+        value, the evidence record MUST supply the same non-None
+        value. Evidence-side ``None`` no longer satisfies a
+        candidate-supplied axis (the wildcard is candidate-side
+        only). If the candidate supplies ``None`` on an axis,
+        that axis is wildcarded for the match.
+
+    The pre-second-remediation matcher let evidence-side ``None``
+    silently satisfy any candidate-supplied axis, which created
+    a route for evidence with incomplete provenance to anchor a
+    JOINED verdict. The audit demanded this be closed.
+    """
     if record.base_mint is None:
         return False
     if record.base_mint != axes.base_mint:
         return False
-    if (
-        axes.pool_account is not None
-        and record.pool_account is not None
-        and record.pool_account != axes.pool_account
+    for cand_value, rec_value in (
+        (axes.pool_account, record.pool_account),
+        (axes.pool_program_id, record.pool_program_id),
+        (axes.quote_mint, record.quote_mint),
     ):
-        return False
-    if (
-        axes.pool_program_id is not None
-        and record.pool_program_id is not None
-        and record.pool_program_id != axes.pool_program_id
-    ):
-        return False
-    if (
-        axes.quote_mint is not None
-        and record.quote_mint is not None
-        and record.quote_mint != axes.quote_mint
-    ):
-        return False
+        if cand_value is None:
+            continue
+        if rec_value is None:
+            return False
+        if rec_value != cand_value:
+            return False
     return True
 
 
@@ -572,7 +584,13 @@ def join_candidate_to_migration_evidence(
             time_window_end_utc,
         )
     ]
-    if not in_window_records and out_of_window_records:
+    # Stage 29.5.1 second remediation: ANY matched PRESENT
+    # record outside the caller-supplied time window blocks
+    # JOINED. The pre-remediation partition let an in-window
+    # record hide a co-matched stale out-of-window record; the
+    # audit demanded that out-of-window matched evidence must
+    # not be silently dropped when an in-window record exists.
+    if out_of_window_records:
         return Stage29_5MigrationJoinRecord(
             migration_join_status=(
                 MIGRATION_JOIN_STATUS_TIME_WINDOW_INVALID

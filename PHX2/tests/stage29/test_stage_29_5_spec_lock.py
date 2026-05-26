@@ -200,7 +200,7 @@ def test_runbook_pins_stage_29_5_0_zero_edits(phrase):
 
 _STAGE_29_5_1_PLANNED_AXES: tuple[str, ...] = (
     "migration evidence models",
-    "Helius WS adapter boundary or artifact reader",
+    "Helius WS adapter boundary AND artifact reader",
     "candidate-to-migration join logic",
     "private ping context projection",
 )
@@ -930,4 +930,65 @@ def test_runbook_has_no_phx1_import_path():
         assert needle not in text, (
             f"Stage 29.5 runbook must not carry PHX1 import "
             f"substring {needle!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 second remediation: spec-lock reflects shipped state
+# ---------------------------------------------------------------------------
+
+
+_STAGE_29_5_1_ACTUAL_STATE_PHRASES: tuple[str, ...] = (
+    # Stage 29.5.1 shipped BOTH surfaces, not "either/or".
+    "Stage 29.5.1 ships BOTH a Helius WebSocket "
+    "normalized-message adapter boundary AND an artifact "
+    "reader",
+    # The adapter is Protocol-typed over an injected transport;
+    # no real socket-based client is shipped.
+    "Protocol-typed over an INJECTED transport",
+    # No real WS client at Stage 29.5.1.
+    "no real `websockets` / `websocket-client` / `socket` "
+    "client is shipped at Stage 29.5.1",
+    # Raw Helius JSON-RPC envelopes are refused.
+    "Raw Helius JSON-RPC envelopes",
+    "REFUSAL_REASON_MALFORMED_PAYLOAD",
+    # Runtime integration into Stage 29.3 / 29.4 is deferred.
+    "deferred to Stage 29.5.2",
+    "offline evidence / projection layer only",
+    # Both surfaces stay offline at Stage 29.5.1.
+    "ships ZERO real outbound network surface",
+)
+
+
+_STAGE_29_5_1_FORBIDDEN_EITHER_OR_PHRASES: tuple[str, ...] = (
+    # Pre-second-remediation language that must no longer be in
+    # the runbook.
+    "either option (not both at Stage 29.5.1)",
+    "may ship either option",
+    "OR a paired artifact reader, not both",
+    "Helius WS adapter boundary or artifact reader",
+)
+
+
+def test_spec_lock_reflects_29_5_1_adapter_and_artifact_reader_both_present():
+    """Stage 29.5.1 second remediation: the spec-lock runbook
+    now reflects the actual shipped Stage 29.5.1 state — BOTH
+    the Helius WS normalized-message adapter boundary AND the
+    artifact reader are present; no real WebSocket client is
+    shipped; raw Helius JSON-RPC envelopes are refused; runtime
+    integration into the Stage 29.3 / 29.4 private ping path is
+    deferred to Stage 29.5.2. The pre-second-remediation
+    either/or language must no longer appear.
+    """
+    text = _runbook_text()
+    normalized = _normalized_whitespace(text)
+    for phrase in _STAGE_29_5_1_ACTUAL_STATE_PHRASES:
+        assert phrase in normalized, (
+            f"Stage 29.5 runbook missing actual-state phrase "
+            f"{phrase!r}"
+        )
+    for forbidden in _STAGE_29_5_1_FORBIDDEN_EITHER_OR_PHRASES:
+        assert forbidden not in normalized, (
+            f"Stage 29.5 runbook must no longer carry stale "
+            f"either/or phrase {forbidden!r}"
         )

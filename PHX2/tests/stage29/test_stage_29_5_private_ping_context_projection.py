@@ -114,20 +114,24 @@ def _present_evidence(
 def _ath_context(
     ath_observed_at_utc: str | None,
     ath_since_migration_status: str = "UNKNOWN",
+    ath_status: str = "PRESENT",
+    ath_value: str | None = "0.000054",
+    token_mint: str | None = _SAFE_MINT_A,
 ) -> AthContextRecord:
-    """Stage 29.5.1 remediation: fixture now takes
-    ``ath_since_migration_status`` so each test can pin the
-    Stage 27.4 ATH-since-migration vocabulary independently.
+    """Stage 29.5.1 second remediation: fixture now also takes
+    ``ath_status``, ``ath_value``, and ``token_mint`` so each
+    test can pin the Stage 27.4 ATH record's predicates that
+    feed the projection's 8-predicate COMPLETE gate.
 
-    Default stays ``"UNKNOWN"`` to preserve the prior fixture
-    semantics where the test did not care about the axis. Tests
-    that pin COMPLETE must supply ``"POST_MIGRATION_ONLY"``.
+    Defaults match the strict-COMPLETE preconditions so existing
+    tests with the default fixture continue to pass. Tests that
+    pin a failure mode override the relevant axis.
     """
     return AthContextRecord(
-        token_mint=_SAFE_MINT_A,
+        token_mint=token_mint,
         pair_type="PUMP_SOL",
         quote_asset="SOL",
-        ath_value="0.000054",
+        ath_value=ath_value,
         ath_unit="USD",
         ath_source="STAGE29_2_BIRDEYE_OHLCV",
         ath_observed_at_utc=ath_observed_at_utc,
@@ -137,7 +141,7 @@ def _ath_context(
         drawdown_from_ath=None,
         drawdown_unit="USD",
         drawdown_basis="UNKNOWN",
-        ath_status="PRESENT",
+        ath_status=ath_status,
         ath_reason="OK",
         schema_version="stage27_v0_price_ath",
     )
@@ -804,3 +808,113 @@ def test_missing_slot_with_no_ath_context_never_sets_verified_true():
     )
     assert ctx.post_migration_ath_verified is None
     assert WARNING_MIGRATION_SLOT_MISSING in ctx.warnings
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 second remediation: 8-predicate COMPLETE gate
+# ---------------------------------------------------------------------------
+
+
+def test_joined_with_post_migration_only_but_ath_status_unavailable_is_partial_not_complete():
+    """Stage 29.5.1 second remediation: even with JOINED + slot
+    present + POST_MIGRATION_ONLY + matching mint + ATH after
+    migration, if ``ath_status != PRESENT`` the projection must
+    refuse COMPLETE.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+            ath_status="UNAVAILABLE",
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+
+
+def test_joined_with_post_migration_only_but_ath_value_missing_is_partial_not_complete():
+    """Stage 29.5.1 second remediation: ATH value missing on a
+    PRESENT record must NOT anchor COMPLETE.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+            ath_value=None,
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+
+
+def test_joined_with_post_migration_only_but_ath_token_mismatch_is_partial_not_complete():
+    """Stage 29.5.1 second remediation: when the Stage 27.4 ATH
+    record's ``token_mint`` does NOT equal the join record's
+    ``candidate_base_mint``, the projection must refuse COMPLETE.
+    A cross-token ATH must never silently anchor a verified
+    post-migration claim for a different mint.
+    """
+    join = _join(_present_evidence())
+    other_mint = "Z" * 44
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+            token_mint=other_mint,
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+
+
+def test_joined_with_post_migration_only_but_no_ath_context_is_partial_not_complete():
+    """Stage 29.5.1 second remediation defensive pin: when
+    ``ath_context=None``, the projection MUST refuse COMPLETE
+    even when the join is JOINED and the evidence record carries
+    a slot. No ATH context means the POST_MIGRATION_ONLY
+    precondition cannot be proved.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=None,
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+    assert (
+        ctx.join_status_echoed
+        == MIGRATION_JOIN_STATUS_JOINED
+    )

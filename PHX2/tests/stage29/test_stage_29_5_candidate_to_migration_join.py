@@ -998,3 +998,201 @@ def test_window_compare_uses_parsed_datetime_not_string():
         result.migration_join_status
         == MIGRATION_JOIN_STATUS_JOINED
     )
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 second remediation: window-blocking + strict matcher
+# ---------------------------------------------------------------------------
+
+
+def test_in_window_present_plus_out_of_window_present_does_not_join():
+    """Stage 29.5.1 second remediation: any matched PRESENT
+    record outside the caller-supplied time window blocks
+    JOINED. Pre-second-remediation, an in-window record could
+    silently win and the out-of-window record was dropped.
+    """
+    from PHX2.stage29.stage29_5_migration_models import (
+        WARNING_MIGRATION_STALE,
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED,
+    )
+    from PHX2.stage29.stage29_5_private_ping_context_projection import (
+        project_private_ping_migration_context,
+    )
+
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    in_window = _evidence_present(
+        timestamp=_TIMESTAMP_INSIDE,
+    )
+    out_of_window = _evidence_present(
+        timestamp=_TIMESTAMP_AFTER_WINDOW,
+        signature="synth-sig-out",
+        observed_at_utc=_OBSERVED_AT_LATER,
+    )
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(in_window, out_of_window),
+        clock=_fixed_clock,
+        time_window_start_utc=_WINDOW_START,
+        time_window_end_utc=_WINDOW_END,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_TIME_WINDOW_INVALID
+    )
+    # Both records carried on matched_evidence — the
+    # out-of-window record must not be silently dropped.
+    assert result.matched_evidence_count == 2
+    # Downstream projection preserves the STALE + UNVERIFIED
+    # warning pair.
+    ctx = project_private_ping_migration_context(
+        join_record=result,
+        ath_context=None,
+        clock=_fixed_clock,
+    )
+    assert WARNING_MIGRATION_STALE in ctx.warnings
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+
+
+def test_only_out_of_window_present_still_yields_time_window_invalid():
+    """Defensive companion: when there is NO in-window record
+    and only an out-of-window record, the result is still
+    TIME_WINDOW_INVALID (unchanged from the first remediation;
+    pinned here to lock the contract end-to-end).
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    out_of_window = _evidence_present(
+        timestamp=_TIMESTAMP_BEFORE_WINDOW,
+    )
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(out_of_window,),
+        clock=_fixed_clock,
+        time_window_start_utc=_WINDOW_START,
+        time_window_end_utc=_WINDOW_END,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_TIME_WINDOW_INVALID
+    )
+
+
+def test_candidate_supplied_axis_requires_record_axis_present():
+    """Stage 29.5.1 second remediation: when the candidate
+    supplies a non-None pool_account / pool_program_id /
+    quote_mint, the evidence record MUST supply the same
+    non-None value. Evidence-side ``None`` no longer
+    wildcards a candidate-supplied axis.
+    """
+    full_axes = Stage29_5CandidateAxes(
+        base_mint=_SAFE_MINT_A,
+        pool_account=_SAFE_POOL_A,
+        pool_program_id=_PUMPSWAP_PROGRAM_ID,
+        quote_mint=_SAFE_QUOTE,
+    )
+    # Case 1: record has correct pool_program_id but pool_account
+    # is None. PRESENT dataclass requires the full quartet, so
+    # build with INVALID + partial axes (which the dataclass
+    # admits) to test the matcher in isolation from the
+    # downstream PRESENT-status guards.
+    rec_invalid_pool_account = Stage29_5MigrationEvidenceRecord(
+        migration_status=MIGRATION_STATUS_INVALID,
+        migration_source=MIGRATION_SOURCE_HELIUS_WS,
+        base_mint=_SAFE_MINT_A,
+        pool_account=None,
+        pool_program_id=_PUMPSWAP_PROGRAM_ID,
+        quote_mint=_SAFE_QUOTE,
+        migration_timestamp_utc=None,
+        migration_slot=None,
+        migration_signature=None,
+        observed_at_utc=_OBSERVED_AT,
+        source_event_ref=None,
+    )
+    result_no_pool = join_candidate_to_migration_evidence(
+        candidate_axes=full_axes,
+        evidence_records=(rec_invalid_pool_account,),
+        clock=_fixed_clock,
+    )
+    assert (
+        result_no_pool.migration_join_status
+        == MIGRATION_JOIN_STATUS_NO_MATCH
+    ), (
+        "candidate-supplied pool_account axis must require "
+        "non-None evidence pool_account"
+    )
+
+    # Case 2: record has correct pool_account but
+    # pool_program_id is None.
+    rec_invalid_program = Stage29_5MigrationEvidenceRecord(
+        migration_status=MIGRATION_STATUS_INVALID,
+        migration_source=MIGRATION_SOURCE_HELIUS_WS,
+        base_mint=_SAFE_MINT_A,
+        pool_account=_SAFE_POOL_A,
+        pool_program_id=None,
+        quote_mint=_SAFE_QUOTE,
+        migration_timestamp_utc=None,
+        migration_slot=None,
+        migration_signature=None,
+        observed_at_utc=_OBSERVED_AT,
+        source_event_ref=None,
+    )
+    result_no_program = join_candidate_to_migration_evidence(
+        candidate_axes=full_axes,
+        evidence_records=(rec_invalid_program,),
+        clock=_fixed_clock,
+    )
+    assert (
+        result_no_program.migration_join_status
+        == MIGRATION_JOIN_STATUS_NO_MATCH
+    ), (
+        "candidate-supplied pool_program_id axis must require "
+        "non-None evidence pool_program_id"
+    )
+
+    # Case 3: record has correct pool axes but quote_mint is None.
+    rec_invalid_quote = Stage29_5MigrationEvidenceRecord(
+        migration_status=MIGRATION_STATUS_INVALID,
+        migration_source=MIGRATION_SOURCE_HELIUS_WS,
+        base_mint=_SAFE_MINT_A,
+        pool_account=_SAFE_POOL_A,
+        pool_program_id=_PUMPSWAP_PROGRAM_ID,
+        quote_mint=None,
+        migration_timestamp_utc=None,
+        migration_slot=None,
+        migration_signature=None,
+        observed_at_utc=_OBSERVED_AT,
+        source_event_ref=None,
+    )
+    result_no_quote = join_candidate_to_migration_evidence(
+        candidate_axes=full_axes,
+        evidence_records=(rec_invalid_quote,),
+        clock=_fixed_clock,
+    )
+    assert (
+        result_no_quote.migration_join_status
+        == MIGRATION_JOIN_STATUS_NO_MATCH
+    ), (
+        "candidate-supplied quote_mint axis must require "
+        "non-None evidence quote_mint"
+    )
+
+    # Defensive sanity: when ALL axes match including None
+    # equivalents (candidate supplies only base_mint), the join
+    # behaves the same as before — the wildcard is candidate-side
+    # only.
+    base_only_axes = Stage29_5CandidateAxes(
+        base_mint=_SAFE_MINT_A,
+    )
+    result_base_only = join_candidate_to_migration_evidence(
+        candidate_axes=base_only_axes,
+        evidence_records=(rec_invalid_pool_account,),
+        clock=_fixed_clock,
+    )
+    # rec_invalid_pool_account has migration_status=INVALID, so
+    # the join routes to SOURCE_INVALID once the base_mint match
+    # admits it.
+    assert (
+        result_base_only.migration_join_status
+        == MIGRATION_JOIN_STATUS_SOURCE_INVALID
+    )

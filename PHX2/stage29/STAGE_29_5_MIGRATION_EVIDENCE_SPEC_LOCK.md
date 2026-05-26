@@ -28,7 +28,7 @@ Stage 29.5 is split into:
   source.
 - **Stage 29.5.1** — the implementation commit (NOT shipped at
   Stage 29.5.0). May land the Stage 29.5 migration evidence
-  models, the Helius WS adapter boundary or artifact reader,
+  models, the Helius WS adapter boundary AND artifact reader,
   the candidate-to-migration join logic, the private ping
   migration context projection, and the Stage 29.5 manifest
   under operator authorization on a separate commit. Stage
@@ -113,15 +113,25 @@ operator authorization on a separate commit:
   `Stage29_5MigrationEvidenceError` dataclasses pinning the
   Stage 29.5 closed-set status / source / join-status /
   measurement-status / warning-code tokens.
-- **Helius WS adapter boundary or artifact reader** — either a
-  bounded Helius WebSocket boundary that consumes Helius WS
-  migration evidence messages or an artifact reader that
-  consumes a pre-recorded Helius WS migration evidence
-  artifact bundle. The substage may ship either option (not
-  both at Stage 29.5.1) under explicit operator selection. The
-  adapter boundary is the single Stage 29.5 outbound network
-  site if the WS option ships; the artifact reader has zero
-  outbound network if the artifact option ships.
+- **Helius WS adapter boundary AND artifact reader** — Stage
+  29.5.1 ships BOTH a Helius WebSocket normalized-message
+  adapter boundary AND an artifact reader that consumes a
+  pre-recorded Stage 29.5 migration evidence artifact bundle
+  on disk. The adapter boundary is Protocol-typed over an
+  INJECTED transport; no real `websockets` /
+  `websocket-client` / `socket` client is shipped at Stage
+  29.5.1, and the concrete WebSocket transport class is
+  deferred to a future operator-authorized substage. Raw
+  Helius JSON-RPC envelopes (top-level `jsonrpc` / `method` /
+  `params` / `result` / `error` keys) are refused with
+  `REFUSAL_REASON_MALFORMED_PAYLOAD` and require a future
+  operator-authorized normalizer substage. Stage 29.5.1 thus
+  ships ZERO real outbound network surface — both the adapter
+  boundary and the artifact reader stay offline. Runtime
+  integration of the Stage 29.5 projection into the Stage
+  29.3 / Stage 29.4 private ping path is deferred to Stage
+  29.5.2; Stage 29.5.1 ships these surfaces as an offline
+  evidence / projection layer only.
 - **candidate-to-migration join logic** — pure function that
   joins a Stage 29.3 hint-bearing candidate (Stage 29.1
   PumpSwap hint quartet + Stage 29.2 Birdeye price / ATH
@@ -383,10 +393,14 @@ Stage 29.5.1 may later add these production .py files under
   migration evidence record, the migration join record, the
   private ping migration context projection, and the Stage
   29.5 error type.
-- `stage29_5_helius_ws_adapter.py` — bounded Helius
-  WebSocket adapter boundary (OR a paired artifact reader,
-  not both; see Section 4). Single Stage 29.5 outbound
-  network site if the WS option ships.
+- `stage29_5_helius_ws_adapter.py` — Stage 29.5.1
+  normalized-message adapter boundary, Protocol-typed over
+  an INJECTED transport. No real `websockets` /
+  `websocket-client` / `socket` client is shipped at Stage
+  29.5.1; the concrete WebSocket transport class is deferred
+  to a future operator-authorized substage. Raw Helius
+  JSON-RPC envelopes are refused with
+  `REFUSAL_REASON_MALFORMED_PAYLOAD`.
 - `stage29_5_migration_artifact_reader.py` — pure file
   reader that consumes a pre-recorded Stage 29.5 migration
   evidence artifact bundle on disk.

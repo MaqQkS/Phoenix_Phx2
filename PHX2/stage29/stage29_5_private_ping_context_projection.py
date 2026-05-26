@@ -21,20 +21,30 @@ Stage 29.3 mode-3 orchestrator continues to inject
 this projection at runtime yet. The Stage 29.5 boundary test
 pins that not-yet-integrated state.
 
-Stage 29.5.1 remediation tightens COMPLETE semantics:
+Stage 29.5.1 second remediation tightens COMPLETE semantics to
+an 8-predicate gate. COMPLETE requires every one of:
 
-  * COMPLETE requires every one of (join verdict = JOINED;
-    migration_slot present; Stage 27.4 ATH context's
-    ``ath_since_migration_status`` equal to ``POST_MIGRATION_ONLY``;
-    the ATH-observed timestamp parses and is strictly after the
-    matched migration timestamp).
-  * When Stage 27.4 ATH status is UNKNOWN /
-    ``MAY_INCLUDE_PRE_MIGRATION`` / missing / any non-
-    ``POST_MIGRATION_ONLY`` token, the projection emits
-    ``PARTIAL_MIGRATION_PRESENT`` + ``POST_MIGRATION_ATH_UNVERIFIED``.
-  * When ``migration_slot`` is missing, the projection NEVER sets
-    ``post_migration_ath_verified`` to ``True`` regardless of ATH
-    state — it stays ``None``.
+  1. join verdict = ``JOINED``
+  2. ``migration_slot`` present (non-None)
+  3. ``ath_context is not None``
+  4. ``ath_context.ath_status == ATH_STATUS_PRESENT``
+  5. ``ath_context.ath_value is not None``
+  6. ``ath_context.token_mint == join_record.candidate_base_mint``
+  7. ``ath_context.ath_since_migration_status ==
+     ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY``
+  8. ``ath_observed_at_utc`` parses as strict UTC datetime AND
+     is strictly after the matched ``migration_timestamp_utc``
+     (the matched timestamp is itself parsed strictly).
+
+If any predicate fails:
+
+  * The projection does NOT emit ``COMPLETE``.
+  * The projection does NOT set ``post_migration_ath_verified``
+    to ``True``.
+  * The projection emits ``PARTIAL_MIGRATION_PRESENT`` +
+    ``WARNING_POST_MIGRATION_ATH_UNVERIFIED`` (and
+    ``WARNING_MIGRATION_SLOT_MISSING`` additionally when
+    ``migration_slot`` is missing).
 
 The ``filter_enforcement_status`` field is locked to
 ``NOT_ACTIVE_STAGE_29_PENDING`` on every output; the projection
@@ -61,6 +71,7 @@ from typing import Callable, Optional
 from PHX2.stage27.price_ath_context_models import (
     ATH_SINCE_MIGRATION_STATUS_MAY_INCLUDE_PRE_MIGRATION,
     ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY,
+    ATH_STATUS_PRESENT,
     AthContextRecord,
 )
 from PHX2.stage29.stage29_5_migration_models import (
@@ -127,6 +138,68 @@ def _ath_window_starts_post_migration(
         )
     except ValueError:
         return None
+    return ath_dt > migration_dt
+
+
+def _ath_context_proves_post_migration_only_complete(
+    ath_context: Optional[AthContextRecord],
+    join_record: Stage29_5MigrationJoinRecord,
+    migration_timestamp_utc: Optional[str],
+) -> bool:
+    """Stage 29.5.1 second remediation: return True iff the
+    Stage 27.4 ATH context positively proves the
+    POST_MIGRATION_ONLY + ATH-record-fully-populated +
+    same-token + strict-after-migration conjunction the
+    projection's COMPLETE gate requires.
+
+    Each predicate failure routes the projection to
+    PARTIAL_MIGRATION_PRESENT.
+
+    The Stage 27.4 ATH record's ``ath_since_migration_status``
+    field can only legitimately equal POST_MIGRATION_ONLY when
+    Stage 27.4 has positively proven the ATH window does not
+    include pre-migration wick data. Stage 29.5 layers two
+    additional checks on top of that Stage 27.4 verdict:
+
+      * the ATH record must positively refer to the SAME mint
+        the candidate carried into the join (a cross-token
+        token_mint mismatch must not silently anchor a COMPLETE
+        verdict);
+      * the ATH-observed timestamp must parse as a strict UTC
+        datetime AND be strictly after the matched migration
+        timestamp (a parsed-datetime cross-check on top of the
+        Stage 27.4 POST_MIGRATION_ONLY token).
+    """
+    if ath_context is None:
+        return False
+    if ath_context.ath_status != ATH_STATUS_PRESENT:
+        return False
+    if ath_context.ath_value is None:
+        return False
+    if ath_context.token_mint is None:
+        return False
+    if (
+        ath_context.token_mint
+        != join_record.candidate_base_mint
+    ):
+        return False
+    if (
+        ath_context.ath_since_migration_status
+        != ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY
+    ):
+        return False
+    if migration_timestamp_utc is None:
+        return False
+    ath_observed = ath_context.ath_observed_at_utc
+    if ath_observed is None:
+        return False
+    try:
+        ath_dt = parse_safe_utc_datetime(ath_observed)
+        migration_dt = parse_safe_utc_datetime(
+            migration_timestamp_utc
+        )
+    except ValueError:
+        return False
     return ath_dt > migration_dt
 
 
@@ -241,27 +314,18 @@ def project_private_ping_migration_context(
         post_migration_ath_verified = None
     elif status == MIGRATION_JOIN_STATUS_JOINED:
         slot_present = migration_slot is not None
-        ath_after_migration = (
-            _ath_window_starts_post_migration(
-                ath_context, migration_timestamp_utc
+        # Stage 29.5.1 second remediation: COMPLETE requires the
+        # full 8-predicate gate. Any one predicate failing
+        # routes the verdict to PARTIAL_MIGRATION_PRESENT and
+        # prevents ``post_migration_ath_verified=True``.
+        complete_proven = (
+            _ath_context_proves_post_migration_only_complete(
+                ath_context,
+                join_record,
+                migration_timestamp_utc,
             )
         )
-        ath_status = (
-            ath_context.ath_since_migration_status
-            if ath_context is not None
-            else None
-        )
-        ath_proven_post_migration_only = (
-            ath_status
-            == ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY
-            and ath_after_migration is True
-        )
-        # Stage 29.5.1 remediation: COMPLETE requires slot
-        # present AND Stage 27.4 ATH context explicitly claims
-        # POST_MIGRATION_ONLY AND the ATH timestamp parses after
-        # the migration timestamp. Every other combination
-        # downgrades to PARTIAL_MIGRATION_PRESENT.
-        if slot_present and ath_proven_post_migration_only:
+        if slot_present and complete_proven:
             measurement_status = (
                 MEASUREMENT_STATUS_COMPLETE
             )
@@ -274,25 +338,31 @@ def project_private_ping_migration_context(
                 warnings,
                 WARNING_POST_MIGRATION_ATH_UNVERIFIED,
             )
-            # Distinguish positive-negative signals (verified
+            # Inside the slot-present-but-not-complete branch,
+            # distinguish positive-negative signals (verified
             # False) from insufficient-information cases
             # (verified None):
             #   * Stage 27.4 explicitly says the ATH window may
             #     include pre-migration wick data ->
             #     verified=False (positive negative signal).
-            #   * POST_MIGRATION_ONLY but ATH timestamp parses
-            #     before the migration timestamp -> verified=False
-            #     (positive negative signal: ATH demonstrably
-            #     predates the migration).
-            #   * ATH timestamp simply predates the migration on
-            #     a non-POST_MIGRATION_ONLY status ->
-            #     verified=False (still a positive negative
-            #     signal).
-            #   * Otherwise (UNKNOWN status with ATH after, or
-            #     no ATH context, or unparseable timestamps) ->
-            #     verified=None (cannot prove either way).
+            #   * Either timestamp side proves ATH predates the
+            #     migration -> verified=False.
+            #   * Otherwise (UNKNOWN status / no ATH context /
+            #     unparseable timestamps / ath_status not
+            #     PRESENT / ath_value missing / token mismatch)
+            #     -> verified=None (cannot prove either way).
+            ath_status_token = (
+                ath_context.ath_since_migration_status
+                if ath_context is not None
+                else None
+            )
+            ath_after_migration = (
+                _ath_window_starts_post_migration(
+                    ath_context, migration_timestamp_utc
+                )
+            )
             if (
-                ath_status
+                ath_status_token
                 == ATH_SINCE_MIGRATION_STATUS_MAY_INCLUDE_PRE_MIGRATION
             ):
                 post_migration_ath_verified = False
