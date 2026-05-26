@@ -279,11 +279,35 @@ exactly one of:
   is unavailable (e.g. `MIGRATION_SLOT_MISSING`). The private
   ping continues to render; the projection surfaces the
   partial verification as a closed-set warning.
-- `COMPLETE` — a migration evidence record was joined to the
-  candidate, the migration timestamp and slot pass
-  validation, and the Stage 29.2 Birdeye ATH window
-  observably starts after the migration timestamp. Post-
-  migration ATH is verified.
+- `COMPLETE` — every one of the following predicates must
+  hold; any one failing routes the projection to
+  `PARTIAL_MIGRATION_PRESENT` + `POST_MIGRATION_ATH_UNVERIFIED`:
+
+    1. `migration_join_status == JOINED`
+    2. `migration_slot is present` (non-`None`)
+    3. `ath_status == PRESENT`
+    4. `ath_value is not None`
+    5. `ath_context.token_mint == join_record.candidate_base_mint`
+    6. `ath_since_migration_status == POST_MIGRATION_ONLY`
+    7. `ath_observed_at_utc parses as strict UTC` datetime
+    8. `ath_observed_at_utc strictly after migration_timestamp_utc`
+
+  `post_migration_ath_verified = True` only when every
+  predicate holds. Otherwise the projection emits
+  `PARTIAL_MIGRATION_PRESENT` + `POST_MIGRATION_ATH_UNVERIFIED`
+  where appropriate.
+
+  `post_migration_ath_verified = False` is allowed only when
+  the ATH context speaks for the SAME candidate token AND
+  carries a real `PRESENT` ATH record (i.e.
+  `ath_context.token_mint == join_record.candidate_base_mint`
+  AND `ath_context.ath_status == PRESENT`) AND the Stage 27.4
+  ATH context positively proves a negative or ambiguous
+  post-migration condition (`ath_since_migration_status ==
+  MAY_INCLUDE_PRE_MIGRATION`, or the ATH-observed timestamp
+  positively predates the migration timestamp). All other
+  uncertain / missing / wrong-token / non-`PRESENT` cases
+  collapse to `post_migration_ath_verified = None`.
 - `INVALID_MIGRATION` — a migration evidence record was found
   but failed validation. The private ping continues to render
   against the Stage 29.2 Birdeye snapshot alone; the

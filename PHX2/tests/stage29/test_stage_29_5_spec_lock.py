@@ -992,3 +992,71 @@ def test_spec_lock_reflects_29_5_1_adapter_and_artifact_reader_both_present():
             f"Stage 29.5 runbook must no longer carry stale "
             f"either/or phrase {forbidden!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 PASS-WITH-PATCHES: COMPLETE predicate list pinned
+# ---------------------------------------------------------------------------
+
+
+_STAGE_29_5_1_COMPLETE_PREDICATE_PHRASES: tuple[str, ...] = (
+    "migration_join_status == JOINED",
+    "migration_slot is present",
+    "ath_status == PRESENT",
+    "ath_value is not None",
+    "ath_context.token_mint == join_record.candidate_base_mint",
+    "ath_since_migration_status == POST_MIGRATION_ONLY",
+    "ath_observed_at_utc parses as strict UTC",
+    "ath_observed_at_utc strictly after migration_timestamp_utc",
+)
+
+
+_STAGE_29_5_1_VERIFIED_BOOL_RULE_PHRASES: tuple[str, ...] = (
+    # POST-WITH-PATCHES: verified=True is allowed only when
+    # every predicate holds.
+    "post_migration_ath_verified = True` only when every "
+    "predicate holds",
+    # verified=False is only allowed when same-token + PRESENT
+    # ATH context exists.
+    "post_migration_ath_verified = False` is allowed only when",
+    # All other uncertain/missing/wrong-token cases collapse to
+    # None.
+    "wrong-token",
+    "collapse to `post_migration_ath_verified = None`",
+)
+
+
+def test_spec_lock_pins_complete_predicate_list():
+    """Stage 29.5.1 PASS-WITH-PATCHES: the spec-lock runbook
+    Section 6.4 COMPLETE bullet must explicitly list each of
+    the 8 hardened predicates the Stage 29.5.1 projection
+    enforces. Pre-PASS-WITH-PATCHES the runbook only said
+    'timestamp and slot pass validation' without naming the
+    individual predicates; Codex flagged the language drift.
+    """
+    normalized = _normalized_whitespace(_runbook_text())
+    for phrase in _STAGE_29_5_1_COMPLETE_PREDICATE_PHRASES:
+        assert phrase in normalized, (
+            f"Stage 29.5 runbook Section 6.4 COMPLETE bullet "
+            f"missing predicate phrase {phrase!r}"
+        )
+
+
+def test_spec_lock_pins_verified_bool_rule_for_same_token_only():
+    """Stage 29.5.1 PASS-WITH-PATCHES: the spec-lock runbook
+    must state explicitly that:
+
+      * post_migration_ath_verified=True only when every
+        predicate holds;
+      * post_migration_ath_verified=False is allowed only when
+        the ATH context speaks for the same candidate token
+        and carries a real PRESENT ATH record;
+      * all other uncertain / missing / wrong-token cases
+        collapse to None.
+    """
+    normalized = _normalized_whitespace(_runbook_text())
+    for phrase in _STAGE_29_5_1_VERIFIED_BOOL_RULE_PHRASES:
+        assert phrase in normalized, (
+            f"Stage 29.5 runbook Section 6.4 missing "
+            f"verified-bool rule phrase {phrase!r}"
+        )

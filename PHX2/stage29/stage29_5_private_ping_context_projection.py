@@ -46,6 +46,16 @@ If any predicate fails:
     ``WARNING_MIGRATION_SLOT_MISSING`` additionally when
     ``migration_slot`` is missing).
 
+Stage 29.5.1 PASS-WITH-PATCHES additionally tightens the
+PARTIAL-with-``verified=False`` rule: a wrong-token ATH context
+NEVER drives ``post_migration_ath_verified = False``. Only an
+ATH context that (a) speaks for the SAME candidate token (i.e.
+``ath_context.token_mint == join_record.candidate_base_mint``)
+AND (b) carries ``ath_status == ATH_STATUS_PRESENT`` is allowed
+to drive the ``False`` signal. Every other uncertain / missing
+/ wrong-token / non-``PRESENT`` case collapses to
+``post_migration_ath_verified = None``.
+
 The ``filter_enforcement_status`` field is locked to
 ``NOT_ACTIVE_STAGE_29_PENDING`` on every output; the projection
 rejects any caller attempt to override it.
@@ -338,38 +348,54 @@ def project_private_ping_migration_context(
                 warnings,
                 WARNING_POST_MIGRATION_ATH_UNVERIFIED,
             )
-            # Inside the slot-present-but-not-complete branch,
-            # distinguish positive-negative signals (verified
-            # False) from insufficient-information cases
-            # (verified None):
-            #   * Stage 27.4 explicitly says the ATH window may
-            #     include pre-migration wick data ->
-            #     verified=False (positive negative signal).
-            #   * Either timestamp side proves ATH predates the
-            #     migration -> verified=False.
-            #   * Otherwise (UNKNOWN status / no ATH context /
-            #     unparseable timestamps / ath_status not
-            #     PRESENT / ath_value missing / token mismatch)
-            #     -> verified=None (cannot prove either way).
-            ath_status_token = (
-                ath_context.ath_since_migration_status
-                if ath_context is not None
-                else None
+            # Stage 29.5.1 PASS-WITH-PATCHES: a wrong-token ATH
+            # context must NEVER drive
+            # post_migration_ath_verified=False. Only an ATH
+            # context that (a) speaks for the SAME candidate
+            # token AND (b) carries ath_status=ATH_STATUS_PRESENT
+            # (a real present ATH record) can drive the False
+            # signal. Every other uncertain / missing /
+            # wrong-token / non-PRESENT case collapses to None.
+            ath_context_proves_same_token_present = (
+                ath_context is not None
+                and ath_context.token_mint is not None
+                and ath_context.token_mint
+                == join_record.candidate_base_mint
+                and ath_context.ath_status
+                == ATH_STATUS_PRESENT
             )
-            ath_after_migration = (
-                _ath_window_starts_post_migration(
-                    ath_context, migration_timestamp_utc
-                )
-            )
-            if (
-                ath_status_token
-                == ATH_SINCE_MIGRATION_STATUS_MAY_INCLUDE_PRE_MIGRATION
-            ):
-                post_migration_ath_verified = False
-            elif ath_after_migration is False:
-                post_migration_ath_verified = False
-            else:
+            if not ath_context_proves_same_token_present:
                 post_migration_ath_verified = None
+            else:
+                # Within the same-candidate-token + PRESENT
+                # subspace, distinguish positive-negative signals
+                # (verified False) from insufficient-information
+                # cases (verified None):
+                #   * Stage 27.4 explicitly says the ATH window
+                #     may include pre-migration wick data ->
+                #     verified=False (positive negative signal).
+                #   * The ATH-observed timestamp positively
+                #     predates the migration timestamp ->
+                #     verified=False.
+                #   * Otherwise (UNKNOWN status with ATH after,
+                #     or unparseable timestamps) -> verified=None.
+                ath_status_token = (
+                    ath_context.ath_since_migration_status
+                )
+                ath_after_migration = (
+                    _ath_window_starts_post_migration(
+                        ath_context, migration_timestamp_utc
+                    )
+                )
+                if (
+                    ath_status_token
+                    == ATH_SINCE_MIGRATION_STATUS_MAY_INCLUDE_PRE_MIGRATION
+                ):
+                    post_migration_ath_verified = False
+                elif ath_after_migration is False:
+                    post_migration_ath_verified = False
+                else:
+                    post_migration_ath_verified = None
         else:
             # Slot missing — NEVER set
             # post_migration_ath_verified=True regardless of ATH

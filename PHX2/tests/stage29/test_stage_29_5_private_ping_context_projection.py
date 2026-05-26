@@ -918,3 +918,129 @@ def test_joined_with_post_migration_only_but_no_ath_context_is_partial_not_compl
         ctx.join_status_echoed
         == MIGRATION_JOIN_STATUS_JOINED
     )
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 PASS-WITH-PATCHES: wrong-token ATH never drives verified=False
+# ---------------------------------------------------------------------------
+
+
+_OTHER_MINT: str = "Y" * 44
+
+
+def test_wrong_token_ath_with_may_include_pre_migration_yields_partial_with_verified_none():
+    """Stage 29.5.1 PASS-WITH-PATCHES: a wrong-token ATH context
+    that carries ``MAY_INCLUDE_PRE_MIGRATION`` MUST NOT drive
+    ``post_migration_ath_verified=False`` — the wrong token
+    means the ATH record cannot make any claim about THIS
+    candidate's post-migration ATH state, even a negative one.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status=(
+                "MAY_INCLUDE_PRE_MIGRATION"
+            ),
+            ath_status="PRESENT",
+            token_mint=_OTHER_MINT,
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+
+
+def test_wrong_token_ath_with_ath_before_migration_yields_partial_with_verified_none():
+    """Stage 29.5.1 PASS-WITH-PATCHES defensive companion: even
+    when the ATH-observed timestamp positively predates the
+    migration timestamp, a wrong-token ATH context cannot drive
+    ``verified=False``. The wrong token blocks ALL ATH-derived
+    negative signals.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_BEFORE,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+            ath_status="PRESENT",
+            token_mint=_OTHER_MINT,
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+
+
+def test_same_token_present_ath_with_may_include_pre_migration_still_yields_verified_false():
+    """Stage 29.5.1 PASS-WITH-PATCHES positive control: when the
+    ATH context speaks for the SAME candidate token AND carries
+    ``ath_status=PRESENT`` AND Stage 27.4 says
+    ``MAY_INCLUDE_PRE_MIGRATION``, the projection still emits
+    ``verified=False`` — the same-token + PRESENT precondition
+    is what unlocks the negative signal.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status=(
+                "MAY_INCLUDE_PRE_MIGRATION"
+            ),
+            ath_status="PRESENT",
+            token_mint=_SAFE_MINT_A,
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is False
+
+
+def test_same_token_but_stale_ath_status_yields_verified_none():
+    """Defensive companion: a same-token but
+    ``ath_status=STALE`` ATH context cannot drive
+    ``verified=False``. Only the PRESENT status unlocks the
+    negative signal.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_BEFORE,
+            ath_since_migration_status=(
+                "MAY_INCLUDE_PRE_MIGRATION"
+            ),
+            ath_status="STALE",
+            token_mint=_SAFE_MINT_A,
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
