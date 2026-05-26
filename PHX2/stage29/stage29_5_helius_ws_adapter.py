@@ -12,6 +12,20 @@ A future operator-authorized substage may ship a concrete
 ``websockets``-library (or stdlib socket) transport behind the
 Protocol; Stage 29.5.1 does not.
 
+Stage 29.5.1 IS a NORMALIZED-MESSAGE PARSER, NOT a real Helius
+JSON-RPC transaction / log decoder. The injected transport is
+expected to deliver pre-normalized migration messages each keyed
+on the closed-set ``kind`` token (see
+``STAGE29_5_HELIUS_WS_MIGRATION_KIND``). Raw Helius JSON-RPC
+envelopes (those carrying top-level ``jsonrpc`` / ``method`` /
+``params`` / ``result`` / ``error`` keys) are explicitly REFUSED
+with ``REFUSAL_REASON_MALFORMED_PAYLOAD``; the Stage 29.5.1
+adapter must NOT be confused with a Helius JSON-RPC transaction /
+log decoder. A future operator-authorized normalizer substage
+will land the raw-Helius decode path; Stage 29.5.1 will not
+accept raw JSON-RPC payloads as trusted migration evidence
+directly.
+
 The adapter:
 
   * accepts one bounded scan call per invocation
@@ -19,6 +33,10 @@ The adapter:
   * accepts one optional caller-supplied clock that returns an
     ISO-8601 UTC string for ``observed_at_utc`` stamping;
   * parses each received ``bytes`` / ``str`` message as JSON;
+  * REFUSES any payload that looks like a raw Helius JSON-RPC
+    envelope (top-level ``jsonrpc`` / ``method`` / ``params`` /
+    ``result`` / ``error`` keys) with
+    ``REFUSAL_REASON_MALFORMED_PAYLOAD``;
   * validates the JSON shape against the Stage 29.5 closed-set
     rules;
   * never fabricates a base_mint, pool_account, pool_program_id,
@@ -92,6 +110,18 @@ STAGE29_5_HELIUS_WS_HARD_MAX_MESSAGES_TO_READ: int = 1024
 # module) because Stage 29.5 has no separate constants module and
 # the manifest re-exports this token.
 STAGE29_5_HELIUS_WS_MIGRATION_KIND: str = "PUMP_AMM_MIGRATION"
+
+
+# Stage 29.5.1 remediation: any JSON object carrying one of these
+# top-level keys looks like a raw Helius JSON-RPC envelope. The
+# Stage 29.5.1 adapter is a normalized-message parser, not a
+# Helius JSON-RPC transaction / log decoder; raw envelopes must
+# be refused with ``REFUSAL_REASON_MALFORMED_PAYLOAD`` so a future
+# operator-authorized normalizer substage can land the raw
+# Helius decode path explicitly.
+_RAW_JSON_RPC_ENVELOPE_KEYS: frozenset = frozenset(
+    {"jsonrpc", "method", "params", "result", "error"}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +247,15 @@ def parse_helius_ws_migration_message(
             "string",
         )
     parsed = _decode_message_body(body)
+    if any(
+        key in parsed for key in _RAW_JSON_RPC_ENVELOPE_KEYS
+    ):
+        raise Stage29_5MigrationEvidenceError(
+            REFUSAL_REASON_MALFORMED_PAYLOAD,
+            "raw helius json-rpc payload requires a normalizer; "
+            "stage 29.5 helius ws adapter only consumes "
+            "pre-normalized migration messages",
+        )
     kind_value = parsed.get("kind")
     if (
         not isinstance(kind_value, str)

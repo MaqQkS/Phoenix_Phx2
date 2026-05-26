@@ -65,11 +65,15 @@ from PHX2.stage29.stage29_5_migration_models import (
     MIGRATION_JOIN_STATUS_PAIR_MISMATCH,
     MIGRATION_JOIN_STATUS_SOURCE_INVALID,
     MIGRATION_JOIN_STATUS_TIME_WINDOW_INVALID,
+    MIGRATION_STATUS_CONFLICTING,
+    MIGRATION_STATUS_INVALID,
     MIGRATION_STATUS_PRESENT,
+    MIGRATION_STATUS_STALE,
     Stage29_5MigrationEvidenceRecord,
     Stage29_5MigrationJoinRecord,
     is_safe_iso8601_utc_string,
     is_safe_mint_or_pool_string,
+    parse_safe_utc_datetime,
 )
 
 
@@ -174,20 +178,70 @@ def _timestamp_in_window(
     start_utc: Optional[str],
     end_utc: Optional[str],
 ) -> bool:
-    if start_utc is not None and timestamp_utc < start_utc:
+    """Stage 29.5.1 remediation: parse all three timestamps as
+    strict UTC datetimes via :func:`parse_safe_utc_datetime` and
+    compare aware ``datetime`` objects. A raw lexicographic
+    string compare is no longer used.
+
+    Any parse failure (malformed calendar / clock / non-UTC
+    offset / whitespace) returns False — the join layer treats
+    an un-parseable timestamp as out-of-window.
+    """
+    try:
+        ts = parse_safe_utc_datetime(timestamp_utc)
+    except ValueError:
         return False
-    if end_utc is not None and timestamp_utc >= end_utc:
-        return False
+    if start_utc is not None:
+        try:
+            start = parse_safe_utc_datetime(start_utc)
+        except ValueError:
+            return False
+        if ts < start:
+            return False
+    if end_utc is not None:
+        try:
+            end = parse_safe_utc_datetime(end_utc)
+        except ValueError:
+            return False
+        if ts >= end:
+            return False
     return True
 
 
 def _records_agree_on_core(
     records: Sequence[Stage29_5MigrationEvidenceRecord],
 ) -> bool:
+    """Stage 29.5.1 remediation: widened core-agreement check.
+
+    Two matched evidence records "agree on core" iff they share
+    the same values on ALL of:
+
+      * ``migration_status``
+      * ``migration_timestamp_utc``
+      * ``migration_slot``
+      * ``migration_source``
+      * ``pool_account``
+      * ``pool_program_id``
+      * ``quote_mint``
+
+    The base_mint axis is already proven equal by the upstream
+    axis filter.
+
+    Pre-remediation this helper only compared the first three
+    axes, which let two matched records with disagreeing
+    pool_account / quote_mint / pool_program_id silently JOIN —
+    Codex flagged that as the primary join-strictness defect.
+    The pool / quote / pool_program disagreement now also routes
+    to PAIR_MISMATCH at a separate guard upstream; the widened
+    check here remains the last-line MULTIPLE_MATCHES
+    determinator.
+    """
     if not records:
         return True
     first = records[0]
     for r in records[1:]:
+        if r.migration_status != first.migration_status:
+            return False
         if (
             r.migration_timestamp_utc
             != first.migration_timestamp_utc
@@ -197,7 +251,53 @@ def _records_agree_on_core(
             return False
         if r.migration_source != first.migration_source:
             return False
+        if r.pool_account != first.pool_account:
+            return False
+        if r.pool_program_id != first.pool_program_id:
+            return False
+        if r.quote_mint != first.quote_mint:
+            return False
     return True
+
+
+def _records_disagree_on_pair_axes(
+    records: Sequence[Stage29_5MigrationEvidenceRecord],
+) -> bool:
+    """Stage 29.5.1 remediation: return True iff at least two
+    matched records carry CONFLICTING non-None values on any of
+    ``pool_account`` / ``pool_program_id`` / ``quote_mint``.
+
+    A pair "disagrees" on an axis iff BOTH records have non-None
+    values for that axis AND those values differ. ``None`` on
+    either side is a wildcard, not a disagreement (the axis was
+    simply not populated by that source).
+    """
+    seen_pool_account: Optional[str] = None
+    seen_pool_program_id: Optional[str] = None
+    seen_quote_mint: Optional[str] = None
+    for r in records:
+        if r.pool_account is not None:
+            if (
+                seen_pool_account is not None
+                and r.pool_account != seen_pool_account
+            ):
+                return True
+            seen_pool_account = r.pool_account
+        if r.pool_program_id is not None:
+            if (
+                seen_pool_program_id is not None
+                and r.pool_program_id != seen_pool_program_id
+            ):
+                return True
+            seen_pool_program_id = r.pool_program_id
+        if r.quote_mint is not None:
+            if (
+                seen_quote_mint is not None
+                and r.quote_mint != seen_quote_mint
+            ):
+                return True
+            seen_quote_mint = r.quote_mint
+    return False
 
 
 def join_candidate_to_migration_evidence(
@@ -326,6 +426,83 @@ def join_candidate_to_migration_evidence(
                     time_window_end_utc=time_window_end_utc,
                     joined_at_utc=joined_at_utc,
                 )
+    # Stage 29.5.1 remediation guard A: pairwise pool / quote /
+    # pool_program_id axis disagreement among matched records
+    # routes to PAIR_MISMATCH so a base-mint-only candidate cannot
+    # silently JOIN against two records that disagree on the
+    # quote / pool lanes.
+    if _records_disagree_on_pair_axes(matched_axis_records):
+        return Stage29_5MigrationJoinRecord(
+            migration_join_status=(
+                MIGRATION_JOIN_STATUS_PAIR_MISMATCH
+            ),
+            candidate_base_mint=candidate_axes.base_mint,
+            candidate_pool_account=candidate_axes.pool_account,
+            candidate_pool_program_id=(
+                candidate_axes.pool_program_id
+            ),
+            candidate_quote_mint=candidate_axes.quote_mint,
+            matched_evidence_count=len(matched_axis_records),
+            matched_evidence=tuple(
+                _deterministic_sort(matched_axis_records)
+            ),
+            time_window_start_utc=time_window_start_utc,
+            time_window_end_utc=time_window_end_utc,
+            joined_at_utc=joined_at_utc,
+        )
+    # Stage 29.5.1 remediation guard B: any INVALID or
+    # CONFLICTING matched record routes the verdict to
+    # SOURCE_INVALID so one valid PRESENT record cannot hide a
+    # co-matched INVALID record.
+    statuses_present_set = {
+        r.migration_status for r in matched_axis_records
+    }
+    if (
+        MIGRATION_STATUS_INVALID in statuses_present_set
+        or MIGRATION_STATUS_CONFLICTING
+        in statuses_present_set
+    ):
+        return Stage29_5MigrationJoinRecord(
+            migration_join_status=(
+                MIGRATION_JOIN_STATUS_SOURCE_INVALID
+            ),
+            candidate_base_mint=candidate_axes.base_mint,
+            candidate_pool_account=candidate_axes.pool_account,
+            candidate_pool_program_id=(
+                candidate_axes.pool_program_id
+            ),
+            candidate_quote_mint=candidate_axes.quote_mint,
+            matched_evidence_count=len(matched_axis_records),
+            matched_evidence=tuple(
+                _deterministic_sort(matched_axis_records)
+            ),
+            time_window_start_utc=time_window_start_utc,
+            time_window_end_utc=time_window_end_utc,
+            joined_at_utc=joined_at_utc,
+        )
+    # Stage 29.5.1 remediation guard C: any STALE matched record
+    # routes the verdict to TIME_WINDOW_INVALID so the projection
+    # preserves the WARNING_MIGRATION_STALE signal rather than
+    # silently dropping the stale record.
+    if MIGRATION_STATUS_STALE in statuses_present_set:
+        return Stage29_5MigrationJoinRecord(
+            migration_join_status=(
+                MIGRATION_JOIN_STATUS_TIME_WINDOW_INVALID
+            ),
+            candidate_base_mint=candidate_axes.base_mint,
+            candidate_pool_account=candidate_axes.pool_account,
+            candidate_pool_program_id=(
+                candidate_axes.pool_program_id
+            ),
+            candidate_quote_mint=candidate_axes.quote_mint,
+            matched_evidence_count=len(matched_axis_records),
+            matched_evidence=tuple(
+                _deterministic_sort(matched_axis_records)
+            ),
+            time_window_start_utc=time_window_start_utc,
+            time_window_end_utc=time_window_end_utc,
+            joined_at_utc=joined_at_utc,
+        )
     invalid_records = [
         r
         for r in matched_axis_records

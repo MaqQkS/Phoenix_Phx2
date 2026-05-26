@@ -113,7 +113,16 @@ def _present_evidence(
 
 def _ath_context(
     ath_observed_at_utc: str | None,
+    ath_since_migration_status: str = "UNKNOWN",
 ) -> AthContextRecord:
+    """Stage 29.5.1 remediation: fixture now takes
+    ``ath_since_migration_status`` so each test can pin the
+    Stage 27.4 ATH-since-migration vocabulary independently.
+
+    Default stays ``"UNKNOWN"`` to preserve the prior fixture
+    semantics where the test did not care about the axis. Tests
+    that pin COMPLETE must supply ``"POST_MIGRATION_ONLY"``.
+    """
     return AthContextRecord(
         token_mint=_SAFE_MINT_A,
         pair_type="PUMP_SOL",
@@ -122,7 +131,9 @@ def _ath_context(
         ath_unit="USD",
         ath_source="STAGE29_2_BIRDEYE_OHLCV",
         ath_observed_at_utc=ath_observed_at_utc,
-        ath_since_migration_status="UNKNOWN",
+        ath_since_migration_status=(
+            ath_since_migration_status
+        ),
         drawdown_from_ath=None,
         drawdown_unit="USD",
         drawdown_basis="UNKNOWN",
@@ -192,7 +203,10 @@ def test_joined_with_slot_and_ath_post_migration_yields_complete():
     join = _join(_present_evidence())
     ctx = project_private_ping_migration_context(
         join_record=join,
-        ath_context=_ath_context(_ATH_TS_AFTER),
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+        ),
         clock=_fixed_clock,
     )
     assert ctx.measurement_status == MEASUREMENT_STATUS_COMPLETE
@@ -239,10 +253,19 @@ def test_joined_with_slot_and_no_ath_context_yields_partial():
 
 
 def test_joined_with_slot_missing_yields_partial_with_slot_warning():
+    """Stage 29.5.1 remediation: when slot is missing, the
+    projection NEVER sets ``post_migration_ath_verified`` to True
+    even if the ATH timestamp is after the migration timestamp.
+    The pre-remediation True branch is the false-confidence path
+    the audit closes.
+    """
     join = _join(_present_evidence(slot=None))
     ctx = project_private_ping_migration_context(
         join_record=join,
-        ath_context=_ath_context(_ATH_TS_AFTER),
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+        ),
         clock=_fixed_clock,
     )
     assert (
@@ -250,8 +273,11 @@ def test_joined_with_slot_missing_yields_partial_with_slot_warning():
         == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
     )
     assert WARNING_MIGRATION_SLOT_MISSING in ctx.warnings
-    # ATH after migration but slot missing => verified=True
-    assert ctx.post_migration_ath_verified is True
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    # Slot missing => never True regardless of ATH status / time.
+    assert ctx.post_migration_ath_verified is None
 
 
 def test_joined_with_slot_missing_and_ath_before_yields_two_warnings():
@@ -615,3 +641,166 @@ def test_projection_warnings_are_deterministic_dedup_ordered():
         if w == WARNING_POST_MIGRATION_ATH_UNVERIFIED
     )
     assert count_unverified == 1
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 remediation: strict COMPLETE gate + missing-slot lock
+# ---------------------------------------------------------------------------
+
+
+def test_joined_with_slot_but_ath_status_unknown_is_partial_not_complete():
+    """Stage 29.5.1 remediation: even with a JOINED verdict, a
+    populated slot, and an ATH-observed timestamp strictly after
+    the migration timestamp, the projection must NOT emit
+    COMPLETE when Stage 27.4 cannot positively claim
+    POST_MIGRATION_ONLY (i.e. ATH-since-migration is UNKNOWN).
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status="UNKNOWN",
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+    assert (
+        ctx.join_status_echoed
+        == MIGRATION_JOIN_STATUS_JOINED
+    )
+
+
+def test_joined_with_slot_but_ath_status_may_include_pre_migration_is_partial():
+    """Stage 29.5.1 remediation: when Stage 27.4 positively flags
+    the ATH window as possibly including pre-migration wick
+    data, the projection downgrades to PARTIAL with verified=False
+    and the POST_MIGRATION_ATH_UNVERIFIED warning.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status=(
+                "MAY_INCLUDE_PRE_MIGRATION"
+            ),
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is False
+
+
+def test_joined_with_post_migration_only_status_and_ath_after_yields_complete():
+    """Positive control: the full COMPLETE precondition stack —
+    JOINED + slot present + POST_MIGRATION_ONLY ATH status + ATH
+    timestamp after migration timestamp — emits COMPLETE with
+    verified=True and no warnings.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_AFTER,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+        ),
+        clock=_fixed_clock,
+    )
+    assert ctx.measurement_status == MEASUREMENT_STATUS_COMPLETE
+    assert ctx.warnings == ()
+    assert ctx.post_migration_ath_verified is True
+
+
+def test_joined_with_post_migration_only_status_but_ath_before_migration_still_partial():
+    """Defensive pin: even when Stage 27.4 claims
+    POST_MIGRATION_ONLY but the ATH-observed timestamp parses
+    before the migration timestamp, the projection refuses to
+    emit COMPLETE. Pre-remediation lexicographic compare could
+    not catch this; the parsed-datetime compare does.
+    """
+    join = _join(_present_evidence())
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            _ATH_TS_BEFORE,
+            ath_since_migration_status="POST_MIGRATION_ONLY",
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is False
+
+
+@pytest.mark.parametrize(
+    "ath_status,ath_observed",
+    [
+        ("UNKNOWN", _ATH_TS_AFTER),
+        ("UNKNOWN", _ATH_TS_BEFORE),
+        ("MAY_INCLUDE_PRE_MIGRATION", _ATH_TS_AFTER),
+        ("MAY_INCLUDE_PRE_MIGRATION", _ATH_TS_BEFORE),
+        ("POST_MIGRATION_ONLY", _ATH_TS_AFTER),
+        ("POST_MIGRATION_ONLY", _ATH_TS_BEFORE),
+    ],
+)
+def test_missing_slot_never_sets_post_migration_ath_verified_true(
+    ath_status: str, ath_observed: str
+) -> None:
+    """Stage 29.5.1 remediation: across the cross-product of
+    Stage 27.4 ``ath_since_migration_status`` values and
+    ATH-observed-vs-migration timestamp orderings, a missing
+    ``migration_slot`` ALWAYS produces
+    ``post_migration_ath_verified is None`` and the
+    ``MIGRATION_SLOT_MISSING`` warning.
+    """
+    join = _join(_present_evidence(slot=None))
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=_ath_context(
+            ath_observed,
+            ath_since_migration_status=ath_status,
+        ),
+        clock=_fixed_clock,
+    )
+    assert (
+        ctx.measurement_status
+        == MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
+    )
+    assert WARNING_MIGRATION_SLOT_MISSING in ctx.warnings
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+    assert ctx.post_migration_ath_verified is None
+
+
+def test_missing_slot_with_no_ath_context_never_sets_verified_true():
+    """Slot missing + no ATH context at all (ath_context=None) =>
+    same lock: verified stays None.
+    """
+    join = _join(_present_evidence(slot=None))
+    ctx = project_private_ping_migration_context(
+        join_record=join,
+        ath_context=None,
+        clock=_fixed_clock,
+    )
+    assert ctx.post_migration_ath_verified is None
+    assert WARNING_MIGRATION_SLOT_MISSING in ctx.warnings

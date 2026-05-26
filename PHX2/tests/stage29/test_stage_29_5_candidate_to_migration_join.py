@@ -41,9 +41,11 @@ from PHX2.stage29.stage29_5_migration_models import (
     MIGRATION_SOURCE_HELIUS_WS,
     MIGRATION_SOURCE_STAGE29_MIGRATION_ARTIFACT,
     MIGRATION_SOURCE_UNKNOWN_STAGE29_5,
+    MIGRATION_STATUS_CONFLICTING,
     MIGRATION_STATUS_INVALID,
     MIGRATION_STATUS_MISSING,
     MIGRATION_STATUS_PRESENT,
+    MIGRATION_STATUS_STALE,
     Stage29_5MigrationEvidenceRecord,
 )
 
@@ -355,7 +357,14 @@ def test_invalid_evidence_yields_source_invalid():
     )
 
 
-def test_invalid_with_present_present_promotes_to_joined():
+def test_invalid_with_present_present_does_not_promote_to_joined():
+    """Stage 29.5.1 remediation: pre-remediation this join used
+    to silently promote PRESENT + INVALID to JOINED on the
+    grounds that at least one match was complete. The Codex
+    audit demanded that an INVALID matched record never be
+    hidden by a co-matched PRESENT record, so the join now
+    routes to SOURCE_INVALID.
+    """
     axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
     record = join_candidate_to_migration_evidence(
         candidate_axes=axes,
@@ -365,11 +374,9 @@ def test_invalid_with_present_present_promotes_to_joined():
         ),
         clock=_fixed_clock,
     )
-    # When at least one match is complete + valid, the join
-    # ignores the partial INVALID records and emits JOINED.
     assert (
         record.migration_join_status
-        == MIGRATION_JOIN_STATUS_JOINED
+        == MIGRATION_JOIN_STATUS_SOURCE_INVALID
     )
 
 
@@ -689,4 +696,305 @@ def test_join_skips_records_with_none_base_mint():
     assert (
         record.migration_join_status
         == MIGRATION_JOIN_STATUS_NO_MATCH
+    )
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 remediation: stricter join semantics
+# ---------------------------------------------------------------------------
+
+
+def _evidence_stale(
+    *,
+    base_mint: str = _SAFE_MINT_A,
+    pool_account: str = _SAFE_POOL_A,
+    pool_program_id: str = _PUMPSWAP_PROGRAM_ID,
+    quote_mint: str = _SAFE_QUOTE,
+    timestamp: str = _TIMESTAMP_INSIDE,
+    slot: int = 999,
+    signature: str = "synth-sig-stale",
+) -> Stage29_5MigrationEvidenceRecord:
+    return Stage29_5MigrationEvidenceRecord(
+        migration_status=MIGRATION_STATUS_STALE,
+        migration_source=(
+            MIGRATION_SOURCE_STAGE29_MIGRATION_ARTIFACT
+        ),
+        base_mint=base_mint,
+        pool_account=pool_account,
+        pool_program_id=pool_program_id,
+        quote_mint=quote_mint,
+        migration_timestamp_utc=timestamp,
+        migration_slot=slot,
+        migration_signature=signature,
+        observed_at_utc=_OBSERVED_AT_LATER,
+        source_event_ref="synth-ref-stale",
+    )
+
+
+def test_base_mint_only_candidate_does_not_join_multiple_pool_or_quote_matches():
+    """Stage 29.5.1 remediation: base-mint-only candidate must
+    NOT silently JOIN against two records that disagree on the
+    pool / quote / pool_program lanes; the join routes to
+    PAIR_MISMATCH so a downstream private ping never claims
+    POST_MIGRATION_ATH_VERIFIED on ambiguous evidence.
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    record_a = _evidence_present(pool_account=_SAFE_POOL_A)
+    record_b = _evidence_present(
+        pool_account=_SAFE_POOL_B,
+        signature="synth-sig-B",
+    )
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(record_a, record_b),
+        clock=_fixed_clock,
+        time_window_start_utc=_WINDOW_START,
+        time_window_end_utc=_WINDOW_END,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_PAIR_MISMATCH
+    )
+    # The matched evidence list still carries both records for
+    # the downstream audit projection.
+    assert result.matched_evidence_count == 2
+
+
+def test_candidate_quote_or_pool_axis_disagreement_yields_pair_mismatch():
+    """Stage 29.5.1 remediation: a pair of matched records that
+    disagree on any one of pool_account / pool_program_id /
+    quote_mint routes to PAIR_MISMATCH (axis-by-axis).
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    # quote_mint axis disagreement
+    quote_a = _evidence_present(quote_mint=_SAFE_QUOTE)
+    quote_b = _evidence_present(
+        quote_mint="Z" * 44, signature="synth-sig-q-B"
+    )
+    r_quote = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(quote_a, quote_b),
+        clock=_fixed_clock,
+    )
+    assert (
+        r_quote.migration_join_status
+        == MIGRATION_JOIN_STATUS_PAIR_MISMATCH
+    )
+    # pool_account axis disagreement
+    pool_a = _evidence_present(pool_account=_SAFE_POOL_A)
+    pool_b = _evidence_present(
+        pool_account=_SAFE_POOL_B,
+        signature="synth-sig-p-B",
+    )
+    r_pool = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(pool_a, pool_b),
+        clock=_fixed_clock,
+    )
+    assert (
+        r_pool.migration_join_status
+        == MIGRATION_JOIN_STATUS_PAIR_MISMATCH
+    )
+    # pool_program_id axis disagreement
+    program_a = _evidence_present(
+        pool_program_id=_PUMPSWAP_PROGRAM_ID
+    )
+    program_b = _evidence_present(
+        pool_program_id=_OTHER_PROGRAM_ID,
+        signature="synth-sig-prog-B",
+    )
+    r_program = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(program_a, program_b),
+        clock=_fixed_clock,
+    )
+    assert (
+        r_program.migration_join_status
+        == MIGRATION_JOIN_STATUS_PAIR_MISMATCH
+    )
+
+
+def test_present_plus_invalid_matching_evidence_does_not_join():
+    """Stage 29.5.1 remediation: one PRESENT record with full
+    axes does NOT hide a co-matched INVALID record. The join
+    routes to SOURCE_INVALID so the projection emits
+    INVALID_MIGRATION + WARNING_MIGRATION_TIMESTAMP_INVALID +
+    WARNING_POST_MIGRATION_ATH_UNVERIFIED.
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    valid = _evidence_present()
+    invalid = _evidence_invalid_axes()
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(valid, invalid),
+        clock=_fixed_clock,
+        time_window_start_utc=_WINDOW_START,
+        time_window_end_utc=_WINDOW_END,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_SOURCE_INVALID
+    )
+    assert result.matched_evidence_count == 2
+
+
+def test_present_plus_conflicting_matching_evidence_does_not_join():
+    """A CONFLICTING matched record also blocks JOINED — routes
+    to SOURCE_INVALID alongside the INVALID case.
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    valid = _evidence_present()
+    conflicting = Stage29_5MigrationEvidenceRecord(
+        migration_status=MIGRATION_STATUS_CONFLICTING,
+        migration_source=MIGRATION_SOURCE_HELIUS_WS,
+        base_mint=_SAFE_MINT_A,
+        pool_account=None,
+        pool_program_id=None,
+        quote_mint=None,
+        migration_timestamp_utc=None,
+        migration_slot=None,
+        migration_signature=None,
+        observed_at_utc=_OBSERVED_AT_LATER,
+        source_event_ref=None,
+    )
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(valid, conflicting),
+        clock=_fixed_clock,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_SOURCE_INVALID
+    )
+
+
+def test_present_plus_stale_matching_evidence_preserves_stale_warning():
+    """Stage 29.5.1 remediation: PRESENT + STALE matched
+    evidence routes to TIME_WINDOW_INVALID so the projection
+    preserves the WARNING_MIGRATION_STALE signal rather than
+    silently dropping the stale record and JOIN-ing.
+    """
+    from PHX2.stage29.stage29_5_migration_models import (
+        WARNING_MIGRATION_STALE,
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED,
+    )
+    from PHX2.stage29.stage29_5_private_ping_context_projection import (
+        project_private_ping_migration_context,
+    )
+
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    valid = _evidence_present()
+    stale = _evidence_stale()
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(valid, stale),
+        clock=_fixed_clock,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_TIME_WINDOW_INVALID
+    )
+    # Verify the downstream projection preserves the STALE
+    # warning (the audit specifically calls out that stale +
+    # present must not be hidden by the present record).
+    ctx = project_private_ping_migration_context(
+        join_record=result,
+        ath_context=None,
+        clock=_fixed_clock,
+    )
+    assert WARNING_MIGRATION_STALE in ctx.warnings
+    assert (
+        WARNING_POST_MIGRATION_ATH_UNVERIFIED in ctx.warnings
+    )
+
+
+def test_multi_records_conflicting_timestamp_does_not_join():
+    """Two PRESENT records with full quartets that share
+    everything except ``migration_timestamp_utc`` route to
+    MULTIPLE_MATCHES, not JOINED.
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    record_a = _evidence_present(timestamp=_TIMESTAMP_INSIDE)
+    record_b = _evidence_present(
+        timestamp="2026-05-25T11:00:00+00:00",
+        signature="synth-sig-ts-B",
+    )
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(record_a, record_b),
+        clock=_fixed_clock,
+        time_window_start_utc=_WINDOW_START,
+        time_window_end_utc=_WINDOW_END,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_MULTIPLE_MATCHES
+    )
+
+
+def test_multi_records_conflicting_slot_does_not_join():
+    """Two PRESENT records that disagree on migration_slot route
+    to MULTIPLE_MATCHES.
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    a = _evidence_present(slot=111)
+    b = _evidence_present(slot=222, signature="synth-sig-s-B")
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(a, b),
+        clock=_fixed_clock,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_MULTIPLE_MATCHES
+    )
+
+
+def test_multi_records_conflicting_source_does_not_join():
+    """Two PRESENT records that disagree on migration_source
+    route to MULTIPLE_MATCHES.
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    a = _evidence_present(source=MIGRATION_SOURCE_HELIUS_WS)
+    b = _evidence_present(
+        source=MIGRATION_SOURCE_STAGE29_MIGRATION_ARTIFACT,
+        signature="synth-sig-src-B",
+    )
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(a, b),
+        clock=_fixed_clock,
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_MULTIPLE_MATCHES
+    )
+
+
+def test_window_compare_uses_parsed_datetime_not_string():
+    """Stage 29.5.1 remediation: the half-open
+    ``[time_window_start_utc, time_window_end_utc)`` window
+    compares parsed UTC datetimes — a record with a Z-suffix
+    timestamp matches against a window expressed in +00:00 (and
+    vice versa) so long as the wall-clock instant agrees.
+    """
+    axes = Stage29_5CandidateAxes(base_mint=_SAFE_MINT_A)
+    # Record timestamp uses Z suffix; window uses +00:00 form.
+    # Lexicographic compare would treat "Z" > "+" so the
+    # pre-remediation join would have treated this as
+    # out-of-window when the start bound is set to the same
+    # instant in +00:00 form.
+    record_z = _evidence_present(
+        timestamp="2026-05-25T10:00:00Z",
+    )
+    result = join_candidate_to_migration_evidence(
+        candidate_axes=axes,
+        evidence_records=(record_z,),
+        clock=_fixed_clock,
+        time_window_start_utc="2026-05-25T00:00:00+00:00",
+        time_window_end_utc="2026-05-26T00:00:00+00:00",
+    )
+    assert (
+        result.migration_join_status
+        == MIGRATION_JOIN_STATUS_JOINED
     )

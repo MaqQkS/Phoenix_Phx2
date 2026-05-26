@@ -708,3 +708,96 @@ def test_manifest_pins_zero_outbound_network_admission():
     assert (
         STAGE29_5_OUTBOUND_NETWORK_ADMITTED_BASENAMES == ()
     )
+
+
+# ---------------------------------------------------------------------------
+# 12. Stage 29.5.1 remediation: Stage 29.3 runtime not yet integrated
+# ---------------------------------------------------------------------------
+
+
+_STAGE29_3_TRADEABLE_SMOKE_PATH: Path = (
+    STAGE29_ROOT / "stage29_3_tradeable_smoke.py"
+)
+
+
+def test_stage29_3_mode3_uses_stage29_5_projection_or_explicitly_marks_not_integrated():
+    """Stage 29.5.1 remediation: the Stage 29.3 mode-3
+    orchestrator continues to inject
+    ``Stage29_3NoMigrationEvidenceSource`` and does NOT import or
+    consume any Stage 29.5 surface yet. Runtime integration of
+    the Stage 29.5 projection into the Stage 29.3 private
+    tradeable ping path is deferred to a separately authorized
+    Stage 29.5.2 substage.
+
+    This pin asserts the "explicitly not integrated" state. When
+    Stage 29.5.2 lands, this test will need to be updated to
+    assert the OTHER branch (Stage 29.3 imports the Stage 29.5
+    projection and threads it through mode-3).
+    """
+    assert _STAGE29_3_TRADEABLE_SMOKE_PATH.is_file(), (
+        "Stage 29.3 tradeable smoke orchestrator must exist "
+        "for the not-yet-integrated pin to be meaningful"
+    )
+    src = _read(_STAGE29_3_TRADEABLE_SMOKE_PATH)
+    # Stage 29.3 still injects the deterministic
+    # MIGRATION_SOURCE_UNKNOWN source class. This pins that the
+    # Stage 29.5 projection has not silently replaced the
+    # conservative default.
+    assert "Stage29_3NoMigrationEvidenceSource" in src, (
+        "Stage 29.3 mode-3 must still inject "
+        "Stage29_3NoMigrationEvidenceSource until Stage 29.5.2 "
+        "lands runtime integration"
+    )
+    # Stage 29.3 must NOT import any Stage 29.5 module yet. The
+    # Stage 29.5.1 commit ships the projection as an offline
+    # evidence/projection layer; runtime integration is deferred.
+    forbidden_stage29_5_identifiers: tuple[str, ...] = (
+        "stage29_5_migration_models",
+        "stage29_5_helius_ws_adapter",
+        "stage29_5_migration_artifact_reader",
+        "stage29_5_candidate_to_migration_join",
+        "stage29_5_private_ping_context_projection",
+        "stage29_5_manifest",
+        "Stage29_5MigrationEvidenceRecord",
+        "Stage29_5MigrationJoinRecord",
+        "Stage29_5PrivatePingMigrationContext",
+        "Stage29_5HeliusWebSocketAdapter",
+        "Stage29_5MigrationArtifactReader",
+        "Stage29_5CandidateAxes",
+        "project_private_ping_migration_context",
+    )
+    for needle in forbidden_stage29_5_identifiers:
+        assert needle not in src, (
+            f"Stage 29.3 mode-3 must not reference Stage 29.5 "
+            f"identifier {needle!r} until Stage 29.5.2 lands; "
+            "runtime integration is deferred"
+        )
+    # Cross-check at the AST level: no Stage 29.5 import.
+    imported = _collect_imported_module_paths(src)
+    for mod in imported:
+        assert "stage29_5" not in mod, (
+            f"Stage 29.3 mode-3 must not import a Stage 29.5 "
+            f"module yet; offender import: {mod!r}"
+        )
+
+
+def test_projection_module_carries_deferred_integration_note():
+    """The Stage 29.5 projection module must explicitly state
+    that runtime integration is deferred to Stage 29.5.2 so the
+    next reader of the codebase does not infer end-to-end
+    runtime integration that does not exist yet.
+    """
+    src = _read(
+        STAGE29_ROOT
+        / "stage29_5_private_ping_context_projection.py"
+    )
+    lower = src.lower()
+    assert "stage 29.5.2" in lower, (
+        "Stage 29.5 projection docstring must reference Stage "
+        "29.5.2 as the deferred-integration substage"
+    )
+    assert "deferred" in lower, (
+        "Stage 29.5 projection docstring must explicitly use "
+        "the word 'deferred' to mark the runtime integration "
+        "as deferred"
+    )

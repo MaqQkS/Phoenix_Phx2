@@ -83,6 +83,7 @@ Discipline:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 
@@ -367,25 +368,83 @@ def is_safe_mint_or_pool_string(value: object) -> bool:
     )
 
 
-def is_safe_iso8601_utc_string(value: object) -> bool:
-    """Return True iff value is a non-empty printable string that
-    ends with a UTC marker (``Z`` or ``+00:00``).
+def parse_safe_utc_datetime(value: object) -> datetime:
+    """Parse ``value`` as a strict UTC ISO-8601 datetime.
 
-    Stage 29.5 never parses the timestamp here; it only enforces
-    that the supplied value is UTC-shaped so downstream
-    lexicographic comparison stays meaningful. The Stage 29.5
-    join layer compares timestamps as strings; the Stage 27.4
-    reader is the authority for parsing.
+    Stage 29.5.1 remediation tightens timestamp validation to a
+    real calendar parse:
+
+      * Rejects non-``str`` and empty strings.
+      * Rejects whitespace anywhere (including leading / trailing).
+      * Rejects non-printable characters.
+      * Rejects strings that do not parse as ISO-8601 via
+        ``datetime.fromisoformat`` (after the trailing ``Z``
+        shorthand is mapped to ``+00:00``).
+      * Rejects malformed calendar dates (month 13, Feb 30, etc.)
+        and malformed clock times (hour 25, minute 60, etc.).
+      * Rejects naive datetimes (no offset).
+      * Rejects non-UTC offsets (anything other than zero).
+
+    Returns the parsed aware ``datetime`` with a zero-offset
+    tzinfo. Raises ``ValueError`` on any rejection.
+
+    The Stage 29.5 join layer + projection use the parsed
+    datetime for window-comparison + ATH-window-after-migration
+    comparison; raw lexicographic string compare is no longer
+    used by the remediation.
     """
     if not isinstance(value, str):
-        return False
+        raise ValueError(
+            "stage29_5 timestamp must be a str; got "
+            f"{type(value).__name__}"
+        )
     if not value:
-        return False
+        raise ValueError("stage29_5 timestamp must be non-empty")
     if not value.isprintable():
-        return False
+        raise ValueError(
+            "stage29_5 timestamp must be printable"
+        )
     if any(ch.isspace() for ch in value):
+        raise ValueError(
+            "stage29_5 timestamp must not contain whitespace"
+        )
+    text = value
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError as exc:
+        raise ValueError(
+            "stage29_5 timestamp does not parse as ISO-8601 "
+            f"datetime: {value!r}"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise ValueError(
+            "stage29_5 timestamp must carry a UTC offset; got "
+            f"naive datetime from {value!r}"
+        )
+    offset = parsed.utcoffset()
+    if offset is None or offset != timedelta(0):
+        raise ValueError(
+            "stage29_5 timestamp must carry a UTC offset of "
+            f"zero; got offset {offset!r} from {value!r}"
+        )
+    return parsed.replace(tzinfo=timezone.utc)
+
+
+def is_safe_iso8601_utc_string(value: object) -> bool:
+    """Return True iff ``value`` parses as a strict UTC ISO-8601
+    datetime via :func:`parse_safe_utc_datetime`.
+
+    Boolean wrapper preserved for backwards compatibility with
+    the Stage 29.5 dataclass validators + adapter / reader guards.
+    Strict semantics live in :func:`parse_safe_utc_datetime`.
+    """
+    try:
+        parse_safe_utc_datetime(value)
+    except ValueError:
         return False
-    return value.endswith("Z") or value.endswith("+00:00")
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -1003,6 +1062,7 @@ __all__ = (
     "is_stage29_5_refusal_reason_value",
     "is_safe_mint_or_pool_string",
     "is_safe_iso8601_utc_string",
+    "parse_safe_utc_datetime",
     "Stage29_5MigrationEvidenceRecord",
     "Stage29_5MigrationJoinRecord",
     "Stage29_5PrivatePingMigrationContext",

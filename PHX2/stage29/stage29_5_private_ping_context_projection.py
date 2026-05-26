@@ -13,6 +13,29 @@ behavior follows the existing Stage 28.9 + Stage 28.4 + Stage
 28.2 chain regardless of which warning codes the projection
 emits.
 
+Stage 29.5.1 ships this projection as an offline evidence /
+projection layer. Runtime integration into the Stage 29.3 +
+Stage 29.4 private ping path is deferred to Stage 29.5.2; the
+Stage 29.3 mode-3 orchestrator continues to inject
+:class:`Stage29_3NoMigrationEvidenceSource` and does not consume
+this projection at runtime yet. The Stage 29.5 boundary test
+pins that not-yet-integrated state.
+
+Stage 29.5.1 remediation tightens COMPLETE semantics:
+
+  * COMPLETE requires every one of (join verdict = JOINED;
+    migration_slot present; Stage 27.4 ATH context's
+    ``ath_since_migration_status`` equal to ``POST_MIGRATION_ONLY``;
+    the ATH-observed timestamp parses and is strictly after the
+    matched migration timestamp).
+  * When Stage 27.4 ATH status is UNKNOWN /
+    ``MAY_INCLUDE_PRE_MIGRATION`` / missing / any non-
+    ``POST_MIGRATION_ONLY`` token, the projection emits
+    ``PARTIAL_MIGRATION_PRESENT`` + ``POST_MIGRATION_ATH_UNVERIFIED``.
+  * When ``migration_slot`` is missing, the projection NEVER sets
+    ``post_migration_ath_verified`` to ``True`` regardless of ATH
+    state — it stays ``None``.
+
 The ``filter_enforcement_status`` field is locked to
 ``NOT_ACTIVE_STAGE_29_PENDING`` on every output; the projection
 rejects any caller attempt to override it.
@@ -36,6 +59,8 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from PHX2.stage27.price_ath_context_models import (
+    ATH_SINCE_MIGRATION_STATUS_MAY_INCLUDE_PRE_MIGRATION,
+    ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY,
     AthContextRecord,
 )
 from PHX2.stage29.stage29_5_migration_models import (
@@ -64,6 +89,7 @@ from PHX2.stage29.stage29_5_migration_models import (
     WARNING_MIGRATION_TIMESTAMP_INVALID,
     WARNING_POST_MIGRATION_ATH_UNVERIFIED,
     is_safe_iso8601_utc_string,
+    parse_safe_utc_datetime,
 )
 
 
@@ -79,9 +105,13 @@ def _ath_window_starts_post_migration(
     """Return True iff the Stage 27.4 ATH observation timestamp is
     strictly after the matched migration timestamp.
 
+    Stage 29.5.1 remediation: comparison is performed on parsed
+    aware ``datetime`` objects via
+    :func:`parse_safe_utc_datetime`, not on raw ISO-8601 strings.
+
     Returns ``None`` when either input is missing, when the
     Stage 27.4 record carries no observation timestamp, or when
-    the timestamps are not both safe-shape ISO-8601 UTC strings.
+    either timestamp fails strict UTC datetime parsing.
     """
     if ath_context is None:
         return None
@@ -90,13 +120,14 @@ def _ath_window_starts_post_migration(
     ath_observed = ath_context.ath_observed_at_utc
     if ath_observed is None:
         return None
-    if not is_safe_iso8601_utc_string(ath_observed):
+    try:
+        ath_dt = parse_safe_utc_datetime(ath_observed)
+        migration_dt = parse_safe_utc_datetime(
+            migration_timestamp_utc
+        )
+    except ValueError:
         return None
-    if not is_safe_iso8601_utc_string(
-        migration_timestamp_utc
-    ):
-        return None
-    return ath_observed > migration_timestamp_utc
+    return ath_dt > migration_dt
 
 
 # ---------------------------------------------------------------------------
@@ -215,12 +246,27 @@ def project_private_ping_migration_context(
                 ath_context, migration_timestamp_utc
             )
         )
-        if slot_present and ath_after_migration is True:
+        ath_status = (
+            ath_context.ath_since_migration_status
+            if ath_context is not None
+            else None
+        )
+        ath_proven_post_migration_only = (
+            ath_status
+            == ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY
+            and ath_after_migration is True
+        )
+        # Stage 29.5.1 remediation: COMPLETE requires slot
+        # present AND Stage 27.4 ATH context explicitly claims
+        # POST_MIGRATION_ONLY AND the ATH timestamp parses after
+        # the migration timestamp. Every other combination
+        # downgrades to PARTIAL_MIGRATION_PRESENT.
+        if slot_present and ath_proven_post_migration_only:
             measurement_status = (
                 MEASUREMENT_STATUS_COMPLETE
             )
             post_migration_ath_verified = True
-        elif slot_present and ath_after_migration is False:
+        elif slot_present:
             measurement_status = (
                 MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
             )
@@ -228,45 +274,37 @@ def project_private_ping_migration_context(
                 warnings,
                 WARNING_POST_MIGRATION_ATH_UNVERIFIED,
             )
-            post_migration_ath_verified = False
-        elif slot_present and ath_after_migration is None:
-            measurement_status = (
-                MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
-            )
-            _append_dedup(
-                warnings,
-                WARNING_POST_MIGRATION_ATH_UNVERIFIED,
-            )
-            post_migration_ath_verified = None
-        elif (
-            not slot_present
-            and ath_after_migration is True
-        ):
-            measurement_status = (
-                MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
-            )
-            _append_dedup(
-                warnings,
-                WARNING_MIGRATION_SLOT_MISSING,
-            )
-            post_migration_ath_verified = True
-        elif (
-            not slot_present
-            and ath_after_migration is False
-        ):
-            measurement_status = (
-                MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
-            )
-            _append_dedup(
-                warnings,
-                WARNING_MIGRATION_SLOT_MISSING,
-            )
-            _append_dedup(
-                warnings,
-                WARNING_POST_MIGRATION_ATH_UNVERIFIED,
-            )
-            post_migration_ath_verified = False
+            # Distinguish positive-negative signals (verified
+            # False) from insufficient-information cases
+            # (verified None):
+            #   * Stage 27.4 explicitly says the ATH window may
+            #     include pre-migration wick data ->
+            #     verified=False (positive negative signal).
+            #   * POST_MIGRATION_ONLY but ATH timestamp parses
+            #     before the migration timestamp -> verified=False
+            #     (positive negative signal: ATH demonstrably
+            #     predates the migration).
+            #   * ATH timestamp simply predates the migration on
+            #     a non-POST_MIGRATION_ONLY status ->
+            #     verified=False (still a positive negative
+            #     signal).
+            #   * Otherwise (UNKNOWN status with ATH after, or
+            #     no ATH context, or unparseable timestamps) ->
+            #     verified=None (cannot prove either way).
+            if (
+                ath_status
+                == ATH_SINCE_MIGRATION_STATUS_MAY_INCLUDE_PRE_MIGRATION
+            ):
+                post_migration_ath_verified = False
+            elif ath_after_migration is False:
+                post_migration_ath_verified = False
+            else:
+                post_migration_ath_verified = None
         else:
+            # Slot missing — NEVER set
+            # post_migration_ath_verified=True regardless of ATH
+            # context state. Always carries the SLOT_MISSING +
+            # POST_MIGRATION_ATH_UNVERIFIED warning pair.
             measurement_status = (
                 MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT
             )

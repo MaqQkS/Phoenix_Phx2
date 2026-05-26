@@ -86,6 +86,7 @@ from PHX2.stage29.stage29_5_migration_models import (
     WARNING_POST_MIGRATION_ATH_UNVERIFIED,
     is_safe_iso8601_utc_string,
     is_safe_mint_or_pool_string,
+    parse_safe_utc_datetime,
     is_stage29_5_measurement_status_value,
     is_stage29_5_migration_join_status_value,
     is_stage29_5_migration_source_value,
@@ -931,3 +932,144 @@ def test_error_with_empty_detail_carries_reason_in_str():
     )
     assert err.refusal_reason == REFUSAL_REASON_NONE
     assert "NONE" in str(err)
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 remediation: strict UTC datetime validation
+# ---------------------------------------------------------------------------
+
+
+# Bad ISO-8601 inputs the strict parser must reject. Each entry
+# pins a distinct failure mode; all must yield
+# ``is_safe_iso8601_utc_string == False`` AND raise ``ValueError``
+# when used as ``observed_at_utc`` on an evidence record.
+_MALFORMED_UTC_TIMESTAMPS: tuple[str, ...] = (
+    "2026-13-01T00:00:00Z",         # month 13
+    "2026-02-30T00:00:00Z",         # Feb 30 — invalid calendar
+    "2026-05-25T25:00:00Z",         # hour 25
+    "2026-05-25T00:60:00Z",         # minute 60
+    "2026-05-25T00:00:00+05:00",    # non-UTC offset (positive)
+    "2026-05-25T00:00:00-00:01",    # non-UTC offset (negative)
+    " 2026-05-25T00:00:00Z",        # leading whitespace
+    "2026-05-25T00:00:00Z ",        # trailing whitespace
+    "2026-05-25 00:00:00Z",         # space separator instead of T
+    "2026-05-25T00:00:00",          # no offset, no zulu
+    "",                             # empty string
+    "not-a-timestamp",              # garbage
+)
+
+
+_SAFE_OBSERVED_AT_VALID: str = (
+    "2026-05-25T12:00:00+00:00"
+)
+_SAFE_MINT_FOR_TIMESTAMP_PIN: str = "Z" * 44
+_SAFE_POOL_FOR_TIMESTAMP_PIN: str = "Y" * 44
+_SAFE_PROGRAM_FOR_TIMESTAMP_PIN: str = "X" * 44
+_SAFE_QUOTE_FOR_TIMESTAMP_PIN: str = "W" * 44
+
+
+def test_malformed_utc_timestamp_rejected_for_evidence_and_windows():
+    """Stage 29.5.1 remediation: every malformed ISO-8601 UTC
+    string is rejected both by the boolean predicate and by the
+    evidence-record dataclass validator.
+    """
+    for bad in _MALFORMED_UTC_TIMESTAMPS:
+        assert not is_safe_iso8601_utc_string(bad), (
+            f"is_safe_iso8601_utc_string({bad!r}) must be False"
+        )
+        with pytest.raises(ValueError):
+            parse_safe_utc_datetime(bad)
+        with pytest.raises(ValueError):
+            Stage29_5MigrationEvidenceRecord(
+                migration_status=MIGRATION_STATUS_MISSING,
+                migration_source=(
+                    MIGRATION_SOURCE_UNKNOWN_STAGE29_5
+                ),
+                base_mint=None,
+                pool_account=None,
+                pool_program_id=None,
+                quote_mint=None,
+                migration_timestamp_utc=None,
+                migration_slot=None,
+                migration_signature=None,
+                observed_at_utc=bad,
+                source_event_ref=None,
+            )
+
+
+def test_malformed_utc_timestamp_rejected_in_migration_timestamp():
+    """Strict parsing also gates the optional
+    ``migration_timestamp_utc`` axis when populated. A MISSING
+    record cannot carry a malformed timestamp on any axis.
+    """
+    # Cannot use MIGRATION_STATUS_PRESENT (the dataclass requires
+    # the full quartet on PRESENT); use INVALID with the full
+    # quartet so we can populate migration_timestamp_utc and
+    # observe the validator rejecting it.
+    for bad in _MALFORMED_UTC_TIMESTAMPS:
+        with pytest.raises(ValueError):
+            Stage29_5MigrationEvidenceRecord(
+                migration_status=MIGRATION_STATUS_INVALID,
+                migration_source=MIGRATION_SOURCE_HELIUS_WS,
+                base_mint=_SAFE_MINT_FOR_TIMESTAMP_PIN,
+                pool_account=_SAFE_POOL_FOR_TIMESTAMP_PIN,
+                pool_program_id=(
+                    _SAFE_PROGRAM_FOR_TIMESTAMP_PIN
+                ),
+                quote_mint=_SAFE_QUOTE_FOR_TIMESTAMP_PIN,
+                migration_timestamp_utc=bad,
+                migration_slot=None,
+                migration_signature=None,
+                observed_at_utc=_SAFE_OBSERVED_AT_VALID,
+                source_event_ref=None,
+            )
+
+
+def test_safe_iso8601_utc_string_accepts_canonical_utc():
+    """Positive pin: canonical Z and +00:00 forms parse cleanly,
+    and ``datetime.fromisoformat`` round-trips them.
+    """
+    accepted = (
+        "2026-05-25T00:00:00Z",
+        "2026-05-25T00:00:00+00:00",
+        "2026-05-25T12:34:56Z",
+        "2026-05-25T12:34:56.123456+00:00",
+        "2026-12-31T23:59:59Z",
+        "2024-02-29T00:00:00Z",  # leap day — valid
+    )
+    for good in accepted:
+        assert is_safe_iso8601_utc_string(good), (
+            f"is_safe_iso8601_utc_string({good!r}) must be True"
+        )
+
+
+def test_parse_safe_utc_datetime_returns_aware_zero_offset_datetime():
+    """The new strict parser returns an aware ``datetime`` whose
+    tzinfo is the canonical UTC zone.
+    """
+    from datetime import timedelta, timezone as _tz
+
+    parsed_z = parse_safe_utc_datetime(
+        "2026-05-25T12:00:00Z"
+    )
+    parsed_plus = parse_safe_utc_datetime(
+        "2026-05-25T12:00:00+00:00"
+    )
+    assert parsed_z.tzinfo is not None
+    assert parsed_plus.tzinfo is not None
+    assert parsed_z.utcoffset() == timedelta(0)
+    assert parsed_plus.utcoffset() == timedelta(0)
+    # Both representations point at the same instant.
+    assert parsed_z == parsed_plus
+    # Canonical tz attribute is UTC.
+    assert parsed_z.tzinfo == _tz.utc
+    assert parsed_plus.tzinfo == _tz.utc
+
+
+def test_parse_safe_utc_datetime_rejects_non_str():
+    """Non-str inputs raise ``ValueError`` rather than silently
+    coercing.
+    """
+    for bad in (None, 0, 1.5, [], {}, b"2026-05-25T00:00:00Z"):
+        with pytest.raises(ValueError):
+            parse_safe_utc_datetime(bad)  # type: ignore[arg-type]

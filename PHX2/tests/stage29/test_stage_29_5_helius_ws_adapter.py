@@ -558,3 +558,108 @@ def test_adapter_deterministic_for_same_input():
     records_a = adapter_a.read_migration_evidence_batch()
     records_b = adapter_b.read_migration_evidence_batch()
     assert records_a == records_b
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.1 remediation: raw helius json-rpc envelope refused
+# ---------------------------------------------------------------------------
+
+
+_RAW_JSON_RPC_ENVELOPE_FIXTURES: tuple[dict, ...] = (
+    {
+        "jsonrpc": "2.0",
+        "method": "logsNotification",
+        "params": {
+            "result": {"signature": "abc", "logs": []},
+            "subscription": 123,
+        },
+    },
+    {
+        "method": "accountNotification",
+        "params": {"result": {}},
+    },
+    {
+        "jsonrpc": "2.0",
+        "result": {"context": {"slot": 1}, "value": None},
+        "id": 1,
+    },
+    {
+        "jsonrpc": "2.0",
+        "error": {"code": -32601, "message": "method not found"},
+        "id": 1,
+    },
+    {
+        "params": {"result": {}, "subscription": 7},
+    },
+)
+
+
+@pytest.mark.parametrize(
+    "envelope",
+    _RAW_JSON_RPC_ENVELOPE_FIXTURES,
+)
+def test_helius_json_rpc_payload_requires_normalizer_not_flat_parser(
+    envelope: dict,
+) -> None:
+    """Stage 29.5.1 remediation: any payload carrying a top-level
+    ``jsonrpc`` / ``method`` / ``params`` / ``result`` / ``error``
+    key looks like a raw Helius JSON-RPC envelope and is refused
+    with ``REFUSAL_REASON_MALFORMED_PAYLOAD``. The Stage 29.5.1
+    adapter is a normalized-message parser, not a real Helius
+    JSON-RPC transaction / log decoder; raw envelopes require a
+    future operator-authorized normalizer substage.
+    """
+    body = json.dumps(envelope).encode("utf-8")
+    with pytest.raises(
+        Stage29_5MigrationEvidenceError
+    ) as excinfo:
+        parse_helius_ws_migration_message(
+            body, _SAFE_OBSERVED_AT
+        )
+    assert (
+        excinfo.value.refusal_reason
+        == REFUSAL_REASON_MALFORMED_PAYLOAD
+    )
+    assert "normalizer" in excinfo.value.detail
+
+
+def test_helius_json_rpc_payload_refusal_via_adapter_batch():
+    """Same guard fires through the adapter's
+    ``read_migration_evidence_batch`` path. The refusal is NOT
+    silently dropped — it surfaces to the caller as a closed-set
+    error (the adapter only silently skips ``UNSUPPORTED_KIND``).
+    """
+    envelope = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "method": "logsNotification",
+            "params": {},
+        }
+    ).encode("utf-8")
+    transport = _FakeWebSocketTransport([envelope])
+    adapter = Stage29_5HeliusWebSocketAdapter(
+        transport=transport,
+        clock=_fixed_clock,
+    )
+    with pytest.raises(
+        Stage29_5MigrationEvidenceError
+    ) as excinfo:
+        adapter.read_migration_evidence_batch()
+    assert (
+        excinfo.value.refusal_reason
+        == REFUSAL_REASON_MALFORMED_PAYLOAD
+    )
+
+
+def test_well_formed_normalized_message_still_parses_after_guard():
+    """Positive control: a normalized migration message carrying
+    ``kind=PUMP_AMM_MIGRATION`` (and none of the JSON-RPC
+    envelope keys) parses cleanly into a PRESENT record.
+    """
+    record = parse_helius_ws_migration_message(
+        _well_formed_message(), _SAFE_OBSERVED_AT
+    )
+    assert record.migration_status == MIGRATION_STATUS_PRESENT
+    assert (
+        record.migration_source == MIGRATION_SOURCE_HELIUS_WS
+    )
