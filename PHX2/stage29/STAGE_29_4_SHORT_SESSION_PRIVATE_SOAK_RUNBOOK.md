@@ -502,3 +502,119 @@ lives in the operator audit log outside the repository.
 The Stage 29.4 spec-lock test asserts the absence of URL
 literals, secret-shape literals, and raw env-assignment
 substrings in this runbook.
+
+---
+
+## 17. Controlled live soak proof — 2026-05-25 (session stage29_4_live_soak_1)
+
+Stage 29.4 controlled private soak ceremony executed on
+2026-05-25 against the operator's live Chainstack Yellowstone
+provider channel, Birdeye price / ATH source, and private
+operator Discord transport at PHX2 HEAD
+`d22cbf6478cefa7c9d408867f303e26168ca6ba5`. The ceremony
+completed at the dispatch cap with three private operator
+pings dispatched successfully and zero failures. This section
+records the closed-set proof axes only; per-ceremony concrete
+values (the dispatched mint, ledger event ids, Birdeye price /
+ATH numbers, transaction signatures) live in the operator
+audit log under the scratch artifact root outside the PHX2
+working tree and are NOT committed.
+
+### 17.1 Acceptance result
+
+- `soak_outcome` = `COMPLETED_AT_DISPATCH_CAP`
+- `redaction_status` = `SAFE`
+- `filter_enforcement_status` = `NOT_ACTIVE_STAGE_29_PENDING`
+- `bounds_within_recommended_ranges` = `True`
+
+### 17.2 Mode outcomes
+
+| Mode | Outcome |
+|---|---|
+| Mode 1 `READINESS_ONLY` | `READY` |
+| Mode 2 `CHAINSTACK_AND_BIRDEYE_CONNECT_ONLY` | `CONNECTED` |
+| Mode 3 `SHORT_SESSION_PRIVATE_SOAK_DRY_RUN` | `COMPLETED_AT_DISPATCH_CAP` |
+
+### 17.3 Mode 3 safe counters
+
+- `passes_attempted` = `3`
+- `dispatch_success_total` = `3`
+- `dispatch_failure_total` = `0`
+- `events_seen_total` = `3`
+- `duplicate_suppressed_soak_count` = `0`
+- `no_event_received_count` = `0`
+- `consecutive_suppression_streak_max` = `0`
+- `suppressed_unknown_pair_count` = `0`
+- `suppressed_disagree_pair_count` = `0`
+- `suppressed_usdc_observe_only_count` = `0`
+- `suppressed_missing_price_count` = `0`
+- `suppressed_stale_price_count` = `0`
+- `suppressed_malformed_count` = `0`
+
+### 17.4 Cross-artifact redaction scan
+
+The Stage 29.4 redaction scan covered the four Stage 29.4
+acceptance artifacts plus every per-pass Stage 29.3 + Stage
+28.9 companion artifact written during the soak. The combined
+scan reported `SAFE` over 36 artifact files; no forbidden
+substring was observed on any artifact body. The scan
+discipline matches Section 6 of this runbook.
+
+### 17.5 Three private operator pings dispatched
+
+Three private operator pings reached the Stage 28.4 audited
+private transport. Every Stage 28.2 dispatch ledger terminal
+record carried `terminal_status=DISPATCHED_OK`,
+`ping_type=PRIVATE_OPERATOR_OBSERVE`, and `failure_reason=null`.
+The Stage 29.4 cross-pass in-memory dedupe index admitted
+each candidate as `NEW`; the dispatch cap fired immediately
+after the third successful dispatch and the outer loop did
+NOT enter a fourth pass. No duplicate private operator ping
+was sent within the soak call; the duplicate-suppression
+codepath remained exercised by the offline test suite (see
+Section 5 dedupe semantics).
+
+### 17.6 Scope confirmations
+
+- Audience invoked: private operator only.
+- NO public, subscriber, or paid-tier routing was invoked.
+- NO Telegram, X, or social-sidecar send was invoked.
+- NO automated trading, position sizing, trade execution,
+  wallet, private-key, or signer surface was touched.
+- NO Stage 26 / Stage 29 policy enforcement was activated;
+  `filter_enforcement_status` remained
+  `NOT_ACTIVE_STAGE_29_PENDING` on every record.
+- NO retry was performed beyond the terminal soak outcome.
+- NO daemon, watchdog, or autorestart loop was engaged.
+- The bounded outer loop stopped at the dispatch cap; the
+  wall-clock cap, pass cap, and suppression circuit did not
+  fire.
+
+### 17.7 Artifact-projection caveat (still deferred)
+
+The per-pass Stage 29.3 mode-3 artifact files
+(`stage29_3_extracted_hints.json` /
+`stage29_3_birdeye_evidence.json`) continued to project the
+safe-shape `NO_EXTRACTION` / `MISSING` defaults described in
+Section 13 of this runbook. The authoritative proof axes for
+the three dispatched pings remain the Stage 28.9 health-
+snapshot counters and the Stage 28.2 dispatch ledger terminal
+records, both of which the cross-artifact redaction scan
+covered. The caveat is unchanged by this proof and remains
+deferred to a separately authorized post-Stage-29.4 substage.
+
+### 17.8 Sanitization of this proof record
+
+This proof record carries:
+
+- NO webhook URL literal,
+- NO Chainstack provider endpoint or x-token literal,
+- NO Birdeye API key, base URL, or response body literal,
+- NO raw on-chain mint address,
+- NO raw transaction signature,
+- NO raw provider payload blob,
+- NO env-name-paired-with-value entry.
+
+Per-ceremony concrete values live exclusively in the operator
+audit log under the operator scratch artifact root outside
+the PHX2 working tree and are NOT committed to the repository.
