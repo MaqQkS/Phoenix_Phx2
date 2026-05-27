@@ -111,6 +111,11 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
     {
         "__init__.py",
         "STAGE_30_SPEC_LOCK.md",
+        # Stage 30.1 production additions.
+        "tier_decision_models.py",
+        "tier_decision_projector.py",
+        "tier_decision_artifact_writer.py",
+        "stage30_1_manifest.py",
     }
 )
 
@@ -119,6 +124,10 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
     {
         "__init__.py",
         "test_stage_30_0_spec_lock.py",
+        # Stage 30.1 test additions.
+        "test_stage_30_1_tier_decision_models.py",
+        "test_stage_30_1_tier_decision_projector.py",
+        "test_stage_30_1_tier_decision_artifact_writer.py",
     }
 )
 
