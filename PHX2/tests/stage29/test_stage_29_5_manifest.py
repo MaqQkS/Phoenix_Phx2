@@ -240,12 +240,16 @@ def test_manifest_actual_inventory_matches_stage29_root():
     # files under PHX2/stage29/. Stage 29.5.4 direct opt-in
     # migration context injection (authorized 2026-05-26)
     # introduces ``stage29_5_4_*.py`` files under PHX2/stage29/.
-    # Those files belong to the Stage 29.5.2 / Stage 29.5.3 /
-    # Stage 29.5.4 inventories respectively, not the Stage 29.5
-    # inventory; the Stage 29.5 manifest stays pinned at exactly
-    # six files. This filter excludes Stage 29.5.2 + Stage 29.5.3
-    # + Stage 29.5.4 files so the Stage 29.5 inventory cross-check
-    # remains tight against the Stage 29.5 manifest.
+    # Stage 29.5.5 formatted private discord migration context
+    # rendering (authorized 2026-05-26) introduces
+    # ``stage29_5_5_*.py`` files under PHX2/stage29/. Those
+    # files belong to the Stage 29.5.2 / Stage 29.5.3 / Stage
+    # 29.5.4 / Stage 29.5.5 inventories respectively, not the
+    # Stage 29.5 inventory; the Stage 29.5 manifest stays
+    # pinned at exactly six files. This filter excludes Stage
+    # 29.5.2 + Stage 29.5.3 + Stage 29.5.4 + Stage 29.5.5
+    # files so the Stage 29.5 inventory cross-check remains
+    # tight against the Stage 29.5 manifest.
     actual_py = {
         entry.name
         for entry in stage29_root.iterdir()
@@ -255,6 +259,7 @@ def test_manifest_actual_inventory_matches_stage29_root():
         and not entry.name.startswith("stage29_5_2_")
         and not entry.name.startswith("stage29_5_3_")
         and not entry.name.startswith("stage29_5_4_")
+        and not entry.name.startswith("stage29_5_5_")
     }
     expected = set(
         stage29_5_manifest.STAGE29_5_PRODUCTION_PY_BASENAMES

@@ -580,6 +580,14 @@ def test_only_planned_stage29_5_py_modules_exist_at_29_5_1():
     # inventory, not the Stage 29.5 inventory; the Stage 29.5 pin
     # stays at six files. This loop also excludes
     # ``stage29_5_4_*.py`` files.
+    #
+    # Stage 29.5.5 narrow amendment (authorized 2026-05-26): the
+    # Stage 29.5.5 formatted private discord migration context
+    # rendering surface introduces sibling ``stage29_5_5_*.py``
+    # files under PHX2/stage29/. Those files belong to the Stage
+    # 29.5.5 inventory, not the Stage 29.5 inventory; the Stage
+    # 29.5 pin stays at six files. This loop also excludes
+    # ``stage29_5_5_*.py`` files.
     actual: set[str] = set()
     for entry in STAGE29_ROOT.iterdir():
         if entry.is_dir():
@@ -591,6 +599,7 @@ def test_only_planned_stage29_5_py_modules_exist_at_29_5_1():
             and not name.startswith("stage29_5_2_")
             and not name.startswith("stage29_5_3_")
             and not name.startswith("stage29_5_4_")
+            and not name.startswith("stage29_5_5_")
         ):
             actual.add(name)
     expected = set(_STAGE_29_5_1_PLANNED_PROD_BASENAMES)

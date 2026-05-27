@@ -998,6 +998,7 @@ def run_stage29_3_first_private_tradeable_smoke(
     clock: Optional[object] = None,
     write_artifacts: bool = True,
     migration_source: Optional[MigrationContextSource] = None,
+    migration_context_renderer: Optional[object] = None,
 ) -> Stage29_3TradeableSmokeResult:
     """Run one Stage 29.3 ceremony in the supplied ``mode``.
 
@@ -1023,6 +1024,29 @@ def run_stage29_3_first_private_tradeable_smoke(
     instead. The ``migration_source`` kwarg has no effect on
     modes 1 + 2 (``READINESS_ONLY`` /
     ``CHAINSTACK_AND_BIRDEYE_CONNECT_ONLY``).
+
+    Stage 29.5.5 opt-in seam: callers MAY pass an object exposing
+    a ``write_side_channel_artifact(output_dir, migration_source)``
+    method (the Stage 29.5.5 side-channel artifact writer
+    Protocol) via the optional ``migration_context_renderer``
+    kwarg. The hook is MODE-3-ONLY: modes 1 (``READINESS_ONLY``)
+    and 2 (``CHAINSTACK_AND_BIRDEYE_CONNECT_ONLY``) never drive
+    Stage 27.6 candidate assembly, so the Stage 29.5.5 recorder
+    has nothing to record and the writer is NEVER called on
+    those modes regardless of whether the kwarg is supplied.
+    When the kwarg is ``None`` (the default), the post-session
+    side-channel write is skipped entirely; Stage 29.3 mode-3
+    behavior is BYTE-EQUIVALENT to the pre-Stage-29.5.5 code
+    path. When the kwarg is supplied AND the mode is mode-3 AND
+    ``write_artifacts`` is ``True`` AND ``output_dir`` is a
+    safe-shape directory, Stage 29.3 mode-3 calls
+    ``migration_context_renderer.write_side_channel_artifact(...)``
+    inside a ``try`` / ``except Exception: pass`` guard AFTER
+    the Stage 28.9 session completes; the side-channel write
+    failure NEVER affects the dispatch outcome, the smoke
+    result, or any Stage 28.9 counter. The kwarg's static type
+    is ``object`` so Stage 29.3 production carries ZERO
+    ``stage29_5_5*`` import (the runtime hook is duck-typed).
 
     Raises ``Stage29_3TradeableSmokeError`` only when the supplied
     ``mode`` is not a closed-set probe-mode token; every other
@@ -1163,6 +1187,34 @@ def run_stage29_3_first_private_tradeable_smoke(
             # does not change the smoke result; the operator can
             # re-run the ceremony.
             pass
+        # Stage 29.5.5 opt-in side-channel artifact write. The
+        # hook is duck-typed (the kwarg is annotated ``object``
+        # so Stage 29.3 production carries zero ``stage29_5_5*``
+        # import) AND mode-3-only -- modes 1 (readiness-only)
+        # and 2 (Chainstack + Birdeye connect-only) NEVER drive
+        # Stage 27.6 candidate assembly, so the Stage 29.5.5
+        # recorder has nothing to record and the writer must
+        # not run. When the operator wired a Stage 29.5.5
+        # recorder as ``migration_source`` AND a Stage 29.5.5
+        # side-channel writer as ``migration_context_renderer``
+        # AND the mode is the mode-3 real private tradeable
+        # ping dry-run, the writer drains the recorder's
+        # ``recorded_entries`` tuple and writes a deterministic
+        # JSON artifact under ``output_dir``. Any failure is
+        # swallowed so the side-channel write NEVER affects the
+        # dispatch outcome.
+        if (
+            mode
+            == PROBE_MODE_ONE_REAL_PRIVATE_TRADEABLE_PING_DRY_RUN
+            and migration_context_renderer is not None
+        ):
+            try:
+                migration_context_renderer.write_side_channel_artifact(
+                    output_dir=output_dir,
+                    migration_source=migration_source,
+                )
+            except Exception:
+                pass
 
     return smoke_result
 

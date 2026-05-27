@@ -693,6 +693,24 @@ _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.5 formatted private discord migration context
+# rendering (authorized 2026-05-26). Narrow amendment widens
+# the Stage 28.11 Stage-29-prod allowlist to admit the Stage
+# 29.5.5 production + doc inventory.
+_STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_5_PRIVATE_DISCORD_MIGRATION_CONTEXT_RENDERING_RUNBOOK.md",
+        "stage29_5_5_render_models.py",
+        "stage29_5_5_private_discord_migration_context_renderer.py",
+        "stage29_5_5_migration_context_recorder.py",
+        "stage29_5_5_side_channel_artifact_writer.py",
+        "stage29_5_5_manifest.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
@@ -703,6 +721,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -860,6 +879,34 @@ _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.5 formatted private discord migration context
+# rendering tests (authorized 2026-05-26). Narrow amendment
+# widens the Stage 28.11 Stage-29-tests allowlist to admit the
+# Stage 29.5.5 test inventory.
+_STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_5_render_models.py",
+        "test_stage_29_5_5_renderer.py",
+        "test_stage_29_5_5_status_matrix.py",
+        "test_stage_29_5_5_migration_context_recorder.py",
+        "test_stage_29_5_5_side_channel_artifact_writer.py",
+        "test_stage_29_5_5_redaction.py",
+        "test_stage_29_5_5_stage29_3_integration.py",
+        "test_stage_29_5_5_default_preserves_no_renderer_path.py",
+        "test_stage_29_5_5_no_duplicate_dispatch.py",
+        "test_stage_29_5_5_no_live_surface.py",
+        "test_stage_29_5_5_no_enforcement_activation.py",
+        "test_stage_29_5_5_no_public_no_enforcement_no_trading_no_social.py",
+        "test_stage_29_5_5_boundaries.py",
+        "test_stage_29_5_5_manifest.py",
+        "test_stage_29_5_5_spec_lock.py",
+        "test_stage_29_5_5_counter_invariants.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
@@ -870,6 +917,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_BASENAMES
 )
 
 
