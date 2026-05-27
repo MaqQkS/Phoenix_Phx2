@@ -762,6 +762,7 @@ def _run_mode_one_real_private_tradeable_ping_dry_run(
     provider_kind: str,
     clock: object,
     migration_source: Optional[MigrationContextSource],
+    private_discord_body_injector: Optional[object],
 ) -> _Stage29_3Mode3Outputs:
     """Mode 3: drive the full Stage 28.9 wrapper over the Stage
     29.3 hint-aware source + Stage 27.6 sources bundle. Returns a
@@ -871,6 +872,42 @@ def _run_mode_one_real_private_tradeable_ping_dry_run(
         audited_transport=audited_transport,
         webhook_url=private_webhook_url,
     )
+
+    # Stage 29.5.6 opt-in seam: when the operator passes a
+    # ``private_discord_body_injector`` instance (duck-typed with
+    # a ``wrap_transport(inner_transport)`` method), wrap the
+    # Stage 28.9 transport so the dispatched Discord body
+    # carries an appended Stage 29.5.5 rendered migration
+    # context block. The wrap call is mode-3-only by virtue of
+    # living inside this helper. Any wrap-time failure (the
+    # injector raising, the injector returning a non-conforming
+    # object, etc.) is swallowed and the original Stage 28.9
+    # transport is used unchanged; Stage 29.3 mode-3 dispatch
+    # behavior on the failure path is BYTE-EQUIVALENT to the
+    # pre-Stage-29.5.6 code path. The injector's static type
+    # is ``object`` so Stage 29.3 production carries ZERO
+    # ``stage29_5_6*`` import (the runtime wrap is duck-typed).
+    # The wrapper-conformance gate ensures Stage 29.3 only
+    # replaces ``transport`` with a candidate exposing a callable
+    # ``send_one_audited_post`` attribute; a non-conforming
+    # return value preserves the original transport.
+    if private_discord_body_injector is not None:
+        try:
+            wrapped_candidate = (
+                private_discord_body_injector.wrap_transport(
+                    transport,
+                )
+            )
+            if callable(
+                getattr(
+                    wrapped_candidate,
+                    "send_one_audited_post",
+                    None,
+                ),
+            ):
+                transport = wrapped_candidate
+        except Exception:
+            pass
 
     # Build the Stage 28.9 session config: max_events=1,
     # max_dispatches=1, max_total_retries=0, max_ticks=1,
@@ -999,6 +1036,7 @@ def run_stage29_3_first_private_tradeable_smoke(
     write_artifacts: bool = True,
     migration_source: Optional[MigrationContextSource] = None,
     migration_context_renderer: Optional[object] = None,
+    private_discord_body_injector: Optional[object] = None,
 ) -> Stage29_3TradeableSmokeResult:
     """Run one Stage 29.3 ceremony in the supplied ``mode``.
 
@@ -1047,6 +1085,45 @@ def run_stage29_3_first_private_tradeable_smoke(
     result, or any Stage 28.9 counter. The kwarg's static type
     is ``object`` so Stage 29.3 production carries ZERO
     ``stage29_5_5*`` import (the runtime hook is duck-typed).
+
+    Stage 29.5.6 opt-in seam: callers MAY pass an object exposing
+    a ``wrap_transport(inner_transport)`` method (the Stage
+    29.5.6 private Discord body injector Protocol) via the
+    optional ``private_discord_body_injector`` kwarg. The hook
+    is MODE-3-ONLY: modes 1 + 2 never construct the Stage 28.9
+    transport stack, so the injector is NEVER invoked on those
+    modes regardless of whether the kwarg is supplied. When the
+    kwarg is ``None`` (the default), the Stage 28.9 transport
+    stack is built as before and the Stage 29.3 mode-3
+    dispatched body is BYTE-EQUIVALENT to the pre-Stage-29.5.6
+    code path. When the kwarg is supplied AND the mode is
+    mode-3, Stage 29.3 mode-3 calls
+    ``private_discord_body_injector.wrap_transport(transport)``
+    inside a ``try`` / ``except Exception: pass`` guard AFTER
+    the Stage 28.9 ``Stage28_9PrivateWebhookTransport`` is
+    constructed and BEFORE
+    ``run_stage28_9_live_provider_session(...)`` is called; the
+    wrapper's ``send_one_audited_post`` reads the operator-wired
+    Stage 29.5.5 recorder's ``recorded_entries`` and (when a
+    safe rendered block exists) attempts the full rendered
+    ``body_text`` first, falls back to a deterministic compact
+    migration-context block built from already-revalidated
+    closed-set / display fields on the rendered block when the
+    full combined body would exceed the locked 1900-character
+    cap, and skips the append entirely only when the compact
+    combined body would also overflow the cap (never truncates).
+    The chosen body text is appended to a COPY of the dispatched
+    payload's ``content`` field. Stage 29.3 only replaces the
+    original transport with the wrapped candidate when
+    ``callable(getattr(candidate, "send_one_audited_post", None))``
+    is true; a non-conforming return value (including a
+    ``wrap_transport`` that returns ``None`` or returns an
+    object without a callable ``send_one_audited_post``)
+    preserves the original transport. Any wrap-time exception
+    likewise preserves the pre-Stage-29.5.6 dispatched body.
+    The injector's static type is ``object`` so Stage 29.3
+    production carries ZERO ``stage29_5_6*`` import (the runtime
+    hook is duck-typed).
 
     Raises ``Stage29_3TradeableSmokeError`` only when the supplied
     ``mode`` is not a closed-set probe-mode token; every other
@@ -1162,6 +1239,9 @@ def run_stage29_3_first_private_tradeable_smoke(
                 provider_kind=provider_kind,
                 clock=resolved_clock,
                 migration_source=migration_source,
+                private_discord_body_injector=(
+                    private_discord_body_injector
+                ),
             )
         )
         smoke_result = mode3_outputs.smoke_result

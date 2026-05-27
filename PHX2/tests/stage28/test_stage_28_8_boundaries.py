@@ -311,6 +311,21 @@ _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.6 private ping body migration context injection
+# (authorized 2026-05-27). Narrow amendment widens the Stage 28.8
+# Stage-29-prod allowlist to admit the Stage 29.5.6 production +
+# doc inventory.
+_STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_RUNBOOK.md",
+        "stage29_5_6_private_ping_migration_context_injector.py",
+        "stage29_5_6_manifest.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
@@ -322,6 +337,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -506,6 +522,21 @@ _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.6 private ping body migration context injection tests
+# (authorized 2026-05-27). Narrow amendment widens the Stage 28.8
+# Stage-29-tests allowlist.
+_STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_6_private_ping_migration_context.py",
+        "test_stage_29_5_6_boundaries.py",
+        "test_stage_29_5_6_manifest.py",
+        "test_stage_29_5_6_spec_lock.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
@@ -517,6 +548,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_TEST_BASENAMES
 )
 
 

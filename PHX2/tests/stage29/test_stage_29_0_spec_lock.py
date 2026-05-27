@@ -891,6 +891,27 @@ _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PRODUCTION_ENTRIES: frozenset[
 )
 
 
+# Stage 29.5.6 private ping body migration context injection
+# (authorized 2026-05-27). Narrow amendment widens the Stage 29.0
+# spec-lock production allowlist to admit the Stage 29.5.6
+# production + doc inventory. The Stage 29.5.6 substage makes the
+# already-rendered Stage 29.5.5 migration context block visible
+# in the operator-visible private Discord ping body, gated mode-
+# 3-only and opt-in, via a transport-wrapper injector. The Stage
+# 29.0 spec DOC (``STAGE_29_0_SPEC_LOCK.md``) is NOT touched at
+# Stage 29.5.6; only this enclosing test file widens its
+# inventory allowlist.
+_STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PRODUCTION_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_RUNBOOK.md",
+        "stage29_5_6_private_ping_migration_context_injector.py",
+        "stage29_5_6_manifest.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     str
 ] = (
@@ -904,6 +925,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PRODUCTION_ENTRIES: frozenset[
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_PRODUCTION_ENTRIES
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PRODUCTION_ENTRIES
+    | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PRODUCTION_ENTRIES
 )
 
 
@@ -1098,6 +1120,22 @@ _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_ENTRIES: frozenset[
 )
 
 
+# Stage 29.5.6 private ping body migration context injection tests
+# (authorized 2026-05-27). Narrow amendment widens the Stage 29.0
+# spec-lock tests allowlist to admit the Stage 29.5.6 test
+# inventory.
+_STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_TEST_ENTRIES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_6_private_ping_migration_context.py",
+        "test_stage_29_5_6_boundaries.py",
+        "test_stage_29_5_6_manifest.py",
+        "test_stage_29_5_6_spec_lock.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_ENTRIES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_ENTRIES
@@ -1109,6 +1147,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_ENTRIES: frozenset[str] = (
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_TEST_ENTRIES
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_TEST_ENTRIES
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_ENTRIES
+    | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_TEST_ENTRIES
 )
 
 
@@ -1217,6 +1256,11 @@ def test_no_python_module_under_stage29_beyond_init():
         name
         for name
         in _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PRODUCTION_ENTRIES
+        if name.endswith(".py")
+    } | {
+        name
+        for name
+        in _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PRODUCTION_ENTRIES
         if name.endswith(".py")
     }
     unexpected = actual_py - allowed_py
