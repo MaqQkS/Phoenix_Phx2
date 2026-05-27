@@ -326,6 +326,21 @@ _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.6 bounded private single-shot live proof (authorized
+# 2026-05-27). Stage 29.6 is Option A only: two markdown
+# deliverables, no production .py files. Narrow amendment widens
+# the Stage 28.8 Stage-29-prod allowlist to admit the two Stage
+# 29.6 markdown basenames.
+_STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_6_BOUNDED_LIVE_PROOF_RUNBOOK.md",
+        "STAGE_29_6_SPEC_LOCK.md",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
@@ -338,6 +353,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -537,6 +553,20 @@ _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.6 bounded private single-shot live proof tests
+# (authorized 2026-05-27). Narrow amendment widens the Stage 28.8
+# Stage-29-tests allowlist to admit the two Stage 29.6 test
+# basenames.
+_STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_6_spec_lock.py",
+        "test_stage_29_6_bounded_live_proof.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
@@ -549,6 +579,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_TEST_BASENAMES
 )
 
 
