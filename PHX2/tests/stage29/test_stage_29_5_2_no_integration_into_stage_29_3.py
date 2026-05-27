@@ -1,18 +1,26 @@
 """Stage 29.5.2 no-runtime-integration pins.
 
-Stage 29.5.2 ships the offline composition layer as a separate
-sub-inventory; it does NOT wire the Stage 29.5 join + projection
-into the Stage 29.3 mode-3 orchestrator at runtime, and it does
-NOT wire the composition into the Stage 29.4 soak orchestrator
-pass entrypoint. These tests pin that deferred state.
+Stage 29.5.2 shipped the offline composition layer as a separate
+sub-inventory; the runtime-wiring deferral itself has been
+unlocked at Stage 29.5.4 via the opt-in
+``run_stage29_3_first_private_tradeable_smoke``
+``migration_source`` kwarg. The DEFAULT path remains
+byte-equivalent: Stage 29.3 mode-3 continues to inject
+``Stage29_3NoMigrationEvidenceSource`` when the operator omits
+the kwarg, and Stage 29.3 production source imports NO
+``stage29_5*`` module (the kwarg's static type is Stage 27.4's
+``MigrationContextSource`` Protocol that Stage 29.3 already
+imports).
 
-Pins:
+Pins (still hold AT Stage 29.5.4):
 
   * Stage 29.3 mode-3 orchestrator
-    (``stage29_3_tradeable_smoke.py``) still injects
-    ``Stage29_3NoMigrationEvidenceSource``.
+    (``stage29_3_tradeable_smoke.py``) still references
+    ``Stage29_3NoMigrationEvidenceSource`` as the default
+    fallback.
   * Stage 29.3 mode-3 orchestrator imports NO ``stage29_5*``
-    module (including ``stage29_5_2*``).
+    module (including ``stage29_5_2*`` / ``stage29_5_3*`` /
+    ``stage29_5_4*``).
   * Stage 29.3 mode-3 orchestrator references no
     ``Stage29_5*`` / ``Stage29_5_2*`` runtime identifier.
   * Stage 29.4 soak orchestrator
@@ -74,10 +82,11 @@ def test_stage29_3_mode3_still_injects_no_migration_evidence_source():
     assert _STAGE29_3_TRADEABLE_SMOKE_PATH.is_file()
     src = _read(_STAGE29_3_TRADEABLE_SMOKE_PATH)
     assert "Stage29_3NoMigrationEvidenceSource" in src, (
-        "Stage 29.3 mode-3 must still inject "
-        "Stage29_3NoMigrationEvidenceSource at Stage 29.5.2; "
-        "the Stage 29.5.2 offline integration proof MUST NOT "
-        "modify Stage 29.3 runtime behavior"
+        "Stage 29.3 mode-3 must still reference "
+        "Stage29_3NoMigrationEvidenceSource as the default "
+        "fallback at Stage 29.5.4; the Stage 29.5.4 opt-in seam "
+        "only takes effect when the operator explicitly passes "
+        "the migration_source kwarg"
     )
 
 
@@ -92,9 +101,11 @@ def test_stage29_3_mode3_imports_no_stage29_5_module():
     for mod in imported:
         assert "stage29_5" not in mod, (
             f"Stage 29.3 mode-3 must not import a stage29_5* "
-            f"module yet (Stage 29.5.2 is the OFFLINE integration "
-            f"proof; runtime integration is deferred); offender "
-            f"import: {mod!r}"
+            f"module at Stage 29.5.4; the Stage 29.5.4 opt-in "
+            f"seam supplies the adapter via the kwarg whose "
+            f"static type is Stage 27.4's MigrationContextSource "
+            f"Protocol, not via an import. Offender import: "
+            f"{mod!r}"
         )
 
 

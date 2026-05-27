@@ -274,6 +274,25 @@ _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.4 direct opt-in migration context injection (authorized
+# 2026-05-26). Stage 29.5.4 ships the Stage 27.4
+# ``MigrationContextSource`` Protocol adapter that lets the
+# operator pass a Stage 29.5-aware source into the Stage 29.3
+# mode-3 path via the new optional ``migration_source`` kwarg on
+# ``run_stage29_3_first_private_tradeable_smoke``. This narrow
+# amendment widens the Stage 28.8 Stage-29-prod allowlist to
+# admit the Stage 29.5.4 production + doc inventory.
+_STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_RUNBOOK.md",
+        "stage29_5_4_migration_context_source_adapter.py",
+        "stage29_5_4_manifest.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
@@ -283,6 +302,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -417,6 +437,28 @@ _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.4 direct opt-in migration context injection tests
+# (authorized 2026-05-26). Narrow amendment widens the Stage 28.8
+# Stage-29-tests allowlist to admit the Stage 29.5.4 test
+# inventory.
+_STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_4_migration_context_source_adapter.py",
+        "test_stage_29_5_4_stage29_3_integration.py",
+        "test_stage_29_5_4_default_preserves_no_migration_path.py",
+        "test_stage_29_5_4_no_duplicate_dispatch.py",
+        "test_stage_29_5_4_no_live_surface.py",
+        "test_stage_29_5_4_no_public_no_enforcement_no_trading_no_social.py",
+        "test_stage_29_5_4_boundaries.py",
+        "test_stage_29_5_4_manifest.py",
+        "test_stage_29_5_4_spec_lock.py",
+        "test_stage_29_5_4_counter_invariants.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
@@ -426,6 +468,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_MIGRATION_EVIDENCE_SPEC_LOCK_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_2_OFFLINE_INTEGRATION_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_3_SOAK_PASS_WRAPPER_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_5_4_MIGRATION_CONTEXT_INJECTION_ALLOWED_TEST_BASENAMES
 )
 
 

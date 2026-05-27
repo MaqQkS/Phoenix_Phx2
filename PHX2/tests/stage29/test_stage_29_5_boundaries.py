@@ -721,36 +721,38 @@ _STAGE29_3_TRADEABLE_SMOKE_PATH: Path = (
 
 
 def test_stage29_3_mode3_uses_stage29_5_projection_or_explicitly_marks_not_integrated():
-    """Stage 29.5.1 remediation: the Stage 29.3 mode-3
-    orchestrator continues to inject
-    ``Stage29_3NoMigrationEvidenceSource`` and does NOT import or
-    consume any Stage 29.5 surface yet. Runtime integration of
-    the Stage 29.5 projection into the Stage 29.3 private
-    tradeable ping path is deferred to a separately authorized
-    Stage 29.5.2 substage.
+    """Stage 29.5.4 narrow amendment (2026-05-26): the Stage 29.3
+    mode-3 orchestrator continues to inject
+    ``Stage29_3NoMigrationEvidenceSource`` as the DEFAULT
+    fallback when the operator omits the new optional
+    ``migration_source`` kwarg, and does NOT import or reference
+    any Stage 29.5* identifier directly. The Stage 29.5.4 adapter
+    is supplied via the kwarg whose static type is Stage 27.4's
+    ``MigrationContextSource`` Protocol that Stage 29.3 already
+    imports.
 
-    This pin asserts the "explicitly not integrated" state. When
-    Stage 29.5.2 lands, this test will need to be updated to
-    assert the OTHER branch (Stage 29.3 imports the Stage 29.5
-    projection and threads it through mode-3).
+    This pin asserts that the conservative default + the
+    no-stage29_5*-import invariant still hold AT Stage 29.5.4.
     """
     assert _STAGE29_3_TRADEABLE_SMOKE_PATH.is_file(), (
         "Stage 29.3 tradeable smoke orchestrator must exist "
-        "for the not-yet-integrated pin to be meaningful"
+        "for the default-fallback pin to be meaningful"
     )
     src = _read(_STAGE29_3_TRADEABLE_SMOKE_PATH)
-    # Stage 29.3 still injects the deterministic
-    # MIGRATION_SOURCE_UNKNOWN source class. This pins that the
-    # Stage 29.5 projection has not silently replaced the
-    # conservative default.
+    # Stage 29.3 still references the deterministic
+    # MIGRATION_SOURCE_UNKNOWN source class as the default
+    # fallback. This pins that the Stage 29.5 projection has not
+    # silently replaced the conservative default.
     assert "Stage29_3NoMigrationEvidenceSource" in src, (
-        "Stage 29.3 mode-3 must still inject "
-        "Stage29_3NoMigrationEvidenceSource until Stage 29.5.2 "
-        "lands runtime integration"
+        "Stage 29.3 mode-3 must still reference "
+        "Stage29_3NoMigrationEvidenceSource as the default "
+        "fallback at Stage 29.5.4"
     )
-    # Stage 29.3 must NOT import any Stage 29.5 module yet. The
-    # Stage 29.5.1 commit ships the projection as an offline
-    # evidence/projection layer; runtime integration is deferred.
+    # Stage 29.3 must NOT import any Stage 29.5 module. Stage
+    # 29.5.4 supplies the adapter to Stage 29.3 via the kwarg
+    # whose static type is Stage 27.4's MigrationContextSource
+    # Protocol; Stage 29.3 production source itself imports zero
+    # Stage 29.5* modules.
     forbidden_stage29_5_identifiers: tuple[str, ...] = (
         "stage29_5_migration_models",
         "stage29_5_helius_ws_adapter",
@@ -769,15 +771,17 @@ def test_stage29_3_mode3_uses_stage29_5_projection_or_explicitly_marks_not_integ
     for needle in forbidden_stage29_5_identifiers:
         assert needle not in src, (
             f"Stage 29.3 mode-3 must not reference Stage 29.5 "
-            f"identifier {needle!r} until Stage 29.5.2 lands; "
-            "runtime integration is deferred"
+            f"identifier {needle!r} at Stage 29.5.4; the "
+            f"adapter is supplied via the opt-in kwarg whose "
+            f"static type is Stage 27.4's MigrationContextSource "
+            f"Protocol"
         )
     # Cross-check at the AST level: no Stage 29.5 import.
     imported = _collect_imported_module_paths(src)
     for mod in imported:
         assert "stage29_5" not in mod, (
             f"Stage 29.3 mode-3 must not import a Stage 29.5 "
-            f"module yet; offender import: {mod!r}"
+            f"module at Stage 29.5.4; offender import: {mod!r}"
         )
 
 

@@ -76,6 +76,7 @@ from PHX2.stage27.live_candidate_assembler import (
     Stage27_6Sources,
 )
 from PHX2.stage27.price_ath_context_reader import (
+    MigrationContextSource,
     Stage27_4Clock,
 )
 from PHX2.stage27.private_ping_provenance import (
@@ -760,6 +761,7 @@ def _run_mode_one_real_private_tradeable_ping_dry_run(
     provider_id: str,
     provider_kind: str,
     clock: object,
+    migration_source: Optional[MigrationContextSource],
 ) -> _Stage29_3Mode3Outputs:
     """Mode 3: drive the full Stage 28.9 wrapper over the Stage
     29.3 hint-aware source + Stage 27.6 sources bundle. Returns a
@@ -820,10 +822,23 @@ def _run_mode_one_real_private_tradeable_ping_dry_run(
         ),
         lookback_hours=birdeye_lookback_hours,
     )
+    # Stage 29.5.4 opt-in seam: when the operator passes a
+    # ``migration_source`` instance via
+    # ``run_stage29_3_first_private_tradeable_smoke``, the supplied
+    # instance is wired into ``Stage27_6Sources.migration_source``.
+    # Default behavior (``migration_source is None``) is BYTE-
+    # EQUIVALENT to the pre-Stage-29.5.4 code path: a fresh
+    # ``Stage29_3NoMigrationEvidenceSource()`` is constructed and
+    # injected.
+    resolved_migration_source: MigrationContextSource = (
+        migration_source
+        if migration_source is not None
+        else Stage29_3NoMigrationEvidenceSource()
+    )
     sources = Stage27_6Sources(
         price_source=price_source,
         ath_source=ath_source,
-        migration_source=Stage29_3NoMigrationEvidenceSource(),
+        migration_source=resolved_migration_source,
         stage27_4_clock=clock,  # type: ignore[arg-type]
         stage27_5_clock=clock,  # type: ignore[arg-type]
         price_staleness_threshold_seconds=(
@@ -982,6 +997,7 @@ def run_stage29_3_first_private_tradeable_smoke(
     provider_kind: str = DEFAULT_PROVIDER_KIND,
     clock: Optional[object] = None,
     write_artifacts: bool = True,
+    migration_source: Optional[MigrationContextSource] = None,
 ) -> Stage29_3TradeableSmokeResult:
     """Run one Stage 29.3 ceremony in the supplied ``mode``.
 
@@ -996,6 +1012,17 @@ def run_stage29_3_first_private_tradeable_smoke(
     clock satisfying both the ``utc_now`` + ``now_utc_iso``
     methods. Tests that pass a fake gRPC channel factory will see
     deterministic behavior without opening a network connection.
+
+    Stage 29.5.4 opt-in seam: callers MAY pass a Stage 27.4
+    ``MigrationContextSource`` instance via the optional
+    ``migration_source`` kwarg. When the kwarg is ``None`` (the
+    default), the mode-3 path constructs
+    ``Stage29_3NoMigrationEvidenceSource()`` byte-equivalently to
+    the pre-Stage-29.5.4 code path. When the kwarg is supplied,
+    that instance is wired into ``Stage27_6Sources.migration_source``
+    instead. The ``migration_source`` kwarg has no effect on
+    modes 1 + 2 (``READINESS_ONLY`` /
+    ``CHAINSTACK_AND_BIRDEYE_CONNECT_ONLY``).
 
     Raises ``Stage29_3TradeableSmokeError`` only when the supplied
     ``mode`` is not a closed-set probe-mode token; every other
@@ -1110,6 +1137,7 @@ def run_stage29_3_first_private_tradeable_smoke(
                 provider_id=provider_id,
                 provider_kind=provider_kind,
                 clock=resolved_clock,
+                migration_source=migration_source,
             )
         )
         smoke_result = mode3_outputs.smoke_result

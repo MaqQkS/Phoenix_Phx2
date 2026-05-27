@@ -1,24 +1,35 @@
 """Stage 29.5.3 no-modification pins.
 
-Stage 29.5.3 ships the runtime-adjacent soak pass-entrypoint
-wrapper as a separate sub-inventory; it does NOT modify any
-Stage 29.3 production file and does NOT modify any Stage 29.4
-production file. These tests pin that invariant.
+Stage 29.5.3 shipped the runtime-adjacent soak pass-entrypoint
+wrapper as a separate sub-inventory. At Stage 29.5.4 a small,
+opt-in modification to ``stage29_3_tradeable_smoke.py`` was
+authorized (one new optional ``migration_source`` kwarg whose
+static type is Stage 27.4's ``MigrationContextSource`` Protocol;
+default None preserves byte-equivalent fallback to
+``Stage29_3NoMigrationEvidenceSource``). The Stage 29.4
+production source remains untouched. The pins below still hold
+at Stage 29.5.4: Stage 29.3 still references the default
+fallback class, references no ``stage29_5*`` identifier, and
+imports no ``stage29_5*`` module; Stage 29.4 production is
+unchanged.
 
 Pins:
 
   * Stage 29.3 mode-3 orchestrator
-    (``stage29_3_tradeable_smoke.py``) still injects
-    ``Stage29_3NoMigrationEvidenceSource``.
+    (``stage29_3_tradeable_smoke.py``) still references
+    ``Stage29_3NoMigrationEvidenceSource`` as the default
+    fallback when the operator omits the Stage 29.5.4 opt-in
+    ``migration_source`` kwarg.
   * Stage 29.3 mode-3 orchestrator imports NO ``stage29_5*``
-    module (including ``stage29_5_2*`` and ``stage29_5_3*``).
+    module (including ``stage29_5_2*``, ``stage29_5_3*``, and
+    ``stage29_5_4*``).
   * Stage 29.3 mode-3 orchestrator references no
     ``Stage29_5*`` / ``Stage29_5_2*`` / ``Stage29_5_3*``
     runtime identifier.
   * Stage 29.4 soak orchestrator
     (``stage29_4_soak_orchestrator.py``) imports NO
-    ``stage29_5*`` module (including ``stage29_5_2*`` and
-    ``stage29_5_3*``).
+    ``stage29_5*`` module (including ``stage29_5_2*``,
+    ``stage29_5_3*``, and ``stage29_5_4*``).
 """
 
 from __future__ import annotations
@@ -71,10 +82,11 @@ def test_stage29_3_mode3_still_injects_no_migration_evidence_source() -> None:
     assert _STAGE29_3_TRADEABLE_SMOKE_PATH.is_file()
     src = _read(_STAGE29_3_TRADEABLE_SMOKE_PATH)
     assert "Stage29_3NoMigrationEvidenceSource" in src, (
-        "Stage 29.3 mode-3 must still inject "
-        "Stage29_3NoMigrationEvidenceSource at Stage 29.5.3; "
-        "the Stage 29.5.3 wrapper does NOT activate direct "
-        "Stage 29.3 migration-context injection"
+        "Stage 29.3 mode-3 must still reference "
+        "Stage29_3NoMigrationEvidenceSource as the default "
+        "fallback at Stage 29.5.4; the Stage 29.5.4 opt-in "
+        "kwarg activates a caller-supplied source only when "
+        "explicitly passed"
     )
 
 
