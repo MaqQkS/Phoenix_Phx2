@@ -121,6 +121,13 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "compact_ping_renderer.py",
         "compact_ping_artifact_writer.py",
         "stage30_2_manifest.py",
+        # Stage 30.3A production additions.
+        "stage30_3_compact_runtime_models.py",
+        "stage30_3_compact_candidate_projection.py",
+        "stage30_3_compact_candidate_context_recorder.py",
+        "stage30_3_compact_body_transport_wrapper.py",
+        "stage30_3_runtime_wiring_artifact_writer.py",
+        "stage30_3_manifest.py",
     }
 )
 
@@ -137,6 +144,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_2_compact_ping_models.py",
         "test_stage_30_2_compact_ping_renderer.py",
         "test_stage_30_2_compact_ping_artifact_writer.py",
+        # Stage 30.3A test additions.
+        "test_stage_30_3_compact_runtime_models.py",
+        "test_stage_30_3_compact_candidate_projection.py",
+        "test_stage_30_3_compact_candidate_context_recorder.py",
+        "test_stage_30_3_compact_body_transport_wrapper.py",
+        "test_stage_30_3_compact_body_transport_wrapper_composes_with_stage29_5_6.py",
+        "test_stage_30_3_runtime_wiring_artifact_writer.py",
+        "test_stage_30_3_spec_lock.py",
     }
 )
 
