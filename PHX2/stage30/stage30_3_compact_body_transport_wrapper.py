@@ -468,6 +468,7 @@ class Stage30_3CompactBodyTransportWrapper:
         """
         self._calls_received += 1
         entry_time_utc: str = self._clock.now_utc_iso()
+        entry_time_utc = _normalize_to_z_suffixed_utc(entry_time_utc)
         original_content_length = _compute_original_content_length(
             payload
         )
@@ -893,8 +894,38 @@ class Stage30_3CompactBodyTransportWrapper:
 
 
 # ---------------------------------------------------------------------------
-# Module-level helper
+# Module-level helpers
 # ---------------------------------------------------------------------------
+
+
+def _normalize_to_z_suffixed_utc(value: object) -> object:
+    """Normalize a ``+00:00`` UTC offset suffix to the trailing
+    ``Z`` form expected by the Stage 30.1 / Stage 30.2 safe-shape
+    ISO-8601 validators.
+
+    The injected wrapper clock may emit either UTC notation: a
+    Python ``datetime.isoformat()`` value carries the numeric
+    ``+00:00`` offset, while the Stage 30.1 / 30.2 closed-set
+    safe-shape pattern accepts only the ``Z`` (Zulu) suffix. Both
+    forms are valid ISO-8601 / RFC-3339 UTC; this helper bridges
+    the two so a well-behaved ``+00:00`` clock value is not refused
+    by the downstream Z-only validators.
+
+    Conservative by construction:
+
+      * ``"...+00:00"``  -> ``"...Z"`` (only the trailing offset is
+        rewritten; the date / time / fractional-second prefix is
+        preserved byte-for-byte).
+      * a value already ending in ``"Z"`` is returned unchanged.
+      * any other offset (e.g. ``"-05:00"``) is returned unchanged
+        (the wrapper does NOT fabricate a UTC reinterpretation of a
+        non-UTC offset).
+      * a non-``str`` value is returned unchanged so the existing
+        downstream shape checks see the original object.
+    """
+    if isinstance(value, str) and value.endswith("+00:00"):
+        return value[:-6] + "Z"
+    return value
 
 
 def _compute_original_content_length(

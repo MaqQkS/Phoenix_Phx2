@@ -41,6 +41,7 @@ from PHX2.stage30.compact_ping_models import (
 )
 from PHX2.stage30.stage30_3_compact_body_transport_wrapper import (
     Stage30_3CompactBodyTransportWrapper,
+    _normalize_to_z_suffixed_utc,
 )
 from PHX2.stage30.stage30_3_compact_runtime_models import (
     COMPACT_OUTCOME_FAILED_CAP,
@@ -1298,3 +1299,113 @@ def test_safe_artifact_text_none_passthrough(tmp_path: Path) -> None:
     # And the canonical WSOL literal does not appear.
     artifact_text = _wiring_artifact_text(tmp_path)
     assert _WSOL_MINT_LITERAL not in artifact_text
+
+
+# ===========================================================================
+# Stage 30.3C-A timestamp basis normalization (+00:00 -> Z)
+# ===========================================================================
+#
+# Stage 30.3C-A Mode 2 failed closed at Stage 30.1 with
+# CREATED_AT_UTC_NOT_SAFE_ISO8601 because the injected production
+# clock (``Stage29_3UtcClock.now_utc_iso()``) emits a Python
+# ``datetime.isoformat()`` value carrying the numeric ``+00:00`` UTC
+# offset, while the Stage 30.1 / Stage 30.2 safe-shape ISO-8601
+# validators accept only the trailing ``Z`` (Zulu) form. Both forms
+# are valid ISO-8601 / RFC-3339 UTC. The wrapper now normalizes the
+# clock value at the ``send_one_audited_post`` boundary BEFORE it
+# flows into the Stage 30.1 projector and the Stage 30.2 renderer.
+# Neither the Stage 30.1 model, the Stage 30.2 model, nor the
+# Stage 29.3 clock is modified.
+
+
+_OFFSET_UTC_STAMP: str = "2026-05-28T07:50:56.703959+00:00"
+_EXPECTED_Z_STAMP: str = "2026-05-28T07:50:56.703959Z"
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        # "+00:00" UTC offset -> trailing "Z" (only the offset is
+        # rewritten; the fractional-second prefix is preserved).
+        (_OFFSET_UTC_STAMP, _EXPECTED_Z_STAMP),
+        # Already Z-suffixed -> unchanged.
+        ("2026-05-28T07:50:56Z", "2026-05-28T07:50:56Z"),
+        # A non-UTC offset is NOT reinterpreted -> unchanged.
+        ("2026-05-28T07:50:56-05:00", "2026-05-28T07:50:56-05:00"),
+        # Non-string (None) -> unchanged.
+        (None, None),
+    ],
+)
+def test_normalize_to_z_suffixed_utc(
+    raw: object, expected: object
+) -> None:
+    assert _normalize_to_z_suffixed_utc(raw) == expected
+
+
+def test_offset_utc_clock_value_renders_instead_of_failing_tier(
+    tmp_path: Path,
+) -> None:
+    # Integration regression for the Mode 2 fail-closed: a clock
+    # emitting the numeric "+00:00" UTC offset (the Python
+    # datetime.isoformat() default) must now render successfully
+    # rather than fail closed at Stage 30.1.
+    entry = _make_entry()
+    wrapper, inner = _build_wrapper(
+        tmp_path,
+        entries=(entry,),
+        stamps=[_OFFSET_UTC_STAMP],
+    )
+
+    original_payload: Dict[str, Any] = {
+        _CONTENT_KEY: _VERBOSE_BODY,
+        "username": "Phoenix Operator",
+    }
+    result = wrapper.send_one_audited_post(
+        webhook_identity="WEBHOOK_IDENTITY_PRIVATE_OPERATOR",
+        payload=original_payload,
+    )
+    assert result.ok is True
+
+    # Inner transport forwarded exactly once (not refused).
+    assert inner.calls == 1
+
+    # The forwarded body is the rendered compact body, NOT the
+    # verbose Stage 28.9 fallback; the original payload is untouched.
+    inner_payload = inner.received_kwargs[0]["payload"]
+    assert isinstance(inner_payload, dict)
+    assert inner_payload is not original_payload
+    compact_body = inner_payload[_CONTENT_KEY]
+    assert compact_body != _VERBOSE_BODY
+    assert compact_body.startswith("\U0001f525 PHOENIX")
+    assert original_payload[_CONTENT_KEY] == _VERBOSE_BODY
+
+    # Stage 30.1 / Stage 30.2 / Stage 30.3 JSONL each written once.
+    tier_lines = _read_tier_lines(tmp_path)
+    compact_lines = _read_compact_lines(tmp_path)
+    wiring_lines = _read_wiring_lines(tmp_path)
+    assert len(tier_lines) == 1
+    assert len(compact_lines) == 1
+    assert len(wiring_lines) == 1
+
+    # Outcome is RENDERED, not FAILED_TIER_DECISION.
+    line = wiring_lines[0]
+    assert line["compact_outcome"] == COMPACT_OUTCOME_RENDERED
+    assert line["compact_outcome_reason"] is None
+    assert line["forwarded_to_inner_transport"] is True
+    assert wrapper.outcomes_count(COMPACT_OUTCOME_RENDERED) == 1
+    assert (
+        wrapper.outcomes_count(COMPACT_OUTCOME_FAILED_TIER_DECISION)
+        == 0
+    )
+
+    # The written Stage 30.1 + Stage 30.2 records carry the
+    # normalized Z-suffixed created_at_utc, NOT the raw +00:00 form.
+    assert tier_lines[0]["created_at_utc"] == _EXPECTED_Z_STAMP
+    assert compact_lines[0]["created_at_utc"] == _EXPECTED_Z_STAMP
+    assert tier_lines[0]["created_at_utc"].endswith("Z")
+    assert compact_lines[0]["created_at_utc"].endswith("Z")
+    assert "+00:00" not in tier_lines[0]["created_at_utc"]
+    assert "+00:00" not in compact_lines[0]["created_at_utc"]
+    # The Stage 30.3 wiring line carries the normalized stamp too.
+    assert line["created_at_utc"] == _EXPECTED_Z_STAMP
+    assert "+00:00" not in line["created_at_utc"]
