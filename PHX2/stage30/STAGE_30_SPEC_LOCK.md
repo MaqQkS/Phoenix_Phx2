@@ -106,7 +106,7 @@ private Discord ping body. Target body shape (example):
 
 🧠 State
 • MC: $83k | ATH: $460k | Mig: $36k
-• Floor: -82% | Age: 16.6h | Vol: Cooling
+• Drop: -82% | Age: 16.6h | Net: Unknown
 • LP: $27k (Tradable)
 ```
 
@@ -115,11 +115,20 @@ Rendering rules:
 - The header carries the tier token verbatim
   (`[Tier 1]` / `[Tier 2]` / `[Tier 3]` / `[Tier Unknown]` /
   `[Tier Not Applicable]`).
-- The mint line carries the full mint address; the symbol slot
-  may show `<mint short>` when no symbol is known.
-- The `🧠 State` section shows: `MC`, `ATH`, `Mig`, `Floor`, `Age`,
-  `Vol`, `LP`.
-- Missing `MC`, `LP`, or `Vol` values render as the literal string
+- The mint line carries the full token / base mint address; the
+  symbol slot may show `<mint short>` when no symbol is known. The
+  renderer NEVER substitutes the quote mint (WSOL / USDC) for the
+  token / base mint.
+- The `🧠 State` section shows: `MC`, `ATH`, `Mig`, `Drop`, `Age`,
+  `Net`, `LP`.
+- `Drop` is the CURRENT drawdown from ATH at ping time (derived
+  from the Stage 30.1 ``drop_positive`` value). It is NOT a
+  historical floor / minimum-drawdown tracker; calling it `Floor`
+  would mis-promise that.
+- `Net` is operator-readable net buy / sell flow. Until a net-flow
+  source ships in a later substage, callers pass no net-flow text
+  and the renderer emits `Unknown`.
+- Missing `MC`, `LP`, or `Net` values render as the literal string
   `Unknown` — never `0`, never `0.0`, never an empty value, never
   a fabricated estimate.
 - Warnings render only when needed (degraded price staleness,
@@ -132,7 +141,16 @@ Rendering rules:
   = 1900`).
 - The compact body MUST NOT contain any trading-verdict substring
   (case-insensitive): `BUY`, `SELL`, `APPROVED`, `GATE`, `BLOCK`,
-  `SAFE`, `ENFORCEMENT`, `EXECUTE`, `POSITION`, `AUTO-TRADE`.
+  `ENFORCEMENT`, `EXECUTE`, `POSITION`, `AUTO-TRADE`.
+- The standalone word `SAFE` is intentionally NOT on the forbidden
+  list. Stage 30 artifacts and the Stage 30 redaction scan use
+  `SAFE` as a closed-set status token (e.g. the redaction scan
+  reports `SAFE` for every committed session), and the renderer
+  must not collide with that usage. A compound trading-verdict
+  phrase such as `SAFE BUY` or `SAFE SELL` is still rejected
+  because `BUY` / `SELL` remain forbidden substrings; the `SAFE`
+  carve-out applies only when `SAFE` appears WITHOUT a paired
+  forbidden trading-verdict substring.
 
 ## 5. Tier semantics
 
@@ -209,16 +227,17 @@ Every Stage 30 compact ping MUST surface the following operator-
 readable fields, in this order, with explicit `Unknown` for any
 field whose source is missing or degraded:
 
-- `token` / `mint`
+- `token` / `mint` (token / base mint; NEVER the quote mint)
 - `current MC` (if available)
 - `ATH MC` (if available)
 - `migration MC` (if available)
-- `drawdown` / `floor %`
+- `drawdown` / `drop %` (current drawdown from ATH at ping time;
+  NOT a historical floor)
 - `tier`: `Tier 1` / `Tier 2` / `Tier 3` / `Tier Unknown` /
   `Tier Not Applicable`
 - `age since migration`
 - `LP` (if available)
-- `volume` / `cooling` (if available)
+- `net flow` (net buy / sell pressure; if available)
 - `warnings`: rendered ONLY when needed (degraded price
   staleness, untrusted migration source, pre-migration ATH risk,
   etc.).

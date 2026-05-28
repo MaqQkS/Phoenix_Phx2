@@ -116,6 +116,11 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "tier_decision_projector.py",
         "tier_decision_artifact_writer.py",
         "stage30_1_manifest.py",
+        # Stage 30.2 production additions.
+        "compact_ping_models.py",
+        "compact_ping_renderer.py",
+        "compact_ping_artifact_writer.py",
+        "stage30_2_manifest.py",
     }
 )
 
@@ -128,6 +133,10 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_1_tier_decision_models.py",
         "test_stage_30_1_tier_decision_projector.py",
         "test_stage_30_1_tier_decision_artifact_writer.py",
+        # Stage 30.2 test additions.
+        "test_stage_30_2_compact_ping_models.py",
+        "test_stage_30_2_compact_ping_renderer.py",
+        "test_stage_30_2_compact_ping_artifact_writer.py",
     }
 )
 
@@ -324,14 +333,14 @@ def test_spec_lock_forbids_fabricating_mc_supply_in_basis_section() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Spec-lock markdown says missing MC/LP/Vol values render as Unknown.
+# 7. Spec-lock markdown says missing MC/LP/Net values render as Unknown.
 # ---------------------------------------------------------------------------
 
 
 def test_spec_lock_says_missing_values_render_as_unknown() -> None:
     normalized = _normalized_whitespace(_spec_lock_text())
     required = (
-        "Missing `MC`, `LP`, or `Vol` values render as the "
+        "Missing `MC`, `LP`, or `Net` values render as the "
         "literal string `Unknown`"
     )
     assert required in normalized, (
@@ -531,9 +540,9 @@ def test_spec_lock_contains_compact_ping_header_marker() -> None:
         "MC: $",
         "ATH: $",
         "Mig: $",
-        "Floor: -",
+        "Drop: -",
         "Age:",
-        "Vol:",
+        "Net:",
         "LP: $",
     )
     for substring in required_substrings:
