@@ -420,6 +420,25 @@ _FORBIDDEN_PHX2_PACKAGE_PREFIXES: tuple[str, ...] = (
 )
 
 
+# Stage 30.3B parallel-orchestrator carve-out. The Stage 30.3B
+# orchestrator (a narrow parallel adapter that plugs the Stage
+# 30.3A wrapper + recorder into the already-closed Stage 28.9
+# private live provider session adapter) is explicitly allowed to
+# import the Stage 28.9 adapter + Stage 28.9 session-config /
+# session-result models per the Stage 30.3B spec. Every other
+# Stage 30 production module still flows through the closed
+# Stage 27 / Stage 30 boundary.
+_STAGE30_3B_ORCHESTRATOR_BASENAME: str = (
+    "stage30_3_compact_runtime_session_orchestrator.py"
+)
+_STAGE30_3B_ORCHESTRATOR_ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
+    "PHX2.stage27.",
+    "PHX2.stage28.live_provider_session_adapter",
+    "PHX2.stage28.live_provider_session_models",
+    "PHX2.stage30.",
+)
+
+
 def _stage30_production_module_paths() -> list[Path]:
     stage30_root = (
         Path(__file__).resolve().parent.parent.parent / "stage30"
@@ -478,6 +497,25 @@ def test_stage30_production_modules_dont_import_other_phx2_stages() -> (
     paths = _stage30_production_module_paths()
     for module_path in paths:
         imports = _module_import_names(module_path)
+        # The Stage 30.3B parallel orchestrator is the sole
+        # production module explicitly permitted to import the
+        # Stage 28.9 adapter + Stage 28.9 session-config / result
+        # models per the Stage 30.3B spec. The carve-out admits ONLY
+        # the two documented Stage 28.9 surfaces; every other
+        # Stage 21-29 stage prefix is still forbidden.
+        if module_path.name == _STAGE30_3B_ORCHESTRATOR_BASENAME:
+            for imported in imports:
+                if imported in {
+                    "PHX2.stage28.live_provider_session_adapter",
+                    "PHX2.stage28.live_provider_session_models",
+                }:
+                    continue
+                for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
+                    assert not imported.startswith(prefix), (
+                        f"{module_path.name} imports forbidden "
+                        f"Stage package: {imported}"
+                    )
+            continue
         for imported in imports:
             for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
                 assert not imported.startswith(prefix), (
@@ -492,6 +530,26 @@ def test_stage30_production_modules_only_phx2_dep_is_stage27_or_stage30() -> (
     paths = _stage30_production_module_paths()
     for module_path in paths:
         imports = _module_import_names(module_path)
+        # The Stage 30.3B parallel orchestrator carve-out (see
+        # ``_STAGE30_3B_ORCHESTRATOR_ALLOWED_PHX2_PREFIXES``)
+        # admits the two documented Stage 28.9 surfaces in
+        # addition to the closed Stage 27 / Stage 30 dependency
+        # boundary.
+        if module_path.name == _STAGE30_3B_ORCHESTRATOR_BASENAME:
+            for imported in imports:
+                if not imported.startswith("PHX2"):
+                    continue
+                assert any(
+                    imported.startswith(prefix)
+                    or imported == prefix.rstrip(".")
+                    for prefix in (
+                        _STAGE30_3B_ORCHESTRATOR_ALLOWED_PHX2_PREFIXES
+                    )
+                ), (
+                    f"{module_path.name} imports unexpected PHX2 "
+                    f"module: {imported}"
+                )
+            continue
         for imported in imports:
             if imported.startswith("PHX2"):
                 assert imported.startswith(

@@ -51,18 +51,14 @@ _STAGE30_3_PRODUCTION_BASENAMES: Tuple[str, ...] = (
     "stage30_3_compact_body_transport_wrapper.py",
     "stage30_3_runtime_wiring_artifact_writer.py",
     "stage30_3_manifest.py",
-)
-
-
-_DEFERRED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
     "stage30_3_compact_runtime_session_orchestrator.py",
 )
 
 
-_DEFERRED_TEST_BASENAMES: Tuple[str, ...] = (
-    "test_stage_30_3_compact_runtime_session_orchestrator.py",
-    "test_stage_30_3_compact_runtime_session_orchestrator_redaction_safe.py",
-)
+_DEFERRED_PRODUCTION_BASENAMES: Tuple[str, ...] = ()
+
+
+_DEFERRED_TEST_BASENAMES: Tuple[str, ...] = ()
 
 
 def _read_source(path: Path) -> str:

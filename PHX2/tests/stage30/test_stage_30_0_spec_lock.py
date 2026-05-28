@@ -128,6 +128,8 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_3_compact_body_transport_wrapper.py",
         "stage30_3_runtime_wiring_artifact_writer.py",
         "stage30_3_manifest.py",
+        # Stage 30.3B production additions.
+        "stage30_3_compact_runtime_session_orchestrator.py",
     }
 )
 
@@ -152,6 +154,9 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_3_compact_body_transport_wrapper_composes_with_stage29_5_6.py",
         "test_stage_30_3_runtime_wiring_artifact_writer.py",
         "test_stage_30_3_spec_lock.py",
+        # Stage 30.3B test additions.
+        "test_stage_30_3_compact_runtime_session_orchestrator.py",
+        "test_stage_30_3_compact_runtime_session_orchestrator_redaction_safe.py",
     }
 )
 
