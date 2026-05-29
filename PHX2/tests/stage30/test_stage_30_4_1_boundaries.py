@@ -246,35 +246,55 @@ def test_no_forbidden_text_needles_in_30_4_1_production_files() -> None:
 
 
 # ---------------------------------------------------------------------------
-# 7. Stage 30.4.2 orchestrator must NOT exist
+# 7. Stage 30.4.3 / later live source adapter must NOT exist
 # ---------------------------------------------------------------------------
+#
+# Stage 30.4.2 widened the orchestrator-file pin: the Stage 30.4.2
+# parallel orchestrator file is now permitted. A real live Birdeye
+# token_overview HTTP adapter (or any other live source adapter)
+# requires separately authorized scope (Stage 30.4.3 or later) and
+# must NOT ship at Stage 30.4.1 or 30.4.2.
 
 
-def test_stage30_4_2_orchestrator_file_does_not_exist() -> None:
-    orchestrator_basename = (
-        "stage30_4_compact_runtime_session_orchestrator.py"
+def test_no_live_token_overview_source_adapter_file_exists() -> None:
+    """Stage 30.4.1 / 30.4.2 must not ship a real Birdeye
+    token_overview (or any other live source) adapter file. Any
+    real adapter is Stage 30.4.3+ scope.
+    """
+    forbidden_basename_substrings = (
+        "birdeye_token_overview",
+        "live_token_overview",
+        "dex" + "screener_cross_check",
+        "on_chain_supply",
     )
-    path = STAGE30_ROOT / orchestrator_basename
-    assert not path.exists(), (
-        "Stage 30.4.1 must not ship the Stage 30.4.2 orchestrator: "
-        f"unexpected file {path}"
-    )
+    for entry in STAGE30_ROOT.iterdir():
+        if entry.name == "__pycache__":
+            continue
+        for forbidden in forbidden_basename_substrings:
+            assert forbidden not in entry.name, (
+                "Stage 30.4.1 / 30.4.2 must not ship a real live "
+                f"source adapter file: unexpected {entry.name!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
-# 8. No Stage 30.4.2 / 30.4.3 test file exists
+# 8. Stage 30.4.3 test files must NOT exist
 # ---------------------------------------------------------------------------
 
 
-def test_no_premature_stage30_4_2_or_3_test_file_exists() -> None:
-    forbidden_substrings = ("test_stage_30_4_2", "test_stage_30_4_3")
+def test_no_premature_stage30_4_3_test_file_exists() -> None:
+    """Stage 30.4.2 widened the test-file pin: ``test_stage_30_4_2``
+    test files are permitted. ``test_stage_30_4_3`` test files
+    remain forbidden until Stage 30.4.3 is separately authorized.
+    """
+    forbidden_substrings = ("test_stage_30_4_3",)
     for entry in TESTS_STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__":
             continue
         for forbidden in forbidden_substrings:
             assert forbidden not in entry.name, (
-                "Stage 30.4.1 must not ship a Stage 30.4.2 / 30.4.3 "
-                f"test file: unexpected {entry.name!r}"
+                "Stage 30.4.1 / 30.4.2 must not ship a Stage "
+                f"30.4.3 test file: unexpected {entry.name!r}"
             )
 
 

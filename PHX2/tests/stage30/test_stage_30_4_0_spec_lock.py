@@ -541,14 +541,20 @@ def test_stage30_4_allowed_basenames_are_only_spec_and_manifest() -> None:
 # ---------------------------------------------------------------------------
 
 
-# Stage 30.4.1 widened the allowlist: the five offline market-
-# context production modules (models, formatter, source protocol,
-# adapter, artifact writer) are now permitted to exist.
-# ``stage30_4_compact_runtime_session_orchestrator`` is the Stage
-# 30.4.2 orchestrator file; it remains forbidden at Stage 30.4.1.
-_PREMATURE_STAGE30_PRODUCTION_SUBSTRINGS: Tuple[str, ...] = (
-    "stage30_4_compact_runtime_session_orchestrator",
-)
+# Stage 30.4.2 widened the allowlist: the Stage 30.4.2
+# orchestrator file is now permitted. Stage 30.4.1's five offline
+# market-context production modules (models, formatter, source
+# protocol, adapter, artifact writer) plus the Stage 30.4.2
+# orchestrator are admitted. Stage 30.4.3+ production files (a
+# real Birdeye token_overview adapter or similar) remain
+# forbidden. The pin below enumerates substrings that NO Stage
+# 30.4 production file may carry; Stage 30.4.3+ would add a real
+# provider HTTP adapter, which would carry an ``http`` substring
+# in its module name, but we do not pre-emptively enumerate it
+# here -- the broader boundary scan in the Stage 30.4.2
+# boundaries test pins the no-live-token_overview-adapter
+# invariant explicitly.
+_PREMATURE_STAGE30_PRODUCTION_SUBSTRINGS: Tuple[str, ...] = ()
 
 
 def test_stage30_dir_has_no_premature_stage30_4_files() -> None:
@@ -563,11 +569,10 @@ def test_stage30_dir_has_no_premature_stage30_4_files() -> None:
             )
 
 
-# Stage 30.4.1 widened the allowlist: the seven 30.4.1 offline
-# test files are now permitted. Stage 30.4.2 / 30.4.3 test files
-# remain forbidden.
+# Stage 30.4.2 widened the allowlist: the Stage 30.4.2 test files
+# (integration + boundaries) are now permitted. Stage 30.4.3 test
+# files remain forbidden.
 _PREMATURE_STAGE30_TEST_SUBSTRINGS: Tuple[str, ...] = (
-    "test_stage_30_4_2",
     "test_stage_30_4_3",
 )
 

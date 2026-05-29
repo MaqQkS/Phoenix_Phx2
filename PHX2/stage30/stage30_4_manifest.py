@@ -162,6 +162,40 @@ STAGE30_4_1_COMPACT_MARKET_CONTEXT_ARTIFACT_BASENAME: str = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.4.2 production-inventory delta
+# ---------------------------------------------------------------------------
+#
+# The new file Stage 30.4.2 adds under ``PHX2/stage30/`` on top of
+# the Stage 30.4.0 + 30.4.1 inventory deltas. Exactly the opt-in
+# parallel compact runtime session orchestrator. NO live Birdeye
+# token_overview adapter file. NO real source adapter file. NO
+# Stage 30.1 / 30.2 / 30.3 runtime source modification. The 30.4.0
+# pin test allowlist remains unchanged because it pins the 30.4.0
+# delta, not the 30.4.2 delta.
+
+
+STAGE30_4_2_COMPACT_RUNTIME_SESSION_ORCHESTRATOR_BASENAME: str = (
+    "stage30_4_compact_runtime_session_orchestrator.py"
+)
+
+
+STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_2: Tuple[str, ...] = (
+    STAGE30_4_2_COMPACT_RUNTIME_SESSION_ORCHESTRATOR_BASENAME,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.4.2 test inventory
+# ---------------------------------------------------------------------------
+
+
+STAGE30_4_2_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_4_2_compact_runtime_integration.py",
+    "test_stage_30_4_2_boundaries.py",
+)
+
+
+# ---------------------------------------------------------------------------
 # Stage 30.4 substage sequence (pinned)
 # ---------------------------------------------------------------------------
 
@@ -320,6 +354,9 @@ __all__ = (
     "STAGE30_4_1_TEST_BASENAMES",
     "STAGE30_4_1_COMPACT_MARKET_CONTEXT_SCHEMA_VERSION",
     "STAGE30_4_1_COMPACT_MARKET_CONTEXT_ARTIFACT_BASENAME",
+    "STAGE30_4_2_COMPACT_RUNTIME_SESSION_ORCHESTRATOR_BASENAME",
+    "STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_2",
+    "STAGE30_4_2_TEST_BASENAMES",
     "STAGE30_4_SUBSTAGE_SEQUENCE",
     "STAGE30_4_OPERATOR_DECISION_LABEL_NET",
     "STAGE30_4_OPERATOR_DECISION_FIRST_FIELDS",

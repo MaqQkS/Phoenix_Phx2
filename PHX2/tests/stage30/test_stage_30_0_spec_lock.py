@@ -143,6 +143,10 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_4_compact_market_context_source_protocol.py",
         "stage30_4_compact_market_context_adapter.py",
         "stage30_4_compact_market_context_artifact_writer.py",
+        # Stage 30.4.2 opt-in parallel compact runtime session
+        # orchestrator (offline / fake-source only; no live Birdeye
+        # token_overview adapter ships in Stage 30.4.2).
+        "stage30_4_compact_runtime_session_orchestrator.py",
     }
 )
 
@@ -182,6 +186,10 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_4_1_adapter_error_stale_paths.py",
         "test_stage_30_4_1_artifact_writer.py",
         "test_stage_30_4_1_boundaries.py",
+        # Stage 30.4.2 opt-in parallel compact runtime session
+        # orchestrator test additions (integration + boundaries).
+        "test_stage_30_4_2_compact_runtime_integration.py",
+        "test_stage_30_4_2_boundaries.py",
     }
 )
 
