@@ -235,6 +235,17 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "STAGE_30_7_ATH_CONTEXT_CLOSURE_AUDIT.md",
         "STAGE_30_7_ATH_CONTEXT_HANDOFF.md",
         "stage30_7_4_manifest.py",
+        # Stage 30.8.0 compact session artifact / storage-readiness spec
+        # lock + manifest (spec-lock only; the spec doc plus a
+        # constants-only manifest. ZERO storage writer, ZERO database,
+        # ZERO SQLite, ZERO filesystem artifact writer, ZERO zstd
+        # dependency, ZERO day-rolling, ZERO live / Discord / provider /
+        # env, ZERO enforcement / public routing / trading / wallet /
+        # social, ZERO drawdown / tier recomputation, ZERO renderer /
+        # compact models / orchestrator / Stage 30.7 file edit; no Stage
+        # 30.8.1+ implementation file ships at Stage 30.8.0).
+        "STAGE_30_8_0_COMPACT_SESSION_STORAGE_SPEC_LOCK.md",
+        "stage30_8_manifest.py",
     }
 )
 
@@ -346,6 +357,9 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_7_4_handoff.py",
         "test_stage_30_7_4_boundaries.py",
         "test_stage_30_7_4_manifest.py",
+        # Stage 30.8.0 compact session artifact / storage-readiness
+        # spec-lock pin test.
+        "test_stage_30_8_0_storage_spec_lock.py",
     }
 )
 
