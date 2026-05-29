@@ -192,6 +192,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Discord / ATH; reads no actual disk).
         "stage30_6_storage_budget_models.py",
         "stage30_6_storage_budget_evaluator.py",
+        # Stage 30.7.0 ATH context bridge spec lock + manifest
+        # (spec-lock only; the spec doc plus a constants-only
+        # manifest. ZERO ATH bridge code, ZERO ATH models, ZERO
+        # projection adapter, ZERO source bridge, ZERO renderer /
+        # runtime change, ZERO live / Discord / provider / DB /
+        # filesystem writer / compression / filters / enforcement;
+        # no Stage 30.7.1+ implementation file ships at Stage 30.7.0).
+        "STAGE_30_7_0_ATH_CONTEXT_SPEC_LOCK.md",
+        "stage30_7_manifest.py",
     }
 )
 
@@ -276,6 +285,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_6_1_storage_budget_evaluator.py",
         "test_stage_30_6_1_boundaries.py",
         "test_stage_30_6_1_manifest.py",
+        # Stage 30.7.0 ATH context bridge spec-lock pin test.
+        "test_stage_30_7_0_ath_context_spec_lock.py",
     }
 )
 

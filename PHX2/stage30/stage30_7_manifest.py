@@ -1,0 +1,382 @@
+"""Stage 30.7.0 ATH context bridge spec-lock manifest.
+
+Constants-only spec-lock manifest. Pins the Stage 30.7.0 inventory
+(spec basename, manifest basename, test basenames), the Stage 30.7
+substage sequence, the closed-set ATH confidence-status tokens, the
+closed-set ATH source-status tokens, the closed-set ATH unit tokens,
+the closed-set ATH basis tokens, the reused compact display slot, the
+preserved compact line shape, the forbidden runtime imports, and the
+forbidden text needles.
+
+Stage 30.7 is the ATH context family of Stage 30. It moves the compact
+body ``ATH`` token from the literal ``Unknown`` toward an honest,
+evidence-backed ATH display value, and eventually supports accurate
+drawdown / tier context. ATH is a measurement / evidence problem: an
+honest ATH market cap requires the circulating supply at the
+historical peak, which no current source ships directly. Stage 30.7.0
+LOCKS the architecture as prose + constants; it ships NO ATH bridge
+code, NO renderer change, NO runtime wiring, NO source adapter, NO live
+run, NO Discord send, NO provider call, and NO candidate scan.
+
+Stage 30.7.0 scope (this slice):
+
+  * Spec lock + manifest + pin test only.
+  * ZERO production .py file beyond this manifest.
+  * ZERO ATH bridge, ZERO ATH models, ZERO projection adapter, ZERO
+    source bridge, ZERO renderer change, ZERO runtime wiring.
+  * ZERO modification to Stage 25 / 27 / 28 / 29 or Stage 30.1 / 30.2 /
+    30.3 / 30.4 / 30.5 / 30.6 runtime source.
+  * ZERO live provider call. ZERO Discord send. ZERO env read. ZERO
+    candidate scan. ZERO database migration. ZERO filesystem writer.
+    ZERO compression. ZERO filters. ZERO enforcement.
+
+Stage 30.7.1+ scope (deferred, each separately operator-authorized):
+
+  * 30.7.1 -- ATH context models + pure projection adapter (fakes).
+  * 30.7.2 -- fake-wire the ATH projection into the compact ping using
+              the existing ``ath_mc_text`` slot (opt-in orchestrator).
+  * 30.7.3 -- bridge sanitized Stage 25 / 27 / 29 ATH evidence into the
+              Stage 30 ATH resolver (fake tests, narrow allowlist).
+  * 30.7.4 -- offline runtime proof with MC + Mig + ATH (no Discord).
+  * 30.7.5 -- controlled live ATH probe / dry-run only, after a
+              separate audit and only if separately operator-authorized.
+
+This manifest module is constants-only:
+
+  * imports stdlib (``typing``) only,
+  * reads no process environment variable,
+  * opens no network connection,
+  * writes no file,
+  * makes no git call,
+  * creates no tag,
+  * contains no top-level Call (no implicit I/O at import time),
+  * contains no runtime side effect.
+"""
+
+from __future__ import annotations
+
+from typing import Tuple
+
+
+# ---------------------------------------------------------------------------
+# Minor versions + locked basenames
+# ---------------------------------------------------------------------------
+
+
+STAGE30_7_MINOR_VERSION: str = "30.7"
+STAGE30_7_0_MINOR_VERSION: str = "30.7.0"
+
+
+STAGE30_7_SPEC_BASENAME: str = (
+    "STAGE_30_7_0_ATH_CONTEXT_SPEC_LOCK.md"
+)
+STAGE30_7_MANIFEST_BASENAME: str = "stage30_7_manifest.py"
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.7.0 test inventory (pin test only)
+# ---------------------------------------------------------------------------
+
+
+STAGE30_7_0_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_7_0_ath_context_spec_lock.py",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.7.0 production-inventory delta
+# ---------------------------------------------------------------------------
+#
+# The new files Stage 30.7.0 adds under ``PHX2/stage30/`` on top of the
+# already-allowed Stage 30.0..30.6 inventory. Exactly the spec lock
+# markdown plus this manifest module; NO production .py beyond the
+# manifest at Stage 30.7.0. No Stage 30.7.1+ ATH models / projection
+# adapter / source bridge file.
+
+
+STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_0: Tuple[str, ...] = (
+    STAGE30_7_SPEC_BASENAME,
+    STAGE30_7_MANIFEST_BASENAME,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.7 substage sequence (pinned)
+# ---------------------------------------------------------------------------
+
+
+STAGE30_7_SUBSTAGE_SEQUENCE: Tuple[str, ...] = (
+    "30.7.0",
+    "30.7.1",
+    "30.7.2",
+    "30.7.3",
+    "30.7.4",
+    "30.7.5",
+)
+
+
+# ---------------------------------------------------------------------------
+# ATH confidence status (closed set of three)
+# ---------------------------------------------------------------------------
+#
+# Mirrors the Stage 30.5 migration status discipline (KNOWN /
+# UNVERIFIED / UNKNOWN). Only ATH_KNOWN renders a ``$Y`` value in the
+# compact line; ATH_UNVERIFIED and ATH_UNKNOWN render ``Unknown``.
+
+
+STAGE30_7_ATH_STATUS_KNOWN: str = "ATH_KNOWN"
+STAGE30_7_ATH_STATUS_UNVERIFIED: str = "ATH_UNVERIFIED"
+STAGE30_7_ATH_STATUS_UNKNOWN: str = "ATH_UNKNOWN"
+
+
+STAGE30_7_ATH_STATUS_VALUES: Tuple[str, ...] = (
+    STAGE30_7_ATH_STATUS_KNOWN,
+    STAGE30_7_ATH_STATUS_UNVERIFIED,
+    STAGE30_7_ATH_STATUS_UNKNOWN,
+)
+
+
+# ---------------------------------------------------------------------------
+# ATH source status (closed set of five)
+# ---------------------------------------------------------------------------
+#
+# Mirrors the Stage 30.5 source-status set and adds CONFLICTING:
+# cross-source ATH disagreement is a real ATH failure mode and must
+# degrade conservatively to ``Unknown`` rather than picking a peak.
+# A non-PRESENT source status dominates any claimed ATH value.
+
+
+STAGE30_7_ATH_SOURCE_STATUS_PRESENT: str = "PRESENT"
+STAGE30_7_ATH_SOURCE_STATUS_UNAVAILABLE: str = "UNAVAILABLE"
+STAGE30_7_ATH_SOURCE_STATUS_ERROR: str = "ERROR"
+STAGE30_7_ATH_SOURCE_STATUS_STALE: str = "STALE"
+STAGE30_7_ATH_SOURCE_STATUS_CONFLICTING: str = "CONFLICTING"
+
+
+STAGE30_7_ATH_SOURCE_STATUS_VALUES: Tuple[str, ...] = (
+    STAGE30_7_ATH_SOURCE_STATUS_PRESENT,
+    STAGE30_7_ATH_SOURCE_STATUS_UNAVAILABLE,
+    STAGE30_7_ATH_SOURCE_STATUS_ERROR,
+    STAGE30_7_ATH_SOURCE_STATUS_STALE,
+    STAGE30_7_ATH_SOURCE_STATUS_CONFLICTING,
+)
+
+
+# ---------------------------------------------------------------------------
+# ATH unit (closed set of three)
+# ---------------------------------------------------------------------------
+#
+# The compact ATH display must share the same currency basis as the
+# displayed ``MC``. USD is the Birdeye reporting unit; SOL is the
+# on-chain native unit (supported later); UNKNOWN otherwise. The spec
+# forbids ever treating USD as SOL or SOL as USD.
+
+
+STAGE30_7_ATH_UNIT_USD: str = "USD"
+STAGE30_7_ATH_UNIT_SOL: str = "SOL"
+STAGE30_7_ATH_UNIT_UNKNOWN: str = "UNKNOWN"
+
+
+STAGE30_7_ATH_UNIT_VALUES: Tuple[str, ...] = (
+    STAGE30_7_ATH_UNIT_USD,
+    STAGE30_7_ATH_UNIT_SOL,
+    STAGE30_7_ATH_UNIT_UNKNOWN,
+)
+
+
+# ---------------------------------------------------------------------------
+# ATH basis (closed set of three)
+# ---------------------------------------------------------------------------
+#
+# The honesty axis. Only an observed market-cap basis can support
+# ATH_KNOWN. A price-derived ATH market cap assumes a supply that may
+# not match the supply at the historical peak, so it is at most
+# ATH_UNVERIFIED, never ATH_KNOWN, in the first slice.
+
+
+STAGE30_7_ATH_BASIS_MARKET_CAP_OBSERVED: str = (
+    "ATH_MARKET_CAP_OBSERVED"
+)
+STAGE30_7_ATH_BASIS_PRICE_DERIVED: str = "ATH_PRICE_DERIVED"
+STAGE30_7_ATH_BASIS_NONE: str = "ATH_BASIS_NONE"
+
+
+STAGE30_7_ATH_BASIS_VALUES: Tuple[str, ...] = (
+    STAGE30_7_ATH_BASIS_MARKET_CAP_OBSERVED,
+    STAGE30_7_ATH_BASIS_PRICE_DERIVED,
+    STAGE30_7_ATH_BASIS_NONE,
+)
+
+
+# ---------------------------------------------------------------------------
+# Compact display reuse (no renderer change)
+# ---------------------------------------------------------------------------
+#
+# The first wiring slice (Stage 30.7.2) feeds the ATH display string
+# through the EXISTING Stage 30.2 ``ath_mc_text`` display slot the
+# renderer already maps to the ``ATH`` token, exactly as Stage 30.4.2
+# reused ``current_mc_text`` / ``lp_text`` and Stage 30.5.2 reused
+# ``migration_mc_text``. The Stage 30.2 renderer / models are NOT
+# modified anywhere in the Stage 30.7 family.
+
+
+STAGE30_7_REUSED_COMPACT_SLOT_FIELD: str = "ath_mc_text"
+STAGE30_7_COMPACT_DISPLAY_UNKNOWN: str = "Unknown"
+STAGE30_7_PRESERVED_COMPACT_LINE_SHAPE: str = (
+    "• MC: <mc> | ATH: <ath> | Mig: <mig>"
+)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden runtime imports (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The Stage 30.7.0 pin test walks the actual import lines of the Stage
+# 30.7.0 Python files (this manifest + the pin test) and asserts none
+# resolve to a module covered by this policy. The strings below are
+# plain (the line-based scan never substring-matches them against
+# source text).
+
+
+STAGE30_7_FORBIDDEN_RUNTIME_IMPORTS: Tuple[str, ...] = (
+    # Stdlib surfaces Stage 30.7.0 spec-lock files must not touch.
+    "import os",
+    "from os.",
+    "os.environ",
+    "os.getenv",
+    "os.environb",
+    "import dotenv",
+    "from dotenv",
+    "import keyring",
+    "from keyring",
+    "import requests",
+    "from requests",
+    "import httpx",
+    "from httpx",
+    "import aiohttp",
+    "from aiohttp",
+    "import urllib",
+    "from urllib",
+    "import socket",
+    "from socket",
+    "import grpc",
+    "from grpc",
+    "import http",
+    "from http",
+    "import websocket",
+    "import websockets",
+    "import sqlite3",
+    "from sqlite3",
+    # No compression dependency / implementation at Stage 30.7.0.
+    "import zstandard",
+    "from zstandard",
+    "import zstd",
+    "from zstd",
+    # Stage 25-29 production surfaces (the ATH evidence side stays on
+    # the evidence side; the Stage 30 compact runtime must not import
+    # a live provider client).
+    "from PHX2.stage21",
+    "from PHX2.stage22",
+    "from PHX2.stage23",
+    "from PHX2.stage24",
+    "from PHX2.stage25",
+    "from PHX2.stage26",
+    "from PHX2.stage27",
+    "from PHX2.stage28",
+    "from PHX2.stage29",
+    "import PHX2.stage25",
+    "import PHX2.stage27",
+    "import PHX2.stage28",
+    "import PHX2.stage29",
+    # PHX1 / legacy.
+    "from PHX1",
+    "import PHX1",
+)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden text needles (already-lowercased; scan must lowercase the
+# haystack)
+# ---------------------------------------------------------------------------
+#
+# Every needle below is built with a split-literal concatenation so
+# this manifest source text itself does NOT carry the bare needle. The
+# Stage 30.7.0 pin test imports this tuple at runtime and scans every
+# Stage 30.7.0 file (spec lock, manifest, test) case-insensitively for
+# substring matches against the runtime-concatenated values. The spec
+# doc paraphrases every secret / transport surface (for example
+# "provider credential", "private transport destination", "transport
+# scheme prefix", "request auth metadata", "HTTP header metadata") so
+# it carries none of the bare needles, while still being free to name
+# the provider families (Birdeye / Dexscreener / Chainstack / Helius)
+# in the prose "do not call" lists -- those bare family names are NOT
+# needles; only their host / scheme / secret forms are.
+
+
+STAGE30_7_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
+    "api" + " key",
+    "api_" + "key",
+    "x-api-" + "key",
+    "x-" + "token",
+    "web" + "hook url",
+    "discord web" + "hook url",
+    "endpoint" + " url",
+    "endpoint" + "_secret",
+    "discord" + ".com",
+    "discord" + "app.com",
+    "/web" + "hooks/",
+    "raw" + "_body",
+    "response" + "_body",
+    "request" + "_body",
+    "head" + "ers",
+    "author" + "ization",
+    "b" + "earer",
+    "public-api.birdeye" + ".so",
+    "dex" + "screener.com",
+    "h" + "ttps://",
+    "h" + "ttp://",
+    "w" + "ss://",
+    "w" + "s://",
+)
+
+
+__all__ = (
+    # Version axes + basenames.
+    "STAGE30_7_MINOR_VERSION",
+    "STAGE30_7_0_MINOR_VERSION",
+    "STAGE30_7_SPEC_BASENAME",
+    "STAGE30_7_MANIFEST_BASENAME",
+    "STAGE30_7_0_TEST_BASENAMES",
+    "STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_0",
+    # Substage sequence.
+    "STAGE30_7_SUBSTAGE_SEQUENCE",
+    # ATH confidence status closed set.
+    "STAGE30_7_ATH_STATUS_KNOWN",
+    "STAGE30_7_ATH_STATUS_UNVERIFIED",
+    "STAGE30_7_ATH_STATUS_UNKNOWN",
+    "STAGE30_7_ATH_STATUS_VALUES",
+    # ATH source status closed set.
+    "STAGE30_7_ATH_SOURCE_STATUS_PRESENT",
+    "STAGE30_7_ATH_SOURCE_STATUS_UNAVAILABLE",
+    "STAGE30_7_ATH_SOURCE_STATUS_ERROR",
+    "STAGE30_7_ATH_SOURCE_STATUS_STALE",
+    "STAGE30_7_ATH_SOURCE_STATUS_CONFLICTING",
+    "STAGE30_7_ATH_SOURCE_STATUS_VALUES",
+    # ATH unit closed set.
+    "STAGE30_7_ATH_UNIT_USD",
+    "STAGE30_7_ATH_UNIT_SOL",
+    "STAGE30_7_ATH_UNIT_UNKNOWN",
+    "STAGE30_7_ATH_UNIT_VALUES",
+    # ATH basis closed set.
+    "STAGE30_7_ATH_BASIS_MARKET_CAP_OBSERVED",
+    "STAGE30_7_ATH_BASIS_PRICE_DERIVED",
+    "STAGE30_7_ATH_BASIS_NONE",
+    "STAGE30_7_ATH_BASIS_VALUES",
+    # Compact display reuse.
+    "STAGE30_7_REUSED_COMPACT_SLOT_FIELD",
+    "STAGE30_7_COMPACT_DISPLAY_UNKNOWN",
+    "STAGE30_7_PRESERVED_COMPACT_LINE_SHAPE",
+    # Forbidden surfaces.
+    "STAGE30_7_FORBIDDEN_RUNTIME_IMPORTS",
+    "STAGE30_7_FORBIDDEN_TEXT_NEEDLES",
+)
