@@ -196,6 +196,102 @@ STAGE30_4_2_TEST_BASENAMES: Tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.4.3 production-inventory delta
+# ---------------------------------------------------------------------------
+#
+# The new file Stage 30.4.3 adds under ``PHX2/stage30/`` on top of
+# the Stage 30.4.0 + 30.4.1 + 30.4.2 inventory deltas. Exactly the
+# offline Birdeye token-overview market-context source bridge. The
+# bridge implements the Stage 30.4.1 source protocol by mapping a
+# Stage 29.2 ``/defi/token_overview`` snapshot onto a Stage 30.4.1
+# reading; it opens no connection and reads no env itself. NO live
+# run ceremony, NO Discord send, NO Stage 30.1 / 30.2 / 30.3 runtime
+# source modification ships at Stage 30.4.3. The 30.4.0 pin test
+# allowlist remains unchanged because it pins the 30.4.0 delta.
+
+
+STAGE30_4_3_MINOR_VERSION: str = "30.4.3"
+
+
+STAGE30_4_3_MARKET_CONTEXT_BIRDEYE_SOURCE_BASENAME: str = (
+    "stage30_4_3_market_context_birdeye_source.py"
+)
+
+
+STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_3: Tuple[str, ...] = (
+    STAGE30_4_3_MARKET_CONTEXT_BIRDEYE_SOURCE_BASENAME,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.4.3 source label + endpoint-path pin
+# ---------------------------------------------------------------------------
+#
+# The Stage 30.4.3 bridge echoes this safe-shape label on every
+# reading. It matches the Stage 30.4.0 operator decision
+# (``STAGE30_4_OPERATOR_DECISION_FIRST_SOURCE_LABEL``). The path pin
+# mirrors the Stage 29.2 ``birdeye_constants.BIRDEYE_PATH_TOKEN_OVERVIEW``
+# allowed path; it is documentation only (the bridge imports the
+# constant from Stage 29.2 rather than re-deriving the literal).
+
+
+STAGE30_4_3_SOURCE_LABEL: str = "birdeye_token_overview"
+
+
+STAGE30_4_3_BIRDEYE_TOKEN_OVERVIEW_PATH: str = "/defi/token_overview"
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.4.3 Stage 29.2 reuse allowlist
+# ---------------------------------------------------------------------------
+#
+# The Stage 30.4.3 bridge may import ONLY these four Stage 29.2
+# modules (the safe Birdeye HTTP transport boundary and its
+# supporting constants / models / readiness). No other Stage 29
+# module, and no Stage 21-28 module, may be imported by the bridge.
+# These are plain module-path strings (NOT import statements); the
+# Stage 30.4.0 pin test's line-based import scan skips quoted lines,
+# so listing them here does not register as a Stage 29 import.
+
+
+STAGE30_4_3_STAGE29_2_REUSE_ALLOWLIST: Tuple[str, ...] = (
+    "PHX2.stage29.birdeye_constants",
+    "PHX2.stage29.stage29_2_birdeye_http_transport",
+    "PHX2.stage29.stage29_2_birdeye_models",
+    "PHX2.stage29.stage29_2_birdeye_readiness",
+)
+
+
+# The full set of PHX2 modules the Stage 30.4.3 bridge may import:
+# the four approved Stage 29.2 modules plus the two Stage 30.4.1
+# offline siblings (the source-protocol reading shape + the closed-
+# set models the bridge references for ``NET_FLOW_BASIS_UNKNOWN``).
+
+
+STAGE30_4_3_BRIDGE_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_4_3_STAGE29_2_REUSE_ALLOWLIST
+    + (
+        "PHX2.stage30.stage30_4_compact_market_context_source_protocol",
+        "PHX2.stage30.stage30_4_compact_market_context_models",
+    )
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.4.3 test inventory
+# ---------------------------------------------------------------------------
+
+
+STAGE30_4_3_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_4_3_birdeye_source_unknown_paths.py",
+    "test_stage_30_4_3_birdeye_source_present_path.py",
+    "test_stage_30_4_3_birdeye_source_partial_and_bad_values.py",
+    "test_stage_30_4_3_boundaries.py",
+    "test_stage_30_4_3_manifest.py",
+)
+
+
+# ---------------------------------------------------------------------------
 # Stage 30.4 substage sequence (pinned)
 # ---------------------------------------------------------------------------
 
@@ -357,6 +453,14 @@ __all__ = (
     "STAGE30_4_2_COMPACT_RUNTIME_SESSION_ORCHESTRATOR_BASENAME",
     "STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_2",
     "STAGE30_4_2_TEST_BASENAMES",
+    "STAGE30_4_3_MINOR_VERSION",
+    "STAGE30_4_3_MARKET_CONTEXT_BIRDEYE_SOURCE_BASENAME",
+    "STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_3",
+    "STAGE30_4_3_SOURCE_LABEL",
+    "STAGE30_4_3_BIRDEYE_TOKEN_OVERVIEW_PATH",
+    "STAGE30_4_3_STAGE29_2_REUSE_ALLOWLIST",
+    "STAGE30_4_3_BRIDGE_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_4_3_TEST_BASENAMES",
     "STAGE30_4_SUBSTAGE_SEQUENCE",
     "STAGE30_4_OPERATOR_DECISION_LABEL_NET",
     "STAGE30_4_OPERATOR_DECISION_FIRST_FIELDS",

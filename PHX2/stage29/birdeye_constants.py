@@ -80,19 +80,29 @@ STAGE29_2_REDACTION_TOKEN: Final[str] = "<<STAGE29_2_REDACTED>>"
 # Stage 29.2 endpoint paths
 # ---------------------------------------------------------------------------
 #
-# Locked at exactly these two paths. Any future endpoint expansion
-# requires an explicitly-authorized Stage 29.x substage. The paths
-# are path-only (no host literal); the operator-supplied base URL
-# is concatenated by the HTTP transport.
+# Locked at exactly these three paths (price + ohlcv for the Stage
+# 29.2 price/ATH adapter; token_overview for the Stage 30.4.3
+# compact market-context bridge). Any further endpoint expansion
+# requires an explicitly-authorized Stage 29.x / 30.x substage. The
+# paths are path-only (no host literal); the operator-supplied base
+# URL is concatenated by the HTTP transport.
 
 
 BIRDEYE_PATH_PRICE: Final[str] = "/defi/price"
 BIRDEYE_PATH_OHLCV: Final[str] = "/defi/ohlcv"
+# Stage 30.4.3 token-overview source path. Birdeye's token-overview
+# endpoint returns the current market-cap + liquidity snapshot the
+# Stage 30.4 compact market-context bridge reads. Path-only (no host
+# literal); the operator-supplied base URL is concatenated by the
+# HTTP transport. Stage 29.2 owns the allowed-path surface; the
+# Stage 30.4 bridge owns the mapping into compact market context.
+BIRDEYE_PATH_TOKEN_OVERVIEW: Final[str] = "/defi/token_overview"
 
 
 BIRDEYE_ALLOWED_PATHS: Final[tuple[str, ...]] = (
     BIRDEYE_PATH_PRICE,
     BIRDEYE_PATH_OHLCV,
+    BIRDEYE_PATH_TOKEN_OVERVIEW,
 )
 
 
@@ -373,6 +383,7 @@ __all__ = (
     "STAGE29_2_REDACTION_TOKEN",
     "BIRDEYE_PATH_PRICE",
     "BIRDEYE_PATH_OHLCV",
+    "BIRDEYE_PATH_TOKEN_OVERVIEW",
     "BIRDEYE_ALLOWED_PATHS",
     "BIRDEYE_HTTP_METHOD_GET",
     "BIRDEYE_HEADER_X_API_KEY",

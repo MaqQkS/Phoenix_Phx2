@@ -569,12 +569,13 @@ def test_stage30_dir_has_no_premature_stage30_4_files() -> None:
             )
 
 
-# Stage 30.4.2 widened the allowlist: the Stage 30.4.2 test files
-# (integration + boundaries) are now permitted. Stage 30.4.3 test
-# files remain forbidden.
-_PREMATURE_STAGE30_TEST_SUBSTRINGS: Tuple[str, ...] = (
-    "test_stage_30_4_3",
-)
+# Stage 30.4.2 widened the allowlist to admit the Stage 30.4.2 test
+# files. Stage 30.4.3 (the offline Birdeye token-overview source
+# bridge) is now separately authorized, so its ``test_stage_30_4_3``
+# test files are admitted too. Any Stage 30.4.4+ / live-proof test
+# file would remain forbidden until its own authorization; none is
+# pinned here yet.
+_PREMATURE_STAGE30_TEST_SUBSTRINGS: Tuple[str, ...] = ()
 
 
 def test_tests_stage30_dir_has_no_premature_stage30_4_test_files() -> None:

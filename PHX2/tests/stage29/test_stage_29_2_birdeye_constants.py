@@ -76,6 +76,12 @@ def test_endpoint_path_ohlcv_pinned():
     assert C.BIRDEYE_PATH_OHLCV == "/defi/ohlcv"
 
 
+def test_endpoint_path_token_overview_pinned():
+    # Stage 30.4.3 authorized the token-overview path so the Stage
+    # 30.4 compact market-context bridge can read current MC + LP.
+    assert C.BIRDEYE_PATH_TOKEN_OVERVIEW == "/defi/token_overview"
+
+
 def test_endpoint_path_history_price_NOT_present():
     # Stage 29.2 explicitly does NOT use /defi/history_price for
     # ATH; the endpoint shape (close-only `value` per bucket)
@@ -91,10 +97,15 @@ def test_endpoint_path_history_price_NOT_present():
             )
 
 
-def test_allowed_paths_set_is_exactly_two():
+def test_allowed_paths_set_is_exactly_three():
+    # Stage 29.2 owns two paths (price + ohlcv) for the price/ATH
+    # adapter; Stage 30.4.3 added token_overview for the compact
+    # market-context bridge. Any further endpoint expansion requires
+    # a separately-authorized substage.
     assert C.BIRDEYE_ALLOWED_PATHS == (
         C.BIRDEYE_PATH_PRICE,
         C.BIRDEYE_PATH_OHLCV,
+        C.BIRDEYE_PATH_TOKEN_OVERVIEW,
     )
 
 

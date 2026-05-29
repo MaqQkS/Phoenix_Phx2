@@ -421,13 +421,16 @@ def test_orchestrator_phx2_imports_subset_of_allowlist() -> None:
 
 
 def test_no_live_token_overview_source_adapter_file_exists() -> None:
-    """Stage 30.4.2 is offline / fake-source only. A real Birdeye
-    ``token_overview`` HTTP adapter (or any other live source
-    adapter) requires separately authorized scope (Stage 30.4.3+)
-    and must NOT ship at Stage 30.4.2.
+    """The Stage 30.4.2 orchestrator stays offline / fake-source.
+    Stage 30.4.3 separately authorized the offline Birdeye token-
+    overview source bridge (basename
+    ``stage30_4_3_market_context_birdeye_source.py``), so the
+    ``birdeye_token_overview`` basename ban is dropped here. The
+    Dexscreener cross-check, on-chain supply, and generic
+    ``live_token_overview`` source families remain deferred and
+    forbidden.
     """
     forbidden_basename_substrings = (
-        "birdeye_token_overview",
         "live_token_overview",
         "dex" + "screener_cross_check",
         "on_chain_supply",

@@ -439,6 +439,34 @@ _STAGE30_3B_ORCHESTRATOR_ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
 )
 
 
+# Stage 30.4.3 Birdeye token-overview source-bridge carve-out. The
+# Stage 30.4.3 bridge (the offline mapping bridge from a Stage 29.2
+# ``/defi/token_overview`` snapshot onto a Stage 30.4.1 reading) is
+# the sole Stage 30 production module permitted to import Stage 29
+# surfaces, and ONLY the four approved Stage 29.2 modules (the safe
+# Birdeye HTTP transport boundary + its supporting constants /
+# models / readiness). Every other Stage 21-29 prefix stays
+# forbidden for the bridge.
+_STAGE30_4_3_BRIDGE_BASENAME: str = (
+    "stage30_4_3_market_context_birdeye_source.py"
+)
+_STAGE30_4_3_BRIDGE_ALLOWED_STAGE29_2_MODULES: frozenset = frozenset(
+    {
+        "PHX2.stage29.birdeye_constants",
+        "PHX2.stage29.stage29_2_birdeye_http_transport",
+        "PHX2.stage29.stage29_2_birdeye_models",
+        "PHX2.stage29.stage29_2_birdeye_readiness",
+    }
+)
+_STAGE30_4_3_BRIDGE_ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
+    "PHX2.stage29.birdeye_constants",
+    "PHX2.stage29.stage29_2_birdeye_http_transport",
+    "PHX2.stage29.stage29_2_birdeye_models",
+    "PHX2.stage29.stage29_2_birdeye_readiness",
+    "PHX2.stage30.",
+)
+
+
 def _stage30_production_module_paths() -> list[Path]:
     stage30_root = (
         Path(__file__).resolve().parent.parent.parent / "stage30"
@@ -516,6 +544,21 @@ def test_stage30_production_modules_dont_import_other_phx2_stages() -> (
                         f"Stage package: {imported}"
                     )
             continue
+        # The Stage 30.4.3 source bridge may import ONLY the four
+        # approved Stage 29.2 modules; every other Stage 21-29 prefix
+        # stays forbidden for it.
+        if module_path.name == _STAGE30_4_3_BRIDGE_BASENAME:
+            for imported in imports:
+                if imported in (
+                    _STAGE30_4_3_BRIDGE_ALLOWED_STAGE29_2_MODULES
+                ):
+                    continue
+                for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
+                    assert not imported.startswith(prefix), (
+                        f"{module_path.name} imports forbidden "
+                        f"Stage package: {imported}"
+                    )
+            continue
         for imported in imports:
             for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
                 assert not imported.startswith(prefix), (
@@ -544,6 +587,24 @@ def test_stage30_production_modules_only_phx2_dep_is_stage27_or_stage30() -> (
                     or imported == prefix.rstrip(".")
                     for prefix in (
                         _STAGE30_3B_ORCHESTRATOR_ALLOWED_PHX2_PREFIXES
+                    )
+                ), (
+                    f"{module_path.name} imports unexpected PHX2 "
+                    f"module: {imported}"
+                )
+            continue
+        # The Stage 30.4.3 bridge carve-out admits the four approved
+        # Stage 29.2 modules in addition to the closed Stage 30
+        # dependency boundary.
+        if module_path.name == _STAGE30_4_3_BRIDGE_BASENAME:
+            for imported in imports:
+                if not imported.startswith("PHX2"):
+                    continue
+                assert any(
+                    imported.startswith(prefix)
+                    or imported == prefix.rstrip(".")
+                    for prefix in (
+                        _STAGE30_4_3_BRIDGE_ALLOWED_PHX2_PREFIXES
                     )
                 ), (
                     f"{module_path.name} imports unexpected PHX2 "

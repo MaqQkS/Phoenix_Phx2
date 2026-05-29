@@ -250,19 +250,22 @@ def test_no_forbidden_text_needles_in_30_4_1_production_files() -> None:
 # ---------------------------------------------------------------------------
 #
 # Stage 30.4.2 widened the orchestrator-file pin: the Stage 30.4.2
-# parallel orchestrator file is now permitted. A real live Birdeye
-# token_overview HTTP adapter (or any other live source adapter)
-# requires separately authorized scope (Stage 30.4.3 or later) and
-# must NOT ship at Stage 30.4.1 or 30.4.2.
+# parallel orchestrator file is now permitted. Stage 30.4.3 widened
+# the source pin: the offline Birdeye token-overview source bridge
+# (basename ``stage30_4_3_market_context_birdeye_source.py``) is now
+# authorized, so the ``birdeye_token_overview`` basename ban is
+# dropped here. The Dexscreener cross-check, on-chain supply, and any
+# ``live_token_overview`` source families remain deferred and forbidden.
 
 
 def test_no_live_token_overview_source_adapter_file_exists() -> None:
-    """Stage 30.4.1 / 30.4.2 must not ship a real Birdeye
-    token_overview (or any other live source) adapter file. Any
-    real adapter is Stage 30.4.3+ scope.
+    """No Dexscreener cross-check, on-chain supply, or generic
+    ``live_token_overview`` source-adapter file may ship; those
+    families remain deferred. The authorized Stage 30.4.3 Birdeye
+    source bridge basename is intentionally NOT matched by these
+    substrings.
     """
     forbidden_basename_substrings = (
-        "birdeye_token_overview",
         "live_token_overview",
         "dex" + "screener_cross_check",
         "on_chain_supply",
@@ -283,18 +286,19 @@ def test_no_live_token_overview_source_adapter_file_exists() -> None:
 
 
 def test_no_premature_stage30_4_3_test_file_exists() -> None:
-    """Stage 30.4.2 widened the test-file pin: ``test_stage_30_4_2``
-    test files are permitted. ``test_stage_30_4_3`` test files
-    remain forbidden until Stage 30.4.3 is separately authorized.
+    """Stage 30.4.3 is now separately authorized, so its
+    ``test_stage_30_4_3`` test files are admitted. Any Stage
+    30.4.4+ / live-proof test file would remain forbidden until its
+    own authorization; none is pinned here yet.
     """
-    forbidden_substrings = ("test_stage_30_4_3",)
+    forbidden_substrings: Tuple[str, ...] = ()
     for entry in TESTS_STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__":
             continue
         for forbidden in forbidden_substrings:
             assert forbidden not in entry.name, (
                 "Stage 30.4.1 / 30.4.2 must not ship a Stage "
-                f"30.4.3 test file: unexpected {entry.name!r}"
+                f"30.4.4+ test file: unexpected {entry.name!r}"
             )
 
 

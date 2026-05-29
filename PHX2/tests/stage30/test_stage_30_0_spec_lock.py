@@ -147,6 +147,10 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # orchestrator (offline / fake-source only; no live Birdeye
         # token_overview adapter ships in Stage 30.4.2).
         "stage30_4_compact_runtime_session_orchestrator.py",
+        # Stage 30.4.3 offline Birdeye token-overview market-context
+        # source bridge (maps a Stage 29.2 snapshot onto a Stage
+        # 30.4.1 reading; offline / fake-transport in tests).
+        "stage30_4_3_market_context_birdeye_source.py",
     }
 )
 
@@ -190,6 +194,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # orchestrator test additions (integration + boundaries).
         "test_stage_30_4_2_compact_runtime_integration.py",
         "test_stage_30_4_2_boundaries.py",
+        # Stage 30.4.3 offline Birdeye token-overview source bridge
+        # test additions (unknown paths, present path + end-to-end
+        # render, partial / bad values, boundaries, manifest).
+        "test_stage_30_4_3_birdeye_source_unknown_paths.py",
+        "test_stage_30_4_3_birdeye_source_present_path.py",
+        "test_stage_30_4_3_birdeye_source_partial_and_bad_values.py",
+        "test_stage_30_4_3_boundaries.py",
+        "test_stage_30_4_3_manifest.py",
     }
 )
 
