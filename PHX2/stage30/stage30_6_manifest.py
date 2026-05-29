@@ -361,6 +361,120 @@ STAGE30_6_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.6.1 storage budget models + pure policy evaluator inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.6.1 is the FIRST Stage 30.6 production slice: a pure offline
+# storage-budget policy brain (closed-set models + a deterministic
+# evaluator). It is NOT a storage writer, NOT a dedupe ledger, NOT a
+# WAL / day-rolled writer, NOT a lifecycle-seal aggregate, and NOT a
+# live runtime. It reads NO actual disk: the caller supplies the
+# observed disk-used percentage. The two NEW production files are the
+# models module + the evaluator module. NO database migration, NO
+# filesystem writer, NO zstd dependency, NO live / Discord / provider,
+# NO ATH, NO Net, NO filters, NO enforcement, NO dedupe / WAL writer.
+
+
+STAGE30_6_1_MINOR_VERSION: str = "30.6.1"
+
+
+STAGE30_6_1_STORAGE_BUDGET_SCHEMA_VERSION: str = (
+    "stage30_6_1_v0_storage_budget"
+)
+STAGE30_6_1_STORAGE_BUDGET_POLICY_VERSION: str = (
+    "stage30_6_storage_budget_policy_v0"
+)
+
+
+STAGE30_6_1_STORAGE_BUDGET_MODELS_BASENAME: str = (
+    "stage30_6_storage_budget_models.py"
+)
+STAGE30_6_1_STORAGE_BUDGET_EVALUATOR_BASENAME: str = (
+    "stage30_6_storage_budget_evaluator.py"
+)
+
+
+STAGE30_6_1_STORAGE_BUDGET_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_6_storage_budget_models"
+)
+STAGE30_6_1_STORAGE_BUDGET_EVALUATOR_MODULE: str = (
+    "PHX2.stage30.stage30_6_storage_budget_evaluator"
+)
+
+
+# The NEW production files Stage 30.6.1 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.5 + 30.6.0 inventory:
+# exactly the storage budget models + evaluator. NO Stage 30.6.2+ file.
+STAGE30_6_ALLOWED_STAGE30_BASENAMES_FOR_30_6_1: Tuple[str, ...] = (
+    STAGE30_6_1_STORAGE_BUDGET_MODELS_BASENAME,
+    STAGE30_6_1_STORAGE_BUDGET_EVALUATOR_BASENAME,
+)
+
+
+# The two production modules the Stage 30.6.1 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_6_1_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_6_1_STORAGE_BUDGET_MODELS_BASENAME,
+    STAGE30_6_1_STORAGE_BUDGET_EVALUATOR_BASENAME,
+)
+
+
+STAGE30_6_1_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_6_1_storage_budget_models.py",
+    "test_stage_30_6_1_storage_budget_evaluator.py",
+    "test_stage_30_6_1_boundaries.py",
+    "test_stage_30_6_1_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.6.1 production module must be in
+# this stdlib allowlist; every PHX2 import must be the Stage 30.6.1
+# models sibling. This positive allowlist proves, by construction, that
+# NO os / pathlib / shutil / sqlite3 / zstd / network / Discord /
+# provider / Stage 21-29 module is imported (so NO actual disk is
+# read).
+STAGE30_6_1_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "math",
+)
+
+
+STAGE30_6_1_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_6_1_STORAGE_BUDGET_MODELS_MODULE,
+)
+
+
+# Closed-set storage-budget status / action tokens (mirrored from the
+# Stage 30.6.1 models module; the manifest test cross-checks they match
+# ``stage30_6_storage_budget_models``). Documentation + drift guard.
+STAGE30_6_1_STORAGE_BUDGET_STATUS_VALUES: Tuple[str, ...] = (
+    "STORAGE_BUDGET_OK",
+    "STORAGE_BUDGET_SOFT_ALARM",
+    "STORAGE_BUDGET_HARD_STOP",
+    "STORAGE_BUDGET_INVALID_INPUT",
+)
+
+
+STAGE30_6_1_STORAGE_BUDGET_ACTION_VALUES: Tuple[str, ...] = (
+    "ALLOW_WRITES",
+    "ALLOW_WRITES_WITH_WARNING",
+    "REFUSE_NEW_WRITES",
+    "INVALID_INPUT_REFUSE_WRITES",
+)
+
+
+# Float forms of the Stage 30.6.0 soft 65 / hard 90 disk guardrails
+# (the integer forms are pinned above as
+# STAGE30_6_DISK_SOFT_ALARM_PERCENT / STAGE30_6_DISK_HARD_STOP_PERCENT).
+# The Stage 30.6.1 models module carries the canonical defaults; the
+# manifest test cross-checks these match.
+STAGE30_6_1_DEFAULT_SOFT_ALARM_USED_PCT: float = 65.0
+STAGE30_6_1_DEFAULT_HARD_STOP_USED_PCT: float = 90.0
+
+
 __all__ = (
     # Version axes + basenames.
     "STAGE30_6_MINOR_VERSION",
@@ -395,4 +509,21 @@ __all__ = (
     # Forbidden surfaces.
     "STAGE30_6_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_6_FORBIDDEN_TEXT_NEEDLES",
+    # Stage 30.6.1 storage budget models + evaluator inventory.
+    "STAGE30_6_1_MINOR_VERSION",
+    "STAGE30_6_1_STORAGE_BUDGET_SCHEMA_VERSION",
+    "STAGE30_6_1_STORAGE_BUDGET_POLICY_VERSION",
+    "STAGE30_6_1_STORAGE_BUDGET_MODELS_BASENAME",
+    "STAGE30_6_1_STORAGE_BUDGET_EVALUATOR_BASENAME",
+    "STAGE30_6_1_STORAGE_BUDGET_MODELS_MODULE",
+    "STAGE30_6_1_STORAGE_BUDGET_EVALUATOR_MODULE",
+    "STAGE30_6_ALLOWED_STAGE30_BASENAMES_FOR_30_6_1",
+    "STAGE30_6_1_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_6_1_TEST_BASENAMES",
+    "STAGE30_6_1_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_6_1_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_6_1_STORAGE_BUDGET_STATUS_VALUES",
+    "STAGE30_6_1_STORAGE_BUDGET_ACTION_VALUES",
+    "STAGE30_6_1_DEFAULT_SOFT_ALARM_USED_PCT",
+    "STAGE30_6_1_DEFAULT_HARD_STOP_USED_PCT",
 )

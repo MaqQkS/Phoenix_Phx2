@@ -186,6 +186,12 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # implementation file ships at Stage 30.6.0).
         "STAGE_30_6_0_STORAGE_DEDUPE_SPEC_LOCK.md",
         "stage30_6_manifest.py",
+        # Stage 30.6.1 storage budget models + pure policy evaluator
+        # (offline policy brain only; no storage writer / dedupe
+        # ledger / WAL writer / database migration / zstd / live /
+        # Discord / ATH; reads no actual disk).
+        "stage30_6_storage_budget_models.py",
+        "stage30_6_storage_budget_evaluator.py",
     }
 )
 
@@ -264,6 +270,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_5_3_manifest.py",
         # Stage 30.6.0 storage + dedupe spec-lock pin test.
         "test_stage_30_6_0_storage_dedupe_spec_lock.py",
+        # Stage 30.6.1 storage budget models + evaluator test additions
+        # (models, evaluator, boundaries, manifest).
+        "test_stage_30_6_1_storage_budget_models.py",
+        "test_stage_30_6_1_storage_budget_evaluator.py",
+        "test_stage_30_6_1_boundaries.py",
+        "test_stage_30_6_1_manifest.py",
     }
 )
 

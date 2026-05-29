@@ -703,10 +703,13 @@ def test_allowed_basenames_are_only_spec_and_manifest() -> None:
 
 
 def test_only_stage30_6_production_files_are_spec_and_manifest() -> None:
-    """No Stage 30.6.1+ production file (a storage writer, a dedupe
-    ledger, a budget evaluator, a seal aggregate) may exist yet.
-    Every Stage 30.6 entry under ``PHX2/stage30/`` must be exactly
-    the spec doc or the manifest.
+    """The Stage 30.6.0 production-inventory delta is the spec doc +
+    the manifest. Stage 30.6.1 additionally ships the storage budget
+    models + evaluator (a pure offline policy brain). Every Stage 30.6
+    entry under ``PHX2/stage30/`` must be exactly one of those four
+    files; NO Stage 30.6.2+ production file (a WAL / day-rolled writer,
+    a dedupe ledger, a seal aggregate, a database migration) may exist
+    yet.
     """
     observed = {
         entry.name
@@ -717,28 +720,45 @@ def test_only_stage30_6_production_files_are_spec_and_manifest() -> None:
             or entry.name.startswith("STAGE_30_6")
         )
     }
-    assert observed == {
+    allowed = {
         STAGE30_6_SPEC_BASENAME,
         STAGE30_6_MANIFEST_BASENAME,
-    }, (
-        "Stage 30.6.0 must ship spec lock + manifest only; found "
-        f"unexpected Stage 30.6 production entries: "
-        f"{sorted(observed - {STAGE30_6_SPEC_BASENAME, STAGE30_6_MANIFEST_BASENAME})}"
+        # Stage 30.6.1 storage budget models + pure policy evaluator
+        # (narrow authorized relaxation; no Stage 30.6.2+ file).
+        "stage30_6_storage_budget_models.py",
+        "stage30_6_storage_budget_evaluator.py",
+    }
+    assert observed == allowed, (
+        "Stage 30.6 production entries must be exactly the spec lock + "
+        "manifest (30.6.0) plus the storage budget models + evaluator "
+        f"(30.6.1); unexpected entries: {sorted(observed - allowed)}"
     )
 
 
 def test_only_stage30_6_test_file_is_the_pin_test() -> None:
+    """Stage 30.6.0 ships the pin test; Stage 30.6.1 additionally ships
+    its four storage budget tests (models, evaluator, boundaries,
+    manifest). NO Stage 30.6.2+ test file may exist yet.
+    """
     observed = {
         entry.name
         for entry in TESTS_STAGE30_ROOT.iterdir()
         if entry.name != "__pycache__"
         and entry.name.startswith("test_stage_30_6")
     }
-    assert observed == {
-        "test_stage_30_6_0_storage_dedupe_spec_lock.py"
-    }, (
-        "Stage 30.6.0 must ship the pin test only; found "
-        f"unexpected Stage 30.6 test entries: {sorted(observed)}"
+    allowed = {
+        "test_stage_30_6_0_storage_dedupe_spec_lock.py",
+        # Stage 30.6.1 storage budget tests (narrow authorized
+        # relaxation; no Stage 30.6.2+ test file).
+        "test_stage_30_6_1_storage_budget_models.py",
+        "test_stage_30_6_1_storage_budget_evaluator.py",
+        "test_stage_30_6_1_boundaries.py",
+        "test_stage_30_6_1_manifest.py",
+    }
+    assert observed == allowed, (
+        "Stage 30.6 test entries must be exactly the 30.6.0 pin test "
+        "plus the four 30.6.1 storage budget tests; unexpected "
+        f"entries: {sorted(observed - allowed)}"
     )
 
 
