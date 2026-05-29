@@ -95,6 +95,73 @@ STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_0: Tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.4.1 production-inventory delta
+# ---------------------------------------------------------------------------
+#
+# The new files Stage 30.4.1 adds under ``PHX2/stage30/`` on top of
+# the Stage 30.4.0 inventory delta. Exactly the offline models +
+# formatter + source protocol + adapter + artifact writer. NO
+# Stage 30.4.2 orchestrator file. The 30.4.0 pin test allowlist
+# (``STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_0``) remains
+# unchanged because it pins the 30.4.0 delta, not the 30.4.1 delta.
+
+
+STAGE30_4_1_COMPACT_MARKET_CONTEXT_MODELS_BASENAME: str = (
+    "stage30_4_compact_market_context_models.py"
+)
+STAGE30_4_1_COMPACT_MARKET_CONTEXT_FORMATTER_BASENAME: str = (
+    "stage30_4_compact_market_context_formatter.py"
+)
+STAGE30_4_1_COMPACT_MARKET_CONTEXT_SOURCE_PROTOCOL_BASENAME: str = (
+    "stage30_4_compact_market_context_source_protocol.py"
+)
+STAGE30_4_1_COMPACT_MARKET_CONTEXT_ADAPTER_BASENAME: str = (
+    "stage30_4_compact_market_context_adapter.py"
+)
+STAGE30_4_1_COMPACT_MARKET_CONTEXT_ARTIFACT_WRITER_BASENAME: str = (
+    "stage30_4_compact_market_context_artifact_writer.py"
+)
+
+
+STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_1: Tuple[str, ...] = (
+    STAGE30_4_1_COMPACT_MARKET_CONTEXT_MODELS_BASENAME,
+    STAGE30_4_1_COMPACT_MARKET_CONTEXT_FORMATTER_BASENAME,
+    STAGE30_4_1_COMPACT_MARKET_CONTEXT_SOURCE_PROTOCOL_BASENAME,
+    STAGE30_4_1_COMPACT_MARKET_CONTEXT_ADAPTER_BASENAME,
+    STAGE30_4_1_COMPACT_MARKET_CONTEXT_ARTIFACT_WRITER_BASENAME,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.4.1 test inventory
+# ---------------------------------------------------------------------------
+
+
+STAGE30_4_1_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_4_1_models.py",
+    "test_stage_30_4_1_formatter.py",
+    "test_stage_30_4_1_adapter_unknown_path.py",
+    "test_stage_30_4_1_adapter_present_path_with_fake_source.py",
+    "test_stage_30_4_1_adapter_error_stale_paths.py",
+    "test_stage_30_4_1_artifact_writer.py",
+    "test_stage_30_4_1_boundaries.py",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.4.1 schema version + locked artifact basename
+# ---------------------------------------------------------------------------
+
+
+STAGE30_4_1_COMPACT_MARKET_CONTEXT_SCHEMA_VERSION: str = (
+    "stage30_4_1_v0_compact_market_context"
+)
+STAGE30_4_1_COMPACT_MARKET_CONTEXT_ARTIFACT_BASENAME: str = (
+    "stage30_4_compact_market_context.jsonl"
+)
+
+
+# ---------------------------------------------------------------------------
 # Stage 30.4 substage sequence (pinned)
 # ---------------------------------------------------------------------------
 
@@ -244,6 +311,15 @@ __all__ = (
     "STAGE30_4_MANIFEST_BASENAME",
     "STAGE30_4_TEST_BASENAMES",
     "STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_0",
+    "STAGE30_4_1_COMPACT_MARKET_CONTEXT_MODELS_BASENAME",
+    "STAGE30_4_1_COMPACT_MARKET_CONTEXT_FORMATTER_BASENAME",
+    "STAGE30_4_1_COMPACT_MARKET_CONTEXT_SOURCE_PROTOCOL_BASENAME",
+    "STAGE30_4_1_COMPACT_MARKET_CONTEXT_ADAPTER_BASENAME",
+    "STAGE30_4_1_COMPACT_MARKET_CONTEXT_ARTIFACT_WRITER_BASENAME",
+    "STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_1",
+    "STAGE30_4_1_TEST_BASENAMES",
+    "STAGE30_4_1_COMPACT_MARKET_CONTEXT_SCHEMA_VERSION",
+    "STAGE30_4_1_COMPACT_MARKET_CONTEXT_ARTIFACT_BASENAME",
     "STAGE30_4_SUBSTAGE_SEQUENCE",
     "STAGE30_4_OPERATOR_DECISION_LABEL_NET",
     "STAGE30_4_OPERATOR_DECISION_FIRST_FIELDS",

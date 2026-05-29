@@ -136,6 +136,13 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # production code beyond the manifest at Stage 30.4.0).
         "STAGE_30_4_SPEC_LOCK.md",
         "stage30_4_manifest.py",
+        # Stage 30.4.1 offline production additions: models,
+        # formatter, source protocol, adapter, artifact writer.
+        "stage30_4_compact_market_context_models.py",
+        "stage30_4_compact_market_context_formatter.py",
+        "stage30_4_compact_market_context_source_protocol.py",
+        "stage30_4_compact_market_context_adapter.py",
+        "stage30_4_compact_market_context_artifact_writer.py",
     }
 )
 
@@ -167,6 +174,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_3d_live_proof_doc.py",
         # Stage 30.4.0 spec-lock pin test.
         "test_stage_30_4_0_spec_lock.py",
+        # Stage 30.4.1 offline test additions.
+        "test_stage_30_4_1_models.py",
+        "test_stage_30_4_1_formatter.py",
+        "test_stage_30_4_1_adapter_unknown_path.py",
+        "test_stage_30_4_1_adapter_present_path_with_fake_source.py",
+        "test_stage_30_4_1_adapter_error_stale_paths.py",
+        "test_stage_30_4_1_artifact_writer.py",
+        "test_stage_30_4_1_boundaries.py",
     }
 )
 

@@ -541,12 +541,12 @@ def test_stage30_4_allowed_basenames_are_only_spec_and_manifest() -> None:
 # ---------------------------------------------------------------------------
 
 
+# Stage 30.4.1 widened the allowlist: the five offline market-
+# context production modules (models, formatter, source protocol,
+# adapter, artifact writer) are now permitted to exist.
+# ``stage30_4_compact_runtime_session_orchestrator`` is the Stage
+# 30.4.2 orchestrator file; it remains forbidden at Stage 30.4.1.
 _PREMATURE_STAGE30_PRODUCTION_SUBSTRINGS: Tuple[str, ...] = (
-    "stage30_4_compact_market_context_models",
-    "stage30_4_compact_market_context_formatter",
-    "stage30_4_compact_market_context_source_protocol",
-    "stage30_4_compact_market_context_adapter",
-    "stage30_4_compact_market_context_artifact_writer",
     "stage30_4_compact_runtime_session_orchestrator",
 )
 
@@ -563,8 +563,10 @@ def test_stage30_dir_has_no_premature_stage30_4_files() -> None:
             )
 
 
+# Stage 30.4.1 widened the allowlist: the seven 30.4.1 offline
+# test files are now permitted. Stage 30.4.2 / 30.4.3 test files
+# remain forbidden.
 _PREMATURE_STAGE30_TEST_SUBSTRINGS: Tuple[str, ...] = (
-    "test_stage_30_4_1",
     "test_stage_30_4_2",
     "test_stage_30_4_3",
 )
