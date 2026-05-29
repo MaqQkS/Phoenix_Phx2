@@ -130,6 +130,8 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_3_manifest.py",
         # Stage 30.3B production additions.
         "stage30_3_compact_runtime_session_orchestrator.py",
+        # Stage 30.3D proof record (sanitized documentation only).
+        "STAGE_30_3D_COMPACT_PRIVATE_LIVE_PROOF.md",
     }
 )
 
@@ -157,6 +159,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Stage 30.3B test additions.
         "test_stage_30_3_compact_runtime_session_orchestrator.py",
         "test_stage_30_3_compact_runtime_session_orchestrator_redaction_safe.py",
+        # Stage 30.3D proof-doc guard.
+        "test_stage_30_3d_live_proof_doc.py",
     }
 )
 
