@@ -132,6 +132,10 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_3_compact_runtime_session_orchestrator.py",
         # Stage 30.3D proof record (sanitized documentation only).
         "STAGE_30_3D_COMPACT_PRIVATE_LIVE_PROOF.md",
+        # Stage 30.4.0 spec lock + manifest (spec-lock only; no
+        # production code beyond the manifest at Stage 30.4.0).
+        "STAGE_30_4_SPEC_LOCK.md",
+        "stage30_4_manifest.py",
     }
 )
 
@@ -161,6 +165,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_3_compact_runtime_session_orchestrator_redaction_safe.py",
         # Stage 30.3D proof-doc guard.
         "test_stage_30_3d_live_proof_doc.py",
+        # Stage 30.4.0 spec-lock pin test.
+        "test_stage_30_4_0_spec_lock.py",
     }
 )
 
