@@ -9,6 +9,20 @@ body that reaches the inner transport can carry preformatted
 display strings instead of the ``Unknown`` literal Stage 30.3B
 emits by default.
 
+Stage 30.5.2 opt-in extension: the wrapper / orchestrator accept an
+optional ``migration_context_resolver`` -- a duck-typed object that
+exposes ``resolve_display_text(token_mint, observed_at_utc) -> str``
+and returns a closed-set migration display word (``Known`` /
+``Unverified`` / ``Unknown``). When supplied, the wrapper fills the
+existing Stage 30.2 ``migration_mc_text`` slot with the resolved word
+so the compact body ``Mig`` token reflects offline migration evidence
+instead of the default ``Unknown``. The resolver is consumed as a
+duck-typed ``object`` so this file imports no Stage 30.5 module and
+its Stage 30.2 / 30.3 / 30.4.1 read-only import allowlist is
+preserved. When the resolver is ``None`` (the Stage 30.4.2 baseline),
+the ``Mig`` token keeps the default ``Unknown`` and the body is
+byte-identical to the pre-Stage-30.5.2 path.
+
 Composition:
 
   Stage30_3CompactBodyTransportWrapper                (REPLACES content)
@@ -148,6 +162,27 @@ from PHX2.stage30.tier_decision_models import Stage30_1TierDecisionError
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.5.2 closed-set guard for the duck-typed migration resolver
+# ---------------------------------------------------------------------------
+#
+# The Stage 30.4.2 runtime seam consumes the Stage 30.5.2 migration
+# display resolver through a duck-typed ``object`` so this file imports
+# no Stage 30.5 module. To keep the compact body ``Mig`` token honest,
+# the seam accepts ONLY these three closed-set display words back from a
+# resolver -- mirroring the Stage 30.5.1 ``MIGRATION_DISPLAY_VALUES`` set,
+# duplicated here as a plain tuple literal (NOT imported) precisely to
+# preserve the no-Stage-30.5-import boundary. Any other resolver output
+# (e.g. ``"Stale"`` / ``"Fresh"`` / an arbitrary string / an empty /
+# whitespace / non-string value) is rejected and the compact body keeps
+# the default ``Mig: Unknown``.
+_STAGE30_5_2_ALLOWED_MIGRATION_DISPLAY_WORDS: Tuple[str, ...] = (
+    "Known",
+    "Unverified",
+    "Unknown",
+)
+
+
+# ---------------------------------------------------------------------------
 # Stage 30.4.2 compact runtime session result
 # ---------------------------------------------------------------------------
 
@@ -256,6 +291,7 @@ class Stage30_4_2MarketContextReplacingTransport:
         "_inner_transport",
         "_recorder",
         "_market_context_source",
+        "_migration_context_resolver",
         "_context",
         "_clock",
         "_calls_received",
@@ -274,6 +310,7 @@ class Stage30_4_2MarketContextReplacingTransport:
         market_context_source: Optional[object],
         context: Stage30_3CompactRuntimeContext,
         clock: object,
+        migration_context_resolver: Optional[object] = None,
     ) -> None:
         if not callable(
             getattr(inner_transport, "send_one_audited_post", None)
@@ -294,6 +331,16 @@ class Stage30_4_2MarketContextReplacingTransport:
         self._recorder: object = recorder
         self._market_context_source: Optional[object] = (
             market_context_source
+        )
+        # Stage 30.5.2 opt-in: an optional duck-typed migration display
+        # resolver (an object exposing
+        # ``resolve_display_text(token_mint, observed_at_utc) -> str``).
+        # When ``None`` (the default and the Stage 30.4.2 baseline), the
+        # ``Mig`` token keeps the Stage 30.2 default ``Unknown``. The
+        # resolver is held as a duck-typed ``object`` so this file
+        # imports no Stage 30.5 module.
+        self._migration_context_resolver: Optional[object] = (
+            migration_context_resolver
         )
         self._context: Stage30_3CompactRuntimeContext = context
         self._clock: object = clock
@@ -402,6 +449,10 @@ class Stage30_4_2MarketContextReplacingTransport:
             )
 
         self._replacements_attempted += 1
+        migration_display_text = self._resolve_migration_display_text(
+            token_mint=entry.mint,
+            observed_at_utc=entry_time_utc_safe,
+        )
         try:
             tier_decision = (
                 project_recorded_entry_to_tier_decision_record(
@@ -424,6 +475,16 @@ class Stage30_4_2MarketContextReplacingTransport:
                 lp_text=market_record.liquidity_display,
                 net_flow_text=market_record.net_flow_display,
             )
+            # Stage 30.5.2 opt-in: replace ONLY the Mig token by filling
+            # the existing Stage 30.2 ``migration_mc_text`` slot with the
+            # resolved closed-set migration display word. A ``None``
+            # result leaves the slot untouched so the body keeps the
+            # default ``Mig: Unknown`` (backward compatible with the
+            # Stage 30.4.2 path that ships no resolver).
+            if migration_display_text is not None:
+                enriched_input = enriched_input._replace(
+                    migration_mc_text=migration_display_text,
+                )
             snapshot = render_compact_ping(enriched_input)
         except (
             Stage30_1TierDecisionError,
@@ -442,6 +503,54 @@ class Stage30_4_2MarketContextReplacingTransport:
             webhook_identity=webhook_identity,
             payload=payload_copy,
         )
+
+    def _resolve_migration_display_text(
+        self,
+        *,
+        token_mint: object,
+        observed_at_utc: object,
+    ) -> Optional[str]:
+        """Resolve the optional Stage 30.5.2 compact ``Mig`` display
+        word from the injected duck-typed migration display resolver.
+
+        Returns the resolver's display word ONLY when it is exactly one
+        of the closed-set words ``Known`` / ``Unverified`` / ``Unknown``
+        (see ``_STAGE30_5_2_ALLOWED_MIGRATION_DISPLAY_WORDS``); returns
+        ``None`` when no resolver is configured, the resolver does not
+        expose a callable ``resolve_display_text``, the resolver raises,
+        or the resolver returns a value outside the closed display set
+        (e.g. ``"Stale"`` / ``"Fresh"`` / an arbitrary string / an empty
+        / whitespace / non-string value). A ``None`` result leaves the
+        Stage 30.2 ``migration_mc_text`` slot untouched, so the compact
+        body keeps the default ``Mig: Unknown`` (backward compatible
+        with the Stage 30.4.2 path that ships no resolver).
+
+        Stage 30.4.2 consumes the resolver through this duck-typed seam
+        so the orchestrator file imports no Stage 30.5 module. The seam
+        enforces the local closed-set guard above so a misbehaving
+        resolver can NOT smuggle an off-vocabulary ``Mig`` word (e.g.
+        ``Stale`` / ``Fresh``) into the compact body; the renderer's own
+        forbidden-substring scan is a further backstop.
+        """
+        resolver = self._migration_context_resolver
+        if resolver is None:
+            return None
+        resolve = getattr(resolver, "resolve_display_text", None)
+        if not callable(resolve):
+            return None
+        try:
+            value = resolve(
+                token_mint=token_mint,
+                observed_at_utc=observed_at_utc,
+            )
+        except Exception:  # noqa: BLE001 - resolver failure => keep Mig Unknown
+            return None
+        if (
+            isinstance(value, str)
+            and value in _STAGE30_5_2_ALLOWED_MIGRATION_DISPLAY_WORDS
+        ):
+            return value
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -463,6 +572,7 @@ def run_stage30_4_2_compact_runtime_session(
     clock: object,
     wrapper_order: Tuple[str, ...],
     market_context_source: Optional[object] = None,
+    migration_context_resolver: Optional[object] = None,
     private_migration_context_injector: Optional[object] = None,
     stop_signal: Optional[object] = None,
 ) -> Stage30_4_2CompactRuntimeSessionResult:
@@ -512,6 +622,7 @@ def run_stage30_4_2_compact_runtime_session(
         market_context_source=market_context_source,
         context=compact_runtime_context,
         clock=clock,
+        migration_context_resolver=migration_context_resolver,
     )
 
     inner_result = run_stage30_3_compact_runtime_session(

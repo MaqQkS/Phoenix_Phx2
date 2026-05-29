@@ -172,6 +172,79 @@ STAGE30_5_1_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.5.2 opt-in compact migration runtime adapter inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.5.2 wires the Stage 30.5.1 migration-context projection into
+# the existing Stage 30.4.2 compact runtime replacement path via a duck-
+# typed resolver. The only NEW Stage 30.5.2-owned production file is the
+# offline compact migration runtime adapter (the resolver). The Stage
+# 30.4.2 orchestrator gains one optional duck-typed
+# ``migration_context_resolver`` parameter, but that file is a Stage 30.4
+# file already in the parent Stage 30.0 inventory and is NOT re-listed
+# here. NO renderer change, NO new artifact writer, NO live / Discord /
+# provider / bridge change, NO ATH, NO Net.
+
+
+STAGE30_5_2_MINOR_VERSION: str = "30.5.2"
+
+
+STAGE30_5_2_COMPACT_MIGRATION_RUNTIME_ADAPTER_BASENAME: str = (
+    "stage30_5_compact_migration_runtime_adapter.py"
+)
+
+
+STAGE30_5_2_COMPACT_MIGRATION_RUNTIME_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_5_compact_migration_runtime_adapter"
+)
+
+
+# The new production files Stage 30.5.2 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.5.1 inventory: exactly the
+# offline compact migration runtime adapter. (The Stage 30.4.2
+# orchestrator edit reuses an existing inventory file.)
+STAGE30_5_ALLOWED_STAGE30_BASENAMES_FOR_30_5_2: Tuple[str, ...] = (
+    STAGE30_5_2_COMPACT_MIGRATION_RUNTIME_ADAPTER_BASENAME,
+)
+
+
+# The single production module the Stage 30.5.2 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_5_2_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_5_2_COMPACT_MIGRATION_RUNTIME_ADAPTER_BASENAME,
+)
+
+
+STAGE30_5_2_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_5_2_compact_migration_runtime_adapter.py",
+    "test_stage_30_5_2_runtime_integration.py",
+    "test_stage_30_5_2_boundaries.py",
+    "test_stage_30_5_2_manifest.py",
+)
+
+
+# Every non-PHX2 import in the Stage 30.5.2 runtime adapter must be in
+# this stdlib allowlist (the adapter is a thin projector seam: it needs
+# only ``__future__`` + ``typing``).
+STAGE30_5_2_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+)
+
+
+# Every PHX2 import in the Stage 30.5.2 runtime adapter must be one of
+# the two Stage 30.5.1 sibling modules (the projector + the closed-set
+# display vocabulary). This positive allowlist proves, by construction,
+# that the Stage 30.5.2 adapter imports NO Stage 29 / Stage 28 / Stage
+# 30.1-30.4 / Discord / provider / network module, and reaches NO ATH /
+# Net market-context model.
+STAGE30_5_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_5_1_MIGRATION_CONTEXT_ADAPTER_MODULE,
+    STAGE30_5_1_MIGRATION_CONTEXT_MODELS_MODULE,
+)
+
+
+# ---------------------------------------------------------------------------
 # Stage 29.5.5 private side-channel modules the Stage 30.5 production
 # code must NEVER import
 # ---------------------------------------------------------------------------
@@ -304,6 +377,15 @@ __all__ = (
     "STAGE30_5_1_MIGRATION_CONTEXT_SOURCE_PROTOCOL_MODULE",
     "STAGE30_5_1_MIGRATION_CONTEXT_ADAPTER_MODULE",
     "STAGE30_5_1_ALLOWED_PHX2_IMPORTS",
+    # Stage 30.5.2 opt-in compact migration runtime adapter inventory.
+    "STAGE30_5_2_MINOR_VERSION",
+    "STAGE30_5_2_COMPACT_MIGRATION_RUNTIME_ADAPTER_BASENAME",
+    "STAGE30_5_2_COMPACT_MIGRATION_RUNTIME_ADAPTER_MODULE",
+    "STAGE30_5_ALLOWED_STAGE30_BASENAMES_FOR_30_5_2",
+    "STAGE30_5_2_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_5_2_TEST_BASENAMES",
+    "STAGE30_5_2_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_5_2_ALLOWED_PHX2_IMPORTS",
     "STAGE30_5_FORBIDDEN_STAGE29_5_5_MODULES",
     "STAGE30_5_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_5_FORBIDDEN_TEXT_NEEDLES",

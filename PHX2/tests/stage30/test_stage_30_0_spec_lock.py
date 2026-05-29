@@ -165,6 +165,12 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_5_migration_context_source_protocol.py",
         "stage30_5_migration_context_adapter.py",
         "stage30_5_manifest.py",
+        # Stage 30.5.2 opt-in offline compact migration runtime adapter:
+        # the duck-typed resolver that wires the Stage 30.5.1 migration
+        # projection into the existing Stage 30.4.2 compact runtime
+        # replacement path (no renderer change; the Stage 30.4.2
+        # orchestrator gains one optional duck-typed resolver param).
+        "stage30_5_compact_migration_runtime_adapter.py",
     }
 )
 
@@ -227,6 +233,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_5_1_migration_context_adapter.py",
         "test_stage_30_5_1_boundaries.py",
         "test_stage_30_5_1_manifest.py",
+        # Stage 30.5.2 opt-in compact migration runtime adapter test
+        # additions (adapter unit, runtime integration, boundaries,
+        # manifest).
+        "test_stage_30_5_2_compact_migration_runtime_adapter.py",
+        "test_stage_30_5_2_runtime_integration.py",
+        "test_stage_30_5_2_boundaries.py",
+        "test_stage_30_5_2_manifest.py",
     }
 )
 
