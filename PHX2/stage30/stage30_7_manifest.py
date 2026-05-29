@@ -569,6 +569,96 @@ STAGE30_7_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.7.3 sanitized upstream ATH-evidence bridge inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.7.3 ships the Stage-30-owned offline bridge that normalizes a
+# sanitized upstream ATH-evidence shape (the safe scalar summary a Stage 25
+# ATH candidate, a Stage 27.4 ATH context record, or a Stage 29.2 Birdeye
+# ATH snapshot reduces to) into the Stage 30.7.1 ATH-context evidence
+# carrier, then reuses the EXISTING Stage 30.7.1 projection + Stage 30.7.2
+# compact adapter to produce the compact ``ATH`` display string. The single
+# NEW Stage 30.7.3-owned production file is the sanitized ATH bridge. The
+# bridge imports NO Stage 25 / 27 / 28 / 29 module: it consumes a sanitized
+# duck-typed / dict-like scalar input and reuses only the two Stage 30.7
+# sibling modules (the closed-set models + the Stage 30.7.2 compact ATH
+# runtime adapter, which wraps the Stage 30.7.1 pure projection). The
+# broader "sanitized" name (not "stage29") is used precisely because the
+# bridge is generic over the Stage 25 / 27.4 / 29.2 upstream ATH shape and
+# is NOT bound to a single Stage 29 module. NO renderer / models change, NO
+# orchestrator edit (the Stage 30.7.2 ``ath_context_resolver`` seam is
+# reused), NO live / Discord / provider / DB / filesystem writer /
+# compression change, NO drawdown / tier recomputation, NO live ATH probe,
+# NO Net, NO filters, NO enforcement.
+#
+# Future slice: Stage 30.7.4 is the offline runtime proof with MC + Mig +
+# ATH (no Discord); it is NOT admitted by the Stage 30.7.3 inventory.
+
+
+STAGE30_7_3_MINOR_VERSION: str = "30.7.3"
+
+
+STAGE30_7_3_SANITIZED_ATH_BRIDGE_BASENAME: str = (
+    "stage30_7_sanitized_ath_bridge.py"
+)
+
+
+STAGE30_7_3_SANITIZED_ATH_BRIDGE_MODULE: str = (
+    "PHX2.stage30.stage30_7_sanitized_ath_bridge"
+)
+
+
+# The new production files Stage 30.7.3 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.7.2 inventory: exactly the offline
+# sanitized upstream ATH-evidence bridge. (The Stage 30.7.2
+# ``ath_context_resolver`` seam is reused with no orchestrator edit.)
+STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_3: Tuple[str, ...] = (
+    STAGE30_7_3_SANITIZED_ATH_BRIDGE_BASENAME,
+)
+
+
+# The single production module the Stage 30.7.3 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_7_3_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_7_3_SANITIZED_ATH_BRIDGE_BASENAME,
+)
+
+
+STAGE30_7_3_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_7_3_sanitized_ath_bridge.py",
+    "test_stage_30_7_3_runtime_integration.py",
+    "test_stage_30_7_3_boundaries.py",
+    "test_stage_30_7_3_manifest.py",
+)
+
+
+# Every non-PHX2 import in the Stage 30.7.3 bridge must be in this stdlib
+# allowlist (the bridge needs ``__future__`` + ``typing`` + ``dataclasses``
+# for the sanitized-evidence dataclass).
+STAGE30_7_3_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# Every PHX2 import in the Stage 30.7.3 bridge must be one of these two
+# Stage 30.7 sibling modules: the Stage 30.7.1 closed-set models (the
+# evidence carrier + tokens) and the Stage 30.7.2 compact ATH runtime
+# adapter (the projection-to-text converter + duck-typed resolver, which
+# itself wraps the Stage 30.7.1 pure projection). This positive allowlist
+# proves, by construction, that the Stage 30.7.3 bridge imports NO Stage 25
+# / 27 / 28 / 29 / Stage 30.1-30.6 runtime / Discord / provider / network /
+# disk module (so the compact renderer / models / orchestrator and the
+# tier-decision modules are unreachable, and NO drawdown / tier
+# recomputation is wired).
+STAGE30_7_3_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_7_1_ATH_CONTEXT_MODELS_MODULE,
+    STAGE30_7_2_COMPACT_ATH_RUNTIME_ADAPTER_MODULE,
+)
+
+
 __all__ = (
     # Version axes + basenames.
     "STAGE30_7_MINOR_VERSION",
@@ -636,4 +726,13 @@ __all__ = (
     "STAGE30_7_2_TEST_BASENAMES",
     "STAGE30_7_2_ALLOWED_STDLIB_IMPORTS",
     "STAGE30_7_2_ALLOWED_PHX2_IMPORTS",
+    # Stage 30.7.3 sanitized upstream ATH-evidence bridge inventory.
+    "STAGE30_7_3_MINOR_VERSION",
+    "STAGE30_7_3_SANITIZED_ATH_BRIDGE_BASENAME",
+    "STAGE30_7_3_SANITIZED_ATH_BRIDGE_MODULE",
+    "STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_3",
+    "STAGE30_7_3_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_7_3_TEST_BASENAMES",
+    "STAGE30_7_3_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_7_3_ALLOWED_PHX2_IMPORTS",
 )

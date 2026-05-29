@@ -216,6 +216,16 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # param; no live / Discord / provider / DB / filesystem writer /
         # compression / drawdown / tier / ATH source bridge change).
         "stage30_7_compact_ath_runtime_adapter.py",
+        # Stage 30.7.3 offline sanitized upstream ATH-evidence bridge:
+        # normalizes a sanitized Stage 25 / 27.4 / 29.2-style scalar ATH
+        # shape into the Stage 30.7.1 evidence carrier and reuses the
+        # Stage 30.7.1 projection + Stage 30.7.2 compact adapter / resolver
+        # to produce the compact ``ATH`` text (imports no Stage 25/27/28/29
+        # module; reuses the Stage 30.7.2 ``ath_context_resolver`` seam with
+        # no orchestrator edit; no renderer / models change; no live /
+        # Discord / provider / DB / filesystem writer / compression /
+        # drawdown / tier change).
+        "stage30_7_sanitized_ath_bridge.py",
     }
 )
 
@@ -314,6 +324,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_7_2_runtime_integration.py",
         "test_stage_30_7_2_boundaries.py",
         "test_stage_30_7_2_manifest.py",
+        # Stage 30.7.3 sanitized upstream ATH-evidence bridge test additions
+        # (bridge unit, runtime integration, boundaries, manifest).
+        "test_stage_30_7_3_sanitized_ath_bridge.py",
+        "test_stage_30_7_3_runtime_integration.py",
+        "test_stage_30_7_3_boundaries.py",
+        "test_stage_30_7_3_manifest.py",
     }
 )
 
