@@ -158,6 +158,13 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Stage 30.5.0 migration-context spec lock (spec-lock /
         # handoff doc only; zero production code at Stage 30.5.0).
         "STAGE_30_5_0_MIGRATION_CONTEXT_SPEC_LOCK.md",
+        # Stage 30.5.1 offline migration-context production additions:
+        # models, source protocol, adapter, manifest (fakes only; no
+        # renderer / runtime / bridge / live / Discord change).
+        "stage30_5_migration_context_models.py",
+        "stage30_5_migration_context_source_protocol.py",
+        "stage30_5_migration_context_adapter.py",
+        "stage30_5_manifest.py",
     }
 )
 
@@ -213,6 +220,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_4_4_mc_lp_private_live_proof_doc.py",
         # Stage 30.5.0 migration-context spec-lock pin test.
         "test_stage_30_5_0_migration_context_spec_lock.py",
+        # Stage 30.5.1 offline migration-context test additions
+        # (models, source protocol, adapter, boundaries, manifest).
+        "test_stage_30_5_1_migration_context_models.py",
+        "test_stage_30_5_1_migration_context_source_protocol.py",
+        "test_stage_30_5_1_migration_context_adapter.py",
+        "test_stage_30_5_1_boundaries.py",
+        "test_stage_30_5_1_manifest.py",
     }
 )
 
