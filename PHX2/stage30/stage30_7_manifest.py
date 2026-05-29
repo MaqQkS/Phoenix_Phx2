@@ -340,6 +340,152 @@ STAGE30_7_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.7.1 ATH context models + pure projection adapter inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.7.1 is the FIRST Stage 30.7 production slice: a pure offline
+# ATH-context projection brain (closed-set models + a deterministic
+# projection adapter). It is NOT a renderer change, NOT a runtime
+# wiring, NOT a source bridge, NOT a live provider call, and NOT a
+# drawdown / tier recomputation. The two NEW production files are the
+# models module + the projection adapter module. NO renderer / model /
+# orchestrator edit, NO Stage 25 / 27 / 28 / 29 import, NO live /
+# Discord / provider / DB / filesystem writer / compression, NO Net, NO
+# filters, NO enforcement, NO Stage 30.7.2+ file.
+
+
+STAGE30_7_1_MINOR_VERSION: str = "30.7.1"
+
+
+STAGE30_7_1_ATH_CONTEXT_SCHEMA_VERSION: str = (
+    "stage30_7_1_v0_ath_context"
+)
+STAGE30_7_1_ATH_CONTEXT_PROJECTION_VERSION: str = (
+    "stage30_7_ath_context_projection_v0"
+)
+
+
+# The displayed ATH must share the displayed ``MC`` currency basis; USD
+# is the default market-context unit.
+STAGE30_7_1_DEFAULT_MARKET_CONTEXT_UNIT: str = "USD"
+
+
+STAGE30_7_1_ATH_CONTEXT_MODELS_BASENAME: str = (
+    "stage30_7_ath_context_models.py"
+)
+STAGE30_7_1_ATH_CONTEXT_PROJECTION_BASENAME: str = (
+    "stage30_7_ath_context_projection.py"
+)
+
+
+STAGE30_7_1_ATH_CONTEXT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_7_ath_context_models"
+)
+STAGE30_7_1_ATH_CONTEXT_PROJECTION_MODULE: str = (
+    "PHX2.stage30.stage30_7_ath_context_projection"
+)
+
+
+# The NEW production files Stage 30.7.1 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.6 + 30.7.0 inventory:
+# exactly the ATH context models + projection adapter. NO Stage 30.7.2+
+# file. (The Stage 30.7.0 manifest is already in the parent inventory.)
+STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_1: Tuple[str, ...] = (
+    STAGE30_7_1_ATH_CONTEXT_MODELS_BASENAME,
+    STAGE30_7_1_ATH_CONTEXT_PROJECTION_BASENAME,
+)
+
+
+# The two production modules the Stage 30.7.1 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_7_1_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_7_1_ATH_CONTEXT_MODELS_BASENAME,
+    STAGE30_7_1_ATH_CONTEXT_PROJECTION_BASENAME,
+)
+
+
+STAGE30_7_1_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_7_1_ath_context_models.py",
+    "test_stage_30_7_1_ath_context_projection.py",
+    "test_stage_30_7_1_boundaries.py",
+    "test_stage_30_7_1_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.7.1 production module must be in
+# this stdlib allowlist; every PHX2 import must be the Stage 30.7.1
+# models sibling. This positive allowlist proves, by construction, that
+# NO os / pathlib / shutil / sqlite3 / zstd / network / Discord /
+# provider / compact-renderer / orchestrator / Stage 21-29 module is
+# imported.
+STAGE30_7_1_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+    "math",
+    "re",
+)
+
+
+STAGE30_7_1_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_7_1_ATH_CONTEXT_MODELS_MODULE,
+)
+
+
+# Closed-set ATH status / source-status / unit / basis / reason tokens
+# (mirrored from the Stage 30.7.1 models module; the manifest test
+# cross-checks they match ``stage30_7_ath_context_models``).
+# Documentation + drift guard.
+STAGE30_7_1_ATH_STATUS_VALUES: Tuple[str, ...] = (
+    "ATH_KNOWN",
+    "ATH_UNVERIFIED",
+    "ATH_UNKNOWN",
+)
+
+
+STAGE30_7_1_ATH_SOURCE_STATUS_VALUES: Tuple[str, ...] = (
+    "PRESENT",
+    "UNAVAILABLE",
+    "ERROR",
+    "STALE",
+    "CONFLICTING",
+)
+
+
+STAGE30_7_1_ATH_UNIT_VALUES: Tuple[str, ...] = (
+    "USD",
+    "SOL",
+    "UNKNOWN",
+)
+
+
+STAGE30_7_1_ATH_BASIS_VALUES: Tuple[str, ...] = (
+    "ATH_MARKET_CAP_OBSERVED",
+    "ATH_PRICE_DERIVED",
+    "ATH_BASIS_NONE",
+)
+
+
+STAGE30_7_1_ATH_REASON_VALUES: Tuple[str, ...] = (
+    "ATH_KNOWN_USD_MARKET_CAP",
+    "ATH_UNVERIFIED_PRICE_DERIVED",
+    "ATH_UNKNOWN_SOURCE_UNAVAILABLE",
+    "ATH_UNKNOWN_SOURCE_ERROR",
+    "ATH_UNKNOWN_SOURCE_STALE",
+    "ATH_UNKNOWN_SOURCE_CONFLICTING",
+    "ATH_UNKNOWN_VALUE_MISSING",
+    "ATH_UNKNOWN_VALUE_NOT_NUMERIC",
+    "ATH_UNKNOWN_VALUE_NOT_FINITE",
+    "ATH_UNKNOWN_VALUE_NON_POSITIVE",
+    "ATH_UNKNOWN_UNIT_UNSUPPORTED",
+    "ATH_UNKNOWN_UNIT_INCOMPATIBLE",
+    "ATH_UNKNOWN_REDACTION_UNSAFE",
+    "ATH_UNKNOWN_INVALID_INPUT",
+)
+
+
 __all__ = (
     # Version axes + basenames.
     "STAGE30_7_MINOR_VERSION",
@@ -379,4 +525,23 @@ __all__ = (
     # Forbidden surfaces.
     "STAGE30_7_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_7_FORBIDDEN_TEXT_NEEDLES",
+    # Stage 30.7.1 ATH context models + projection adapter inventory.
+    "STAGE30_7_1_MINOR_VERSION",
+    "STAGE30_7_1_ATH_CONTEXT_SCHEMA_VERSION",
+    "STAGE30_7_1_ATH_CONTEXT_PROJECTION_VERSION",
+    "STAGE30_7_1_DEFAULT_MARKET_CONTEXT_UNIT",
+    "STAGE30_7_1_ATH_CONTEXT_MODELS_BASENAME",
+    "STAGE30_7_1_ATH_CONTEXT_PROJECTION_BASENAME",
+    "STAGE30_7_1_ATH_CONTEXT_MODELS_MODULE",
+    "STAGE30_7_1_ATH_CONTEXT_PROJECTION_MODULE",
+    "STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_1",
+    "STAGE30_7_1_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_7_1_TEST_BASENAMES",
+    "STAGE30_7_1_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_7_1_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_7_1_ATH_STATUS_VALUES",
+    "STAGE30_7_1_ATH_SOURCE_STATUS_VALUES",
+    "STAGE30_7_1_ATH_UNIT_VALUES",
+    "STAGE30_7_1_ATH_BASIS_VALUES",
+    "STAGE30_7_1_ATH_REASON_VALUES",
 )

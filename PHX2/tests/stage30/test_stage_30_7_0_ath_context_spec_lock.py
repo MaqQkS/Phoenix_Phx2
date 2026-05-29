@@ -745,9 +745,14 @@ def test_allowed_basenames_are_only_spec_and_manifest() -> None:
 
 def test_only_stage30_7_production_files_are_spec_and_manifest() -> None:
     """Every Stage 30.7 entry under ``PHX2/stage30/`` must be exactly
-    the spec doc + the manifest; NO Stage 30.7.1+ production file (ATH
-    models, a projection adapter, a source bridge, a runtime adapter)
+    the 30.7.0 spec doc + manifest plus the 30.7.1 ATH context models +
+    pure projection adapter. NO Stage 30.7.2+ production file (the
+    fake-wire runtime adapter, a source bridge, a runtime orchestrator)
     may exist yet.
+
+    Stage 30.7.1 narrowly widened this self-guard to admit exactly the
+    two 30.7.1 production files; it did NOT admit any Stage 30.7.2+
+    file.
     """
     observed = {
         entry.name
@@ -761,17 +766,24 @@ def test_only_stage30_7_production_files_are_spec_and_manifest() -> None:
     allowed = {
         STAGE30_7_SPEC_BASENAME,
         STAGE30_7_MANIFEST_BASENAME,
+        # Stage 30.7.1 offline ATH context models + projection adapter.
+        "stage30_7_ath_context_models.py",
+        "stage30_7_ath_context_projection.py",
     }
     assert observed == allowed, (
         "Stage 30.7 production entries must be exactly the spec lock "
-        f"+ manifest (30.7.0); unexpected entries: "
-        f"{sorted(observed - allowed)}"
+        f"+ manifest (30.7.0) + the 30.7.1 models / projection; "
+        f"unexpected entries: {sorted(observed - allowed)}"
     )
 
 
 def test_only_stage30_7_test_file_is_the_pin_test() -> None:
-    """Stage 30.7.0 ships only the pin test. NO Stage 30.7.1+ test
-    file may exist yet.
+    """Stage 30.7.0 shipped only the pin test; Stage 30.7.1 adds its
+    four offline test modules. NO Stage 30.7.2+ test file may exist
+    yet.
+
+    Stage 30.7.1 narrowly widened this self-guard to admit exactly the
+    four 30.7.1 test files; it did NOT admit any Stage 30.7.2+ test.
     """
     observed = {
         entry.name
@@ -779,10 +791,18 @@ def test_only_stage30_7_test_file_is_the_pin_test() -> None:
         if entry.name != "__pycache__"
         and entry.name.startswith("test_stage_30_7")
     }
-    allowed = {"test_stage_30_7_0_ath_context_spec_lock.py"}
+    allowed = {
+        "test_stage_30_7_0_ath_context_spec_lock.py",
+        # Stage 30.7.1 offline ATH context test additions.
+        "test_stage_30_7_1_ath_context_models.py",
+        "test_stage_30_7_1_ath_context_projection.py",
+        "test_stage_30_7_1_boundaries.py",
+        "test_stage_30_7_1_manifest.py",
+    }
     assert observed == allowed, (
-        "Stage 30.7 test entries must be exactly the 30.7.0 pin "
-        f"test; unexpected entries: {sorted(observed - allowed)}"
+        "Stage 30.7 test entries must be exactly the 30.7.0 pin test "
+        f"+ the four 30.7.1 test modules; unexpected entries: "
+        f"{sorted(observed - allowed)}"
     )
 
 

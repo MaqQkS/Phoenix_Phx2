@@ -201,6 +201,12 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # no Stage 30.7.1+ implementation file ships at Stage 30.7.0).
         "STAGE_30_7_0_ATH_CONTEXT_SPEC_LOCK.md",
         "stage30_7_manifest.py",
+        # Stage 30.7.1 offline ATH context production additions: models
+        # + pure projection adapter (fakes only; no renderer / runtime /
+        # source bridge / live / Discord / provider change, no drawdown /
+        # tier recomputation). No Stage 30.7.2+ implementation file.
+        "stage30_7_ath_context_models.py",
+        "stage30_7_ath_context_projection.py",
     }
 )
 
@@ -287,6 +293,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_6_1_manifest.py",
         # Stage 30.7.0 ATH context bridge spec-lock pin test.
         "test_stage_30_7_0_ath_context_spec_lock.py",
+        # Stage 30.7.1 offline ATH context test additions (models,
+        # projection, boundaries, manifest).
+        "test_stage_30_7_1_ath_context_models.py",
+        "test_stage_30_7_1_ath_context_projection.py",
+        "test_stage_30_7_1_boundaries.py",
+        "test_stage_30_7_1_manifest.py",
     }
 )
 
