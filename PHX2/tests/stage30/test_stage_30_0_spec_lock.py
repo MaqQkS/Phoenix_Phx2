@@ -151,6 +151,10 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # source bridge (maps a Stage 29.2 snapshot onto a Stage
         # 30.4.1 reading; offline / fake-transport in tests).
         "stage30_4_3_market_context_birdeye_source.py",
+        # Stage 30.4.4 sanitized private-live proof record
+        # (documentation only; records the out-of-repo Stage
+        # 30.4.3C / 30.4.3D / 30.4.3E proofs).
+        "STAGE_30_4_4_MC_LP_PRIVATE_LIVE_PROOF.md",
     }
 )
 
@@ -202,6 +206,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_4_3_birdeye_source_partial_and_bad_values.py",
         "test_stage_30_4_3_boundaries.py",
         "test_stage_30_4_3_manifest.py",
+        # Stage 30.4.4 proof-doc guard.
+        "test_stage_30_4_4_mc_lp_private_live_proof_doc.py",
     }
 )
 

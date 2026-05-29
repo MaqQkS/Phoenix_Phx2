@@ -292,6 +292,46 @@ STAGE30_4_3_TEST_BASENAMES: Tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.4.4 documentation / proof-record delta
+# ---------------------------------------------------------------------------
+#
+# Stage 30.4.4 is a documentation / proof record only. It adds
+# exactly one new file under ``PHX2/stage30/`` (the sanitized
+# private-live proof record markdown) plus one new pin test under
+# ``PHX2/tests/stage30/``. Stage 30.4.4 ships ZERO production .py
+# code, ZERO live provider call, ZERO Discord send, and ZERO Stage
+# 21-30 runtime-source modification. The proof record captures, after
+# the fact, the Stage 30.4.3C live token-overview probe, the Stage
+# 30.4.3D compact runtime dry-run, and the Stage 30.4.3E controlled
+# private live send (all executed out-of-repo). The 30.4.0 pin test
+# allowlist remains unchanged because it pins the 30.4.0 delta, not
+# the 30.4.4 delta.
+
+
+STAGE30_4_4_MINOR_VERSION: str = "30.4.4"
+
+
+STAGE30_4_4_PRIVATE_LIVE_PROOF_BASENAME: str = (
+    "STAGE_30_4_4_MC_LP_PRIVATE_LIVE_PROOF.md"
+)
+
+
+STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_4: Tuple[str, ...] = (
+    STAGE30_4_4_PRIVATE_LIVE_PROOF_BASENAME,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.4.4 test inventory
+# ---------------------------------------------------------------------------
+
+
+STAGE30_4_4_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_4_4_mc_lp_private_live_proof_doc.py",
+)
+
+
+# ---------------------------------------------------------------------------
 # Stage 30.4 substage sequence (pinned)
 # ---------------------------------------------------------------------------
 
@@ -461,6 +501,10 @@ __all__ = (
     "STAGE30_4_3_STAGE29_2_REUSE_ALLOWLIST",
     "STAGE30_4_3_BRIDGE_ALLOWED_PHX2_IMPORTS",
     "STAGE30_4_3_TEST_BASENAMES",
+    "STAGE30_4_4_MINOR_VERSION",
+    "STAGE30_4_4_PRIVATE_LIVE_PROOF_BASENAME",
+    "STAGE30_4_ALLOWED_STAGE30_BASENAMES_FOR_30_4_4",
+    "STAGE30_4_4_TEST_BASENAMES",
     "STAGE30_4_SUBSTAGE_SEQUENCE",
     "STAGE30_4_OPERATOR_DECISION_LABEL_NET",
     "STAGE30_4_OPERATOR_DECISION_FIRST_FIELDS",
