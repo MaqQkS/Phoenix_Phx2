@@ -245,6 +245,81 @@ STAGE30_5_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.5.3 offline Stage 29.5 migration-evidence bridge inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.5.3 ships the Stage-30-owned offline bridge that converts a
+# sanitized Stage 29.5 migration-evidence summary into the Stage 30.5
+# migration-context contract (record / projection / Stage 30.5.2 resolver).
+# The only NEW Stage 30.5.3-owned production file is that bridge. The
+# bridge imports NO Stage 29 module: it consumes a sanitized duck-typed
+# artifact-shaped input and reuses the Stage 30.5.1 models + the Stage
+# 30.5.2 runtime display resolver. NO renderer change, NO new artifact
+# writer, NO orchestrator edit (the Stage 30.5.2 resolver seam is reused),
+# NO live / Discord / provider change, NO ATH, NO Net.
+
+
+STAGE30_5_3_MINOR_VERSION: str = "30.5.3"
+
+
+STAGE30_5_3_STAGE29_MIGRATION_BRIDGE_BASENAME: str = (
+    "stage30_5_stage29_migration_bridge.py"
+)
+
+
+STAGE30_5_3_STAGE29_MIGRATION_BRIDGE_MODULE: str = (
+    "PHX2.stage30.stage30_5_stage29_migration_bridge"
+)
+
+
+# The new production files Stage 30.5.3 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.5.2 inventory: exactly the offline
+# Stage 29.5 migration-evidence bridge.
+STAGE30_5_ALLOWED_STAGE30_BASENAMES_FOR_30_5_3: Tuple[str, ...] = (
+    STAGE30_5_3_STAGE29_MIGRATION_BRIDGE_BASENAME,
+)
+
+
+# The single production module the Stage 30.5.3 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_5_3_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_5_3_STAGE29_MIGRATION_BRIDGE_BASENAME,
+)
+
+
+STAGE30_5_3_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_5_3_stage29_migration_bridge.py",
+    "test_stage_30_5_3_runtime_integration.py",
+    "test_stage_30_5_3_boundaries.py",
+    "test_stage_30_5_3_manifest.py",
+)
+
+
+# Every non-PHX2 import in the Stage 30.5.3 bridge must be in this stdlib
+# allowlist (the bridge needs ``__future__`` + ``typing`` + ``dataclasses``
+# for the sanitized-evidence dataclass).
+STAGE30_5_3_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# Every PHX2 import in the Stage 30.5.3 bridge must be one of these two
+# Stage 30.5 sibling modules: the Stage 30.5.1 closed-set models (the
+# record + safe-shape gates) and the Stage 30.5.2 runtime display resolver.
+# This positive allowlist proves, by construction, that the Stage 30.5.3
+# bridge imports NO Stage 29 / Stage 28 / Stage 30.1-30.4 / Discord /
+# provider / network module (so the Stage 29.5.5 private side-channel
+# renderer / recorder / artifact writer is unreachable), and reaches NO ATH
+# / Net market-context model.
+STAGE30_5_3_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_5_1_MIGRATION_CONTEXT_MODELS_MODULE,
+    STAGE30_5_2_COMPACT_MIGRATION_RUNTIME_ADAPTER_MODULE,
+)
+
+
+# ---------------------------------------------------------------------------
 # Stage 29.5.5 private side-channel modules the Stage 30.5 production
 # code must NEVER import
 # ---------------------------------------------------------------------------
@@ -386,6 +461,15 @@ __all__ = (
     "STAGE30_5_2_TEST_BASENAMES",
     "STAGE30_5_2_ALLOWED_STDLIB_IMPORTS",
     "STAGE30_5_2_ALLOWED_PHX2_IMPORTS",
+    # Stage 30.5.3 offline Stage 29.5 migration-evidence bridge inventory.
+    "STAGE30_5_3_MINOR_VERSION",
+    "STAGE30_5_3_STAGE29_MIGRATION_BRIDGE_BASENAME",
+    "STAGE30_5_3_STAGE29_MIGRATION_BRIDGE_MODULE",
+    "STAGE30_5_ALLOWED_STAGE30_BASENAMES_FOR_30_5_3",
+    "STAGE30_5_3_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_5_3_TEST_BASENAMES",
+    "STAGE30_5_3_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_5_3_ALLOWED_PHX2_IMPORTS",
     "STAGE30_5_FORBIDDEN_STAGE29_5_5_MODULES",
     "STAGE30_5_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_5_FORBIDDEN_TEXT_NEEDLES",

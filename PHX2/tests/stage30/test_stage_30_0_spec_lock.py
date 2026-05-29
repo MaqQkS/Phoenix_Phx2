@@ -171,6 +171,12 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # replacement path (no renderer change; the Stage 30.4.2
         # orchestrator gains one optional duck-typed resolver param).
         "stage30_5_compact_migration_runtime_adapter.py",
+        # Stage 30.5.3 offline Stage 29.5 migration-evidence bridge:
+        # converts a sanitized Stage 29.5 migration-evidence summary into
+        # the Stage 30.5 record / projection / resolver contract (imports
+        # no Stage 29 module; reuses the Stage 30.5.1 models + Stage 30.5.2
+        # resolver; no renderer / orchestrator edit; no ATH / Net / live).
+        "stage30_5_stage29_migration_bridge.py",
     }
 )
 
@@ -240,6 +246,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_5_2_runtime_integration.py",
         "test_stage_30_5_2_boundaries.py",
         "test_stage_30_5_2_manifest.py",
+        # Stage 30.5.3 offline Stage 29.5 migration-evidence bridge test
+        # additions (bridge unit, runtime integration, boundaries,
+        # manifest).
+        "test_stage_30_5_3_stage29_migration_bridge.py",
+        "test_stage_30_5_3_runtime_integration.py",
+        "test_stage_30_5_3_boundaries.py",
+        "test_stage_30_5_3_manifest.py",
     }
 )
 
