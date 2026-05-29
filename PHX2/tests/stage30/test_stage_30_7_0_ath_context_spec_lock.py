@@ -747,15 +747,18 @@ def test_only_stage30_7_production_files_are_spec_and_manifest() -> None:
     """Every Stage 30.7 entry under ``PHX2/stage30/`` must be exactly
     the 30.7.0 spec doc + manifest plus the 30.7.1 ATH context models +
     pure projection adapter plus the 30.7.2 compact ATH runtime adapter
-    plus the 30.7.3 sanitized upstream ATH-evidence bridge. NO Stage
-    30.7.4+ production file (a further runtime proof / live probe) may
-    exist yet.
+    plus the 30.7.3 sanitized upstream ATH-evidence bridge plus the
+    30.7.4 closure-audit doc + handoff doc + constants-only manifest. NO
+    Stage 30.7.5+ production file (a controlled live ATH probe) may exist
+    yet.
 
     Stage 30.7.1 narrowly widened this self-guard to admit exactly the
     two 30.7.1 production files; Stage 30.7.2 narrowly widened it again
     to admit exactly the one 30.7.2 runtime adapter; Stage 30.7.3
     narrowly widened it again to admit exactly the one 30.7.3 sanitized
-    ATH bridge; none admitted any Stage 30.7.4+ file.
+    ATH bridge; Stage 30.7.4 narrowly widened it again to admit exactly
+    the two closure docs + the constants-only 30.7.4 manifest; none
+    admitted any Stage 30.7.5+ file.
     """
     observed = {
         entry.name
@@ -777,11 +780,17 @@ def test_only_stage30_7_production_files_are_spec_and_manifest() -> None:
         "stage30_7_compact_ath_runtime_adapter.py",
         # Stage 30.7.3 offline sanitized upstream ATH-evidence bridge.
         "stage30_7_sanitized_ath_bridge.py",
+        # Stage 30.7.4 closure audit + handoff docs + constants-only
+        # closure manifest (no runtime production code).
+        "STAGE_30_7_ATH_CONTEXT_CLOSURE_AUDIT.md",
+        "STAGE_30_7_ATH_CONTEXT_HANDOFF.md",
+        "stage30_7_4_manifest.py",
     }
     assert observed == allowed, (
         "Stage 30.7 production entries must be exactly the spec lock "
         f"+ manifest (30.7.0) + the 30.7.1 models / projection + the "
-        f"30.7.2 runtime adapter + the 30.7.3 sanitized ATH bridge; "
+        f"30.7.2 runtime adapter + the 30.7.3 sanitized ATH bridge + the "
+        f"30.7.4 closure docs / manifest; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
@@ -790,13 +799,16 @@ def test_only_stage30_7_test_file_is_the_pin_test() -> None:
     """Stage 30.7.0 shipped only the pin test; Stage 30.7.1 adds its
     four offline test modules; Stage 30.7.2 adds its four runtime-adapter
     test modules; Stage 30.7.3 adds its four sanitized-ATH-bridge test
-    modules. NO Stage 30.7.4+ test file may exist yet.
+    modules; Stage 30.7.4 adds its four closure-audit / handoff /
+    boundaries / manifest test modules. NO Stage 30.7.5+ test file may
+    exist yet.
 
     Stage 30.7.1 narrowly widened this self-guard to admit exactly the
     four 30.7.1 test files; Stage 30.7.2 narrowly widened it again to
     admit exactly the four 30.7.2 test files; Stage 30.7.3 narrowly
-    widened it again to admit exactly the four 30.7.3 test files; none
-    admitted any Stage 30.7.4+ test.
+    widened it again to admit exactly the four 30.7.3 test files; Stage
+    30.7.4 narrowly widened it again to admit exactly the four 30.7.4
+    test files; none admitted any Stage 30.7.5+ test.
     """
     observed = {
         entry.name
@@ -821,12 +833,17 @@ def test_only_stage30_7_test_file_is_the_pin_test() -> None:
         "test_stage_30_7_3_runtime_integration.py",
         "test_stage_30_7_3_boundaries.py",
         "test_stage_30_7_3_manifest.py",
+        # Stage 30.7.4 closure-audit + handoff test additions.
+        "test_stage_30_7_4_closure_audit.py",
+        "test_stage_30_7_4_handoff.py",
+        "test_stage_30_7_4_boundaries.py",
+        "test_stage_30_7_4_manifest.py",
     }
     assert observed == allowed, (
         "Stage 30.7 test entries must be exactly the 30.7.0 pin test "
         f"+ the four 30.7.1 test modules + the four 30.7.2 test modules "
-        f"+ the four 30.7.3 test modules; unexpected entries: "
-        f"{sorted(observed - allowed)}"
+        f"+ the four 30.7.3 test modules + the four 30.7.4 test modules; "
+        f"unexpected entries: {sorted(observed - allowed)}"
     )
 
 

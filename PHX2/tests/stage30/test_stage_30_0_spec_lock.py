@@ -226,6 +226,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Discord / provider / DB / filesystem writer / compression /
         # drawdown / tier change).
         "stage30_7_sanitized_ath_bridge.py",
+        # Stage 30.7.4 ATH context bridge closure audit + handoff
+        # (closure docs + a constants-only manifest only; ZERO runtime
+        # production code, ZERO renderer / compact models / orchestrator
+        # edit, ZERO live / provider / Discord / env / DB / filesystem
+        # writer / zstd / drawdown / tier / enforcement change; no Stage
+        # 30.7.5+ file).
+        "STAGE_30_7_ATH_CONTEXT_CLOSURE_AUDIT.md",
+        "STAGE_30_7_ATH_CONTEXT_HANDOFF.md",
+        "stage30_7_4_manifest.py",
     }
 )
 
@@ -330,6 +339,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_7_3_runtime_integration.py",
         "test_stage_30_7_3_boundaries.py",
         "test_stage_30_7_3_manifest.py",
+        # Stage 30.7.4 ATH context bridge closure audit + handoff test
+        # additions (closure-audit doc, handoff doc, boundaries,
+        # manifest).
+        "test_stage_30_7_4_closure_audit.py",
+        "test_stage_30_7_4_handoff.py",
+        "test_stage_30_7_4_boundaries.py",
+        "test_stage_30_7_4_manifest.py",
     }
 )
 
