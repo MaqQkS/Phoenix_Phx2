@@ -155,6 +155,9 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # (documentation only; records the out-of-repo Stage
         # 30.4.3C / 30.4.3D / 30.4.3E proofs).
         "STAGE_30_4_4_MC_LP_PRIVATE_LIVE_PROOF.md",
+        # Stage 30.5.0 migration-context spec lock (spec-lock /
+        # handoff doc only; zero production code at Stage 30.5.0).
+        "STAGE_30_5_0_MIGRATION_CONTEXT_SPEC_LOCK.md",
     }
 )
 
@@ -208,6 +211,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_4_3_manifest.py",
         # Stage 30.4.4 proof-doc guard.
         "test_stage_30_4_4_mc_lp_private_live_proof_doc.py",
+        # Stage 30.5.0 migration-context spec-lock pin test.
+        "test_stage_30_5_0_migration_context_spec_lock.py",
     }
 )
 
