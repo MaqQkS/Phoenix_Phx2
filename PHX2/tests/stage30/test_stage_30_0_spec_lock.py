@@ -204,9 +204,18 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Stage 30.7.1 offline ATH context production additions: models
         # + pure projection adapter (fakes only; no renderer / runtime /
         # source bridge / live / Discord / provider change, no drawdown /
-        # tier recomputation). No Stage 30.7.2+ implementation file.
+        # tier recomputation). No Stage 30.7.3+ implementation file.
         "stage30_7_ath_context_models.py",
         "stage30_7_ath_context_projection.py",
+        # Stage 30.7.2 opt-in offline compact ATH runtime adapter: the
+        # duck-typed resolver + projection-to-text converter that wires
+        # the Stage 30.7.1 ATH projection into the existing Stage 30.4.2
+        # compact runtime replacement path through the existing
+        # ``ath_mc_text`` slot (no renderer / models change; the Stage
+        # 30.4.2 orchestrator gains one optional duck-typed resolver
+        # param; no live / Discord / provider / DB / filesystem writer /
+        # compression / drawdown / tier / ATH source bridge change).
+        "stage30_7_compact_ath_runtime_adapter.py",
     }
 )
 
@@ -299,6 +308,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_7_1_ath_context_projection.py",
         "test_stage_30_7_1_boundaries.py",
         "test_stage_30_7_1_manifest.py",
+        # Stage 30.7.2 opt-in compact ATH runtime adapter test additions
+        # (adapter unit, runtime integration, boundaries, manifest).
+        "test_stage_30_7_2_compact_ath_runtime_adapter.py",
+        "test_stage_30_7_2_runtime_integration.py",
+        "test_stage_30_7_2_boundaries.py",
+        "test_stage_30_7_2_manifest.py",
     }
 )
 

@@ -486,6 +486,89 @@ STAGE30_7_1_ATH_REASON_VALUES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.7.2 opt-in compact ATH runtime adapter inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.7.2 wires the Stage 30.7.1 ATH-context projection into the
+# existing Stage 30.4.2 compact runtime replacement path via a duck-typed
+# resolver, so the compact body ``ATH`` token can carry a trusted ``$Y``
+# value through the EXISTING Stage 30.2 ``ath_mc_text`` display slot
+# instead of the literal ``Unknown`` (exactly as Stage 30.5.2 reused the
+# ``migration_mc_text`` slot for the ``Mig`` token). The only NEW Stage
+# 30.7.2-owned production file is the offline compact ATH runtime adapter
+# (the projection-to-text converter + the duck-typed resolver). The Stage
+# 30.4.2 orchestrator gains one optional duck-typed ``ath_context_resolver``
+# parameter, but that file is a Stage 30.4 file already in the parent Stage
+# 30.0 inventory and is NOT re-listed here. NO renderer / models change,
+# NO new artifact writer, NO live / Discord / provider / DB / filesystem
+# writer / compression change, NO drawdown / tier recomputation, NO ATH
+# source bridge, NO Net, NO filters, NO enforcement.
+#
+# Future slice: Stage 30.7.3 bridges sanitized upstream Stage 25 / 27 / 29
+# ATH evidence into the Stage 30 ATH resolver (fake tests, narrow
+# allowlist); it is NOT admitted by the Stage 30.7.2 inventory.
+
+
+STAGE30_7_2_MINOR_VERSION: str = "30.7.2"
+
+
+STAGE30_7_2_COMPACT_ATH_RUNTIME_ADAPTER_BASENAME: str = (
+    "stage30_7_compact_ath_runtime_adapter.py"
+)
+
+
+STAGE30_7_2_COMPACT_ATH_RUNTIME_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_7_compact_ath_runtime_adapter"
+)
+
+
+# The new production files Stage 30.7.2 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.7.1 inventory: exactly the
+# offline compact ATH runtime adapter. (The Stage 30.4.2 orchestrator
+# edit reuses an existing inventory file.)
+STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_2: Tuple[str, ...] = (
+    STAGE30_7_2_COMPACT_ATH_RUNTIME_ADAPTER_BASENAME,
+)
+
+
+# The single production module the Stage 30.7.2 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_7_2_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_7_2_COMPACT_ATH_RUNTIME_ADAPTER_BASENAME,
+)
+
+
+STAGE30_7_2_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_7_2_compact_ath_runtime_adapter.py",
+    "test_stage_30_7_2_runtime_integration.py",
+    "test_stage_30_7_2_boundaries.py",
+    "test_stage_30_7_2_manifest.py",
+)
+
+
+# Every non-PHX2 import in the Stage 30.7.2 runtime adapter must be in
+# this stdlib allowlist (the adapter is a thin projector seam: it needs
+# only ``__future__`` + ``typing``).
+STAGE30_7_2_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+)
+
+
+# Every PHX2 import in the Stage 30.7.2 runtime adapter must be one of the
+# two Stage 30.7.1 sibling modules (the closed-set models + the pure
+# projection adapter). This positive allowlist proves, by construction,
+# that the Stage 30.7.2 adapter imports NO Stage 21-29 / Stage 28 / Stage
+# 30.1-30.6 runtime / Discord / provider / network / disk module (so the
+# compact renderer / models / orchestrator and the tier-decision modules
+# are unreachable, and NO drawdown / tier recomputation is wired).
+STAGE30_7_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_7_1_ATH_CONTEXT_MODELS_MODULE,
+    STAGE30_7_1_ATH_CONTEXT_PROJECTION_MODULE,
+)
+
+
 __all__ = (
     # Version axes + basenames.
     "STAGE30_7_MINOR_VERSION",
@@ -544,4 +627,13 @@ __all__ = (
     "STAGE30_7_1_ATH_UNIT_VALUES",
     "STAGE30_7_1_ATH_BASIS_VALUES",
     "STAGE30_7_1_ATH_REASON_VALUES",
+    # Stage 30.7.2 opt-in compact ATH runtime adapter inventory.
+    "STAGE30_7_2_MINOR_VERSION",
+    "STAGE30_7_2_COMPACT_ATH_RUNTIME_ADAPTER_BASENAME",
+    "STAGE30_7_2_COMPACT_ATH_RUNTIME_ADAPTER_MODULE",
+    "STAGE30_7_ALLOWED_STAGE30_BASENAMES_FOR_30_7_2",
+    "STAGE30_7_2_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_7_2_TEST_BASENAMES",
+    "STAGE30_7_2_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_7_2_ALLOWED_PHX2_IMPORTS",
 )

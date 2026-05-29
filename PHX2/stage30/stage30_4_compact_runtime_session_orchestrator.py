@@ -23,6 +23,23 @@ preserved. When the resolver is ``None`` (the Stage 30.4.2 baseline),
 the ``Mig`` token keeps the default ``Unknown`` and the body is
 byte-identical to the pre-Stage-30.5.2 path.
 
+Stage 30.7.2 opt-in extension: the wrapper / orchestrator additionally
+accept an optional ``ath_context_resolver`` -- a duck-typed object that
+exposes ``resolve_display_text(token_mint, observed_at_utc) -> str`` and
+returns a safe compact ``ATH`` display string (a ``$Y`` value or the
+literal ``Unknown``) drawn from an offline Stage 30.7.1 ATH-context
+projection. When supplied, the wrapper fills the existing Stage 30.2
+``ath_mc_text`` slot with the resolved string so the compact body
+``ATH`` token reflects offline ATH evidence instead of the default
+``Unknown``. The resolver is consumed as a duck-typed ``object`` so this
+file imports no Stage 30.7 module and its read-only import allowlist is
+preserved (mirroring the Stage 30.5.2 migration seam). A local shape
+guard admits only the two safe Stage 30.7.1 ATH display shapes back from
+a resolver, so a misbehaving resolver cannot smuggle a misleading ``ATH``
+token into the body. When the resolver is ``None`` (the default), the
+``ATH`` token keeps the default ``Unknown`` and the body is byte-
+identical to the pre-Stage-30.7.2 path.
+
 Composition:
 
   Stage30_3CompactBodyTransportWrapper                (REPLACES content)
@@ -183,6 +200,60 @@ _STAGE30_5_2_ALLOWED_MIGRATION_DISPLAY_WORDS: Tuple[str, ...] = (
 
 
 # ---------------------------------------------------------------------------
+# Stage 30.7.2 local shape guard for the duck-typed ATH display resolver
+# ---------------------------------------------------------------------------
+#
+# The Stage 30.4.2 runtime seam consumes the Stage 30.7.2 ATH display
+# resolver through a duck-typed ``object`` so this file imports no Stage
+# 30.7 module. To keep the compact body ``ATH`` token honest, the seam
+# accepts back ONLY a safe Stage 30.7.1 ATH display shape: the literal
+# ``Unknown`` OR a ``$Y`` money token (``$`` + ASCII digits, an optional
+# single fractional part, an optional ``k`` / ``M`` magnitude suffix) --
+# exactly the two output shapes the Stage 30.7.1 projection adapter can
+# emit. Any other resolver output (e.g. ``"Stale"`` / ``"Fresh"`` / a
+# fabricated estimate / an arbitrary string / an empty / whitespace /
+# non-string value) is rejected and the compact body keeps the default
+# ``ATH: Unknown``. The guard is duplicated here as plain logic (NOT a
+# Stage 30.7 import) precisely to preserve the no-Stage-30.7-import
+# boundary, mirroring the Stage 30.5.2
+# ``_STAGE30_5_2_ALLOWED_MIGRATION_DISPLAY_WORDS`` guard. It is a pure
+# helper (no module-level Call, so the orchestrator stays free of any
+# top-level Call node).
+_STAGE30_7_2_ATH_UNKNOWN_DISPLAY_WORD: str = "Unknown"
+_STAGE30_7_2_ATH_MONEY_DIGITS: str = "0123456789"
+_STAGE30_7_2_ATH_MONEY_SUFFIXES: Tuple[str, ...] = ("k", "M")
+
+
+def _is_safe_stage30_7_2_ath_display_text(value: object) -> bool:
+    """Return ``True`` iff ``value`` is a safe Stage 30.7.2 compact
+    ``ATH`` display token: the literal ``Unknown`` or a ``$Y`` money
+    token. Pure / total. See the guard comment above for the accepted
+    shapes and the rationale.
+    """
+    if not isinstance(value, str):
+        return False
+    if value == _STAGE30_7_2_ATH_UNKNOWN_DISPLAY_WORD:
+        return True
+    # Money token: a leading "$" plus at least one digit.
+    if len(value) < 2 or value[0] != "$":
+        return False
+    body = value[1:]
+    # Strip the optional single magnitude suffix.
+    if body[-1] in _STAGE30_7_2_ATH_MONEY_SUFFIXES:
+        body = body[:-1]
+    if body == "":
+        return False
+    if body.count(".") > 1:
+        return False
+    if body[0] == "." or body[-1] == ".":
+        return False
+    for ch in body:
+        if ch != "." and ch not in _STAGE30_7_2_ATH_MONEY_DIGITS:
+            return False
+    return True
+
+
+# ---------------------------------------------------------------------------
 # Stage 30.4.2 compact runtime session result
 # ---------------------------------------------------------------------------
 
@@ -292,6 +363,7 @@ class Stage30_4_2MarketContextReplacingTransport:
         "_recorder",
         "_market_context_source",
         "_migration_context_resolver",
+        "_ath_context_resolver",
         "_context",
         "_clock",
         "_calls_received",
@@ -311,6 +383,7 @@ class Stage30_4_2MarketContextReplacingTransport:
         context: Stage30_3CompactRuntimeContext,
         clock: object,
         migration_context_resolver: Optional[object] = None,
+        ath_context_resolver: Optional[object] = None,
     ) -> None:
         if not callable(
             getattr(inner_transport, "send_one_audited_post", None)
@@ -341,6 +414,16 @@ class Stage30_4_2MarketContextReplacingTransport:
         # imports no Stage 30.5 module.
         self._migration_context_resolver: Optional[object] = (
             migration_context_resolver
+        )
+        # Stage 30.7.2 opt-in: an optional duck-typed ATH display resolver
+        # (an object exposing
+        # ``resolve_display_text(token_mint, observed_at_utc) -> str``).
+        # When ``None`` (the default and the pre-Stage-30.7.2 baseline),
+        # the ``ATH`` token keeps the Stage 30.2 default ``Unknown``. The
+        # resolver is held as a duck-typed ``object`` so this file imports
+        # no Stage 30.7 module.
+        self._ath_context_resolver: Optional[object] = (
+            ath_context_resolver
         )
         self._context: Stage30_3CompactRuntimeContext = context
         self._clock: object = clock
@@ -453,6 +536,10 @@ class Stage30_4_2MarketContextReplacingTransport:
             token_mint=entry.mint,
             observed_at_utc=entry_time_utc_safe,
         )
+        ath_display_text = self._resolve_ath_display_text(
+            token_mint=entry.mint,
+            observed_at_utc=entry_time_utc_safe,
+        )
         try:
             tier_decision = (
                 project_recorded_entry_to_tier_decision_record(
@@ -484,6 +571,16 @@ class Stage30_4_2MarketContextReplacingTransport:
             if migration_display_text is not None:
                 enriched_input = enriched_input._replace(
                     migration_mc_text=migration_display_text,
+                )
+            # Stage 30.7.2 opt-in: replace ONLY the ATH token by filling
+            # the existing Stage 30.2 ``ath_mc_text`` slot with the
+            # resolved safe ATH display string. A ``None`` result leaves
+            # the slot untouched so the body keeps the default
+            # ``ATH: Unknown`` (backward compatible with the path that
+            # ships no ATH resolver).
+            if ath_display_text is not None:
+                enriched_input = enriched_input._replace(
+                    ath_mc_text=ath_display_text,
                 )
             snapshot = render_compact_ping(enriched_input)
         except (
@@ -552,6 +649,52 @@ class Stage30_4_2MarketContextReplacingTransport:
             return value
         return None
 
+    def _resolve_ath_display_text(
+        self,
+        *,
+        token_mint: object,
+        observed_at_utc: object,
+    ) -> Optional[str]:
+        """Resolve the optional Stage 30.7.2 compact ``ATH`` display
+        string from the injected duck-typed ATH display resolver.
+
+        Returns the resolver's display string ONLY when it is a safe
+        Stage 30.7.1 ATH display shape -- the literal ``Unknown`` or a
+        ``$Y`` money token (see
+        ``_is_safe_stage30_7_2_ath_display_text``); returns ``None`` when
+        no resolver is configured, the resolver does not expose a callable
+        ``resolve_display_text``, the resolver raises, or the resolver
+        returns a value outside the safe display shapes (e.g. ``"Stale"``
+        / ``"Fresh"`` / a fabricated estimate / an arbitrary string / an
+        empty / whitespace / non-string value). A ``None`` result leaves
+        the Stage 30.2 ``ath_mc_text`` slot untouched, so the compact body
+        keeps the default ``ATH: Unknown`` (backward compatible with the
+        path that ships no ATH resolver).
+
+        Stage 30.4.2 consumes the resolver through this duck-typed seam so
+        the orchestrator file imports no Stage 30.7 module. The seam
+        enforces the local shape guard above so a misbehaving resolver can
+        NOT smuggle a misleading ``ATH`` token into the compact body; the
+        renderer's own forbidden-substring scan is a further backstop.
+        """
+        resolver = self._ath_context_resolver
+        if resolver is None:
+            return None
+        resolve = getattr(resolver, "resolve_display_text", None)
+        if not callable(resolve):
+            return None
+        try:
+            value = resolve(
+                token_mint=token_mint,
+                observed_at_utc=observed_at_utc,
+            )
+        except Exception:  # noqa: BLE001 - resolver failure => keep ATH Unknown
+            return None
+        if _is_safe_stage30_7_2_ath_display_text(value):
+            assert isinstance(value, str)  # narrows for the return type
+            return value
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Stage 30.4.2 orchestrator
@@ -573,6 +716,7 @@ def run_stage30_4_2_compact_runtime_session(
     wrapper_order: Tuple[str, ...],
     market_context_source: Optional[object] = None,
     migration_context_resolver: Optional[object] = None,
+    ath_context_resolver: Optional[object] = None,
     private_migration_context_injector: Optional[object] = None,
     stop_signal: Optional[object] = None,
 ) -> Stage30_4_2CompactRuntimeSessionResult:
@@ -623,6 +767,7 @@ def run_stage30_4_2_compact_runtime_session(
         context=compact_runtime_context,
         clock=clock,
         migration_context_resolver=migration_context_resolver,
+        ath_context_resolver=ath_context_resolver,
     )
 
     inner_result = run_stage30_3_compact_runtime_session(

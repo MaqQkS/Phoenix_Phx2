@@ -746,13 +746,14 @@ def test_allowed_basenames_are_only_spec_and_manifest() -> None:
 def test_only_stage30_7_production_files_are_spec_and_manifest() -> None:
     """Every Stage 30.7 entry under ``PHX2/stage30/`` must be exactly
     the 30.7.0 spec doc + manifest plus the 30.7.1 ATH context models +
-    pure projection adapter. NO Stage 30.7.2+ production file (the
-    fake-wire runtime adapter, a source bridge, a runtime orchestrator)
-    may exist yet.
+    pure projection adapter plus the 30.7.2 compact ATH runtime adapter.
+    NO Stage 30.7.3+ production file (a sanitized upstream ATH evidence
+    source bridge, a further runtime orchestrator) may exist yet.
 
     Stage 30.7.1 narrowly widened this self-guard to admit exactly the
-    two 30.7.1 production files; it did NOT admit any Stage 30.7.2+
-    file.
+    two 30.7.1 production files; Stage 30.7.2 narrowly widened it again
+    to admit exactly the one 30.7.2 runtime adapter; neither admitted any
+    Stage 30.7.3+ file.
     """
     observed = {
         entry.name
@@ -769,21 +770,27 @@ def test_only_stage30_7_production_files_are_spec_and_manifest() -> None:
         # Stage 30.7.1 offline ATH context models + projection adapter.
         "stage30_7_ath_context_models.py",
         "stage30_7_ath_context_projection.py",
+        # Stage 30.7.2 opt-in compact ATH runtime adapter (the duck-typed
+        # resolver + projection-to-text converter).
+        "stage30_7_compact_ath_runtime_adapter.py",
     }
     assert observed == allowed, (
         "Stage 30.7 production entries must be exactly the spec lock "
-        f"+ manifest (30.7.0) + the 30.7.1 models / projection; "
-        f"unexpected entries: {sorted(observed - allowed)}"
+        f"+ manifest (30.7.0) + the 30.7.1 models / projection + the "
+        f"30.7.2 runtime adapter; unexpected entries: "
+        f"{sorted(observed - allowed)}"
     )
 
 
 def test_only_stage30_7_test_file_is_the_pin_test() -> None:
     """Stage 30.7.0 shipped only the pin test; Stage 30.7.1 adds its
-    four offline test modules. NO Stage 30.7.2+ test file may exist
-    yet.
+    four offline test modules; Stage 30.7.2 adds its four runtime-adapter
+    test modules. NO Stage 30.7.3+ test file may exist yet.
 
     Stage 30.7.1 narrowly widened this self-guard to admit exactly the
-    four 30.7.1 test files; it did NOT admit any Stage 30.7.2+ test.
+    four 30.7.1 test files; Stage 30.7.2 narrowly widened it again to
+    admit exactly the four 30.7.2 test files; neither admitted any Stage
+    30.7.3+ test.
     """
     observed = {
         entry.name
@@ -798,11 +805,16 @@ def test_only_stage30_7_test_file_is_the_pin_test() -> None:
         "test_stage_30_7_1_ath_context_projection.py",
         "test_stage_30_7_1_boundaries.py",
         "test_stage_30_7_1_manifest.py",
+        # Stage 30.7.2 opt-in compact ATH runtime adapter test additions.
+        "test_stage_30_7_2_compact_ath_runtime_adapter.py",
+        "test_stage_30_7_2_runtime_integration.py",
+        "test_stage_30_7_2_boundaries.py",
+        "test_stage_30_7_2_manifest.py",
     }
     assert observed == allowed, (
         "Stage 30.7 test entries must be exactly the 30.7.0 pin test "
-        f"+ the four 30.7.1 test modules; unexpected entries: "
-        f"{sorted(observed - allowed)}"
+        f"+ the four 30.7.1 test modules + the four 30.7.2 test modules; "
+        f"unexpected entries: {sorted(observed - allowed)}"
     )
 
 
