@@ -177,6 +177,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # no Stage 29 module; reuses the Stage 30.5.1 models + Stage 30.5.2
         # resolver; no renderer / orchestrator edit; no ATH / Net / live).
         "stage30_5_stage29_migration_bridge.py",
+        # Stage 30.6.0 storage + dedupe spec lock + manifest
+        # (spec-lock only; the spec doc plus a constants-only
+        # manifest. ZERO storage writer, ZERO dedupe engine, ZERO
+        # budget evaluator, ZERO lifecycle-seal aggregate, ZERO
+        # database migration, ZERO filesystem writer, ZERO zstd
+        # dependency, ZERO live / Discord / ATH; no Stage 30.6.1+
+        # implementation file ships at Stage 30.6.0).
+        "STAGE_30_6_0_STORAGE_DEDUPE_SPEC_LOCK.md",
+        "stage30_6_manifest.py",
     }
 )
 
@@ -253,6 +262,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_5_3_runtime_integration.py",
         "test_stage_30_5_3_boundaries.py",
         "test_stage_30_5_3_manifest.py",
+        # Stage 30.6.0 storage + dedupe spec-lock pin test.
+        "test_stage_30_6_0_storage_dedupe_spec_lock.py",
     }
 )
 
