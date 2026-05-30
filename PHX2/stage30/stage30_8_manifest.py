@@ -627,6 +627,165 @@ STAGE30_8_1_NEXT_RECOMMENDED_STAGE_TITLE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.8.2 temp-dir compact session artifact writer inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.8.2 is the FIRST Stage 30.8 storage writer slice: a small,
+# fail-closed, stdlib-only writer that persists a caller-assembled bundle
+# of validated Stage 30.8.1 compact artifacts to a caller-PROVIDED output
+# directory (a temporary / out-of-repo directory in the Stage 30.8.2
+# tests). It is NOT a database, NOT SQLite, NOT a zstd / compression
+# layer, NOT a dedupe / session index, NOT an append-only log, and it
+# touches NO live runtime / renderer / real bot artifact directory / env /
+# provider / Discord surface. The one NEW production file is the writer
+# module; it imports ONLY stdlib (``json`` / ``pathlib`` / ``re`` /
+# ``dataclasses`` / ``typing``) plus the Stage 30.8.1 models + validators
+# siblings. NO Stage 30.8.3+ index / dedupe file ships at Stage 30.8.2.
+
+
+STAGE30_8_2_MINOR_VERSION: str = "30.8.2"
+
+
+STAGE30_8_2_TEMP_ARTIFACT_WRITER_BASENAME: str = (
+    "stage30_8_temp_artifact_writer.py"
+)
+STAGE30_8_2_TEMP_ARTIFACT_WRITER_MODULE: str = (
+    "PHX2.stage30.stage30_8_temp_artifact_writer"
+)
+
+
+# The bundle manifest schema version (mirrored from the writer module; the
+# manifest test cross-checks it matches the writer). Distinct from the
+# per-artifact schema version ``STAGE30_8_1_ARTIFACT_SCHEMA_VERSION``: this
+# names the small Stage 30.8.2 session-bundle envelope, not the artifacts
+# inside it.
+STAGE30_8_2_BUNDLE_SCHEMA_VERSION: str = (
+    "stage30_8_v0_compact_session_bundle"
+)
+
+
+# Closed-set write outcome status tokens (mirrored from the writer module).
+STAGE30_8_2_WRITE_STATUS_VALUES: Tuple[str, ...] = (
+    "WRITTEN",
+    "INVALID",
+    "WRITE_FAILED",
+)
+
+
+# The NEW production file Stage 30.8.2 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.8.1 inventory: exactly the temp-dir
+# artifact writer. NO Stage 30.8.3+ file.
+STAGE30_8_2_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_2_TEMP_ARTIFACT_WRITER_BASENAME,
+)
+
+
+# The one production module the Stage 30.8.2 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_8_2_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_2_TEMP_ARTIFACT_WRITER_BASENAME,
+)
+
+
+STAGE30_8_2_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_8_2_temp_artifact_writer.py",
+    "test_stage_30_8_2_boundaries.py",
+    "test_stage_30_8_2_manifest.py",
+)
+
+
+# Every non-PHX2 import in the Stage 30.8.2 writer module must be in this
+# stdlib allowlist. Unlike the pure Stage 30.8.1 models / validators (which
+# forbid every filesystem surface), the Stage 30.8.2 writer legitimately
+# needs ``json`` + ``pathlib`` + ``re`` to write deterministic JSON to a
+# caller-provided temp dir. It still imports NO ``os`` (so NO ``os.environ``
+# / ``os.getenv`` env read), NO ``sqlite3``, NO ``zstd`` / compression, and
+# NO network module.
+STAGE30_8_2_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "json",
+    "pathlib",
+    "re",
+)
+
+
+# Every PHX2 import in the Stage 30.8.2 writer module must be one of the
+# Stage 30.8.1 sibling modules (models + validators). This positive
+# allowlist proves, by construction, that NO Stage 21-29 / Stage 29.5 /
+# runtime / orchestrator / renderer / Discord / provider module is
+# imported.
+STAGE30_8_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_8_1_ARTIFACT_MODELS_MODULE,
+    STAGE30_8_1_ARTIFACT_VALIDATORS_MODULE,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.2 forbidden surfaces (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The surfaces the Stage 30.8.2 temp-dir writer slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host /
+# transport needle forms. The writer DOES write JSON files to a
+# caller-provided temp directory (that is the whole slice); it must not
+# reach any of the surfaces below.
+
+
+STAGE30_8_2_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real bot artifact directory",
+    "default storage root",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "dedupe index implementation",
+    "session index implementation",
+    "append-only database",
+    "day rolling implementation",
+    "live run",
+    "provider call",
+    "Discord send",
+    "env read",
+    "compact renderer edit",
+    "compact models edit",
+    "runtime orchestrator edit",
+    "Stage 30.7 file edit",
+    "enforcement",
+    "public routing",
+    "trading",
+    "wallet",
+    "social",
+    "drawdown recomputation",
+    "tier recomputation",
+    "Stage 25/27/28/29 production import",
+    "Stage 29.5 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.8.3+ implementation file",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.2 next recommended stage
+# ---------------------------------------------------------------------------
+#
+# After Stage 30.8.2 (the temp-dir writer) the next recommended slice is
+# Stage 30.8.3 (dedupe / session index integration, offline). The Stage
+# 30.8.0 family pointer ``STAGE30_8_NEXT_RECOMMENDED_STAGE`` stays pinned at
+# ``30.8.1``; this 30.8.2-scoped pointer names the slice that follows.
+
+
+STAGE30_8_2_NEXT_RECOMMENDED_STAGE: str = "30.8.3"
+STAGE30_8_2_NEXT_RECOMMENDED_STAGE_TITLE: str = (
+    "dedupe / session index integration (offline)"
+)
+
+
 __all__ = (
     # Stage id + minor version.
     "STAGE30_8_STAGE_ID",
@@ -686,4 +845,18 @@ __all__ = (
     "STAGE30_8_1_FORBIDDEN_SURFACES",
     "STAGE30_8_1_NEXT_RECOMMENDED_STAGE",
     "STAGE30_8_1_NEXT_RECOMMENDED_STAGE_TITLE",
+    # Stage 30.8.2 temp-dir compact session artifact writer inventory.
+    "STAGE30_8_2_MINOR_VERSION",
+    "STAGE30_8_2_TEMP_ARTIFACT_WRITER_BASENAME",
+    "STAGE30_8_2_TEMP_ARTIFACT_WRITER_MODULE",
+    "STAGE30_8_2_BUNDLE_SCHEMA_VERSION",
+    "STAGE30_8_2_WRITE_STATUS_VALUES",
+    "STAGE30_8_2_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_8_2_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_8_2_TEST_BASENAMES",
+    "STAGE30_8_2_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_8_2_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_8_2_FORBIDDEN_SURFACES",
+    "STAGE30_8_2_NEXT_RECOMMENDED_STAGE",
+    "STAGE30_8_2_NEXT_RECOMMENDED_STAGE_TITLE",
 )

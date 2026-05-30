@@ -45,6 +45,7 @@ live call, sends no Discord message, and changes no runtime behavior.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 from typing import Dict, Tuple
 
@@ -618,31 +619,47 @@ def test_stage30_0_allowlist_admits_the_30_8_0_files() -> None:
     assert TEST_PATH.is_file()
 
 
-def test_stage30_0_allowlist_admits_no_stage_30_8_2_plus_file() -> None:
-    """No Stage 30.8.2+ production / test basename is admitted by the
-    Stage 30.0 allowlist yet. Stage 30.8.1 (pure models + validators) IS
-    now admitted; Stage 30.8.2+ (writer / dedupe / session index) is not.
+# Matches any Stage 30.8.<N> minor-version token in a basename (both the
+# production ``stage30_8_<N>`` and the test ``stage_30_8_<N>`` spellings).
+# A captured N >= 3 names a future Stage 30.8.3+ file; N in {0, 1, 2} is
+# allowed.
+_STAGE_30_8_MINOR_RE = re.compile(r"stage_?30_8_(\d+)")
+
+
+def _future_30_8_violations(basenames) -> list:
+    violations = []
+    for basename in basenames:
+        for match in _STAGE_30_8_MINOR_RE.finditer(basename.lower()):
+            if int(match.group(1)) >= 3:
+                violations.append(basename)
+    return violations
+
+
+def test_stage30_0_allowlist_admits_no_stage_30_8_3_plus_file() -> None:
+    """No Stage 30.8.3+ production / test basename is admitted by the
+    Stage 30.0 allowlist yet. Stage 30.8.1 (pure models + validators) and
+    Stage 30.8.2 (the temp-dir artifact writer) ARE now admitted; Stage
+    30.8.3+ (dedupe / session index) is not. The guard is generic: it
+    catches ANY Stage 30.8.<N>=3+ token (30_8_3, 30_8_4, 30_8_5, ...), not
+    just an enumerated 3/4.
     """
-    future_tokens = ("30_8_2", "30_8_3", "30_8_4")
-    for basename in _STAGE30_ALLOWED_BASENAMES:
-        for token in future_tokens:
-            assert token not in basename, (
-                "Stage 30.0 production allowlist must not admit a Stage "
-                f"30.8.2+ file yet; saw {basename!r}"
-            )
-    for basename in _TESTS_STAGE30_ALLOWED_BASENAMES:
-        for token in future_tokens:
-            assert token not in basename, (
-                "Stage 30.0 test allowlist must not admit a Stage 30.8.2+ "
-                f"test file yet; saw {basename!r}"
-            )
+    production = _future_30_8_violations(_STAGE30_ALLOWED_BASENAMES)
+    assert production == [], (
+        "Stage 30.0 production allowlist must not admit a Stage 30.8.3+ "
+        f"file yet; saw {production!r}"
+    )
+    tests = _future_30_8_violations(_TESTS_STAGE30_ALLOWED_BASENAMES)
+    assert tests == [], (
+        "Stage 30.0 test allowlist must not admit a Stage 30.8.3+ test "
+        f"file yet; saw {tests!r}"
+    )
 
 
 def test_only_stage30_8_production_files_are_spec_and_manifest() -> None:
     """Every Stage 30.8 entry under ``PHX2/stage30/`` must be exactly the
-    spec doc, the manifest, or the Stage 30.8.1 pure models / validators
-    modules; NO Stage 30.8.2+ production file (a writer, a dedupe /
-    session index) may exist yet.
+    spec doc, the manifest, the Stage 30.8.1 pure models / validators
+    modules, or the Stage 30.8.2 temp-dir artifact writer; NO Stage
+    30.8.3+ production file (a dedupe / session index) may exist yet.
     """
     observed = {
         entry.name
@@ -660,11 +677,15 @@ def test_only_stage30_8_production_files_are_spec_and_manifest() -> None:
         # (admitted; no writer / database / index ships at 30.8.1).
         "stage30_8_artifact_models.py",
         "stage30_8_artifact_validators.py",
+        # Stage 30.8.2 temp-dir compact session artifact writer
+        # (admitted; no dedupe / session index / DB / SQLite / zstd ships
+        # at 30.8.2).
+        "stage30_8_temp_artifact_writer.py",
     }
     assert observed == allowed, (
         "Stage 30.8 production entries must be exactly the spec lock + "
-        "manifest + the Stage 30.8.1 models / validators; unexpected "
-        f"entries: {sorted(observed - allowed)}"
+        "manifest + the Stage 30.8.1 models / validators + the Stage "
+        f"30.8.2 writer; unexpected entries: {sorted(observed - allowed)}"
     )
 
 
@@ -682,11 +703,15 @@ def test_only_stage30_8_test_file_is_the_pin_test() -> None:
         "test_stage_30_8_1_artifact_validators.py",
         "test_stage_30_8_1_boundaries.py",
         "test_stage_30_8_1_manifest.py",
+        # Stage 30.8.2 temp-dir artifact writer test additions.
+        "test_stage_30_8_2_temp_artifact_writer.py",
+        "test_stage_30_8_2_boundaries.py",
+        "test_stage_30_8_2_manifest.py",
     }
     assert observed == allowed, (
         "Stage 30.8 test entries must be exactly the 30.8.0 pin test + "
-        "the Stage 30.8.1 test additions; unexpected entries: "
-        f"{sorted(observed - allowed)}"
+        "the Stage 30.8.1 + Stage 30.8.2 test additions; unexpected "
+        f"entries: {sorted(observed - allowed)}"
     )
 
 

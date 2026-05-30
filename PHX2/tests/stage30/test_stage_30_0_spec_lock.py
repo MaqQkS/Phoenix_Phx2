@@ -256,6 +256,17 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Stage 30.8.2+ implementation file ships at Stage 30.8.1).
         "stage30_8_artifact_models.py",
         "stage30_8_artifact_validators.py",
+        # Stage 30.8.2 temp-dir compact session artifact writer (a small,
+        # fail-closed, stdlib-only writer that persists a caller-assembled
+        # bundle of validated Stage 30.8.1 artifacts to a caller-PROVIDED
+        # output dir, used against temp dirs only in tests; NO database,
+        # NO SQLite, NO zstd / compression, NO dedupe / session index, NO
+        # append-only log, NO live / Discord / provider / env, NO real bot
+        # artifact directory, NO renderer / compact models / orchestrator /
+        # Stage 30.7 edit; it imports only stdlib plus the Stage 30.8.1
+        # models + validators siblings; no Stage 30.8.3+ file ships at
+        # Stage 30.8.2).
+        "stage30_8_temp_artifact_writer.py",
     }
 )
 
@@ -376,6 +387,11 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_8_1_artifact_validators.py",
         "test_stage_30_8_1_boundaries.py",
         "test_stage_30_8_1_manifest.py",
+        # Stage 30.8.2 temp-dir compact session artifact writer test
+        # additions (writer, boundaries, manifest).
+        "test_stage_30_8_2_temp_artifact_writer.py",
+        "test_stage_30_8_2_boundaries.py",
+        "test_stage_30_8_2_manifest.py",
     }
 )
 
