@@ -246,6 +246,16 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # 30.8.1+ implementation file ships at Stage 30.8.0).
         "STAGE_30_8_0_COMPACT_SESSION_STORAGE_SPEC_LOCK.md",
         "stage30_8_manifest.py",
+        # Stage 30.8.1 pure compact artifact models + validators
+        # (passive frozen records + deterministic validators only; NO
+        # writer, NO database / SQLite / filesystem artifact writer, NO
+        # zstd / compression, NO dedupe / session index, NO live /
+        # Discord / provider / env, NO renderer / compact models /
+        # orchestrator / Stage 30.7 file edit; the models import no PHX2
+        # module and the validators import only the models sibling; no
+        # Stage 30.8.2+ implementation file ships at Stage 30.8.1).
+        "stage30_8_artifact_models.py",
+        "stage30_8_artifact_validators.py",
     }
 )
 
@@ -360,6 +370,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Stage 30.8.0 compact session artifact / storage-readiness
         # spec-lock pin test.
         "test_stage_30_8_0_storage_spec_lock.py",
+        # Stage 30.8.1 pure compact artifact models + validators test
+        # additions (models, validators, boundaries, manifest).
+        "test_stage_30_8_1_artifact_models.py",
+        "test_stage_30_8_1_artifact_validators.py",
+        "test_stage_30_8_1_boundaries.py",
+        "test_stage_30_8_1_manifest.py",
     }
 )
 

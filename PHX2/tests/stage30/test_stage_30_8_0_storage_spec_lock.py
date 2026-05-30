@@ -618,29 +618,31 @@ def test_stage30_0_allowlist_admits_the_30_8_0_files() -> None:
     assert TEST_PATH.is_file()
 
 
-def test_stage30_0_allowlist_admits_no_stage_30_8_1_plus_file() -> None:
-    """No Stage 30.8.1+ production / test basename is admitted by the
-    Stage 30.0 allowlist yet.
+def test_stage30_0_allowlist_admits_no_stage_30_8_2_plus_file() -> None:
+    """No Stage 30.8.2+ production / test basename is admitted by the
+    Stage 30.0 allowlist yet. Stage 30.8.1 (pure models + validators) IS
+    now admitted; Stage 30.8.2+ (writer / dedupe / session index) is not.
     """
-    future_tokens = ("30_8_1", "30_8_2", "30_8_3", "30_8_4")
+    future_tokens = ("30_8_2", "30_8_3", "30_8_4")
     for basename in _STAGE30_ALLOWED_BASENAMES:
         for token in future_tokens:
             assert token not in basename, (
                 "Stage 30.0 production allowlist must not admit a Stage "
-                f"30.8.1+ file yet; saw {basename!r}"
+                f"30.8.2+ file yet; saw {basename!r}"
             )
     for basename in _TESTS_STAGE30_ALLOWED_BASENAMES:
         for token in future_tokens:
             assert token not in basename, (
-                "Stage 30.0 test allowlist must not admit a Stage 30.8.1+ "
+                "Stage 30.0 test allowlist must not admit a Stage 30.8.2+ "
                 f"test file yet; saw {basename!r}"
             )
 
 
 def test_only_stage30_8_production_files_are_spec_and_manifest() -> None:
     """Every Stage 30.8 entry under ``PHX2/stage30/`` must be exactly the
-    spec doc or the manifest; NO Stage 30.8.1+ production file (a models
-    module, a writer, a dedupe index) may exist yet.
+    spec doc, the manifest, or the Stage 30.8.1 pure models / validators
+    modules; NO Stage 30.8.2+ production file (a writer, a dedupe /
+    session index) may exist yet.
     """
     observed = {
         entry.name
@@ -651,10 +653,18 @@ def test_only_stage30_8_production_files_are_spec_and_manifest() -> None:
             or entry.name.startswith("STAGE_30_8")
         )
     }
-    allowed = {STAGE30_8_0_SPEC_LOCK_BASENAME, STAGE30_8_MANIFEST_BASENAME}
+    allowed = {
+        STAGE30_8_0_SPEC_LOCK_BASENAME,
+        STAGE30_8_MANIFEST_BASENAME,
+        # Stage 30.8.1 pure compact artifact models + validators
+        # (admitted; no writer / database / index ships at 30.8.1).
+        "stage30_8_artifact_models.py",
+        "stage30_8_artifact_validators.py",
+    }
     assert observed == allowed, (
         "Stage 30.8 production entries must be exactly the spec lock + "
-        f"manifest; unexpected entries: {sorted(observed - allowed)}"
+        "manifest + the Stage 30.8.1 models / validators; unexpected "
+        f"entries: {sorted(observed - allowed)}"
     )
 
 
@@ -665,10 +675,18 @@ def test_only_stage30_8_test_file_is_the_pin_test() -> None:
         if entry.name != "__pycache__"
         and entry.name.startswith("test_stage_30_8")
     }
-    allowed = {STAGE30_8_0_TEST_BASENAMES[0]}
+    allowed = {
+        STAGE30_8_0_TEST_BASENAMES[0],
+        # Stage 30.8.1 models / validators test additions.
+        "test_stage_30_8_1_artifact_models.py",
+        "test_stage_30_8_1_artifact_validators.py",
+        "test_stage_30_8_1_boundaries.py",
+        "test_stage_30_8_1_manifest.py",
+    }
     assert observed == allowed, (
-        "Stage 30.8 test entries must be exactly the 30.8.0 pin test; "
-        f"unexpected entries: {sorted(observed - allowed)}"
+        "Stage 30.8 test entries must be exactly the 30.8.0 pin test + "
+        "the Stage 30.8.1 test additions; unexpected entries: "
+        f"{sorted(observed - allowed)}"
     )
 
 

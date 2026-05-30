@@ -460,6 +460,173 @@ STAGE30_8_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.8.1 compact artifact models + validators inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.8.1 is the FIRST Stage 30.8 production slice: the pure,
+# passive, stdlib-only compact artifact model layer plus a deterministic
+# validator layer. It is NOT a writer, NOT a database, NOT a filesystem
+# artifact writer, NOT a dedupe / session index, and adds NO zstd
+# dependency / compression implementation. The two NEW production files
+# are the models module + the validators module. The models module
+# imports NO PHX2 module; the validators module imports ONLY the models
+# sibling. NO Stage 30.8.2+ writer / index file ships at Stage 30.8.1.
+
+
+STAGE30_8_1_MINOR_VERSION: str = "30.8.1"
+
+
+STAGE30_8_1_ARTIFACT_MODELS_BASENAME: str = (
+    "stage30_8_artifact_models.py"
+)
+STAGE30_8_1_ARTIFACT_VALIDATORS_BASENAME: str = (
+    "stage30_8_artifact_validators.py"
+)
+
+
+STAGE30_8_1_ARTIFACT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_8_artifact_models"
+)
+STAGE30_8_1_ARTIFACT_VALIDATORS_MODULE: str = (
+    "PHX2.stage30.stage30_8_artifact_validators"
+)
+
+
+# The NEW production files Stage 30.8.1 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.8.0 inventory: exactly the
+# artifact models + validators. NO Stage 30.8.2+ file.
+STAGE30_8_1_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_1_ARTIFACT_MODELS_BASENAME,
+    STAGE30_8_1_ARTIFACT_VALIDATORS_BASENAME,
+)
+
+
+# The two production modules the Stage 30.8.1 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_8_1_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_1_ARTIFACT_MODELS_BASENAME,
+    STAGE30_8_1_ARTIFACT_VALIDATORS_BASENAME,
+)
+
+
+STAGE30_8_1_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_8_1_artifact_models.py",
+    "test_stage_30_8_1_artifact_validators.py",
+    "test_stage_30_8_1_boundaries.py",
+    "test_stage_30_8_1_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.8.1 production module must be in
+# this stdlib allowlist; every PHX2 import must be the Stage 30.8.1
+# models sibling. This positive allowlist proves, by construction, that
+# NO os / pathlib / shutil / sqlite3 / zstd / network / Discord /
+# provider / Stage 21-29 module is imported (so NO file is written and
+# NO actual disk is read).
+STAGE30_8_1_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "math",
+)
+
+
+STAGE30_8_1_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_8_1_ARTIFACT_MODELS_MODULE,
+)
+
+
+# Closed-set artifact schema identity (mirrored from the Stage 30.8.1
+# models module; the manifest test cross-checks they match
+# ``stage30_8_artifact_models``). The artifact ``stage_id`` field value
+# is the underscore form ``stage30_8`` (distinct from the family dotted
+# id ``STAGE30_8_STAGE_ID`` pinned above as ``30.8``).
+STAGE30_8_1_ARTIFACT_STAGE_ID: str = "stage30_8"
+STAGE30_8_1_ARTIFACT_SCHEMA_VERSION: str = (
+    "stage30_8_v0_compact_artifact"
+)
+
+
+# Closed-set validation status tokens (mirrored from the models module).
+STAGE30_8_1_VALIDATION_STATUS_VALUES: Tuple[str, ...] = (
+    "VALID",
+    "INVALID",
+)
+
+
+# Closed-set short compact storage-budget status tokens (mirrored from
+# the models module; the short Stage 30.8 form, not the long Stage
+# 30.6.1 ``STORAGE_BUDGET_*`` token form).
+STAGE30_8_1_STORAGE_BUDGET_STATUS_VALUES: Tuple[str, ...] = (
+    "OK",
+    "SOFT_ALARM",
+    "HARD_STOP",
+    "INVALID_INPUT",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.1 forbidden surfaces (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The surfaces the Stage 30.8.1 models / validators slice must not
+# touch. Plain documentation words (family / feature names), NOT secret
+# / host / transport needle forms.
+
+
+STAGE30_8_1_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "writer implementation",
+    "database implementation",
+    "SQLite implementation",
+    "filesystem artifact writer implementation",
+    "dedupe index implementation",
+    "session index implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "day rolling implementation",
+    "live run",
+    "provider call",
+    "Discord send",
+    "env read",
+    "compact renderer edit",
+    "compact models edit",
+    "runtime orchestrator edit",
+    "Stage 30.7 file edit",
+    "enforcement",
+    "public routing",
+    "trading",
+    "wallet",
+    "social",
+    "drawdown recomputation",
+    "tier recomputation",
+    "Stage 25/27/28/29 production import",
+    "Stage 29.5 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.8.2+ implementation file",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.1 next recommended stage
+# ---------------------------------------------------------------------------
+#
+# After Stage 30.8.1 (pure models + validators) the next recommended
+# slice is Stage 30.8.2 (the temp-dir artifact writer, fake / offline
+# tests only). The Stage 30.8.0 family pointer ``STAGE30_8_NEXT_-
+# RECOMMENDED_STAGE`` stays pinned at ``30.8.1`` (the slice this manifest
+# now backs); this 30.8.1-scoped pointer names the slice that follows.
+
+
+STAGE30_8_1_NEXT_RECOMMENDED_STAGE: str = "30.8.2"
+STAGE30_8_1_NEXT_RECOMMENDED_STAGE_TITLE: str = (
+    "temp-dir artifact writer (fake / offline tests only)"
+)
+
+
 __all__ = (
     # Stage id + minor version.
     "STAGE30_8_STAGE_ID",
@@ -501,4 +668,22 @@ __all__ = (
     # Forbidden imports + needles.
     "STAGE30_8_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_8_FORBIDDEN_TEXT_NEEDLES",
+    # Stage 30.8.1 compact artifact models + validators inventory.
+    "STAGE30_8_1_MINOR_VERSION",
+    "STAGE30_8_1_ARTIFACT_MODELS_BASENAME",
+    "STAGE30_8_1_ARTIFACT_VALIDATORS_BASENAME",
+    "STAGE30_8_1_ARTIFACT_MODELS_MODULE",
+    "STAGE30_8_1_ARTIFACT_VALIDATORS_MODULE",
+    "STAGE30_8_1_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_8_1_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_8_1_TEST_BASENAMES",
+    "STAGE30_8_1_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_8_1_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_8_1_ARTIFACT_STAGE_ID",
+    "STAGE30_8_1_ARTIFACT_SCHEMA_VERSION",
+    "STAGE30_8_1_VALIDATION_STATUS_VALUES",
+    "STAGE30_8_1_STORAGE_BUDGET_STATUS_VALUES",
+    "STAGE30_8_1_FORBIDDEN_SURFACES",
+    "STAGE30_8_1_NEXT_RECOMMENDED_STAGE",
+    "STAGE30_8_1_NEXT_RECOMMENDED_STAGE_TITLE",
 )
