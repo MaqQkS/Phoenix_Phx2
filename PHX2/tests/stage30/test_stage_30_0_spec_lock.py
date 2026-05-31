@@ -315,6 +315,23 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # at Stage 30.9.0).
         "STAGE_30_9_0_BOUNDED_PRIVATE_LIVE_COMPACT_SPEC_LOCK.md",
         "stage30_9_manifest.py",
+        # Stage 30.9.1 offline artifact bridge production additions: the
+        # passive bridge models, the thin innermost capture transport, the
+        # post-session projector, and the offline write -> read -> index
+        # proof helper. Fakes / offline only; NO live runner, NO new
+        # readiness gate, NO live provider call, NO Discord send, NO env
+        # read, NO database / SQLite / zstd / compression, NO default
+        # storage root, NO per-ping write, NO edit to any existing live
+        # runner / orchestrator / transport / Stage 30.8 implementation
+        # file. The capture transport / projector / proof carry NO Stage 28
+        # import (the dispatch context is a passive Stage 30.9.1 carrier);
+        # the projector / proof reuse the Stage 30.8.1 models + Stage 30.8.2
+        # writer + Stage 30.8.3 reader / index builder. No Stage 30.9.2+
+        # file ships at Stage 30.9.1.
+        "stage30_9_artifact_bridge_models.py",
+        "stage30_9_capture_transport.py",
+        "stage30_9_artifact_projector.py",
+        "stage30_9_artifact_bridge_proof.py",
     }
 )
 
@@ -461,6 +478,15 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # spec-lock pin test (spec-lock only; no runtime, no bridge, no
         # live).
         "test_stage_30_9_0_bounded_private_live_compact_spec_lock.py",
+        # Stage 30.9.1 offline artifact bridge test additions (bridge
+        # models, capture transport, projector, bridge proof, boundaries,
+        # manifest). Fakes / offline only.
+        "test_stage_30_9_1_artifact_bridge_models.py",
+        "test_stage_30_9_1_capture_transport.py",
+        "test_stage_30_9_1_artifact_projector.py",
+        "test_stage_30_9_1_artifact_bridge_proof.py",
+        "test_stage_30_9_1_boundaries.py",
+        "test_stage_30_9_1_manifest.py",
     }
 )
 

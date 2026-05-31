@@ -498,6 +498,279 @@ STAGE30_9_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.9.1 artifact bridge inventory (capture transport + projector +
+# bridge proof + passive models)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.9.1 is the FIRST Stage 30.9 production slice: the offline
+# artifact bridge with fakes / offline tests only. It adds four NEW
+# production files -- the passive bridge models, the thin innermost capture
+# transport, the post-session projector, and the offline write -> read ->
+# index proof helper. The bridge persists Stage 30.8-format compact session
+# artifacts AFTER a bounded private live-shaped session, then proves
+# retained / duplicate / invalid over them. It is NOT a live runner, NOT a
+# new readiness gate, NOT a Discord send, NOT a live provider call; it adds
+# NO database / SQLite / zstd / compression / default storage root and edits
+# NO existing live runner / orchestrator / transport / Stage 30.8
+# implementation file. The capture transport + projector + proof carry NO
+# Stage 28 import (the dispatch context is a duck-typed / passive Stage
+# 30.9.1 carrier). NO Stage 30.9.2+ file ships at Stage 30.9.1.
+
+
+STAGE30_9_1_MINOR_VERSION: str = "30.9.1"
+
+
+# Stage 30.9.1 bridge proof summary schema version (mirrored from the
+# bridge models module; a pin test cross-checks it matches).
+STAGE30_9_1_BRIDGE_PROOF_SCHEMA_VERSION: str = (
+    "stage30_9_v0_compact_artifact_bridge_proof"
+)
+
+
+# The four NEW production basenames + their dotted module paths.
+STAGE30_9_1_ARTIFACT_BRIDGE_MODELS_BASENAME: str = (
+    "stage30_9_artifact_bridge_models.py"
+)
+STAGE30_9_1_CAPTURE_TRANSPORT_BASENAME: str = (
+    "stage30_9_capture_transport.py"
+)
+STAGE30_9_1_ARTIFACT_PROJECTOR_BASENAME: str = (
+    "stage30_9_artifact_projector.py"
+)
+STAGE30_9_1_ARTIFACT_BRIDGE_PROOF_BASENAME: str = (
+    "stage30_9_artifact_bridge_proof.py"
+)
+
+
+STAGE30_9_1_ARTIFACT_BRIDGE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_9_artifact_bridge_models"
+)
+STAGE30_9_1_CAPTURE_TRANSPORT_MODULE: str = (
+    "PHX2.stage30.stage30_9_capture_transport"
+)
+STAGE30_9_1_ARTIFACT_PROJECTOR_MODULE: str = (
+    "PHX2.stage30.stage30_9_artifact_projector"
+)
+STAGE30_9_1_ARTIFACT_BRIDGE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_9_artifact_bridge_proof"
+)
+
+
+# The Stage 30.8 sibling module paths the Stage 30.9.1 projector + proof
+# compose (re-declared here as literals; the manifest imports no PHX2
+# module). These are the ALREADY-EXISTING Stage 30.8.1 / 30.8.2 / 30.8.3
+# storage chain surfaces the bridge reuses.
+STAGE30_9_1_STAGE30_8_ARTIFACT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_8_artifact_models"
+)
+STAGE30_9_1_STAGE30_8_TEMP_ARTIFACT_WRITER_MODULE: str = (
+    "PHX2.stage30.stage30_8_temp_artifact_writer"
+)
+STAGE30_9_1_STAGE30_8_SESSION_BUNDLE_READER_MODULE: str = (
+    "PHX2.stage30.stage30_8_session_bundle_reader"
+)
+STAGE30_9_1_STAGE30_8_SESSION_INDEX_BUILDER_MODULE: str = (
+    "PHX2.stage30.stage30_8_session_index_builder"
+)
+STAGE30_9_1_STAGE30_8_SESSION_INDEX_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_8_session_index_models"
+)
+
+
+# The four NEW production files Stage 30.9.1 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.9.0 inventory. NO Stage 30.9.2+
+# file.
+STAGE30_9_1_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_9_1_ARTIFACT_BRIDGE_MODELS_BASENAME,
+    STAGE30_9_1_CAPTURE_TRANSPORT_BASENAME,
+    STAGE30_9_1_ARTIFACT_PROJECTOR_BASENAME,
+    STAGE30_9_1_ARTIFACT_BRIDGE_PROOF_BASENAME,
+)
+
+
+# The four production modules the Stage 30.9.1 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_9_1_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_9_1_ARTIFACT_BRIDGE_MODELS_BASENAME,
+    STAGE30_9_1_CAPTURE_TRANSPORT_BASENAME,
+    STAGE30_9_1_ARTIFACT_PROJECTOR_BASENAME,
+    STAGE30_9_1_ARTIFACT_BRIDGE_PROOF_BASENAME,
+)
+
+
+STAGE30_9_1_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_9_1_artifact_bridge_models.py",
+    "test_stage_30_9_1_capture_transport.py",
+    "test_stage_30_9_1_artifact_projector.py",
+    "test_stage_30_9_1_artifact_bridge_proof.py",
+    "test_stage_30_9_1_boundaries.py",
+    "test_stage_30_9_1_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.9.1 production module must be in this
+# stdlib allowlist (the models need ``dataclasses``; the capture transport /
+# projector / proof need only ``typing`` -- the JSON / pathlib I/O all lives
+# behind the composed Stage 30.8.2 writer + Stage 30.8.3 reader / builder).
+# It admits NO ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO
+# ``sqlite3``, NO ``zstd`` / compression, and NO network module.
+STAGE30_9_1_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# Every PHX2 import in a Stage 30.9.1 production module must be one of these
+# siblings: the Stage 30.9.1 bridge-models + projector siblings plus the
+# already-existing Stage 30.8.1 / 30.8.2 / 30.8.3 storage-chain siblings the
+# bridge reuses. This positive allowlist proves, by construction, that NO
+# Stage 21-29 (incl. Stage 28 / 29.5) / runtime / orchestrator / renderer /
+# Discord / provider module is imported (the dispatch context is a passive
+# Stage 30.9.1 carrier, not a Stage 28 import).
+STAGE30_9_1_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_9_1_ARTIFACT_BRIDGE_MODELS_MODULE,
+    STAGE30_9_1_ARTIFACT_PROJECTOR_MODULE,
+    STAGE30_9_1_STAGE30_8_ARTIFACT_MODELS_MODULE,
+    STAGE30_9_1_STAGE30_8_TEMP_ARTIFACT_WRITER_MODULE,
+    STAGE30_9_1_STAGE30_8_SESSION_BUNDLE_READER_MODULE,
+    STAGE30_9_1_STAGE30_8_SESSION_INDEX_BUILDER_MODULE,
+    STAGE30_9_1_STAGE30_8_SESSION_INDEX_MODELS_MODULE,
+)
+
+
+# Closed-set bridge status tokens (mirrored from the bridge models module).
+STAGE30_9_1_BRIDGE_STATUS_VALUES: Tuple[str, ...] = (
+    "CAPTURED",
+    "PROJECTED",
+    "WRITTEN_AND_INDEXED",
+    "INVALID_INPUT",
+    "PROJECT_FAILED",
+    "WRITE_FAILED",
+    "READ_FAILED",
+    "INDEX_FAILED",
+)
+
+
+# Closed-set bridge reason tokens (mirrored from the bridge models module).
+STAGE30_9_1_BRIDGE_REASON_VALUES: Tuple[str, ...] = (
+    "NONE",
+    "MISSING_RUN_ID",
+    "MISSING_SESSION_ID",
+    "MISSING_PING_ID",
+    "MISSING_CANDIDATE_ID",
+    "MISSING_TOKEN_MINT",
+    "MISSING_DEDUPE_KEY",
+    "MISSING_COMPACT_BODY",
+    "MISSING_CAPTURE_INDEX",
+    "COUNT_MISMATCH",
+    "AMBIGUOUS_JOIN",
+    "NON_PRIVATE_WEBHOOK",
+    "WRITER_REJECTED",
+    "READER_REJECTED",
+    "INDEX_REJECTED",
+)
+
+
+# The safe private webhook identity label allowlist (mirrored from the
+# bridge models module BY VALUE; mirrors the Stage 28.4 private-operator
+# label without importing any Stage 28 module).
+STAGE30_9_1_PRIVATE_WEBHOOK_IDENTITIES: Tuple[str, ...] = (
+    "PRIVATE_OPERATOR_WEBHOOK",
+)
+
+
+# The two deterministic fake bridge scenario names (mirrored from the
+# bridge models module).
+STAGE30_9_1_DEFAULT_SCENARIO_NAME: str = "stage30_9_1_default_dedupe_bridge"
+STAGE30_9_1_MISMATCH_SCENARIO_NAME: str = (
+    "stage30_9_1_mismatch_dedupe_bridge"
+)
+
+
+# The author-verified expected post-run index counts for the two scenarios
+# (mirrored from the bridge models module; a pin test cross-checks them).
+STAGE30_9_1_DEFAULT_EXPECTED_PING_COUNT: int = 3
+STAGE30_9_1_DEFAULT_EXPECTED_RETAINED: int = 2
+STAGE30_9_1_DEFAULT_EXPECTED_DUPLICATE_SUPPRESSED: int = 1
+STAGE30_9_1_DEFAULT_EXPECTED_INVALID_SUPPRESSED: int = 0
+
+STAGE30_9_1_MISMATCH_EXPECTED_PING_COUNT: int = 4
+STAGE30_9_1_MISMATCH_EXPECTED_RETAINED: int = 2
+STAGE30_9_1_MISMATCH_EXPECTED_DUPLICATE_SUPPRESSED: int = 1
+STAGE30_9_1_MISMATCH_EXPECTED_INVALID_SUPPRESSED: int = 1
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.9.1 forbidden surfaces (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The surfaces the Stage 30.9.1 artifact-bridge slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host /
+# transport needle forms. The bridge DOES write ONE Stage 30.8 bundle to a
+# caller-provided temp dir (through the Stage 30.8.2 writer) and read /
+# index it back (that is the slice); it must not reach any surface below.
+
+
+STAGE30_9_1_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "live provider call",
+    "real Discord send",
+    "real bot artifact directory",
+    "default storage root",
+    "per-ping Stage 30.8 write",
+    "new live runner",
+    "new readiness gate",
+    "wall-clock daemon",
+    "background service",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "env read",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 30.8 implementation edit",
+    "Stage 25/27/28/29 production import",
+    "Stage 29.5 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.9.2+ implementation file",
+    "Stage 31",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.9.1 next allowed stage
+# ---------------------------------------------------------------------------
+#
+# After Stage 30.9.1 (the offline artifact bridge) the next allowed slice is
+# Stage 30.9.2 (the live proof doc / operator runbook / closure handoff,
+# separately operator-gated). The Stage 30.9.0 family pointer
+# ``STAGE30_9_NEXT_ALLOWED_STAGE`` stays pinned at ``30.9.1``; this
+# 30.9.1-scoped pointer names the slice that follows. NO Stage 30.9.2 file
+# ships at Stage 30.9.1.
+
+
+STAGE30_9_1_NEXT_ALLOWED_STAGE: str = "30.9.2"
+STAGE30_9_1_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "live proof doc / operator runbook / closure handoff (operator-driven "
+    "bounded live proof out-of-repo; private Discord only; no new runtime "
+    "unless explicitly authorized)"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_9_STAGE_ID",
@@ -534,4 +807,41 @@ __all__ = (
     # Forbidden imports + needles.
     "STAGE30_9_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_9_FORBIDDEN_TEXT_NEEDLES",
+    # Stage 30.9.1 artifact bridge inventory.
+    "STAGE30_9_1_MINOR_VERSION",
+    "STAGE30_9_1_BRIDGE_PROOF_SCHEMA_VERSION",
+    "STAGE30_9_1_ARTIFACT_BRIDGE_MODELS_BASENAME",
+    "STAGE30_9_1_CAPTURE_TRANSPORT_BASENAME",
+    "STAGE30_9_1_ARTIFACT_PROJECTOR_BASENAME",
+    "STAGE30_9_1_ARTIFACT_BRIDGE_PROOF_BASENAME",
+    "STAGE30_9_1_ARTIFACT_BRIDGE_MODELS_MODULE",
+    "STAGE30_9_1_CAPTURE_TRANSPORT_MODULE",
+    "STAGE30_9_1_ARTIFACT_PROJECTOR_MODULE",
+    "STAGE30_9_1_ARTIFACT_BRIDGE_PROOF_MODULE",
+    "STAGE30_9_1_STAGE30_8_ARTIFACT_MODELS_MODULE",
+    "STAGE30_9_1_STAGE30_8_TEMP_ARTIFACT_WRITER_MODULE",
+    "STAGE30_9_1_STAGE30_8_SESSION_BUNDLE_READER_MODULE",
+    "STAGE30_9_1_STAGE30_8_SESSION_INDEX_BUILDER_MODULE",
+    "STAGE30_9_1_STAGE30_8_SESSION_INDEX_MODELS_MODULE",
+    "STAGE30_9_1_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_9_1_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_9_1_TEST_BASENAMES",
+    "STAGE30_9_1_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_9_1_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_9_1_BRIDGE_STATUS_VALUES",
+    "STAGE30_9_1_BRIDGE_REASON_VALUES",
+    "STAGE30_9_1_PRIVATE_WEBHOOK_IDENTITIES",
+    "STAGE30_9_1_DEFAULT_SCENARIO_NAME",
+    "STAGE30_9_1_MISMATCH_SCENARIO_NAME",
+    "STAGE30_9_1_DEFAULT_EXPECTED_PING_COUNT",
+    "STAGE30_9_1_DEFAULT_EXPECTED_RETAINED",
+    "STAGE30_9_1_DEFAULT_EXPECTED_DUPLICATE_SUPPRESSED",
+    "STAGE30_9_1_DEFAULT_EXPECTED_INVALID_SUPPRESSED",
+    "STAGE30_9_1_MISMATCH_EXPECTED_PING_COUNT",
+    "STAGE30_9_1_MISMATCH_EXPECTED_RETAINED",
+    "STAGE30_9_1_MISMATCH_EXPECTED_DUPLICATE_SUPPRESSED",
+    "STAGE30_9_1_MISMATCH_EXPECTED_INVALID_SUPPRESSED",
+    "STAGE30_9_1_FORBIDDEN_SURFACES",
+    "STAGE30_9_1_NEXT_ALLOWED_STAGE",
+    "STAGE30_9_1_NEXT_ALLOWED_STAGE_TITLE",
 )
