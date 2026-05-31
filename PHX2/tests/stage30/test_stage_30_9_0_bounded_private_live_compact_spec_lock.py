@@ -184,13 +184,25 @@ _STAGE_30_10_PLUS_RE = re.compile(r"stage_?30_1\d")
 _STAGE_31_RE = re.compile(r"stage_?31\b")
 
 # The Stage 30.10.0 spec-lock scaffold (spec doc + constants-only manifest +
-# pin test) is now admitted; its own Stage 30.10.0 pin test owns the
-# authoritative "no Stage 30.10.1+ file" guard going forward.
-_STAGE_30_10_0_SCAFFOLD_BASENAMES = frozenset(
+# pin test) plus the now-admitted Stage 30.10.1 fake / offline eligibility
+# model + classifier slice (the two production modules + their four tests)
+# are admitted here; the Stage 30.10.0 pin test owns the authoritative "no
+# Stage 30.10.2+ file" guard going forward. Any other Stage 30.10+ token (a
+# Stage 30.10.2+ implementation file, a Stage 30.11+ file) remains forbidden
+# in this guard.
+_ADMITTED_STAGE_30_10_BASENAMES = frozenset(
     {
+        # Stage 30.10.0 spec-lock scaffold.
         "STAGE_30_10_0_COMPACT_TIER_DIP_ELIGIBILITY_SPEC_LOCK.md",
         "stage30_10_manifest.py",
         "test_stage_30_10_0_compact_tier_dip_eligibility_spec_lock.py",
+        # Stage 30.10.1 fake / offline eligibility model + classifier slice.
+        "stage30_10_1_tier_dip_eligibility_models.py",
+        "stage30_10_1_tier_dip_eligibility_classifier.py",
+        "test_stage_30_10_1_tier_dip_eligibility_models.py",
+        "test_stage_30_10_1_tier_dip_eligibility_classifier.py",
+        "test_stage_30_10_1_boundaries.py",
+        "test_stage_30_10_1_manifest.py",
     }
 )
 
@@ -991,8 +1003,9 @@ def test_stage30_0_allowlist_admits_no_stage_30_9_2_plus_file() -> None:
 
 
 def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
-    """Only the Stage 30.10.0 spec-lock scaffold is admitted among Stage
-    30.10+ tokens; every other Stage 30.10+ token (a Stage 30.10.1+
+    """Only the Stage 30.10.0 spec-lock scaffold + the now-admitted Stage
+    30.10.1 eligibility model + classifier slice are admitted among Stage
+    30.10+ tokens; every other Stage 30.10+ token (a Stage 30.10.2+
     implementation file, a Stage 30.11+ file) and every Stage 31 token
     remains forbidden -- in both the Stage 30.0 allowlists and the on-disk
     Stage 30 dirs.
@@ -1004,13 +1017,14 @@ def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
         | {e.name for e in TESTS_STAGE30_ROOT.iterdir()}
     )
     for basename in haystacks:
-        if basename in _STAGE_30_10_0_SCAFFOLD_BASENAMES:
-            # The Stage 30.10.0 spec-lock scaffold is admitted.
+        if basename in _ADMITTED_STAGE_30_10_BASENAMES:
+            # The Stage 30.10.0 scaffold + the Stage 30.10.1 slice are
+            # admitted.
             continue
         lowered = basename.lower()
         assert _STAGE_30_10_PLUS_RE.search(lowered) is None, (
-            "Only the Stage 30.10.0 scaffold is admitted among Stage 30.10+ "
-            f"files; offender {basename!r}"
+            "Only the Stage 30.10.0 scaffold + the Stage 30.10.1 slice are "
+            f"admitted among Stage 30.10+ files; offender {basename!r}"
         )
         assert _STAGE_31_RE.search(lowered) is None, (
             f"Stage 31 file is not admitted yet; offender {basename!r}"

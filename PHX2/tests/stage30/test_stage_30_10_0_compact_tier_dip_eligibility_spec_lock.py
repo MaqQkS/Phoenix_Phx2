@@ -57,6 +57,8 @@ from PHX2.stage30.stage30_10_manifest import (
     STAGE30_10_0_MINOR_VERSION,
     STAGE30_10_0_SPEC_VERSION,
     STAGE30_10_0_TEST_BASENAMES,
+    STAGE30_10_1_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_10_1_TEST_BASENAMES,
     STAGE30_10_ALLOWED_INITIAL_FILES,
     STAGE30_10_ALLOWED_STDLIB_IMPORTS,
     STAGE30_10_ALLOWED_TIER_TOKENS,
@@ -176,8 +178,9 @@ def _extract_imported_module(line: str) -> str:
 
 # Matches any Stage 30.10.<N> minor-version token in a basename (both the
 # production ``stage30_10_<N>`` and the test ``stage_30_10_<N>`` spellings).
-# A captured N >= 1 names a future Stage 30.10.1+ file; N == 0 is the Stage
-# 30.10.0 scaffold and is allowed. The Stage 30.10.0 manifest basename
+# A captured N >= 2 names a future Stage 30.10.2+ file; N in {0, 1} is the
+# Stage 30.10.0 scaffold / the now-admitted Stage 30.10.1 eligibility model +
+# classifier slice and is allowed. The Stage 30.10.0 manifest basename
 # (``stage30_10_manifest.py``) carries no digit after ``stage30_10_`` and so
 # matches no token at all.
 _STAGE_30_10_MINOR_RE = re.compile(r"stage_?30_10_(\d+)")
@@ -190,7 +193,7 @@ def _future_30_10_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_10_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 1:
+            if int(match.group(1)) >= 2:
                 violations.append(basename)
     return violations
 
@@ -1012,8 +1015,9 @@ def test_forbidden_text_needles_tuple_is_non_empty() -> None:
 
 def test_stage30_10_production_entries_are_exactly_the_scaffold() -> None:
     """Every Stage 30.10 entry under ``PHX2/stage30/`` must be exactly the
-    Stage 30.10.0 spec doc + constants-only manifest. NO Stage 30.10.1+
-    classifier / model / runtime module may exist yet.
+    Stage 30.10.0 spec doc + constants-only manifest plus the Stage 30.10.1
+    eligibility model + classifier modules. NO Stage 30.10.2+ runtime /
+    wiring module may exist yet.
     """
     observed = {
         entry.name
@@ -1027,18 +1031,19 @@ def test_stage30_10_production_entries_are_exactly_the_scaffold() -> None:
     allowed = {
         STAGE30_10_SPEC_LOCK_FILENAME,
         STAGE30_10_MANIFEST_BASENAME,
-    }
+    } | set(STAGE30_10_1_ALLOWED_STAGE30_BASENAMES)
     assert observed == allowed, (
         "Stage 30.10 production entries must be exactly the Stage 30.10.0 "
-        "spec lock + manifest; "
+        "spec lock + manifest plus the Stage 30.10.1 model + classifier; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
 
 def test_stage30_10_test_entries_are_exactly_the_scaffold() -> None:
     """Every Stage 30.10 test under ``PHX2/tests/stage30/`` must be exactly
-    the Stage 30.10.0 spec-lock pin test. NO Stage 30.10.1+ test may exist
-    yet.
+    the Stage 30.10.0 spec-lock pin test plus the four Stage 30.10.1 tests
+    (models, classifier, boundaries, manifest). NO Stage 30.10.2+ test may
+    exist yet.
     """
     observed = {
         entry.name
@@ -1046,9 +1051,12 @@ def test_stage30_10_test_entries_are_exactly_the_scaffold() -> None:
         if entry.name != "__pycache__"
         and entry.name.startswith("test_stage_30_10")
     }
-    allowed = {STAGE30_10_0_TEST_BASENAMES[0]}
+    allowed = {STAGE30_10_0_TEST_BASENAMES[0]} | set(
+        STAGE30_10_1_TEST_BASENAMES
+    )
     assert observed == allowed, (
-        "Stage 30.10 test entries must be exactly the 30.10.0 pin test; "
+        "Stage 30.10 test entries must be exactly the 30.10.0 pin test + the "
+        "four Stage 30.10.1 tests; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
@@ -1070,19 +1078,21 @@ def test_stage30_0_allowlist_admits_the_30_10_0_files() -> None:
     assert TEST_PATH.is_file()
 
 
-def test_stage30_0_allowlist_admits_no_stage_30_10_1_plus_file() -> None:
-    """No Stage 30.10.1+ production / test basename is admitted by the
-    Stage 30.0 allowlist yet. The guard is generic and catches ANY Stage
-    30.10.<N>=1+ token (30_10_1, 30_10_2, ...).
+def test_stage30_0_allowlist_admits_no_stage_30_10_2_plus_file() -> None:
+    """No Stage 30.10.2+ production / test basename is admitted by the
+    Stage 30.0 allowlist yet. The now-admitted Stage 30.10.1 model +
+    classifier slice (``stage30_10_1_*`` / ``test_stage_30_10_1_*``) carries
+    minor token 1 and is allowed; the guard is generic and catches ANY Stage
+    30.10.<N>=2+ token (30_10_2, 30_10_3, ...).
     """
     production = _future_30_10_violations(_STAGE30_ALLOWED_BASENAMES)
     assert production == [], (
-        "Stage 30.0 production allowlist must not admit a Stage 30.10.1+ "
+        "Stage 30.0 production allowlist must not admit a Stage 30.10.2+ "
         f"file yet; saw {production!r}"
     )
     tests = _future_30_10_violations(_TESTS_STAGE30_ALLOWED_BASENAMES)
     assert tests == [], (
-        "Stage 30.0 test allowlist must not admit a Stage 30.10.1+ test "
+        "Stage 30.0 test allowlist must not admit a Stage 30.10.2+ test "
         f"file yet; saw {tests!r}"
     )
 

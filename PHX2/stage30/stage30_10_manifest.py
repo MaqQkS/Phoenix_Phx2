@@ -582,6 +582,160 @@ STAGE30_10_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.10.1 -- fake / offline eligibility model + classifier slice
+# ---------------------------------------------------------------------------
+#
+# Stage 30.10.1 lands the fake / offline eligibility model + classifier
+# (proven with fakes only): a pure tier-dip classifier + per-candidate audit-
+# record model. It ships ZERO runtime wiring, ZERO live provider call, ZERO
+# Discord send, ZERO env read, ZERO database / SQLite, ZERO zstd /
+# compression, ZERO default storage root, and edits NO Stage 28 suppression /
+# Stage 30.3 / Stage 30.4 runtime orchestrator. These constants pin the
+# Stage 30.10.1 inventory + import allowlists + the eligibility reason closed
+# set (the decision closed set is the family ``STAGE30_10_ELIGIBILITY_DECISIONS``
+# above; the Stage 30.10.1 models mirror both BY VALUE) and advance the
+# slice-scoped next-allowed pointer to Stage 30.10.2. The family
+# ``STAGE30_10_NEXT_ALLOWED_STAGE`` stays pinned at 30.10.1 (the slice this
+# manifest's spec lock backs).
+
+
+STAGE30_10_1_MINOR_VERSION: str = "30.10.1"
+
+
+# The two NEW Stage 30.10.1 production modules + their import paths.
+STAGE30_10_1_ELIGIBILITY_MODELS_BASENAME: str = (
+    "stage30_10_1_tier_dip_eligibility_models.py"
+)
+STAGE30_10_1_ELIGIBILITY_CLASSIFIER_BASENAME: str = (
+    "stage30_10_1_tier_dip_eligibility_classifier.py"
+)
+STAGE30_10_1_ELIGIBILITY_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_1_tier_dip_eligibility_models"
+)
+STAGE30_10_1_ELIGIBILITY_CLASSIFIER_MODULE: str = (
+    "PHX2.stage30.stage30_10_1_tier_dip_eligibility_classifier"
+)
+
+
+# The Stage 30.10.1 production inventory (exactly the two modules above; the
+# boundary scan walks these basenames).
+STAGE30_10_1_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_10_1_ELIGIBILITY_MODELS_BASENAME,
+    STAGE30_10_1_ELIGIBILITY_CLASSIFIER_BASENAME,
+)
+STAGE30_10_1_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_10_1_ELIGIBILITY_MODELS_BASENAME,
+    STAGE30_10_1_ELIGIBILITY_CLASSIFIER_BASENAME,
+)
+
+
+# The Stage 30.10.1 test inventory.
+STAGE30_10_1_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_10_1_tier_dip_eligibility_models.py",
+    "test_stage_30_10_1_tier_dip_eligibility_classifier.py",
+    "test_stage_30_10_1_boundaries.py",
+    "test_stage_30_10_1_manifest.py",
+)
+
+
+# The positive stdlib import allowlist for the Stage 30.10.1 production
+# modules (the models module needs ``dataclasses`` / ``decimal`` / ``re``;
+# the classifier needs ``decimal`` + the models sibling). NO ``os`` / no
+# network / no database / no compression module is allowlisted.
+STAGE30_10_1_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+    "re",
+)
+
+
+# The positive PHX2 import allowlist: the models module imports NO PHX2
+# module; the classifier imports ONLY the models sibling. No Stage 21-29 /
+# Stage 30.3 / Stage 30.4 orchestrator / Stage 28 suppression module is
+# allowlisted.
+STAGE30_10_1_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_10_1_ELIGIBILITY_MODELS_MODULE,
+)
+
+
+# The eligibility-reason closed set (mirrored BY VALUE by the Stage 30.10.1
+# models module). Exactly one reason per decision; ``TIER_ALLOWED`` is the
+# only reason that accompanies the send-allowed ``ELIGIBLE_DIP`` decision.
+STAGE30_10_1_ELIGIBILITY_REASONS: Tuple[str, ...] = (
+    "TIER_ALLOWED",
+    "TIER_NOT_ALLOWED",
+    "TIER_UNKNOWN",
+    "TIER_NOT_APPLICABLE",
+    "MISSING_ATH",
+    "MISSING_MIGRATION",
+    "MISSING_DRAWDOWN",
+    "MISSING_MARKET_CONTEXT",
+    "MISSING_CURRENT_MARKET_CAP",
+    "PRE_MIGRATION_ATH_NOT_ALLOWED",
+    "INVALID_CANDIDATE_ID",
+    "INVALID_TOKEN_MINT",
+    "INVALID_CREATED_AT_UTC",
+    "INVALID_POLICY",
+)
+
+
+# The single send-allowed reason token (mirrors the models module BY VALUE).
+STAGE30_10_1_SEND_ALLOWED_REASON: str = "TIER_ALLOWED"
+
+
+# After Stage 30.10.1 lands, the next operator-authorized slice is Stage
+# 30.10.2 (the OPTIONAL runtime wiring, fakes only).
+STAGE30_10_1_NEXT_ALLOWED_STAGE: str = "30.10.2"
+STAGE30_10_1_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "wire the OPTIONAL gate into the compact runtime path with fakes only "
+    "(the gate is evaluated BEFORE dispatch reservation / the private send; "
+    "a non-dip skip is a normal no-send, never a transport failure)"
+)
+
+
+# The surfaces the Stage 30.10.1 slice must not touch. Plain documentation
+# words (family / feature names), NOT secret / host / transport needle forms.
+STAGE30_10_1_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "live runtime wiring",
+    "Stage 28 suppression-logic edit",
+    "Stage 30.3 compact orchestrator edit",
+    "Stage 30.4 compact orchestrator edit",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "transport-layer veto for non-dip skip",
+    "live run",
+    "live provider call",
+    "Discord send",
+    "env read",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "broad always-on daemon",
+    "background service",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.10.2+ implementation file",
+    "Stage 31",
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_10_STAGE_ID",
@@ -633,4 +787,20 @@ __all__ = (
     # Forbidden imports + needles.
     "STAGE30_10_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_10_FORBIDDEN_TEXT_NEEDLES",
+    # Stage 30.10.1 fake / offline eligibility model + classifier slice.
+    "STAGE30_10_1_MINOR_VERSION",
+    "STAGE30_10_1_ELIGIBILITY_MODELS_BASENAME",
+    "STAGE30_10_1_ELIGIBILITY_CLASSIFIER_BASENAME",
+    "STAGE30_10_1_ELIGIBILITY_MODELS_MODULE",
+    "STAGE30_10_1_ELIGIBILITY_CLASSIFIER_MODULE",
+    "STAGE30_10_1_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_10_1_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_10_1_TEST_BASENAMES",
+    "STAGE30_10_1_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_10_1_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_10_1_ELIGIBILITY_REASONS",
+    "STAGE30_10_1_SEND_ALLOWED_REASON",
+    "STAGE30_10_1_NEXT_ALLOWED_STAGE",
+    "STAGE30_10_1_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_10_1_FORBIDDEN_SURFACES",
 )

@@ -345,6 +345,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # implementation file ships at Stage 30.10.0).
         "STAGE_30_10_0_COMPACT_TIER_DIP_ELIGIBILITY_SPEC_LOCK.md",
         "stage30_10_manifest.py",
+        # Stage 30.10.1 fake / offline eligibility model + classifier
+        # production additions (a pure tier-dip classifier + per-candidate
+        # audit-record model, proven with fakes only; ZERO runtime wiring,
+        # ZERO live provider call, ZERO Discord send, ZERO env read, ZERO
+        # database / SQLite / zstd / compression, ZERO default storage root,
+        # ZERO Stage 28 suppression / Stage 30.3 / Stage 30.4 orchestrator
+        # edit; no Stage 30.10.2+ implementation file ships at Stage 30.10.1).
+        "stage30_10_1_tier_dip_eligibility_models.py",
+        "stage30_10_1_tier_dip_eligibility_classifier.py",
     }
 )
 
@@ -503,6 +512,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # Stage 30.10.0 compact tier-dip eligibility gate spec-lock pin
         # test (spec-lock only; no runtime, no classifier, no live).
         "test_stage_30_10_0_compact_tier_dip_eligibility_spec_lock.py",
+        # Stage 30.10.1 fake / offline eligibility model + classifier test
+        # additions (models, classifier, boundaries, manifest). Fakes /
+        # offline only.
+        "test_stage_30_10_1_tier_dip_eligibility_models.py",
+        "test_stage_30_10_1_tier_dip_eligibility_classifier.py",
+        "test_stage_30_10_1_boundaries.py",
+        "test_stage_30_10_1_manifest.py",
     }
 )
 
