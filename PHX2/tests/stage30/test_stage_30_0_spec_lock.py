@@ -272,6 +272,20 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # ZERO writer behavior change, ZERO renderer / compact models /
         # orchestrator / Stage 30.7 edit; no Stage 30.8.3 file).
         "STAGE_30_8_2_TEMP_ARTIFACT_WRITER_CLOSURE_AUDIT.md",
+        # Stage 30.8.3 offline compact session index / dedupe slice
+        # (passive index models + a fail-closed manifest-backed bundle
+        # reader + a pure in-memory index / dedupe builder, proven against
+        # temp dirs only; NO database, NO SQLite, NO zstd / compression, NO
+        # index artifact write, NO live / Discord / provider / env, NO real
+        # bot artifact directory, NO default storage root, NO renderer /
+        # compact models / orchestrator / Stage 30.7 edit; the models +
+        # reader import no PHX2 module and the builder imports only the
+        # Stage 30.8.3 reader + index-models siblings plus the Stage 30.8.1
+        # artifact-models sibling; no Stage 30.8.4+ file ships at Stage
+        # 30.8.3).
+        "stage30_8_session_index_models.py",
+        "stage30_8_session_bundle_reader.py",
+        "stage30_8_session_index_builder.py",
     }
 )
 
@@ -401,6 +415,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # (closure / handoff doc guard only; no production / manifest
         # change; no Stage 30.8.3 file).
         "test_stage_30_8_2_closure_audit.py",
+        # Stage 30.8.3 offline compact session index / dedupe test
+        # additions (index models, bundle reader, index builder,
+        # boundaries, manifest).
+        "test_stage_30_8_3_session_index_models.py",
+        "test_stage_30_8_3_session_bundle_reader.py",
+        "test_stage_30_8_3_session_index_builder.py",
+        "test_stage_30_8_3_boundaries.py",
+        "test_stage_30_8_3_manifest.py",
     }
 )
 

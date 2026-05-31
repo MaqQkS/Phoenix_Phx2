@@ -786,6 +786,226 @@ STAGE30_8_2_NEXT_RECOMMENDED_STAGE_TITLE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.8.3 offline compact session index / dedupe inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.8.3 is the FIRST Stage 30.8 dedupe / session index slice: a
+# pure, offline, stdlib-only session index / dedupe projection over the
+# Stage 30.8.2 manifest-backed compact session bundles. It is NOT a
+# database, NOT SQLite, NOT a zstd / compression layer, NOT live runtime,
+# NOT live Discord, NOT real bot storage, and it WRITES NOTHING (the index
+# is a pure in-memory projection). The three NEW production files are the
+# passive index models, the fail-closed manifest-backed bundle reader, and
+# the pure index / dedupe builder. The models import NO PHX2 module; the
+# reader imports NO PHX2 module (its bundle-format constants mirror the
+# Stage 30.8.2 writer and are cross-checked against it by test); the
+# builder imports only the Stage 30.8.3 reader + index-models siblings plus
+# the Stage 30.8.1 artifact-models sibling (for the closed-set ping kind).
+# NO Stage 30.8.4+ controlled-proof file ships at Stage 30.8.3.
+
+
+STAGE30_8_3_MINOR_VERSION: str = "30.8.3"
+
+
+STAGE30_8_3_SESSION_INDEX_MODELS_BASENAME: str = (
+    "stage30_8_session_index_models.py"
+)
+STAGE30_8_3_SESSION_INDEX_BUILDER_BASENAME: str = (
+    "stage30_8_session_index_builder.py"
+)
+STAGE30_8_3_SESSION_BUNDLE_READER_BASENAME: str = (
+    "stage30_8_session_bundle_reader.py"
+)
+
+
+STAGE30_8_3_SESSION_INDEX_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_8_session_index_models"
+)
+STAGE30_8_3_SESSION_INDEX_BUILDER_MODULE: str = (
+    "PHX2.stage30.stage30_8_session_index_builder"
+)
+STAGE30_8_3_SESSION_BUNDLE_READER_MODULE: str = (
+    "PHX2.stage30.stage30_8_session_bundle_reader"
+)
+
+
+# The Stage 30.8.3 in-memory index schema version (mirrored from the index
+# models module; the manifest test cross-checks they match). Distinct from
+# the per-artifact schema version and the Stage 30.8.2 bundle envelope
+# schema version: this names the offline session-index projection.
+STAGE30_8_3_INDEX_SCHEMA_VERSION: str = (
+    "stage30_8_v0_compact_session_index"
+)
+
+
+# The two fixed Stage 30.8.2 bundle metadata filenames the reader mirrors
+# (the manifest test cross-checks {manifest, reader} == the writer). The
+# bundle envelope schema version the reader expects is the already-pinned
+# ``STAGE30_8_2_BUNDLE_SCHEMA_VERSION``.
+STAGE30_8_3_BUNDLE_MANIFEST_FILENAME: str = "manifest.json"
+STAGE30_8_3_BUNDLE_VALIDATION_RESULT_FILENAME: str = (
+    "validation_result.json"
+)
+
+
+# Closed-set index build status tokens (mirrored from the index models).
+STAGE30_8_3_INDEX_BUILD_STATUS_VALUES: Tuple[str, ...] = (
+    "BUILT",
+    "EMPTY",
+    "INVALID_INPUT",
+    "READ_FAILED",
+    "INDEX_FAILED",
+)
+
+
+# Closed-set per-ping dedupe status tokens (mirrored from the index
+# models).
+STAGE30_8_3_PING_DEDUPE_STATUS_VALUES: Tuple[str, ...] = (
+    "RETAINED",
+    "DUPLICATE_SUPPRESSED",
+    "INVALID_SUPPRESSED",
+)
+
+
+# Closed-set bundle read status tokens (mirrored from the reader).
+STAGE30_8_3_BUNDLE_READ_STATUS_VALUES: Tuple[str, ...] = (
+    "READ",
+    "INVALID",
+)
+
+
+# Closed-set dedupe identity kinds (mirrored from the index models): the
+# spec-locked ``dedupe_key`` -- the ONLY retained dedupe identity (Section
+# 9) -- and the ``none`` identity-less marker. There is deliberately NO
+# ``ping_id`` kind: ``ping_id`` is provenance / a tiebreak only, never a
+# dedupe identity (a missing-``dedupe_key`` ping is never retained).
+STAGE30_8_3_DEDUPE_IDENTITY_KINDS: Tuple[str, ...] = (
+    "dedupe_key",
+    "none",
+)
+
+
+# The NEW production files Stage 30.8.3 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.8.2 inventory: exactly the index
+# models + the bundle reader + the index builder. NO Stage 30.8.4+ file.
+STAGE30_8_3_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_3_SESSION_INDEX_MODELS_BASENAME,
+    STAGE30_8_3_SESSION_BUNDLE_READER_BASENAME,
+    STAGE30_8_3_SESSION_INDEX_BUILDER_BASENAME,
+)
+
+
+# The three production modules the Stage 30.8.3 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_8_3_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_3_SESSION_INDEX_MODELS_BASENAME,
+    STAGE30_8_3_SESSION_BUNDLE_READER_BASENAME,
+    STAGE30_8_3_SESSION_INDEX_BUILDER_BASENAME,
+)
+
+
+STAGE30_8_3_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_8_3_session_index_models.py",
+    "test_stage_30_8_3_session_bundle_reader.py",
+    "test_stage_30_8_3_session_index_builder.py",
+    "test_stage_30_8_3_boundaries.py",
+    "test_stage_30_8_3_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.8.3 production module must be in this
+# stdlib allowlist (the union across the three modules: the models need
+# ``dataclasses``; the reader adds ``json`` + ``pathlib``; the builder adds
+# ``pathlib``). It still admits NO ``os`` (so NO ``os.environ`` /
+# ``os.getenv`` env read), NO ``sqlite3``, NO ``zstd`` / compression, and
+# NO network module.
+STAGE30_8_3_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "json",
+    "pathlib",
+)
+
+
+# Every PHX2 import in a Stage 30.8.3 production module must be one of
+# these siblings (only the builder imports PHX2 modules; the models +
+# reader import none). This positive allowlist proves, by construction,
+# that NO Stage 21-29 / Stage 29.5 / runtime / orchestrator / renderer /
+# Discord / provider module is imported.
+STAGE30_8_3_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_8_3_SESSION_INDEX_MODELS_MODULE,
+    STAGE30_8_3_SESSION_BUNDLE_READER_MODULE,
+    STAGE30_8_1_ARTIFACT_MODELS_MODULE,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.3 forbidden surfaces (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The surfaces the Stage 30.8.3 offline index / dedupe slice must not
+# touch. Plain documentation words (family / feature names), NOT secret /
+# host / transport needle forms. The reader DOES read JSON from a
+# caller-provided temp dir and the builder DOES enumerate caller-provided
+# dirs (that is the slice); neither writes anything and neither reaches any
+# surface below.
+
+
+STAGE30_8_3_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real bot artifact directory",
+    "default storage root",
+    "index artifact write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "append-only database",
+    "day rolling implementation",
+    "live run",
+    "provider call",
+    "Discord send",
+    "env read",
+    "compact renderer edit",
+    "compact models edit",
+    "runtime orchestrator edit",
+    "Stage 30.7 file edit",
+    "enforcement",
+    "public routing",
+    "trading",
+    "wallet",
+    "social",
+    "drawdown recomputation",
+    "tier recomputation",
+    "Stage 25/27/28/29 production import",
+    "Stage 29.5 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.8.4 controlled proof",
+    "Stage 30.8.4+ implementation file",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.3 next recommended stage
+# ---------------------------------------------------------------------------
+#
+# After Stage 30.8.3 (the offline dedupe / session index) the next
+# recommended slice is Stage 30.8.4 (the controlled compact session
+# artifact proof, separately operator-authorized). The Stage 30.8.0 family
+# pointer ``STAGE30_8_NEXT_RECOMMENDED_STAGE`` stays pinned at ``30.8.1``;
+# this 30.8.3-scoped pointer names the slice that follows.
+
+
+STAGE30_8_3_NEXT_RECOMMENDED_STAGE: str = "30.8.4"
+STAGE30_8_3_NEXT_RECOMMENDED_STAGE_TITLE: str = (
+    "controlled compact session artifact proof"
+)
+
+
 __all__ = (
     # Stage id + minor version.
     "STAGE30_8_STAGE_ID",
@@ -859,4 +1079,27 @@ __all__ = (
     "STAGE30_8_2_FORBIDDEN_SURFACES",
     "STAGE30_8_2_NEXT_RECOMMENDED_STAGE",
     "STAGE30_8_2_NEXT_RECOMMENDED_STAGE_TITLE",
+    # Stage 30.8.3 offline compact session index / dedupe inventory.
+    "STAGE30_8_3_MINOR_VERSION",
+    "STAGE30_8_3_SESSION_INDEX_MODELS_BASENAME",
+    "STAGE30_8_3_SESSION_INDEX_BUILDER_BASENAME",
+    "STAGE30_8_3_SESSION_BUNDLE_READER_BASENAME",
+    "STAGE30_8_3_SESSION_INDEX_MODELS_MODULE",
+    "STAGE30_8_3_SESSION_INDEX_BUILDER_MODULE",
+    "STAGE30_8_3_SESSION_BUNDLE_READER_MODULE",
+    "STAGE30_8_3_INDEX_SCHEMA_VERSION",
+    "STAGE30_8_3_BUNDLE_MANIFEST_FILENAME",
+    "STAGE30_8_3_BUNDLE_VALIDATION_RESULT_FILENAME",
+    "STAGE30_8_3_INDEX_BUILD_STATUS_VALUES",
+    "STAGE30_8_3_PING_DEDUPE_STATUS_VALUES",
+    "STAGE30_8_3_BUNDLE_READ_STATUS_VALUES",
+    "STAGE30_8_3_DEDUPE_IDENTITY_KINDS",
+    "STAGE30_8_3_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_8_3_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_8_3_TEST_BASENAMES",
+    "STAGE30_8_3_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_8_3_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_8_3_FORBIDDEN_SURFACES",
+    "STAGE30_8_3_NEXT_RECOMMENDED_STAGE",
+    "STAGE30_8_3_NEXT_RECOMMENDED_STAGE_TITLE",
 )
