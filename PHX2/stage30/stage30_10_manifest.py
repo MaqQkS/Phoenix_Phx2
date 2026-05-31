@@ -949,6 +949,260 @@ STAGE30_10_2_FORBIDDEN_SURFACES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.10.3 -- offline gate artifact integration proof slice
+# ---------------------------------------------------------------------------
+#
+# Stage 30.10.3 proves -- with fakes / offline only -- that EVERY candidate
+# the Stage 30.10.2 pre-dispatch gate evaluates gets an auditable artifact
+# record: who it was, why the Stage 30.10.1 classifier ruled the way it did,
+# what the Stage 30.10.2 gate decided, whether a dispatch reservation WOULD be
+# attempted, whether the candidate was suppressed BEFORE dispatch reservation,
+# and -- always negatively -- whether it was a dispatch failure / transport
+# veto / ``PAYLOAD_REFUSED`` veto (a pre-dispatch skip is NEVER any of those).
+# The slice ships a passive artifact-models module (the per-candidate gate
+# artifact record + the rolled-up artifact batch + the in-memory artifact sink
+# result), a pure projector (gate record -> artifact record / batch), and a
+# fake / offline proof that composes the Stage 30.10.2 fake gate scenario ->
+# the real gate -> the projector -> an in-memory artifact sink. It ships ZERO
+# runtime wiring (no existing orchestrator imports it), ZERO live provider
+# call, ZERO Discord send, ZERO env read, ZERO database / SQLite, ZERO zstd /
+# compression, ZERO default storage root, ZERO filesystem write (the only sink
+# is the explicitly in-memory fake writer), ZERO transport-layer gate, ZERO
+# ``PAYLOAD_REFUSED`` for a normal non-dip skip, and edits NO Stage 28
+# suppression / Stage 30.3 / Stage 30.4 runtime orchestrator. These constants
+# pin the Stage 30.10.3 inventory + import allowlists + the artifact schema
+# version + the artifact record / batch / sink-result field names + the fake
+# proof expected counts, and advance the slice-scoped next-allowed pointer to
+# the Stage 30.9.2 live-proof RESUME (NOT a Stage 30.10.4). The family
+# ``STAGE30_10_NEXT_ALLOWED_STAGE`` stays pinned at 30.10.1 (the slice this
+# manifest's spec lock backs).
+
+
+STAGE30_10_3_MINOR_VERSION: str = "30.10.3"
+
+
+# The Stage 30.10.3 gate artifact schema version (mirrored BY VALUE by the
+# Stage 30.10.3 artifact-models module). Names the offline gate artifact
+# record / batch shape; distinct from the Stage 30.8 / 30.9 artifact schema
+# versions and from the Stage 30.10.0 spec version.
+STAGE30_10_3_ARTIFACT_SCHEMA_VERSION: str = "stage30_10_v0_gate_artifact"
+
+
+# The three NEW Stage 30.10.3 production modules + their import paths.
+STAGE30_10_3_GATE_ARTIFACT_MODELS_BASENAME: str = (
+    "stage30_10_3_gate_artifact_models.py"
+)
+STAGE30_10_3_GATE_ARTIFACT_PROJECTOR_BASENAME: str = (
+    "stage30_10_3_gate_artifact_projector.py"
+)
+STAGE30_10_3_FAKE_ARTIFACT_PROOF_BASENAME: str = (
+    "stage30_10_3_fake_artifact_proof.py"
+)
+STAGE30_10_3_GATE_ARTIFACT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_3_gate_artifact_models"
+)
+STAGE30_10_3_GATE_ARTIFACT_PROJECTOR_MODULE: str = (
+    "PHX2.stage30.stage30_10_3_gate_artifact_projector"
+)
+STAGE30_10_3_FAKE_ARTIFACT_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_10_3_fake_artifact_proof"
+)
+
+
+# The Stage 30.10.3 production inventory (exactly the three modules above; the
+# boundary scan walks these basenames).
+STAGE30_10_3_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_10_3_GATE_ARTIFACT_MODELS_BASENAME,
+    STAGE30_10_3_GATE_ARTIFACT_PROJECTOR_BASENAME,
+    STAGE30_10_3_FAKE_ARTIFACT_PROOF_BASENAME,
+)
+STAGE30_10_3_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_10_3_GATE_ARTIFACT_MODELS_BASENAME,
+    STAGE30_10_3_GATE_ARTIFACT_PROJECTOR_BASENAME,
+    STAGE30_10_3_FAKE_ARTIFACT_PROOF_BASENAME,
+)
+
+
+# The Stage 30.10.3 test inventory.
+STAGE30_10_3_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_10_3_gate_artifact_models.py",
+    "test_stage_30_10_3_gate_artifact_projector.py",
+    "test_stage_30_10_3_fake_artifact_proof.py",
+    "test_stage_30_10_3_boundaries.py",
+    "test_stage_30_10_3_manifest.py",
+)
+
+
+# The positive stdlib import allowlist for the Stage 30.10.3 production
+# modules (the artifact models need ``dataclasses`` / ``typing``; the
+# projector needs ``typing``; the fake proof needs ``typing``). NO ``os`` / no
+# network / no database / no compression / no ``decimal`` module is
+# allowlisted (the fake proof reuses the already-built Stage 30.10.2 scenario,
+# so it constructs no ``Decimal`` of its own).
+STAGE30_10_3_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The positive PHX2 import allowlist: the artifact models import NO PHX2
+# module; the projector imports the Stage 30.10.3 artifact-models sibling +
+# the Stage 30.10.2 gate-models sibling (the gate record type + gate-decision
+# tokens); the fake proof imports the Stage 30.10.3 artifact-models +
+# projector siblings + the Stage 30.10.2 gate-models + gate + fake-gate-proof
+# siblings. No Stage 21-29 / Stage 30.3 / Stage 30.4 orchestrator / Stage 28
+# suppression / live runner / provider / transport module is allowlisted.
+STAGE30_10_3_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_MODULE,
+    STAGE30_10_2_PRE_DISPATCH_GATE_MODULE,
+    STAGE30_10_2_FAKE_GATE_PROOF_MODULE,
+    STAGE30_10_3_GATE_ARTIFACT_MODELS_MODULE,
+    STAGE30_10_3_GATE_ARTIFACT_PROJECTOR_MODULE,
+)
+
+
+# The Stage 30.10.3 gate artifact record / batch / sink-result field names (an
+# auditable per-candidate gate artifact record + the rolled-up batch tally +
+# the in-memory sink verdict; ``created_at_utc`` is caller-injected, never a
+# wall-clock read; NONE is a secret, a raw payload, a host, or a transport
+# destination).
+STAGE30_10_3_ARTIFACT_RECORD_FIELDS: Tuple[str, ...] = (
+    "proof_id",
+    "candidate_id",
+    "token_mint",
+    "eligibility_decision",
+    "eligibility_reason",
+    "gate_decision",
+    "gate_reason",
+    "send_allowed",
+    "dispatch_reservation_would_be_attempted",
+    "suppressed_before_dispatch_reservation",
+    "dispatch_failure_recorded",
+    "transport_veto_used",
+    "payload_refused_used",
+    "created_at_utc",
+)
+STAGE30_10_3_ARTIFACT_BATCH_FIELDS: Tuple[str, ...] = (
+    "proof_id",
+    "records",
+    "candidates_seen",
+    "candidates_passed",
+    "candidates_skipped",
+    "invalid_inputs",
+    "dispatch_attempts_reserved",
+    "dispatch_attempts_suppressed_before_reservation",
+    "dispatch_failures_recorded",
+    "transport_veto_count",
+    "payload_refused_count",
+    "created_at_utc",
+)
+STAGE30_10_3_ARTIFACT_SINK_RESULT_FIELDS: Tuple[str, ...] = (
+    "proof_id",
+    "records_written",
+    "batch_written",
+    "artifact_schema_version",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.10.3 fake artifact proof counts over
+# the SAME deterministic nine-candidate scenario as the Stage 30.10.2 fake
+# gate proof: nine artifact records, three that would attempt a dispatch
+# reservation, six suppressed BEFORE reservation, and zero dispatch failures /
+# transport vetoes / ``PAYLOAD_REFUSED`` uses.
+STAGE30_10_3_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN: int = 9
+STAGE30_10_3_FAKE_PROOF_EXPECTED_CANDIDATES_PASSED: int = 3
+STAGE30_10_3_FAKE_PROOF_EXPECTED_CANDIDATES_SKIPPED: int = 5
+STAGE30_10_3_FAKE_PROOF_EXPECTED_INVALID_INPUTS: int = 1
+STAGE30_10_3_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_RESERVED: int = 3
+STAGE30_10_3_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_SUPPRESSED_BEFORE_RESERVATION: int = (
+    6
+)
+STAGE30_10_3_FAKE_PROOF_EXPECTED_DISPATCH_FAILURES_RECORDED: int = 0
+STAGE30_10_3_FAKE_PROOF_EXPECTED_TRANSPORT_VETO_COUNT: int = 0
+STAGE30_10_3_FAKE_PROOF_EXPECTED_PAYLOAD_REFUSED_COUNT: int = 0
+
+
+# After Stage 30.10.3 lands, Stage 30.10 has proved dip-focused eligibility
+# (offline / fakes only) through its final planned fake proof; the next
+# operator-authorized step is the PAUSED Stage 30.9.2 bounded private live
+# proof / operator handoff RESUME -- NOT a Stage 30.10.4 (there is no planned
+# Stage 30.10.4). This explicit RESUME token must not imply any Stage 30.10.4+
+# implementation.
+STAGE30_10_3_NEXT_ALLOWED_STAGE: str = "30.9.2_RESUME"
+STAGE30_10_3_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "resume the PAUSED Stage 30.9.2 bounded private live compact proof / "
+    "operator handoff -- Stage 30.10.3 is the final Stage 30.10 fake / "
+    "offline proof before resume; there is no Stage 30.10.4"
+)
+
+
+# The surfaces the Stage 30.10.3 slice must not touch. Plain documentation
+# words (family / feature names), NOT secret / host / transport needle forms.
+STAGE30_10_3_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "live runtime wiring",
+    "Stage 28 suppression-logic edit",
+    "Stage 30.3 compact orchestrator edit",
+    "Stage 30.4 compact orchestrator edit",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "transport-layer gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "live run",
+    "live provider call",
+    "Discord send",
+    "env read",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "broad always-on daemon",
+    "background service",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.10.4+ implementation file",
+    "Stage 31",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.9.2 resume relationship (paused, not abandoned -> 30.10.3 is the
+# final fake proof before resume)
+# ---------------------------------------------------------------------------
+#
+# The family ``STAGE30_10_STAGE_30_9_2_STATUS`` /
+# ``STAGE30_10_STAGE_30_9_2_RESUME_CONDITION`` above stay UNCHANGED: Stage
+# 30.9.2 is paused, not abandoned, and resumes only after Stage 30.10 proves
+# dip-focused eligibility. Stage 30.10.3 is that final fake / offline proof;
+# this note records that the resume gate is now satisfied on the Stage 30.10
+# side (offline), while the resume itself remains a SEPARATE, explicitly
+# operator-authorized step (Stage 30.10.3 implements no part of Stage 30.9.2).
+STAGE30_10_3_STAGE_30_9_2_RESUME_NOTE: str = (
+    "Stage 30.10.3 is the final Stage 30.10 fake / offline proof before the "
+    "paused Stage 30.9.2 live proof may resume; Stage 30.9.2 remains paused, "
+    "not abandoned, and its resume is a separate explicitly "
+    "operator-authorized step"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_10_STAGE_ID",
@@ -1038,4 +1292,37 @@ __all__ = (
     "STAGE30_10_2_NEXT_ALLOWED_STAGE",
     "STAGE30_10_2_NEXT_ALLOWED_STAGE_TITLE",
     "STAGE30_10_2_FORBIDDEN_SURFACES",
+    # Stage 30.10.3 offline gate artifact integration proof slice.
+    "STAGE30_10_3_MINOR_VERSION",
+    "STAGE30_10_3_ARTIFACT_SCHEMA_VERSION",
+    "STAGE30_10_3_GATE_ARTIFACT_MODELS_BASENAME",
+    "STAGE30_10_3_GATE_ARTIFACT_PROJECTOR_BASENAME",
+    "STAGE30_10_3_FAKE_ARTIFACT_PROOF_BASENAME",
+    "STAGE30_10_3_GATE_ARTIFACT_MODELS_MODULE",
+    "STAGE30_10_3_GATE_ARTIFACT_PROJECTOR_MODULE",
+    "STAGE30_10_3_FAKE_ARTIFACT_PROOF_MODULE",
+    "STAGE30_10_3_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_10_3_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_10_3_TEST_BASENAMES",
+    "STAGE30_10_3_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_10_3_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_10_3_ARTIFACT_RECORD_FIELDS",
+    "STAGE30_10_3_ARTIFACT_BATCH_FIELDS",
+    "STAGE30_10_3_ARTIFACT_SINK_RESULT_FIELDS",
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN",
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_CANDIDATES_PASSED",
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_CANDIDATES_SKIPPED",
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_INVALID_INPUTS",
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_RESERVED",
+    (
+        "STAGE30_10_3_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_"
+        "SUPPRESSED_BEFORE_RESERVATION"
+    ),
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_DISPATCH_FAILURES_RECORDED",
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_TRANSPORT_VETO_COUNT",
+    "STAGE30_10_3_FAKE_PROOF_EXPECTED_PAYLOAD_REFUSED_COUNT",
+    "STAGE30_10_3_NEXT_ALLOWED_STAGE",
+    "STAGE30_10_3_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_10_3_FORBIDDEN_SURFACES",
+    "STAGE30_10_3_STAGE_30_9_2_RESUME_NOTE",
 )

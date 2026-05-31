@@ -367,6 +367,22 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_10_2_pre_dispatch_gate_models.py",
         "stage30_10_2_pre_dispatch_gate.py",
         "stage30_10_2_fake_gate_proof.py",
+        # Stage 30.10.3 offline gate artifact integration proof production
+        # additions (the passive gate artifact models -- per-candidate record
+        # + rolled-up batch + in-memory sink result, importing no PHX2 module
+        # -- the pure projector that maps a Stage 30.10.2 gate record onto an
+        # artifact record / batch, and the fake / offline proof that composes
+        # the Stage 30.10.2 fake gate scenario -> the real gate -> the
+        # projector -> an explicitly in-memory artifact sink; ZERO runtime
+        # wiring, ZERO live provider call, ZERO Discord send, ZERO env read,
+        # ZERO filesystem write, ZERO transport-layer gate / PAYLOAD_REFUSED
+        # for a normal non-dip skip, ZERO database / SQLite / zstd /
+        # compression, ZERO default storage root, ZERO Stage 28 suppression /
+        # Stage 30.3 / Stage 30.4 orchestrator edit; no Stage 30.10.4+
+        # implementation file ships at Stage 30.10.3).
+        "stage30_10_3_gate_artifact_models.py",
+        "stage30_10_3_gate_artifact_projector.py",
+        "stage30_10_3_fake_artifact_proof.py",
     }
 )
 
@@ -540,6 +556,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_10_2_fake_gate_proof.py",
         "test_stage_30_10_2_boundaries.py",
         "test_stage_30_10_2_manifest.py",
+        # Stage 30.10.3 offline gate artifact integration proof test
+        # additions (artifact models, projector, fake artifact proof,
+        # boundaries, manifest). Fakes / offline only.
+        "test_stage_30_10_3_gate_artifact_models.py",
+        "test_stage_30_10_3_gate_artifact_projector.py",
+        "test_stage_30_10_3_fake_artifact_proof.py",
+        "test_stage_30_10_3_boundaries.py",
+        "test_stage_30_10_3_manifest.py",
     }
 )
 
