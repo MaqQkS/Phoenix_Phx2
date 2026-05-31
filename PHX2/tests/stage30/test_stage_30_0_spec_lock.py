@@ -383,6 +383,26 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_10_3_gate_artifact_models.py",
         "stage30_10_3_gate_artifact_projector.py",
         "stage30_10_3_fake_artifact_proof.py",
+        # Stage 30.9.2_RESUME dip-filtered live proof planning / fake-proof
+        # production additions (the passive resume models -- dip-filtered
+        # resume plan + per-candidate proof record + resume proof summary,
+        # importing no PHX2 module -- the pure plan builder that holds every
+        # live-affecting axis closed, and the fake / offline proof that
+        # composes the committed Stage 30.10.2 fake gate scenario -> the real
+        # gate -> the Stage 30.10.3 projector -> the Stage 30.9.2 resume
+        # records + summary; ZERO live run, ZERO live provider call, ZERO
+        # Discord send, ZERO env read, ZERO real provider key use, ZERO real
+        # provider session, ZERO dispatch reservation, ZERO filesystem write,
+        # ZERO transport-layer gate / PAYLOAD_REFUSED for a normal non-dip
+        # skip, ZERO database / SQLite / zstd / compression, ZERO default
+        # storage root, ZERO runtime orchestrator wiring, ZERO Stage 28
+        # suppression / Stage 30.3 / Stage 30.4 orchestrator edit; the actual
+        # dip-filtered live ceremony remains a separate, explicitly
+        # operator-authorized step and no Stage 30.9.3+ / Stage 30.10.4 file
+        # ships at Stage 30.9.2).
+        "stage30_9_2_resume_dip_filtered_live_models.py",
+        "stage30_9_2_resume_dip_filtered_live_plan.py",
+        "stage30_9_2_resume_fake_proof.py",
     }
 )
 
@@ -564,6 +584,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_10_3_fake_artifact_proof.py",
         "test_stage_30_10_3_boundaries.py",
         "test_stage_30_10_3_manifest.py",
+        # Stage 30.9.2_RESUME dip-filtered live proof planning / fake-proof
+        # test additions (resume models, resume plan, resume fake proof,
+        # boundaries, manifest). Fakes / offline only.
+        "test_stage_30_9_2_resume_dip_filtered_live_models.py",
+        "test_stage_30_9_2_resume_dip_filtered_live_plan.py",
+        "test_stage_30_9_2_resume_fake_proof.py",
+        "test_stage_30_9_2_resume_boundaries.py",
+        "test_stage_30_9_2_resume_manifest.py",
     }
 )
 

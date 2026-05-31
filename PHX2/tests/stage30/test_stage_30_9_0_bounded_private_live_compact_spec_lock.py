@@ -62,6 +62,8 @@ from PHX2.stage30.stage30_9_manifest import (
     STAGE30_9_0_TEST_BASENAMES,
     STAGE30_9_1_ALLOWED_STAGE30_BASENAMES,
     STAGE30_9_1_TEST_BASENAMES,
+    STAGE30_9_2_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_9_2_TEST_BASENAMES,
     STAGE30_9_ALLOWED_INITIAL_FILES,
     STAGE30_9_ALLOWED_STDLIB_IMPORTS,
     STAGE30_9_ARTIFACT_BRIDGE_REQUIRED_SURFACES,
@@ -168,11 +170,13 @@ def _extract_imported_module(line: str) -> str:
 
 # Matches any Stage 30.9.<N> minor-version token in a basename (both the
 # production ``stage30_9_<N>`` and the test ``stage_30_9_<N>`` spellings).
-# A captured N >= 2 names a future Stage 30.9.2+ file; N in {0, 1} is the
-# Stage 30.9.0 scaffold / the now-admitted Stage 30.9.1 artifact-bridge
-# slice and is allowed. The Stage 30.9.0 manifest basename
-# (``stage30_9_manifest.py``) carries no digit after ``stage30_9_`` and so
-# matches no token at all.
+# A captured N >= 2 names a Stage 30.9.2+ file; N in {0, 1} is the Stage
+# 30.9.0 scaffold / the now-admitted Stage 30.9.1 artifact-bridge slice and
+# is allowed. The now-admitted Stage 30.9.2 resume planning slice carries an
+# N == 2 token but is explicitly allowed via ``_ADMITTED_STAGE_30_9_2_BASENAMES``
+# (``_future_30_9_violations`` skips it); any OTHER N >= 2 token remains
+# forbidden. The Stage 30.9.0 manifest basename (``stage30_9_manifest.py``)
+# carries no digit after ``stage30_9_`` and so matches no token at all.
 _STAGE_30_9_MINOR_RE = re.compile(r"stage_?30_9_(\d+)")
 
 # Matches a Stage 30.10+ token (``stage30_10`` / ``stage_30_10`` / ...) or a
@@ -229,9 +233,25 @@ _ADMITTED_STAGE_30_10_BASENAMES = frozenset(
 )
 
 
+# The now-admitted Stage 30.9.2_RESUME dip-filtered live proof planning /
+# fake-proof slice (the three production modules + their five tests). These
+# basenames carry the ``stage30_9_2`` / ``stage_30_9_2`` minor token but are
+# the legitimately-landed resume planning files; the future guard admits
+# exactly these and still forbids any OTHER Stage 30.9.2 file and any Stage
+# 30.9.3+ file. The Stage 30.9.2 actual dip-filtered live ceremony remains a
+# separate, explicitly operator-authorized step (no live runtime ships here).
+_ADMITTED_STAGE_30_9_2_BASENAMES = frozenset(
+    set(STAGE30_9_2_ALLOWED_STAGE30_BASENAMES)
+    | set(STAGE30_9_2_TEST_BASENAMES)
+)
+
+
 def _future_30_9_violations(basenames) -> list:
     violations = []
     for basename in basenames:
+        if basename in _ADMITTED_STAGE_30_9_2_BASENAMES:
+            # The now-admitted Stage 30.9.2 resume planning slice.
+            continue
         for match in _STAGE_30_9_MINOR_RE.finditer(basename.lower()):
             if int(match.group(1)) >= 2:
                 violations.append(basename)
@@ -944,8 +964,9 @@ def test_stage30_9_production_entries_are_the_admitted_inventory() -> None:
     """Every Stage 30.9 entry under ``PHX2/stage30/`` must be exactly the
     Stage 30.9.0 spec doc + constants-only manifest PLUS the now-admitted
     Stage 30.9.1 artifact-bridge production files (passive models + capture
-    transport + projector + proof). NO Stage 30.9.2+ runtime / bridge
-    module may exist yet.
+    transport + projector + proof) PLUS the now-admitted Stage 30.9.2_RESUME
+    dip-filtered live proof planning files (resume models + plan + fake
+    proof). NO Stage 30.9.3+ module may exist yet.
     """
     observed = {
         entry.name
@@ -956,13 +977,18 @@ def test_stage30_9_production_entries_are_the_admitted_inventory() -> None:
             or entry.name.startswith("STAGE_30_9")
         )
     }
-    allowed = {
-        STAGE30_9_SPEC_LOCK_FILENAME,
-        STAGE30_9_MANIFEST_BASENAME,
-    } | set(STAGE30_9_1_ALLOWED_STAGE30_BASENAMES)
+    allowed = (
+        {
+            STAGE30_9_SPEC_LOCK_FILENAME,
+            STAGE30_9_MANIFEST_BASENAME,
+        }
+        | set(STAGE30_9_1_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_9_2_ALLOWED_STAGE30_BASENAMES)
+    )
     assert observed == allowed, (
         "Stage 30.9 production entries must be exactly the Stage 30.9.0 "
-        "spec lock + manifest plus the Stage 30.9.1 bridge files; "
+        "spec lock + manifest plus the Stage 30.9.1 bridge files plus the "
+        "Stage 30.9.2 resume planning files; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
@@ -970,7 +996,8 @@ def test_stage30_9_production_entries_are_the_admitted_inventory() -> None:
 def test_stage30_9_test_entries_are_the_admitted_inventory() -> None:
     """Every Stage 30.9 test under ``PHX2/tests/stage30/`` must be exactly
     the Stage 30.9.0 spec-lock pin test PLUS the now-admitted Stage 30.9.1
-    test files. NO Stage 30.9.2+ test may exist yet.
+    test files PLUS the now-admitted Stage 30.9.2_RESUME test files. NO Stage
+    30.9.3+ test may exist yet.
     """
     observed = {
         entry.name
@@ -978,13 +1005,15 @@ def test_stage30_9_test_entries_are_the_admitted_inventory() -> None:
         if entry.name != "__pycache__"
         and entry.name.startswith("test_stage_30_9")
     }
-    allowed = {STAGE30_9_0_TEST_BASENAMES[0]} | set(
-        STAGE30_9_1_TEST_BASENAMES
+    allowed = (
+        {STAGE30_9_0_TEST_BASENAMES[0]}
+        | set(STAGE30_9_1_TEST_BASENAMES)
+        | set(STAGE30_9_2_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.9 test entries must be exactly the 30.9.0 pin test plus "
-        f"the Stage 30.9.1 tests; unexpected entries: "
-        f"{sorted(observed - allowed)}"
+        f"the Stage 30.9.1 tests plus the Stage 30.9.2 resume tests; "
+        f"unexpected entries: {sorted(observed - allowed)}"
     )
 
 
@@ -1005,22 +1034,25 @@ def test_stage30_0_allowlist_admits_the_30_9_0_files() -> None:
     assert TEST_PATH.is_file()
 
 
-def test_stage30_0_allowlist_admits_no_stage_30_9_2_plus_file() -> None:
-    """No Stage 30.9.2+ production / test basename is admitted by the
-    Stage 30.0 allowlist yet. The Stage 30.9.1 artifact-bridge files
-    (30_9_<no minor> models / capture / projector / proof basenames carry
-    no minor digit after ``stage30_9_``) are admitted; the guard is
-    generic and catches ANY Stage 30.9.<N>=2+ token (30_9_2, 30_9_3, ...).
+def test_stage30_0_allowlist_admits_only_the_30_9_2_resume_slice() -> None:
+    """The Stage 30.0 allowlist admits exactly the now-landed Stage 30.9.2
+    resume planning slice among Stage 30.9.<N>=2+ tokens, and no other. The
+    Stage 30.9.1 artifact-bridge files (``stage30_9_<no minor>`` models /
+    capture / projector / proof basenames carry no minor digit after
+    ``stage30_9_``) are admitted with no minor-token match; the guard skips
+    the explicitly-admitted Stage 30.9.2 resume basenames and still catches
+    ANY non-admitted Stage 30.9.<N>=2+ token (a stray 30_9_2, a future
+    30_9_3, ...).
     """
     production = _future_30_9_violations(_STAGE30_ALLOWED_BASENAMES)
     assert production == [], (
-        "Stage 30.0 production allowlist must not admit a Stage 30.9.2+ "
-        f"file yet; saw {production!r}"
+        "Stage 30.0 production allowlist must admit only the Stage 30.9.2 "
+        f"resume slice among Stage 30.9.2+ files; saw {production!r}"
     )
     tests = _future_30_9_violations(_TESTS_STAGE30_ALLOWED_BASENAMES)
     assert tests == [], (
-        "Stage 30.0 test allowlist must not admit a Stage 30.9.2+ test "
-        f"file yet; saw {tests!r}"
+        "Stage 30.0 test allowlist must admit only the Stage 30.9.2 resume "
+        f"slice among Stage 30.9.2+ test files; saw {tests!r}"
     )
 
 

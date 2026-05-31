@@ -771,6 +771,323 @@ STAGE30_9_1_NEXT_ALLOWED_STAGE_TITLE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.9.2_RESUME -- dip-filtered live proof planning / fake-proof slice
+# ---------------------------------------------------------------------------
+#
+# Stage 30.9.2 was PAUSED, not abandoned. With the completed Stage 30.10
+# dip-gate stack (30.10.1 offline classifier -> 30.10.2 pre-dispatch gate ->
+# 30.10.3 artifact projection) now proving dip-focused eligibility offline,
+# Stage 30.9.2 is UNPAUSED -- but only as a dip-FILTERED live proof path, and
+# only for PLANNING / fake proof in THIS slice. The slice adds three NEW
+# leaf production modules -- the passive resume models (the dip-filtered
+# resume plan + per-candidate proof record + resume proof summary, importing
+# no PHX2 module), the pure plan builder (a planning-only plan that holds
+# every live-affecting axis closed), and a fake / offline proof that composes
+# the committed Stage 30.10.2 fake gate scenario -> the real gate -> the Stage
+# 30.10.3 projector -> the Stage 30.9.2 resume records + summary. It ships
+# ZERO live run, ZERO live provider call, ZERO Discord send, ZERO env read,
+# ZERO real provider key use, ZERO real WebSocket / gRPC / HTTP provider
+# session, ZERO dispatch reservation, ZERO filesystem write, ZERO
+# transport-layer gate / PAYLOAD_REFUSED for a normal non-dip skip, ZERO
+# database / SQLite / zstd / compression, ZERO default storage root, ZERO
+# runtime orchestrator wiring, and edits NO Stage 28 suppression / Stage 30.3
+# / Stage 30.4 runtime orchestrator. These constants pin the Stage 30.9.2
+# inventory + import allowlists + the required dip-gate stack + the resume
+# schema version + the resume plan / record / summary field names + the fake
+# proof expected counts + the planning-only gating flags, and pin that the
+# next allowed step is a CONTROLLED dip-filtered live ceremony that is
+# explicitly operator-authorized (NOT an automatic live execution, NOT a
+# Stage 30.10.4 -- there is no Stage 30.10.4). The Stage 30.9.0 family pointer
+# STAGE30_9_NEXT_ALLOWED_STAGE stays pinned at 30.9.1; the 30.9.1-scoped
+# pointer stays pinned at 30.9.2.
+
+
+STAGE30_9_2_MINOR_VERSION: str = "30.9.2"
+
+
+# The Stage 30.9.2_RESUME token (mirrors the Stage 30.10.3
+# STAGE30_10_3_NEXT_ALLOWED_STAGE value BY VALUE; this manifest imports no
+# Stage 30.10 manifest).
+STAGE30_9_2_RESUME_ID: str = "30.9.2_RESUME"
+
+
+# The prior stage this resume builds on: the final Stage 30.10 fake / offline
+# proof.
+STAGE30_9_2_PRIOR_STAGE: str = "30.10.3"
+
+
+# The committed HEAD the Stage 30.9.2_RESUME plan is built against -- the
+# Stage 30.10.3 fake gate artifact integration proof commit (mirrored BY VALUE
+# from the resume plan module; a safe-shape hex id, never a secret).
+STAGE30_9_2_REQUIRED_HEAD_SHA: str = (
+    "e35e54b69668814d2ab8c096855f682c68ada8ab"
+)
+
+
+# The Stage 30.9.2 dip-filtered resume proof schema version (mirrored BY VALUE
+# by the Stage 30.9.2 resume-models module; distinct from the Stage 30.8 /
+# 30.9.1 / 30.10.3 schema versions).
+STAGE30_9_2_RESUME_PROOF_SCHEMA_VERSION: str = (
+    "stage30_9_2_v0_dip_filtered_resume_proof"
+)
+
+
+# The required dip-gate stack the resume plan names (mirrored BY VALUE by the
+# Stage 30.9.2 resume-models module). The dip-filtered live proof may proceed
+# only AFTER this committed Stage 30.10 stack has ruled each candidate.
+STAGE30_9_2_GATE_STACK_REQUIRED: Tuple[str, ...] = (
+    "30.10.1 offline tier-dip eligibility classifier",
+    "30.10.2 optional pre-dispatch tier-dip gate",
+    "30.10.3 gate artifact projection",
+)
+
+
+# The three NEW Stage 30.9.2 production modules + their import paths.
+STAGE30_9_2_RESUME_MODELS_BASENAME: str = (
+    "stage30_9_2_resume_dip_filtered_live_models.py"
+)
+STAGE30_9_2_RESUME_PLAN_BASENAME: str = (
+    "stage30_9_2_resume_dip_filtered_live_plan.py"
+)
+STAGE30_9_2_RESUME_FAKE_PROOF_BASENAME: str = (
+    "stage30_9_2_resume_fake_proof.py"
+)
+STAGE30_9_2_RESUME_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_9_2_resume_dip_filtered_live_models"
+)
+STAGE30_9_2_RESUME_PLAN_MODULE: str = (
+    "PHX2.stage30.stage30_9_2_resume_dip_filtered_live_plan"
+)
+STAGE30_9_2_RESUME_FAKE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_9_2_resume_fake_proof"
+)
+
+
+# The ALREADY-EXISTING Stage 30.10.3 sibling module paths the Stage 30.9.2
+# fake proof composes (re-declared here as literals; the manifest imports no
+# PHX2 module). These are the committed gate-stack surfaces the resume reuses.
+STAGE30_9_2_STAGE30_10_3_FAKE_ARTIFACT_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_10_3_fake_artifact_proof"
+)
+STAGE30_9_2_STAGE30_10_3_GATE_ARTIFACT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_3_gate_artifact_models"
+)
+
+
+# The three NEW production files Stage 30.9.2 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.10.3 inventory. NO Stage 30.9.3+
+# file; NO Stage 30.10.4 file.
+STAGE30_9_2_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_9_2_RESUME_MODELS_BASENAME,
+    STAGE30_9_2_RESUME_PLAN_BASENAME,
+    STAGE30_9_2_RESUME_FAKE_PROOF_BASENAME,
+)
+STAGE30_9_2_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_9_2_RESUME_MODELS_BASENAME,
+    STAGE30_9_2_RESUME_PLAN_BASENAME,
+    STAGE30_9_2_RESUME_FAKE_PROOF_BASENAME,
+)
+
+
+# The Stage 30.9.2 test inventory.
+STAGE30_9_2_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_9_2_resume_dip_filtered_live_models.py",
+    "test_stage_30_9_2_resume_dip_filtered_live_plan.py",
+    "test_stage_30_9_2_resume_fake_proof.py",
+    "test_stage_30_9_2_resume_boundaries.py",
+    "test_stage_30_9_2_resume_manifest.py",
+)
+
+
+# The positive stdlib import allowlist for the Stage 30.9.2 production modules
+# (the resume models need ``dataclasses`` / ``typing``; the plan needs
+# ``typing``; the fake proof needs ``typing``). NO ``os`` / no network / no
+# database / no compression / no ``decimal`` module is allowlisted (the fake
+# proof reuses the already-built Stage 30.10 scenario, so it constructs no
+# ``Decimal`` of its own).
+STAGE30_9_2_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The positive PHX2 import allowlist: the resume models import NO PHX2 module;
+# the plan imports the Stage 30.9.2 resume-models sibling; the fake proof
+# imports the Stage 30.9.2 resume-models + resume-plan siblings + the Stage
+# 30.10.3 fake-artifact-proof + gate-artifact-models siblings. No Stage 21-29 /
+# Stage 30.3 / Stage 30.4 orchestrator / Stage 28 suppression / live runner /
+# provider / transport module is allowlisted.
+STAGE30_9_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_9_2_RESUME_MODELS_MODULE,
+    STAGE30_9_2_RESUME_PLAN_MODULE,
+    STAGE30_9_2_STAGE30_10_3_FAKE_ARTIFACT_PROOF_MODULE,
+    STAGE30_9_2_STAGE30_10_3_GATE_ARTIFACT_MODELS_MODULE,
+)
+
+
+# The Stage 30.9.2 resume plan / candidate proof record / resume proof summary
+# field names (mirrored BY VALUE by the Stage 30.9.2 resume-models module;
+# ``created_at_utc`` is caller-injected, never a wall-clock read; NONE is a
+# secret, a raw payload, a host, or a transport destination).
+STAGE30_9_2_RESUME_PLAN_FIELDS: Tuple[str, ...] = (
+    "resume_id",
+    "required_head_sha",
+    "prior_stage",
+    "gate_stack_required",
+    "live_allowed",
+    "dispatch_allowed",
+    "env_read_allowed",
+    "provider_call_allowed",
+    "discord_send_allowed",
+    "created_at_utc",
+)
+STAGE30_9_2_CANDIDATE_PROOF_RECORD_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "eligibility_decision",
+    "eligibility_reason",
+    "gate_decision",
+    "gate_reason",
+    "artifact_schema_version",
+    "dispatch_reservation_would_be_attempted",
+    "suppressed_before_dispatch_reservation",
+    "dispatch_failure_recorded",
+    "transport_veto_used",
+    "payload_refused_used",
+    "created_at_utc",
+)
+STAGE30_9_2_RESUME_PROOF_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "resume_id",
+    "candidates_seen",
+    "candidates_passed",
+    "candidates_skipped",
+    "invalid_inputs",
+    "dispatch_attempts_reserved",
+    "dispatch_attempts_suppressed_before_reservation",
+    "dispatch_failures_recorded",
+    "transport_veto_count",
+    "payload_refused_count",
+    "live_allowed",
+    "provider_call_allowed",
+    "discord_send_allowed",
+    "created_at_utc",
+)
+
+
+# The planning-only gating flags the Stage 30.9.2 resume plan / proof hold
+# closed in THIS slice (the actual live ceremony is a separate,
+# operator-authorized step).
+STAGE30_9_2_PLANNING_LIVE_ALLOWED: bool = False
+STAGE30_9_2_PLANNING_DISPATCH_ALLOWED: bool = False
+STAGE30_9_2_PLANNING_ENV_READ_ALLOWED: bool = False
+STAGE30_9_2_PLANNING_PROVIDER_CALL_ALLOWED: bool = False
+STAGE30_9_2_PLANNING_DISCORD_SEND_ALLOWED: bool = False
+
+
+# The author-verified expected Stage 30.9.2 resume fake proof counts over the
+# SAME deterministic nine-candidate scenario as the Stage 30.10.2 / 30.10.3
+# fake proofs: nine candidate proof records, three that would proceed toward
+# the private compact dispatch, six suppressed BEFORE reservation, and zero
+# dispatch failures / transport vetoes / ``PAYLOAD_REFUSED`` uses -- with the
+# live / provider / Discord gating flags all held closed.
+STAGE30_9_2_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN: int = 9
+STAGE30_9_2_FAKE_PROOF_EXPECTED_CANDIDATES_PASSED: int = 3
+STAGE30_9_2_FAKE_PROOF_EXPECTED_CANDIDATES_SKIPPED: int = 5
+STAGE30_9_2_FAKE_PROOF_EXPECTED_INVALID_INPUTS: int = 1
+STAGE30_9_2_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_RESERVED: int = 3
+STAGE30_9_2_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_SUPPRESSED_BEFORE_RESERVATION: int = (
+    6
+)
+STAGE30_9_2_FAKE_PROOF_EXPECTED_DISPATCH_FAILURES_RECORDED: int = 0
+STAGE30_9_2_FAKE_PROOF_EXPECTED_TRANSPORT_VETO_COUNT: int = 0
+STAGE30_9_2_FAKE_PROOF_EXPECTED_PAYLOAD_REFUSED_COUNT: int = 0
+STAGE30_9_2_FAKE_PROOF_EXPECTED_LIVE_ALLOWED: bool = False
+STAGE30_9_2_FAKE_PROOF_EXPECTED_PROVIDER_CALL_ALLOWED: bool = False
+STAGE30_9_2_FAKE_PROOF_EXPECTED_DISCORD_SEND_ALLOWED: bool = False
+
+
+# The Stage 30.9.2 resume status (unpaused for planning / fake proof only).
+STAGE30_9_2_RESUME_STATUS: str = (
+    "unpaused for dip-filtered planning / fake proof only"
+)
+
+
+# The actual Stage 30.9.2 dip-filtered live ceremony remains a SEPARATE,
+# explicitly operator-authorized step (this slice implements no part of it).
+STAGE30_9_2_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_9_2_RESUME_NOTE: str = (
+    "Stage 30.10.3 remains the final Stage 30.10 fake / offline proof before "
+    "the Stage 30.9.2 resume; Stage 30.9.2 is now unpaused for dip-filtered "
+    "planning / fake proof only, and its actual dip-filtered private compact "
+    "live ceremony remains a separate, explicitly operator-authorized step"
+)
+
+
+# After this planning / fake-proof slice, the next allowed step is a
+# CONTROLLED dip-filtered private compact live ceremony that is explicitly
+# operator-authorized -- NOT an automatic live execution and NOT a Stage
+# 30.10.4 (there is no Stage 30.10.4).
+STAGE30_9_2_NEXT_ALLOWED_STEP: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_9_2_NEXT_ALLOWED_STEP_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony -- a separate, "
+    "explicitly operator-authorized step; never an automatic live execution "
+    "and never a Stage 30.10.4"
+)
+
+
+# The surfaces the Stage 30.9.2 resume planning / fake-proof slice must not
+# touch. Plain documentation words (family / feature names), NOT secret /
+# host / transport needle forms.
+STAGE30_9_2_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "live run",
+    "live provider call",
+    "Discord send",
+    "env read",
+    "real provider key use",
+    "real WebSocket / gRPC / HTTP provider session",
+    "dispatch reservation",
+    "filesystem write",
+    "transport-layer gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "runtime orchestrator wiring",
+    "Stage 28 suppression-logic edit",
+    "Stage 30.3 compact orchestrator edit",
+    "Stage 30.4 compact orchestrator edit",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "broad always-on daemon",
+    "background service",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "automatic live execution",
+    "Stage 30.10.4+ implementation file",
+    "Stage 31",
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_9_STAGE_ID",
@@ -844,4 +1161,53 @@ __all__ = (
     "STAGE30_9_1_FORBIDDEN_SURFACES",
     "STAGE30_9_1_NEXT_ALLOWED_STAGE",
     "STAGE30_9_1_NEXT_ALLOWED_STAGE_TITLE",
+    # Stage 30.9.2_RESUME dip-filtered live proof planning / fake-proof slice.
+    "STAGE30_9_2_MINOR_VERSION",
+    "STAGE30_9_2_RESUME_ID",
+    "STAGE30_9_2_PRIOR_STAGE",
+    "STAGE30_9_2_REQUIRED_HEAD_SHA",
+    "STAGE30_9_2_RESUME_PROOF_SCHEMA_VERSION",
+    "STAGE30_9_2_GATE_STACK_REQUIRED",
+    "STAGE30_9_2_RESUME_MODELS_BASENAME",
+    "STAGE30_9_2_RESUME_PLAN_BASENAME",
+    "STAGE30_9_2_RESUME_FAKE_PROOF_BASENAME",
+    "STAGE30_9_2_RESUME_MODELS_MODULE",
+    "STAGE30_9_2_RESUME_PLAN_MODULE",
+    "STAGE30_9_2_RESUME_FAKE_PROOF_MODULE",
+    "STAGE30_9_2_STAGE30_10_3_FAKE_ARTIFACT_PROOF_MODULE",
+    "STAGE30_9_2_STAGE30_10_3_GATE_ARTIFACT_MODELS_MODULE",
+    "STAGE30_9_2_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_9_2_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_9_2_TEST_BASENAMES",
+    "STAGE30_9_2_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_9_2_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_9_2_RESUME_PLAN_FIELDS",
+    "STAGE30_9_2_CANDIDATE_PROOF_RECORD_FIELDS",
+    "STAGE30_9_2_RESUME_PROOF_SUMMARY_FIELDS",
+    "STAGE30_9_2_PLANNING_LIVE_ALLOWED",
+    "STAGE30_9_2_PLANNING_DISPATCH_ALLOWED",
+    "STAGE30_9_2_PLANNING_ENV_READ_ALLOWED",
+    "STAGE30_9_2_PLANNING_PROVIDER_CALL_ALLOWED",
+    "STAGE30_9_2_PLANNING_DISCORD_SEND_ALLOWED",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_CANDIDATES_PASSED",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_CANDIDATES_SKIPPED",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_INVALID_INPUTS",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_RESERVED",
+    (
+        "STAGE30_9_2_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTS_"
+        "SUPPRESSED_BEFORE_RESERVATION"
+    ),
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_DISPATCH_FAILURES_RECORDED",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_TRANSPORT_VETO_COUNT",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_PAYLOAD_REFUSED_COUNT",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_LIVE_ALLOWED",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_PROVIDER_CALL_ALLOWED",
+    "STAGE30_9_2_FAKE_PROOF_EXPECTED_DISCORD_SEND_ALLOWED",
+    "STAGE30_9_2_RESUME_STATUS",
+    "STAGE30_9_2_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_9_2_RESUME_NOTE",
+    "STAGE30_9_2_NEXT_ALLOWED_STEP",
+    "STAGE30_9_2_NEXT_ALLOWED_STEP_TITLE",
+    "STAGE30_9_2_FORBIDDEN_SURFACES",
 )
