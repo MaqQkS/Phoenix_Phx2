@@ -736,6 +736,219 @@ STAGE30_10_1_FORBIDDEN_SURFACES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.10.2 -- optional fake / offline pre-dispatch tier-dip gate slice
+# ---------------------------------------------------------------------------
+#
+# Stage 30.10.2 wires the Stage 30.10.1 classifier into an OPTIONAL,
+# fake / offline pre-dispatch gate that is evaluated BEFORE dispatch
+# reservation / the private send. A non-dip candidate is skipped cleanly
+# (``SKIP_BEFORE_DISPATCH``) before it can become a dispatch attempt; an
+# eligible dip passes through unchanged (``PASS_TO_DISPATCH``); a malformed
+# gate envelope is ``INVALID_INPUT``. A normal non-dip skip is a clean
+# no-send, NEVER a transport failure and NEVER a ``PAYLOAD_REFUSED`` veto, so
+# suppressed non-dips are not counted as dispatch failures. The slice ships
+# ZERO runtime wiring (no existing orchestrator imports it), ZERO live
+# provider call, ZERO Discord send, ZERO env read, ZERO database / SQLite,
+# ZERO zstd / compression, ZERO default storage root, ZERO transport-layer
+# gate, and edits NO Stage 28 suppression / Stage 30.3 / Stage 30.4 runtime
+# orchestrator. These constants pin the Stage 30.10.2 inventory + import
+# allowlists + the gate-decision / gate-reason closed sets + the gate input /
+# record / proof-summary field names, and advance the slice-scoped
+# next-allowed pointer to Stage 30.10.3. The family
+# ``STAGE30_10_NEXT_ALLOWED_STAGE`` stays pinned at 30.10.1 (the slice this
+# manifest's spec lock backs).
+
+
+STAGE30_10_2_MINOR_VERSION: str = "30.10.2"
+
+
+# The three NEW Stage 30.10.2 production modules + their import paths.
+STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_BASENAME: str = (
+    "stage30_10_2_pre_dispatch_gate_models.py"
+)
+STAGE30_10_2_PRE_DISPATCH_GATE_BASENAME: str = (
+    "stage30_10_2_pre_dispatch_gate.py"
+)
+STAGE30_10_2_FAKE_GATE_PROOF_BASENAME: str = (
+    "stage30_10_2_fake_gate_proof.py"
+)
+STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_2_pre_dispatch_gate_models"
+)
+STAGE30_10_2_PRE_DISPATCH_GATE_MODULE: str = (
+    "PHX2.stage30.stage30_10_2_pre_dispatch_gate"
+)
+STAGE30_10_2_FAKE_GATE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_10_2_fake_gate_proof"
+)
+
+
+# The Stage 30.10.2 production inventory (exactly the three modules above;
+# the boundary scan walks these basenames).
+STAGE30_10_2_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_BASENAME,
+    STAGE30_10_2_PRE_DISPATCH_GATE_BASENAME,
+    STAGE30_10_2_FAKE_GATE_PROOF_BASENAME,
+)
+STAGE30_10_2_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_BASENAME,
+    STAGE30_10_2_PRE_DISPATCH_GATE_BASENAME,
+    STAGE30_10_2_FAKE_GATE_PROOF_BASENAME,
+)
+
+
+# The Stage 30.10.2 test inventory.
+STAGE30_10_2_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_10_2_pre_dispatch_gate_models.py",
+    "test_stage_30_10_2_pre_dispatch_gate.py",
+    "test_stage_30_10_2_fake_gate_proof.py",
+    "test_stage_30_10_2_boundaries.py",
+    "test_stage_30_10_2_manifest.py",
+)
+
+
+# The positive stdlib import allowlist for the Stage 30.10.2 production
+# modules (the gate models need ``dataclasses`` / ``typing``; the gate needs
+# ``typing``; the fake proof needs ``decimal`` to build the fake eligibility
+# inputs). NO ``os`` / no network / no database / no compression module is
+# allowlisted.
+STAGE30_10_2_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# The positive PHX2 import allowlist: the gate models import only the Stage
+# 30.10.1 models sibling (for the embedded ``Stage30_10DipEligibilityInput``
+# field type); the gate imports the Stage 30.10.2 gate-models sibling + the
+# Stage 30.10.1 models + classifier siblings; the fake proof imports the
+# Stage 30.10.2 gate-models + gate siblings + the Stage 30.10.1 models
+# sibling. No Stage 21-29 / Stage 30.3 / Stage 30.4 orchestrator / Stage 28
+# suppression / live runner / provider / transport module is allowlisted.
+STAGE30_10_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_10_1_ELIGIBILITY_MODELS_MODULE,
+    STAGE30_10_1_ELIGIBILITY_CLASSIFIER_MODULE,
+    STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_MODULE,
+    STAGE30_10_2_PRE_DISPATCH_GATE_MODULE,
+)
+
+
+# The gate-decision closed set (mirrored BY VALUE by the Stage 30.10.2 gate
+# models module). Exactly one gate decision per evaluated candidate.
+# ``PASS_TO_DISPATCH`` is the only decision that lets a candidate proceed to
+# dispatch reservation; ``SKIP_BEFORE_DISPATCH`` cleanly suppresses a non-dip
+# BEFORE reservation (NOT a dispatch failure, NOT a transport veto);
+# ``INVALID_INPUT`` fails closed on a malformed gate envelope.
+STAGE30_10_2_GATE_DECISIONS: Tuple[str, ...] = (
+    "PASS_TO_DISPATCH",
+    "SKIP_BEFORE_DISPATCH",
+    "INVALID_INPUT",
+)
+
+
+# The single decision that proceeds to dispatch reservation.
+STAGE30_10_2_GATE_PASS_DECISION: str = "PASS_TO_DISPATCH"
+
+
+# The gate-reason closed set (mirrored BY VALUE by the Stage 30.10.2 gate
+# models module). Exactly one reason per gate decision: ``ELIGIBLE_DIP``
+# accompanies the only ``PASS_TO_DISPATCH``; ``NOT_DIP`` accompanies a normal
+# ``SKIP_BEFORE_DISPATCH`` (a clean no-send, never a transport / payload
+# refusal); ``INVALID_GATE_INPUT`` accompanies ``INVALID_INPUT``.
+STAGE30_10_2_GATE_REASONS: Tuple[str, ...] = (
+    "ELIGIBLE_DIP",
+    "NOT_DIP",
+    "INVALID_GATE_INPUT",
+)
+
+
+# The Stage 30.10.2 gate input / gate record / fake-proof-summary field
+# names (an explicit gate envelope + per-candidate gate audit record + an
+# offline proof tally; ``created_at_utc`` is caller-injected, never a
+# wall-clock read; NONE is a secret, a raw payload, a host, or a transport
+# destination).
+STAGE30_10_2_GATE_INPUT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "eligibility_input",
+    "candidate_ref",
+    "created_at_utc",
+)
+STAGE30_10_2_GATE_RECORD_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "eligibility_decision",
+    "eligibility_reason",
+    "send_allowed",
+    "gate_decision",
+    "gate_reason",
+    "created_at_utc",
+)
+STAGE30_10_2_PROOF_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "candidates_seen",
+    "candidates_passed",
+    "candidates_skipped",
+    "invalid_inputs",
+    "dispatch_attempts_reserved",
+    "dispatch_attempts_suppressed_before_reservation",
+    "created_at_utc",
+)
+
+
+# After Stage 30.10.2 lands, the next operator-authorized slice is Stage
+# 30.10.3 (prove artifact integration, offline only).
+STAGE30_10_2_NEXT_ALLOWED_STAGE: str = "30.10.3"
+STAGE30_10_2_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "prove artifact integration -- persist the eligibility audit record "
+    "alongside the existing Stage 30.9 compact / artifact lane, offline only"
+)
+
+
+# The surfaces the Stage 30.10.2 slice must not touch. Plain documentation
+# words (family / feature names), NOT secret / host / transport needle forms.
+STAGE30_10_2_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "live runtime wiring",
+    "Stage 28 suppression-logic edit",
+    "Stage 30.3 compact orchestrator edit",
+    "Stage 30.4 compact orchestrator edit",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "live run",
+    "live provider call",
+    "Discord send",
+    "env read",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "broad always-on daemon",
+    "background service",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.10.3+ implementation file",
+    "Stage 31",
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_10_STAGE_ID",
@@ -803,4 +1016,26 @@ __all__ = (
     "STAGE30_10_1_NEXT_ALLOWED_STAGE",
     "STAGE30_10_1_NEXT_ALLOWED_STAGE_TITLE",
     "STAGE30_10_1_FORBIDDEN_SURFACES",
+    # Stage 30.10.2 optional fake / offline pre-dispatch tier-dip gate slice.
+    "STAGE30_10_2_MINOR_VERSION",
+    "STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_BASENAME",
+    "STAGE30_10_2_PRE_DISPATCH_GATE_BASENAME",
+    "STAGE30_10_2_FAKE_GATE_PROOF_BASENAME",
+    "STAGE30_10_2_PRE_DISPATCH_GATE_MODELS_MODULE",
+    "STAGE30_10_2_PRE_DISPATCH_GATE_MODULE",
+    "STAGE30_10_2_FAKE_GATE_PROOF_MODULE",
+    "STAGE30_10_2_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_10_2_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_10_2_TEST_BASENAMES",
+    "STAGE30_10_2_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_10_2_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_10_2_GATE_DECISIONS",
+    "STAGE30_10_2_GATE_PASS_DECISION",
+    "STAGE30_10_2_GATE_REASONS",
+    "STAGE30_10_2_GATE_INPUT_FIELDS",
+    "STAGE30_10_2_GATE_RECORD_FIELDS",
+    "STAGE30_10_2_PROOF_SUMMARY_FIELDS",
+    "STAGE30_10_2_NEXT_ALLOWED_STAGE",
+    "STAGE30_10_2_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_10_2_FORBIDDEN_SURFACES",
 )

@@ -354,6 +354,19 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # edit; no Stage 30.10.2+ implementation file ships at Stage 30.10.1).
         "stage30_10_1_tier_dip_eligibility_models.py",
         "stage30_10_1_tier_dip_eligibility_classifier.py",
+        # Stage 30.10.2 optional fake / offline pre-dispatch tier-dip gate
+        # production additions (the gate models, the gate that wraps the
+        # Stage 30.10.1 classifier and is evaluated BEFORE dispatch
+        # reservation, and the offline fake-gate proof; ZERO runtime wiring,
+        # ZERO live provider call, ZERO Discord send, ZERO env read, ZERO
+        # transport-layer veto / PAYLOAD_REFUSED for a normal non-dip skip,
+        # ZERO database / SQLite / zstd / compression, ZERO default storage
+        # root, ZERO Stage 28 suppression / Stage 30.3 / Stage 30.4
+        # orchestrator edit; no Stage 30.10.3+ implementation file ships at
+        # Stage 30.10.2).
+        "stage30_10_2_pre_dispatch_gate_models.py",
+        "stage30_10_2_pre_dispatch_gate.py",
+        "stage30_10_2_fake_gate_proof.py",
     }
 )
 
@@ -519,6 +532,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_10_1_tier_dip_eligibility_classifier.py",
         "test_stage_30_10_1_boundaries.py",
         "test_stage_30_10_1_manifest.py",
+        # Stage 30.10.2 optional fake / offline pre-dispatch tier-dip gate
+        # test additions (gate models, gate, fake-gate proof, boundaries,
+        # manifest). Fakes / offline only.
+        "test_stage_30_10_2_pre_dispatch_gate_models.py",
+        "test_stage_30_10_2_pre_dispatch_gate.py",
+        "test_stage_30_10_2_fake_gate_proof.py",
+        "test_stage_30_10_2_boundaries.py",
+        "test_stage_30_10_2_manifest.py",
     }
 )
 
