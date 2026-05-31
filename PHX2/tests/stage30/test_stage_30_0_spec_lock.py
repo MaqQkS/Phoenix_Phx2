@@ -300,6 +300,21 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # 30.9 file ships at Stage 30.8.4).
         "stage30_8_controlled_artifact_proof_models.py",
         "stage30_8_controlled_artifact_proof.py",
+        # Stage 30.9.0 bounded private live compact session bridge spec
+        # lock + manifest (spec-lock only; the spec doc plus a
+        # constants-only manifest. ZERO runtime code, ZERO artifact
+        # bridge, ZERO capture transport, ZERO post-session projector,
+        # ZERO Stage 30.8 writer / reader / index invocation, ZERO new
+        # live runner / readiness gate, ZERO live / Discord / provider /
+        # env, ZERO database / SQLite / zstd / compression, ZERO default
+        # storage root / background daemon, ZERO public / subscriber /
+        # paid routing, ZERO Telegram / X / social, ZERO trading / wallet /
+        # signing, ZERO enforcement, ZERO Stage 31, ZERO edit to any
+        # existing live runner / orchestrator / transport / Stage 30.8
+        # implementation file; no Stage 30.9.1+ implementation file ships
+        # at Stage 30.9.0).
+        "STAGE_30_9_0_BOUNDED_PRIVATE_LIVE_COMPACT_SPEC_LOCK.md",
+        "stage30_9_manifest.py",
     }
 )
 
@@ -442,6 +457,10 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_8_4_controlled_artifact_proof.py",
         "test_stage_30_8_4_boundaries.py",
         "test_stage_30_8_4_manifest.py",
+        # Stage 30.9.0 bounded private live compact session bridge
+        # spec-lock pin test (spec-lock only; no runtime, no bridge, no
+        # live).
+        "test_stage_30_9_0_bounded_private_live_compact_spec_lock.py",
     }
 )
 
