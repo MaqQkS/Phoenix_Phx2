@@ -621,8 +621,10 @@ def test_stage30_0_allowlist_admits_the_30_8_0_files() -> None:
 
 # Matches any Stage 30.8.<N> minor-version token in a basename (both the
 # production ``stage30_8_<N>`` and the test ``stage_30_8_<N>`` spellings).
-# A captured N >= 4 names a future Stage 30.8.4+ file; N in {0, 1, 2, 3} is
-# allowed (Stage 30.8.3 dedupe / session index is now admitted).
+# A captured N >= 5 names a future Stage 30.8.5+ file; N in {0, 1, 2, 3, 4}
+# is allowed (Stage 30.8.4 controlled proof is now admitted). The Stage
+# 30.8.4 production basenames (``stage30_8_controlled_artifact_proof*.py``)
+# carry no minor digit after ``stage30_8_`` and so match no token at all.
 _STAGE_30_8_MINOR_RE = re.compile(r"stage_?30_8_(\d+)")
 
 
@@ -630,28 +632,28 @@ def _future_30_8_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_8_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 4:
+            if int(match.group(1)) >= 5:
                 violations.append(basename)
     return violations
 
 
-def test_stage30_0_allowlist_admits_no_stage_30_8_4_plus_file() -> None:
-    """No Stage 30.8.4+ production / test basename is admitted by the
+def test_stage30_0_allowlist_admits_no_stage_30_8_5_plus_file() -> None:
+    """No Stage 30.8.5+ production / test basename is admitted by the
     Stage 30.0 allowlist yet. Stage 30.8.1 (pure models + validators),
-    Stage 30.8.2 (the temp-dir artifact writer), and Stage 30.8.3 (the
-    offline dedupe / session index) ARE now admitted; Stage 30.8.4+ (the
-    controlled compact session artifact proof) is not. The guard is
-    generic: it catches ANY Stage 30.8.<N>=4+ token (30_8_4, 30_8_5,
-    30_8_6, ...), not just an enumerated 4.
+    Stage 30.8.2 (the temp-dir artifact writer), Stage 30.8.3 (the offline
+    dedupe / session index), and Stage 30.8.4 (the controlled compact
+    session artifact proof) ARE now admitted; Stage 30.8.5+ is not. The
+    guard is generic: it catches ANY Stage 30.8.<N>=5+ token (30_8_5,
+    30_8_6, ...), not just an enumerated 5.
     """
     production = _future_30_8_violations(_STAGE30_ALLOWED_BASENAMES)
     assert production == [], (
-        "Stage 30.0 production allowlist must not admit a Stage 30.8.4+ "
+        "Stage 30.0 production allowlist must not admit a Stage 30.8.5+ "
         f"file yet; saw {production!r}"
     )
     tests = _future_30_8_violations(_TESTS_STAGE30_ALLOWED_BASENAMES)
     assert tests == [], (
-        "Stage 30.0 test allowlist must not admit a Stage 30.8.4+ test "
+        "Stage 30.0 test allowlist must not admit a Stage 30.8.5+ test "
         f"file yet; saw {tests!r}"
     )
 
@@ -691,16 +693,27 @@ def test_only_stage30_8_production_files_are_spec_and_manifest() -> None:
         # Stage 30.8.3 offline dedupe / session index slice (admitted;
         # passive index models + fail-closed manifest-backed bundle reader
         # + pure in-memory index / dedupe builder -- no DB / SQLite / zstd /
-        # compression, no index artifact write, no Stage 30.8.4 file).
+        # compression, no index artifact write).
         "stage30_8_session_index_models.py",
         "stage30_8_session_bundle_reader.py",
         "stage30_8_session_index_builder.py",
+        # Stage 30.8.4 controlled compact session artifact proof slice
+        # (admitted; passive proof models -- scenario + summary records +
+        # closed-set tokens, imports no PHX2 module -- plus a fail-closed
+        # proof runner that COMPOSES the Stage 30.8.1 models + Stage 30.8.2
+        # writer + Stage 30.8.3 reader / index builder over caller-provided
+        # temp dirs only; no runtime integration, no live / Discord / env /
+        # DB / SQLite / zstd / compression, no real bot storage / default
+        # storage root, no Stage 30.8.5+ file).
+        "stage30_8_controlled_artifact_proof_models.py",
+        "stage30_8_controlled_artifact_proof.py",
     }
     assert observed == allowed, (
         "Stage 30.8 production entries must be exactly the spec lock + "
         "manifest + the Stage 30.8.1 models / validators + the Stage "
         "30.8.2 writer + the Stage 30.8.2 closure-audit doc + the Stage "
-        "30.8.3 index models / reader / builder; unexpected entries: "
+        "30.8.3 index models / reader / builder + the Stage 30.8.4 "
+        "controlled proof models / runner; unexpected entries: "
         f"{sorted(observed - allowed)}"
     )
 
@@ -731,12 +744,17 @@ def test_only_stage30_8_test_file_is_the_pin_test() -> None:
         "test_stage_30_8_3_session_index_builder.py",
         "test_stage_30_8_3_boundaries.py",
         "test_stage_30_8_3_manifest.py",
+        # Stage 30.8.4 controlled compact session artifact proof test
+        # additions (controlled proof runner, boundaries, manifest).
+        "test_stage_30_8_4_controlled_artifact_proof.py",
+        "test_stage_30_8_4_boundaries.py",
+        "test_stage_30_8_4_manifest.py",
     }
     assert observed == allowed, (
         "Stage 30.8 test entries must be exactly the 30.8.0 pin test + "
-        "the Stage 30.8.1 + Stage 30.8.2 + Stage 30.8.3 test additions "
-        "(incl. the Stage 30.8.2 closure-audit test); unexpected entries: "
-        f"{sorted(observed - allowed)}"
+        "the Stage 30.8.1 + Stage 30.8.2 + Stage 30.8.3 + Stage 30.8.4 "
+        "test additions (incl. the Stage 30.8.2 closure-audit test); "
+        f"unexpected entries: {sorted(observed - allowed)}"
     )
 
 

@@ -286,6 +286,20 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_8_session_index_models.py",
         "stage30_8_session_bundle_reader.py",
         "stage30_8_session_index_builder.py",
+        # Stage 30.8.4 controlled compact session artifact proof slice
+        # (a passive proof models module -- scenario + summary records +
+        # closed-set tokens, imports no PHX2 module -- plus a fail-closed
+        # proof runner that COMPOSES the Stage 30.8.1 models + Stage 30.8.2
+        # writer + Stage 30.8.3 reader / index builder over caller-provided
+        # temp dirs only; NO runtime integration, NO live provider run, NO
+        # Discord send, NO real bot storage root, NO default storage /
+        # proof-summary path, NO database / SQLite / zstd / compression, NO
+        # env read, NO renderer / compact models / orchestrator / Stage
+        # 30.7 / Stage 30.8.1-3 production edit; the runner writes nothing
+        # of its own and the summary is in-memory; no Stage 30.8.5+ / Stage
+        # 30.9 file ships at Stage 30.8.4).
+        "stage30_8_controlled_artifact_proof_models.py",
+        "stage30_8_controlled_artifact_proof.py",
     }
 )
 
@@ -423,6 +437,11 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_8_3_session_index_builder.py",
         "test_stage_30_8_3_boundaries.py",
         "test_stage_30_8_3_manifest.py",
+        # Stage 30.8.4 controlled compact session artifact proof test
+        # additions (controlled proof runner, boundaries, manifest).
+        "test_stage_30_8_4_controlled_artifact_proof.py",
+        "test_stage_30_8_4_boundaries.py",
+        "test_stage_30_8_4_manifest.py",
     }
 )
 

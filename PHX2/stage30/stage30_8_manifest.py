@@ -1006,6 +1006,221 @@ STAGE30_8_3_NEXT_RECOMMENDED_STAGE_TITLE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.8.4 controlled compact session artifact proof inventory
+# ---------------------------------------------------------------------------
+#
+# Stage 30.8.4 is the FINAL planned Stage 30.8 substage: a controlled,
+# fake / offline proof that the Stage 30.8 storage chain already built
+# (Stage 30.8.1 models / validators -> Stage 30.8.2 temp-dir writer ->
+# Stage 30.8.3 manifest-backed reader + session index / dedupe builder)
+# COMPOSES correctly end-to-end. It is NOT a runtime integration, NOT a
+# live provider run, NOT a Discord send, NOT a real bot storage proof, and
+# NOT a new dedupe implementation (dedupe / index already landed at Stage
+# 30.8.3). The two NEW production files are the passive proof models (the
+# scenario + summary records + closed-set tokens; imports NO PHX2 module)
+# and the proof runner (which composes the Stage 30.8.1 artifact-models +
+# Stage 30.8.2 writer + Stage 30.8.3 reader / index-builder / index-models
+# siblings). The runner WRITES nothing of its own (every write goes
+# through the Stage 30.8.2 writer, every read through the Stage 30.8.3
+# reader / builder) and creates no proof-summary file: the summary is a
+# pure in-memory record. NO Stage 30.8.5+ / Stage 30.9 file ships at Stage
+# 30.8.4.
+
+
+STAGE30_8_4_MINOR_VERSION: str = "30.8.4"
+
+
+STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODELS_BASENAME: str = (
+    "stage30_8_controlled_artifact_proof_models.py"
+)
+STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_BASENAME: str = (
+    "stage30_8_controlled_artifact_proof.py"
+)
+
+
+STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_8_controlled_artifact_proof_models"
+)
+STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_8_controlled_artifact_proof"
+)
+
+
+# The Stage 30.8.4 proof summary schema version (mirrored from the proof
+# models module; the manifest test cross-checks it matches). Distinct from
+# the per-artifact / bundle-envelope / session-index schema versions: this
+# names the offline controlled-proof summary shape.
+STAGE30_8_4_PROOF_SCHEMA_VERSION: str = (
+    "stage30_8_v0_compact_session_proof"
+)
+
+
+# The default fake proof scenario name (mirrored from the proof models).
+STAGE30_8_4_DEFAULT_SCENARIO_NAME: str = (
+    "stage30_8_4_default_dedupe_mismatch"
+)
+
+
+# Closed-set proof status + reason tokens (mirrored from the proof models).
+STAGE30_8_4_PROOF_STATUS_VALUES: Tuple[str, ...] = (
+    "PROVED",
+    "FAILED",
+)
+
+
+STAGE30_8_4_PROOF_REASONS: Tuple[str, ...] = (
+    "OK",
+    "INVALID_OUTPUT_DIR",
+    "INVALID_SCENARIO",
+    "WRITE_FAILED",
+    "READ_FAILED",
+    "INDEX_FAILED",
+    "COUNT_MISMATCH",
+    "INVARIANT_FAILED",
+)
+
+
+# The author-verified expected counts for the default scenario (mirrored
+# from the proof models): 2 sessions / 6 ping artifacts / 3 retained / 2
+# duplicate-suppressed (one same-session, one cross-session) / 1
+# invalid-suppressed (a session-id mismatch the writer accepts but the
+# index suppresses).
+STAGE30_8_4_EXPECTED_SESSIONS_WRITTEN: int = 2
+STAGE30_8_4_EXPECTED_PING_ARTIFACTS_SEEN: int = 6
+STAGE30_8_4_EXPECTED_RETAINED: int = 3
+STAGE30_8_4_EXPECTED_DUPLICATE_SUPPRESSED: int = 2
+STAGE30_8_4_EXPECTED_INVALID_SUPPRESSED: int = 1
+
+
+# The NEW production files Stage 30.8.4 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.8.3 inventory: exactly the proof
+# models + the proof runner. NO Stage 30.8.5+ / Stage 30.9 file.
+STAGE30_8_4_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODELS_BASENAME,
+    STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_BASENAME,
+)
+
+
+# The two production modules the Stage 30.8.4 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_8_4_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODELS_BASENAME,
+    STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_BASENAME,
+)
+
+
+STAGE30_8_4_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_8_4_controlled_artifact_proof.py",
+    "test_stage_30_8_4_boundaries.py",
+    "test_stage_30_8_4_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.8.4 production module must be in this
+# stdlib allowlist (the models need ``dataclasses``; the runner needs only
+# ``typing`` -- the JSON / pathlib I/O lives behind the composed Stage
+# 30.8.2 writer + Stage 30.8.3 reader / builder). It admits NO ``os`` (so
+# NO ``os.environ`` / ``os.getenv`` env read), NO ``sqlite3``, NO ``zstd``
+# / compression, and NO network module.
+STAGE30_8_4_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# Every PHX2 import in a Stage 30.8.4 production module must be one of
+# these siblings (only the runner imports PHX2 modules; the proof models
+# import none). This positive allowlist proves, by construction, that NO
+# Stage 21-29 / Stage 29.5 / runtime / orchestrator / renderer / Discord /
+# provider module is imported.
+STAGE30_8_4_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODELS_MODULE,
+    STAGE30_8_1_ARTIFACT_MODELS_MODULE,
+    STAGE30_8_2_TEMP_ARTIFACT_WRITER_MODULE,
+    STAGE30_8_3_SESSION_BUNDLE_READER_MODULE,
+    STAGE30_8_3_SESSION_INDEX_BUILDER_MODULE,
+    STAGE30_8_3_SESSION_INDEX_MODELS_MODULE,
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.4 forbidden surfaces (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The surfaces the Stage 30.8.4 controlled-proof slice must not touch.
+# Plain documentation words (family / feature names), NOT secret / host /
+# transport needle forms. The runner DOES drive the Stage 30.8.2 writer to
+# write into a caller-provided temp dir and the Stage 30.8.3 reader /
+# builder to read it back (that is the proof); it must not reach any
+# surface below, and it must use ONLY a caller-provided output dir (no
+# default storage root / proof-summary default path).
+
+
+STAGE30_8_4_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real bot artifact directory",
+    "default storage root",
+    "proof summary default path",
+    "index artifact write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "append-only database",
+    "day rolling implementation",
+    "live run",
+    "live provider run",
+    "provider call",
+    "Discord send",
+    "env read",
+    "runtime integration",
+    "runtime orchestrator edit",
+    "compact renderer edit",
+    "compact models edit",
+    "Stage 30.7 file edit",
+    "Stage 30.8.1 production edit",
+    "Stage 30.8.2 production edit",
+    "Stage 30.8.3 production edit",
+    "enforcement",
+    "public routing",
+    "trading",
+    "wallet",
+    "social",
+    "drawdown recomputation",
+    "tier recomputation",
+    "Stage 25/27/28/29 production import",
+    "Stage 29.5 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.9 implementation file",
+    "Stage 30.8.5+ implementation file",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.8.4 next recommended stage
+# ---------------------------------------------------------------------------
+#
+# Stage 30.8.4 is the final planned Stage 30.8 substage; after it the
+# Stage 30.8 compact session storage family is complete and the next
+# milestone (Stage 30.8 family closure / tag, then Stage 30.9) is a
+# SEPARATE operator-gated decision. The Stage 30.8.0 family pointer
+# ``STAGE30_8_NEXT_RECOMMENDED_STAGE`` stays pinned at ``30.8.1``; this
+# 30.8.4-scoped pointer names the next milestone (no Stage 30.9 file ships
+# at Stage 30.8.4, exactly as Stage 30.8.3 forbade a Stage 30.8.4 file
+# while pointing at it).
+
+
+STAGE30_8_4_NEXT_RECOMMENDED_STAGE: str = "30.9"
+STAGE30_8_4_NEXT_RECOMMENDED_STAGE_TITLE: str = (
+    "Stage 30.8 family closure / handoff, then Stage 30.9 "
+    "(separately operator-gated; no Stage 30.9 file at Stage 30.8.4)"
+)
+
+
 __all__ = (
     # Stage id + minor version.
     "STAGE30_8_STAGE_ID",
@@ -1102,4 +1317,27 @@ __all__ = (
     "STAGE30_8_3_FORBIDDEN_SURFACES",
     "STAGE30_8_3_NEXT_RECOMMENDED_STAGE",
     "STAGE30_8_3_NEXT_RECOMMENDED_STAGE_TITLE",
+    # Stage 30.8.4 controlled compact session artifact proof inventory.
+    "STAGE30_8_4_MINOR_VERSION",
+    "STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODELS_BASENAME",
+    "STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_BASENAME",
+    "STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODELS_MODULE",
+    "STAGE30_8_4_CONTROLLED_ARTIFACT_PROOF_MODULE",
+    "STAGE30_8_4_PROOF_SCHEMA_VERSION",
+    "STAGE30_8_4_DEFAULT_SCENARIO_NAME",
+    "STAGE30_8_4_PROOF_STATUS_VALUES",
+    "STAGE30_8_4_PROOF_REASONS",
+    "STAGE30_8_4_EXPECTED_SESSIONS_WRITTEN",
+    "STAGE30_8_4_EXPECTED_PING_ARTIFACTS_SEEN",
+    "STAGE30_8_4_EXPECTED_RETAINED",
+    "STAGE30_8_4_EXPECTED_DUPLICATE_SUPPRESSED",
+    "STAGE30_8_4_EXPECTED_INVALID_SUPPRESSED",
+    "STAGE30_8_4_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_8_4_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_8_4_TEST_BASENAMES",
+    "STAGE30_8_4_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_8_4_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_8_4_FORBIDDEN_SURFACES",
+    "STAGE30_8_4_NEXT_RECOMMENDED_STAGE",
+    "STAGE30_8_4_NEXT_RECOMMENDED_STAGE_TITLE",
 )
