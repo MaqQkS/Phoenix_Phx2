@@ -332,6 +332,19 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_9_capture_transport.py",
         "stage30_9_artifact_projector.py",
         "stage30_9_artifact_bridge_proof.py",
+        # Stage 30.10.0 compact tier-dip eligibility gate spec lock +
+        # manifest (spec-lock only; the spec doc plus a constants-only
+        # manifest. ZERO runtime code, ZERO eligibility classifier, ZERO
+        # audit-record model, ZERO runtime wiring, ZERO artifact
+        # integration, ZERO new live runner / provider / readiness gate,
+        # ZERO direct Stage 28 suppression-logic edit, ZERO live / Discord /
+        # provider / env, ZERO database / SQLite / zstd / compression, ZERO
+        # default storage root / background daemon, ZERO public / subscriber
+        # / paid routing, ZERO Telegram / X / social, ZERO trading / wallet /
+        # signing, ZERO enforcement, ZERO Stage 31; no Stage 30.10.1+
+        # implementation file ships at Stage 30.10.0).
+        "STAGE_30_10_0_COMPACT_TIER_DIP_ELIGIBILITY_SPEC_LOCK.md",
+        "stage30_10_manifest.py",
     }
 )
 
@@ -487,6 +500,9 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_9_1_artifact_bridge_proof.py",
         "test_stage_30_9_1_boundaries.py",
         "test_stage_30_9_1_manifest.py",
+        # Stage 30.10.0 compact tier-dip eligibility gate spec-lock pin
+        # test (spec-lock only; no runtime, no classifier, no live).
+        "test_stage_30_10_0_compact_tier_dip_eligibility_spec_lock.py",
     }
 )
 
