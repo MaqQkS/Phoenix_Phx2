@@ -681,11 +681,17 @@ def test_only_stage30_8_production_files_are_spec_and_manifest() -> None:
         # (admitted; no dedupe / session index / DB / SQLite / zstd ships
         # at 30.8.2).
         "stage30_8_temp_artifact_writer.py",
+        # Stage 30.8.2 temp-dir artifact writer closure-audit doc
+        # (admitted; closure / handoff markdown only -- no production .py,
+        # no manifest change, no writer behavior change; no Stage 30.8.3
+        # file).
+        "STAGE_30_8_2_TEMP_ARTIFACT_WRITER_CLOSURE_AUDIT.md",
     }
     assert observed == allowed, (
         "Stage 30.8 production entries must be exactly the spec lock + "
         "manifest + the Stage 30.8.1 models / validators + the Stage "
-        f"30.8.2 writer; unexpected entries: {sorted(observed - allowed)}"
+        "30.8.2 writer + the Stage 30.8.2 closure-audit doc; unexpected "
+        f"entries: {sorted(observed - allowed)}"
     )
 
 
@@ -707,11 +713,14 @@ def test_only_stage30_8_test_file_is_the_pin_test() -> None:
         "test_stage_30_8_2_temp_artifact_writer.py",
         "test_stage_30_8_2_boundaries.py",
         "test_stage_30_8_2_manifest.py",
+        # Stage 30.8.2 temp-dir artifact writer closure-audit test.
+        "test_stage_30_8_2_closure_audit.py",
     }
     assert observed == allowed, (
         "Stage 30.8 test entries must be exactly the 30.8.0 pin test + "
-        "the Stage 30.8.1 + Stage 30.8.2 test additions; unexpected "
-        f"entries: {sorted(observed - allowed)}"
+        "the Stage 30.8.1 + Stage 30.8.2 test additions (incl. the "
+        "Stage 30.8.2 closure-audit test); unexpected entries: "
+        f"{sorted(observed - allowed)}"
     )
 
 

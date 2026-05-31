@@ -267,6 +267,11 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # models + validators siblings; no Stage 30.8.3+ file ships at
         # Stage 30.8.2).
         "stage30_8_temp_artifact_writer.py",
+        # Stage 30.8.2 temp-dir artifact writer closure audit (closure /
+        # handoff doc only; ZERO production code, ZERO manifest change,
+        # ZERO writer behavior change, ZERO renderer / compact models /
+        # orchestrator / Stage 30.7 edit; no Stage 30.8.3 file).
+        "STAGE_30_8_2_TEMP_ARTIFACT_WRITER_CLOSURE_AUDIT.md",
     }
 )
 
@@ -392,6 +397,10 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_8_2_temp_artifact_writer.py",
         "test_stage_30_8_2_boundaries.py",
         "test_stage_30_8_2_manifest.py",
+        # Stage 30.8.2 temp-dir artifact writer closure-audit test
+        # (closure / handoff doc guard only; no production / manifest
+        # change; no Stage 30.8.3 file).
+        "test_stage_30_8_2_closure_audit.py",
     }
 )
 
