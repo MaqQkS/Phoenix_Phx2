@@ -403,6 +403,23 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_9_2_resume_dip_filtered_live_models.py",
         "stage30_9_2_resume_dip_filtered_live_plan.py",
         "stage30_9_2_resume_fake_proof.py",
+        # Stage 30.9.3 dip-filtered live dispatch integration seam production
+        # additions (the passive integration models -- assembled live-candidate
+        # input + per-candidate live gate decision + rolled-up integration
+        # result, importing no PHX2 module -- the pure adapter that builds the
+        # Stage 30.10.1 eligibility input from existing live context fields and
+        # runs the committed Stage 30.10 gate stack, the bounded orchestrator
+        # that drives the adapter over a candidate stream with an injected
+        # dispatch sink + caps, and a fake / offline integration proof with
+        # deterministic fake streams + an in-memory recording sink; the REAL
+        # seam the later operator-authorized live ceremony reuses, but ZERO
+        # live run / provider call / Discord send / env read / real transport
+        # dispatch reservation ships here; no Stage 30.9.4 / Stage 30.10.4
+        # file).
+        "stage30_9_3_dip_filtered_live_gate_models.py",
+        "stage30_9_3_dip_filtered_live_gate_adapter.py",
+        "stage30_9_3_dip_filtered_live_gate_orchestrator.py",
+        "stage30_9_3_fake_live_gate_integration_proof.py",
     }
 )
 
@@ -592,6 +609,15 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_9_2_resume_fake_proof.py",
         "test_stage_30_9_2_resume_boundaries.py",
         "test_stage_30_9_2_resume_manifest.py",
+        # Stage 30.9.3 dip-filtered live dispatch integration seam test
+        # additions (models, adapter, orchestrator, fake integration proof,
+        # boundaries, manifest). Fakes / offline only.
+        "test_stage_30_9_3_dip_filtered_live_gate_models.py",
+        "test_stage_30_9_3_dip_filtered_live_gate_adapter.py",
+        "test_stage_30_9_3_dip_filtered_live_gate_orchestrator.py",
+        "test_stage_30_9_3_fake_live_gate_integration_proof.py",
+        "test_stage_30_9_3_boundaries.py",
+        "test_stage_30_9_3_manifest.py",
     }
 )
 

@@ -1088,6 +1088,330 @@ STAGE30_9_2_FORBIDDEN_SURFACES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.9.3 -- dip-filtered live dispatch integration seam
+# ---------------------------------------------------------------------------
+#
+# Stage 30.9.3 builds the committed, tested integration SEAM that lets the live
+# candidate -> dispatch path enforce the completed Stage 30.10 dip-gate stack
+# (30.10.1 classifier -> 30.10.2 pre-dispatch gate -> 30.10.3 artifact
+# projection) so ONLY a PASS_TO_DISPATCH candidate may reserve a dispatch /
+# drive the private compact send; every SKIP_BEFORE_DISPATCH / INVALID_INPUT
+# candidate is suppressed BEFORE dispatch reservation, is never a dispatch
+# failure, and never reuses PAYLOAD_REFUSED. It adds four NEW leaf production
+# modules -- the passive integration models (the assembled live-candidate input
+# + per-candidate live gate decision + rolled-up integration result, importing
+# no PHX2 module), the pure adapter (builds the Stage 30.10.1 eligibility input
+# from existing live context fields, runs the gate stack, projects a decision),
+# the bounded orchestrator (drives the adapter over a candidate stream with an
+# injected dispatch sink + max_candidates_evaluated / max_dispatches /
+# max_private_discord_sends caps), and a fake / offline integration proof
+# (deterministic fake streams + an in-memory recording sink). This is the REAL
+# seam the later controlled live ceremony will reuse, but THIS slice ships ZERO
+# live run, ZERO live provider call, ZERO Discord send, ZERO env read, ZERO real
+# transport dispatch reservation, ZERO filesystem write, ZERO transport-layer
+# gate / PAYLOAD_REFUSED for a normal non-dip skip, ZERO database / SQLite /
+# zstd / compression, ZERO default storage root, and edits NO Stage 28
+# suppression / Stage 30.3 / Stage 30.4 runtime orchestrator -- the slice is a
+# leaf (nothing existing imports it). The actual dip-filtered live ceremony
+# remains a separate, explicitly operator-authorized step. The Stage 30.9.0
+# family pointer STAGE30_9_NEXT_ALLOWED_STAGE stays pinned at 30.9.1 and the
+# planned-substage tuple is unchanged (the seam is an additively admitted
+# slice).
+
+
+STAGE30_9_3_MINOR_VERSION: str = "30.9.3"
+
+
+# The prior stage this integration seam builds on: the Stage 30.9.2 dip-filtered
+# resume planning slice (and, by composition, the committed Stage 30.10 dip-gate
+# stack it reuses).
+STAGE30_9_3_PRIOR_STAGE: str = "30.9.2"
+
+
+# The Stage 30.9.3 integration schema version (mirrored BY VALUE by the Stage
+# 30.9.3 models module; distinct from the Stage 30.9.2 resume proof schema
+# version and the Stage 30.10.3 artifact schema version).
+STAGE30_9_3_INTEGRATION_SCHEMA_VERSION: str = (
+    "stage30_9_3_v0_dip_filtered_live_gate"
+)
+
+
+# The required dip-gate stack the Stage 30.9.3 seam composes (mirrors the Stage
+# 30.9.2 STAGE30_9_2_GATE_STACK_REQUIRED value BY VALUE). The seam runs each
+# live candidate through exactly this committed Stage 30.10 stack.
+STAGE30_9_3_GATE_STACK_REQUIRED: Tuple[str, ...] = (
+    "30.10.1 offline tier-dip eligibility classifier",
+    "30.10.2 optional pre-dispatch tier-dip gate",
+    "30.10.3 gate artifact projection",
+)
+
+
+# The closed-set gate decisions the Stage 30.9.3 decision echoes from the Stage
+# 30.10.2 gate (mirrored BY VALUE; this manifest imports no Stage 30.10 module).
+# Only PASS_TO_DISPATCH may reserve a dispatch / drive the private compact send.
+STAGE30_9_3_GATE_DECISIONS: Tuple[str, ...] = (
+    "PASS_TO_DISPATCH",
+    "SKIP_BEFORE_DISPATCH",
+    "INVALID_INPUT",
+)
+STAGE30_9_3_DISPATCH_ALLOWED_GATE_DECISION: str = "PASS_TO_DISPATCH"
+
+
+# The four NEW Stage 30.9.3 production modules + their import paths.
+STAGE30_9_3_GATE_MODELS_BASENAME: str = (
+    "stage30_9_3_dip_filtered_live_gate_models.py"
+)
+STAGE30_9_3_GATE_ADAPTER_BASENAME: str = (
+    "stage30_9_3_dip_filtered_live_gate_adapter.py"
+)
+STAGE30_9_3_GATE_ORCHESTRATOR_BASENAME: str = (
+    "stage30_9_3_dip_filtered_live_gate_orchestrator.py"
+)
+STAGE30_9_3_FAKE_PROOF_BASENAME: str = (
+    "stage30_9_3_fake_live_gate_integration_proof.py"
+)
+STAGE30_9_3_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_models"
+)
+STAGE30_9_3_GATE_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_adapter"
+)
+STAGE30_9_3_GATE_ORCHESTRATOR_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_orchestrator"
+)
+STAGE30_9_3_FAKE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_fake_live_gate_integration_proof"
+)
+
+
+# The ALREADY-EXISTING Stage 30.10 sibling module paths the Stage 30.9.3 adapter
+# / orchestrator compose (re-declared here as literals; the manifest imports no
+# PHX2 module). These are the committed dip-gate stack surfaces the seam reuses.
+STAGE30_9_3_STAGE30_10_1_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_1_tier_dip_eligibility_models"
+)
+STAGE30_9_3_STAGE30_10_2_GATE_MODULE: str = (
+    "PHX2.stage30.stage30_10_2_pre_dispatch_gate"
+)
+STAGE30_9_3_STAGE30_10_2_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_2_pre_dispatch_gate_models"
+)
+STAGE30_9_3_STAGE30_10_3_PROJECTOR_MODULE: str = (
+    "PHX2.stage30.stage30_10_3_gate_artifact_projector"
+)
+STAGE30_9_3_STAGE30_10_3_ARTIFACT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_3_gate_artifact_models"
+)
+
+
+# The four NEW production files Stage 30.9.3 adds under PHX2/stage30/ on top of
+# the already-allowed Stage 30.0..30.9.2 / 30.10.3 inventory. NO Stage 30.9.4+
+# file; NO Stage 30.10.4 file.
+STAGE30_9_3_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_9_3_GATE_MODELS_BASENAME,
+    STAGE30_9_3_GATE_ADAPTER_BASENAME,
+    STAGE30_9_3_GATE_ORCHESTRATOR_BASENAME,
+    STAGE30_9_3_FAKE_PROOF_BASENAME,
+)
+STAGE30_9_3_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_9_3_GATE_MODELS_BASENAME,
+    STAGE30_9_3_GATE_ADAPTER_BASENAME,
+    STAGE30_9_3_GATE_ORCHESTRATOR_BASENAME,
+    STAGE30_9_3_FAKE_PROOF_BASENAME,
+)
+
+
+# The Stage 30.9.3 test inventory.
+STAGE30_9_3_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_9_3_dip_filtered_live_gate_models.py",
+    "test_stage_30_9_3_dip_filtered_live_gate_adapter.py",
+    "test_stage_30_9_3_dip_filtered_live_gate_orchestrator.py",
+    "test_stage_30_9_3_fake_live_gate_integration_proof.py",
+    "test_stage_30_9_3_boundaries.py",
+    "test_stage_30_9_3_manifest.py",
+)
+
+
+# The positive stdlib import allowlist for the Stage 30.9.3 production modules
+# (the models need dataclasses / decimal / typing; the adapter + orchestrator
+# need typing; the fake proof needs decimal / typing). NO os / no network / no
+# database / no compression module is allowlisted.
+STAGE30_9_3_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# The positive PHX2 import allowlist: the Stage 30.9.3 own models + adapter +
+# orchestrator modules plus the committed Stage 30.10 dip-gate stack modules the
+# adapter / orchestrator compose. The fake-proof module is a leaf entry point
+# (nothing imports it), so its module path is NOT in this import allowlist. No
+# Stage 21-29 / Stage 30.3 / Stage 30.4 orchestrator / Stage 28 suppression /
+# live runner / provider / transport module is allowlisted.
+STAGE30_9_3_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_9_3_GATE_MODELS_MODULE,
+    STAGE30_9_3_GATE_ADAPTER_MODULE,
+    STAGE30_9_3_GATE_ORCHESTRATOR_MODULE,
+    STAGE30_9_3_STAGE30_10_1_MODELS_MODULE,
+    STAGE30_9_3_STAGE30_10_2_GATE_MODULE,
+    STAGE30_9_3_STAGE30_10_2_GATE_MODELS_MODULE,
+    STAGE30_9_3_STAGE30_10_3_PROJECTOR_MODULE,
+    STAGE30_9_3_STAGE30_10_3_ARTIFACT_MODELS_MODULE,
+)
+
+
+# The Stage 30.9.3 live gate input / live gate decision / integration result
+# field names (mirrored BY VALUE by the Stage 30.9.3 models module;
+# ``created_at_utc`` is caller-injected, never a wall-clock read; NONE is a
+# secret, a raw payload, a host, or a transport destination).
+STAGE30_9_3_LIVE_GATE_INPUT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "tier_token",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "post_migration_ath_verified",
+    "candidate_ref",
+    "created_at_utc",
+)
+STAGE30_9_3_LIVE_GATE_DECISION_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "eligibility_decision",
+    "eligibility_reason",
+    "gate_decision",
+    "gate_reason",
+    "artifact_schema_version",
+    "dispatch_reservation_allowed",
+    "suppressed_before_dispatch_reservation",
+    "dispatch_failure_recorded",
+    "transport_veto_used",
+    "payload_refused_used",
+    "created_at_utc",
+)
+STAGE30_9_3_INTEGRATION_RESULT_FIELDS: Tuple[str, ...] = (
+    "candidates_seen",
+    "candidates_evaluated",
+    "candidates_passed_gate",
+    "candidates_skipped_before_dispatch",
+    "invalid_inputs",
+    "dispatch_attempts_reserved",
+    "dispatch_failures_recorded",
+    "transport_veto_count",
+    "payload_refused_count",
+    "would_send_private_discord_count",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.9.3 fake integration proof counts.
+# FULL classification (caps high enough to evaluate all nine candidates): three
+# eligible dips PASS (three sink calls), five non-dips suppressed BEFORE
+# reservation, one invalid suppressed -- zero dispatch failures / transport
+# vetoes / PAYLOAD_REFUSED uses.
+STAGE30_9_3_FAKE_PROOF_FULL_CANDIDATES_SEEN: int = 9
+STAGE30_9_3_FAKE_PROOF_FULL_CANDIDATES_PASSED: int = 3
+STAGE30_9_3_FAKE_PROOF_FULL_CANDIDATES_SKIPPED: int = 5
+STAGE30_9_3_FAKE_PROOF_FULL_INVALID_INPUTS: int = 1
+STAGE30_9_3_FAKE_PROOF_FULL_DISPATCH_ATTEMPTS_RESERVED: int = 3
+STAGE30_9_3_FAKE_PROOF_FULL_WOULD_SEND_PRIVATE_DISCORD: int = 3
+# CONTROLLED dip-present (max_dispatches=1): exactly one reserved dispatch / one
+# sink call (the DISPATCHED_OK shape; the run stops after the first dip).
+STAGE30_9_3_FAKE_PROOF_DIP_PRESENT_DISPATCHES: int = 1
+# CONTROLLED no-dip (max_dispatches=1): zero reserved dispatches / zero sink
+# calls; five non-dips + one invalid suppressed (the NO_DIP_FOUND_BUT_SAFE
+# shape).
+STAGE30_9_3_FAKE_PROOF_NO_DIP_DISPATCHES: int = 0
+STAGE30_9_3_FAKE_PROOF_NO_DIP_CANDIDATES_SKIPPED: int = 5
+STAGE30_9_3_FAKE_PROOF_NO_DIP_INVALID_INPUTS: int = 1
+# The three transport-safety negatives are ALWAYS zero across every scenario.
+STAGE30_9_3_FAKE_PROOF_DISPATCH_FAILURES_RECORDED: int = 0
+STAGE30_9_3_FAKE_PROOF_TRANSPORT_VETO_COUNT: int = 0
+STAGE30_9_3_FAKE_PROOF_PAYLOAD_REFUSED_COUNT: int = 0
+
+
+# Stage 30.9.3 holds the live ceremony behind an explicit operator-authorized
+# step; the seam is offline-only in this slice.
+STAGE30_9_3_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_9_3_INTEGRATION_NOTE: str = (
+    "Stage 30.9.3 provides the committed, tested seam that wires the Stage "
+    "30.10 dip gate into the live candidate -> dispatch path; the actual "
+    "dip-filtered live ceremony remains a separate, explicitly operator-"
+    "authorized step that this slice does not perform"
+)
+
+
+# After this integration seam slice, the next allowed step is the CONTROLLED
+# dip-filtered private compact live ceremony -- now UNBLOCKED by the seam, but
+# still a separate, explicitly operator-authorized step (NOT an automatic live
+# execution, NOT a Stage 30.9.4, NOT a Stage 30.10.4).
+STAGE30_9_3_NEXT_ALLOWED_STEP: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_9_3_NEXT_ALLOWED_STEP_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony -- now unblocked by "
+    "the Stage 30.9.3 integration seam; a separate, explicitly operator-"
+    "authorized step; never an automatic live execution and never a Stage "
+    "30.9.4 / Stage 30.10.4"
+)
+
+
+# The surfaces the Stage 30.9.3 integration-seam slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms. (The seam DOES reserve fake dispatch attempts + call an
+# injected fake sink offline -- that is the slice; it must not reach any real
+# transport / live surface below.)
+STAGE30_9_3_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "live run",
+    "live provider call",
+    "real Discord send",
+    "env read",
+    "real provider key use",
+    "real WebSocket / gRPC / HTTP provider session",
+    "real transport dispatch reservation",
+    "filesystem write",
+    "transport-layer gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "dispatch sink call without PASS_TO_DISPATCH",
+    "runtime orchestrator wiring",
+    "Stage 28 suppression-logic edit",
+    "Stage 30.3 compact orchestrator edit",
+    "Stage 30.4 compact orchestrator edit",
+    "existing live runner edit",
+    "new provider",
+    "new readiness gate",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "automatic live execution",
+    "Stage 30.9.4+ implementation file",
+    "Stage 30.10.4+ implementation file",
+    "Stage 31",
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_9_STAGE_ID",
@@ -1210,4 +1534,50 @@ __all__ = (
     "STAGE30_9_2_NEXT_ALLOWED_STEP",
     "STAGE30_9_2_NEXT_ALLOWED_STEP_TITLE",
     "STAGE30_9_2_FORBIDDEN_SURFACES",
+    # Stage 30.9.3 dip-filtered live dispatch integration seam.
+    "STAGE30_9_3_MINOR_VERSION",
+    "STAGE30_9_3_PRIOR_STAGE",
+    "STAGE30_9_3_INTEGRATION_SCHEMA_VERSION",
+    "STAGE30_9_3_GATE_STACK_REQUIRED",
+    "STAGE30_9_3_GATE_DECISIONS",
+    "STAGE30_9_3_DISPATCH_ALLOWED_GATE_DECISION",
+    "STAGE30_9_3_GATE_MODELS_BASENAME",
+    "STAGE30_9_3_GATE_ADAPTER_BASENAME",
+    "STAGE30_9_3_GATE_ORCHESTRATOR_BASENAME",
+    "STAGE30_9_3_FAKE_PROOF_BASENAME",
+    "STAGE30_9_3_GATE_MODELS_MODULE",
+    "STAGE30_9_3_GATE_ADAPTER_MODULE",
+    "STAGE30_9_3_GATE_ORCHESTRATOR_MODULE",
+    "STAGE30_9_3_FAKE_PROOF_MODULE",
+    "STAGE30_9_3_STAGE30_10_1_MODELS_MODULE",
+    "STAGE30_9_3_STAGE30_10_2_GATE_MODULE",
+    "STAGE30_9_3_STAGE30_10_2_GATE_MODELS_MODULE",
+    "STAGE30_9_3_STAGE30_10_3_PROJECTOR_MODULE",
+    "STAGE30_9_3_STAGE30_10_3_ARTIFACT_MODELS_MODULE",
+    "STAGE30_9_3_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_9_3_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_9_3_TEST_BASENAMES",
+    "STAGE30_9_3_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_9_3_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_9_3_LIVE_GATE_INPUT_FIELDS",
+    "STAGE30_9_3_LIVE_GATE_DECISION_FIELDS",
+    "STAGE30_9_3_INTEGRATION_RESULT_FIELDS",
+    "STAGE30_9_3_FAKE_PROOF_FULL_CANDIDATES_SEEN",
+    "STAGE30_9_3_FAKE_PROOF_FULL_CANDIDATES_PASSED",
+    "STAGE30_9_3_FAKE_PROOF_FULL_CANDIDATES_SKIPPED",
+    "STAGE30_9_3_FAKE_PROOF_FULL_INVALID_INPUTS",
+    "STAGE30_9_3_FAKE_PROOF_FULL_DISPATCH_ATTEMPTS_RESERVED",
+    "STAGE30_9_3_FAKE_PROOF_FULL_WOULD_SEND_PRIVATE_DISCORD",
+    "STAGE30_9_3_FAKE_PROOF_DIP_PRESENT_DISPATCHES",
+    "STAGE30_9_3_FAKE_PROOF_NO_DIP_DISPATCHES",
+    "STAGE30_9_3_FAKE_PROOF_NO_DIP_CANDIDATES_SKIPPED",
+    "STAGE30_9_3_FAKE_PROOF_NO_DIP_INVALID_INPUTS",
+    "STAGE30_9_3_FAKE_PROOF_DISPATCH_FAILURES_RECORDED",
+    "STAGE30_9_3_FAKE_PROOF_TRANSPORT_VETO_COUNT",
+    "STAGE30_9_3_FAKE_PROOF_PAYLOAD_REFUSED_COUNT",
+    "STAGE30_9_3_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_9_3_INTEGRATION_NOTE",
+    "STAGE30_9_3_NEXT_ALLOWED_STEP",
+    "STAGE30_9_3_NEXT_ALLOWED_STEP_TITLE",
+    "STAGE30_9_3_FORBIDDEN_SURFACES",
 )

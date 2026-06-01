@@ -64,6 +64,8 @@ from PHX2.stage30.stage30_9_manifest import (
     STAGE30_9_1_TEST_BASENAMES,
     STAGE30_9_2_ALLOWED_STAGE30_BASENAMES,
     STAGE30_9_2_TEST_BASENAMES,
+    STAGE30_9_3_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_9_3_TEST_BASENAMES,
     STAGE30_9_ALLOWED_INITIAL_FILES,
     STAGE30_9_ALLOWED_STDLIB_IMPORTS,
     STAGE30_9_ARTIFACT_BRIDGE_REQUIRED_SURFACES,
@@ -246,11 +248,27 @@ _ADMITTED_STAGE_30_9_2_BASENAMES = frozenset(
 )
 
 
+# The now-admitted Stage 30.9.3 dip-filtered live dispatch integration seam
+# (the four production modules + their six tests). These basenames carry the
+# ``stage30_9_3`` / ``stage_30_9_3`` minor token but are the legitimately-landed
+# integration-seam files; the future guard admits exactly these and still
+# forbids any OTHER Stage 30.9.3 file and any Stage 30.9.4+ file. The actual
+# dip-filtered live ceremony remains a separate, explicitly operator-authorized
+# step (no live runtime ships here).
+_ADMITTED_STAGE_30_9_3_BASENAMES = frozenset(
+    set(STAGE30_9_3_ALLOWED_STAGE30_BASENAMES)
+    | set(STAGE30_9_3_TEST_BASENAMES)
+)
+
+
 def _future_30_9_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         if basename in _ADMITTED_STAGE_30_9_2_BASENAMES:
             # The now-admitted Stage 30.9.2 resume planning slice.
+            continue
+        if basename in _ADMITTED_STAGE_30_9_3_BASENAMES:
+            # The now-admitted Stage 30.9.3 integration-seam slice.
             continue
         for match in _STAGE_30_9_MINOR_RE.finditer(basename.lower()):
             if int(match.group(1)) >= 2:
@@ -966,7 +984,9 @@ def test_stage30_9_production_entries_are_the_admitted_inventory() -> None:
     Stage 30.9.1 artifact-bridge production files (passive models + capture
     transport + projector + proof) PLUS the now-admitted Stage 30.9.2_RESUME
     dip-filtered live proof planning files (resume models + plan + fake
-    proof). NO Stage 30.9.3+ module may exist yet.
+    proof) PLUS the now-admitted Stage 30.9.3 dip-filtered live dispatch
+    integration seam files (integration models + adapter + orchestrator +
+    fake integration proof). NO Stage 30.9.4+ module may exist yet.
     """
     observed = {
         entry.name
@@ -984,11 +1004,13 @@ def test_stage30_9_production_entries_are_the_admitted_inventory() -> None:
         }
         | set(STAGE30_9_1_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_9_2_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_9_3_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.9 production entries must be exactly the Stage 30.9.0 "
         "spec lock + manifest plus the Stage 30.9.1 bridge files plus the "
-        "Stage 30.9.2 resume planning files; "
+        "Stage 30.9.2 resume planning files plus the Stage 30.9.3 "
+        "integration-seam files; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
@@ -996,8 +1018,9 @@ def test_stage30_9_production_entries_are_the_admitted_inventory() -> None:
 def test_stage30_9_test_entries_are_the_admitted_inventory() -> None:
     """Every Stage 30.9 test under ``PHX2/tests/stage30/`` must be exactly
     the Stage 30.9.0 spec-lock pin test PLUS the now-admitted Stage 30.9.1
-    test files PLUS the now-admitted Stage 30.9.2_RESUME test files. NO Stage
-    30.9.3+ test may exist yet.
+    test files PLUS the now-admitted Stage 30.9.2_RESUME test files PLUS the
+    now-admitted Stage 30.9.3 integration-seam test files. NO Stage 30.9.4+
+    test may exist yet.
     """
     observed = {
         entry.name
@@ -1009,10 +1032,12 @@ def test_stage30_9_test_entries_are_the_admitted_inventory() -> None:
         {STAGE30_9_0_TEST_BASENAMES[0]}
         | set(STAGE30_9_1_TEST_BASENAMES)
         | set(STAGE30_9_2_TEST_BASENAMES)
+        | set(STAGE30_9_3_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.9 test entries must be exactly the 30.9.0 pin test plus "
-        f"the Stage 30.9.1 tests plus the Stage 30.9.2 resume tests; "
+        "the Stage 30.9.1 tests plus the Stage 30.9.2 resume tests plus the "
+        f"Stage 30.9.3 integration-seam tests; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
