@@ -420,6 +420,13 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_9_3_dip_filtered_live_gate_adapter.py",
         "stage30_9_3_dip_filtered_live_gate_orchestrator.py",
         "stage30_9_3_fake_live_gate_integration_proof.py",
+        # Stage 30.11.0 dip-gated live dispatch wiring spec-lock additions
+        # (the spec-lock markdown + the constants-only manifest). Spec lock /
+        # tests only; ZERO runtime / assembly bridge / runtime gate seam /
+        # real dispatch sink / live run / Discord send / env read; no Stage
+        # 30.11.1+ file ships at Stage 30.11.0.
+        "STAGE_30_11_0_DIP_GATED_LIVE_DISPATCH_WIRING_SPEC_LOCK.md",
+        "stage30_11_manifest.py",
     }
 )
 
@@ -618,6 +625,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_9_3_fake_live_gate_integration_proof.py",
         "test_stage_30_9_3_boundaries.py",
         "test_stage_30_9_3_manifest.py",
+        # Stage 30.11.0 dip-gated live dispatch wiring spec-lock pin test.
+        "test_stage_30_11_0_dip_gated_live_dispatch_wiring_spec_lock.py",
     }
 )
 

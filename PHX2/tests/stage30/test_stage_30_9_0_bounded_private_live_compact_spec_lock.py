@@ -235,6 +235,22 @@ _ADMITTED_STAGE_30_10_BASENAMES = frozenset(
 )
 
 
+# The now-admitted Stage 30.11.0 dip-gated live dispatch wiring spec-lock
+# scaffold (the spec-lock markdown + constants-only manifest + pin test).
+# These basenames carry the ``stage30_11`` / ``stage_30_11`` token and so
+# match the Stage 30.10+ guard regex; they are admitted here while the Stage
+# 30.11.0 pin test owns the authoritative "no Stage 30.11.1+ file" guard going
+# forward. Any other Stage 30.11+ token (a Stage 30.11.1+ implementation file)
+# remains forbidden in this guard.
+_ADMITTED_STAGE_30_11_BASENAMES = frozenset(
+    {
+        "STAGE_30_11_0_DIP_GATED_LIVE_DISPATCH_WIRING_SPEC_LOCK.md",
+        "stage30_11_manifest.py",
+        "test_stage_30_11_0_dip_gated_live_dispatch_wiring_spec_lock.py",
+    }
+)
+
+
 # The now-admitted Stage 30.9.2_RESUME dip-filtered live proof planning /
 # fake-proof slice (the three production modules + their five tests). These
 # basenames carry the ``stage30_9_2`` / ``stage_30_9_2`` minor token but are
@@ -1085,10 +1101,13 @@ def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
     """Only the Stage 30.10.0 spec-lock scaffold + the now-admitted Stage
     30.10.1 eligibility model + classifier slice + the Stage 30.10.2 optional
     pre-dispatch gate slice + the Stage 30.10.3 gate artifact integration
-    proof slice are admitted among Stage 30.10+ tokens; every other Stage
-    30.10+ token (a Stage 30.10.4+ implementation file, a Stage 30.11+ file)
-    and every Stage 31 token remains forbidden -- in both the Stage 30.0
-    allowlists and the on-disk Stage 30 dirs.
+    proof slice + the now-admitted Stage 30.11.0 dip-gated live dispatch wiring
+    spec-lock scaffold are admitted among Stage 30.10+ tokens; every other
+    Stage 30.10+ token (a Stage 30.10.4+ implementation file, a Stage 30.11.1+
+    implementation file) and every Stage 31 token remains forbidden -- in both
+    the Stage 30.0 allowlists and the on-disk Stage 30 dirs. The Stage 30.11.0
+    pin test owns the authoritative "no Stage 30.11.1+ file" guard going
+    forward.
     """
     haystacks = (
         _STAGE30_ALLOWED_BASENAMES
@@ -1097,15 +1116,19 @@ def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
         | {e.name for e in TESTS_STAGE30_ROOT.iterdir()}
     )
     for basename in haystacks:
-        if basename in _ADMITTED_STAGE_30_10_BASENAMES:
+        if (
+            basename in _ADMITTED_STAGE_30_10_BASENAMES
+            or basename in _ADMITTED_STAGE_30_11_BASENAMES
+        ):
             # The Stage 30.10.0 scaffold + the Stage 30.10.1 / 30.10.2 /
-            # 30.10.3 slices are admitted.
+            # 30.10.3 slices + the Stage 30.11.0 spec-lock scaffold are
+            # admitted.
             continue
         lowered = basename.lower()
         assert _STAGE_30_10_PLUS_RE.search(lowered) is None, (
             "Only the Stage 30.10.0 scaffold + the Stage 30.10.1 / 30.10.2 / "
-            f"30.10.3 slices are admitted among Stage 30.10+ files; offender "
-            f"{basename!r}"
+            "30.10.3 slices + the Stage 30.11.0 spec-lock scaffold are "
+            f"admitted among Stage 30.10+ files; offender {basename!r}"
         )
         assert _STAGE_31_RE.search(lowered) is None, (
             f"Stage 31 file is not admitted yet; offender {basename!r}"

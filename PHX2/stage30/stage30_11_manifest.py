@@ -1,0 +1,696 @@
+"""Stage 30.11.0 dip-gated live dispatch wiring spec-lock manifest.
+
+Constants-only spec-lock manifest. Pins the Stage 30.11.0 inventory (the
+spec-lock doc basename + path parts, this manifest basename, the test
+basename), the Stage 30.11 stage id + spec version + next allowed substage,
+the planned Stage 30.11.0 / 30.11.1 / 30.11.2 / 30.11.3 / 30.11.4 substage
+sequence, the why-now finding (the committed Stage 30.9.3 dip-filtered gate
+seam is pure / offline and is NOT wired into the live candidate -> dispatch
+path; the only committed live path is the ungated Stage 29.3 smoke, which
+dispatches the first assembled tradeable candidate with no dip gate), the
+gate-placement contract (the committed dip gate runs BEFORE dispatch
+reservation / the private send; only a PASS candidate may reserve a dispatch
+and drive the private send; a non-dip skip is a clean no-send, never a
+transport-layer veto / PAYLOAD_REFUSED / dispatch failure), the only-PASS
+real-send rule, the required wall-clock max_runtime_seconds bound (the gap the
+Stage 30.9.2 readiness report named), the existing reuse surfaces (by exact
+name), the permitted scope expansion (the Stage 30.11 RUNTIME wiring slices
+MAY compose the committed live surfaces behind the dip gate -- unlike the
+offline-only Stage 30.9.x / 30.10.x slices -- but never fork / reimplement
+them and never widen routing), the dip-gate decision tokens + the live result
+counter axes (mirrored BY VALUE from the committed Stage 30.9.3 seam), the
+failure behavior, the Stage 30.9.2 / 30.9.3 relationship, the forbidden
+surfaces the spec-lock slice (and the Stage 30.11 family) must not touch, and
+the forbidden runtime imports / text needles the spec-lock files are scanned
+against.
+
+Stage 30.11 is the dip-gated live dispatch wiring. The most important
+planning finding is that the dip-focused eligibility decision is ALREADY
+proven offline -- the committed Stage 30.9.3 seam composes the Stage 30.10
+dip-gate stack and lets ONLY a PASS candidate reserve a dispatch -- but
+NOTHING wires that seam into the live candidate -> dispatch path, and the only
+committed live path is the ungated Stage 29.3 smoke (which dispatches the
+first assembled tradeable candidate with no dip gate). Stage 30.11 wires the
+committed dip gate into the live path so a private compact ping is sent ONLY
+for an eligible dip, against committed + tested code, with a bounded wall-clock
+runtime. Stage 30.11.0 LOCKS that design as prose + constants; it ships NO
+runtime code, NO assembly bridge, NO runtime gate seam, NO real dispatch sink,
+NO live provider call, NO Discord send, and edits NO existing live runner /
+orchestrator / transport / Stage 28 suppression file.
+
+Stage 30.11.0 scope (this slice):
+
+  * Spec lock + manifest + pin test only.
+  * ZERO production .py file beyond this constants-only manifest.
+  * ZERO assembly bridge, ZERO runtime gate seam, ZERO real dispatch sink,
+    ZERO runtime wiring, ZERO artifact integration.
+  * ZERO new live runner, ZERO new provider, ZERO new readiness gate,
+    ZERO direct Stage 28 suppression-logic edit.
+  * ZERO live provider call, ZERO Discord send, ZERO live run, ZERO env
+    read.
+  * ZERO database / SQLite, ZERO zstd dependency / implementation, ZERO
+    compression, ZERO default storage root, ZERO broad always-on daemon.
+  * ZERO public / subscriber / paid routing, ZERO Telegram / X / social,
+    ZERO trading / wallet / signing, ZERO enforcement, ZERO Stage 31.
+
+Stage 30.11.1+ scope (deferred, each separately operator-authorized):
+
+  * 30.11.1 -- the fake / offline live-candidate -> dip-gate-input assembly
+    bridge: a pure mapping that composes the existing tier / ATH / migration /
+    market-context surfaces into the committed Stage 30.9.3 live gate input,
+    proven with fakes only; no runtime wiring, no live, no Discord.
+  * 30.11.2 -- the runtime gate seam with fakes only: run the committed dip
+    gate over each live-assembled candidate inside the bounded session,
+    reserve a dispatch ONLY for a PASS candidate, and enforce a wall-clock
+    max_runtime_seconds bound; fake provider + fake transport only.
+  * 30.11.3 -- the real dispatch sink adapter: compose the committed private
+    ping + audited transport as the seam's dispatch sink, invoked ONLY for a
+    PASS candidate; still proven with fakes (the live ceremony is a separate
+    operator-authorized step).
+  * 30.11.4 -- the offline end-to-end proof: fake provider -> assembly ->
+    committed dip gate -> fake sink, proving only-PASS dispatches + the caps +
+    the wall-clock bound (the runtime counterpart of the Stage 30.10.3 fake
+    artifact proof).
+
+After Stage 30.11 wires + proves the dip-gated live dispatch path (offline /
+fakes only), the controlled dip-filtered private compact live ceremony may run
+against committed + green code. That ceremony remains a SEPARATE, explicitly
+operator-authorized step.
+
+This manifest module is constants-only:
+
+  * imports stdlib (``typing``) only,
+  * reads no process environment variable,
+  * opens no network connection,
+  * writes no file,
+  * makes no git call,
+  * creates no tag,
+  * contains no function / class definition,
+  * contains no Call node (no implicit I/O at import time; the
+    split-literal needle concatenations use ``+`` BinOps, never Calls),
+  * contains no runtime side effect,
+  * imports no PHX2 module.
+"""
+
+from __future__ import annotations
+
+from typing import Tuple
+
+
+# ---------------------------------------------------------------------------
+# Stage id + minor version + spec version
+# ---------------------------------------------------------------------------
+
+
+STAGE30_11_STAGE_ID: str = "30.11"
+STAGE30_11_0_MINOR_VERSION: str = "30.11.0"
+STAGE30_11_0_SPEC_VERSION: str = (
+    "stage30_11_v0_dip_gated_live_dispatch_wiring"
+)
+
+
+# ---------------------------------------------------------------------------
+# Locked basenames + path parts + inventory delta
+# ---------------------------------------------------------------------------
+
+
+STAGE30_11_SPEC_LOCK_FILENAME: str = (
+    "STAGE_30_11_0_DIP_GATED_LIVE_DISPATCH_WIRING_SPEC_LOCK.md"
+)
+STAGE30_11_MANIFEST_BASENAME: str = "stage30_11_manifest.py"
+
+
+# The repo-relative path parts of the spec-lock doc (so a pin test can
+# join them without re-spelling the path).
+STAGE30_11_SPEC_LOCK_PATH_PARTS: Tuple[str, ...] = (
+    "PHX2",
+    "stage30",
+    STAGE30_11_SPEC_LOCK_FILENAME,
+)
+
+
+STAGE30_11_0_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_0_dip_gated_live_dispatch_wiring_spec_lock.py",
+)
+
+
+# The NEW files Stage 30.11.0 adds under ``PHX2/stage30/`` on top of the
+# already-allowed Stage 30.0..30.10.3 inventory: exactly the spec-lock
+# markdown plus this constants-only manifest. NO production .py beyond the
+# manifest at Stage 30.11.0; NO Stage 30.11.1+ bridge / seam / sink file.
+STAGE30_11_ALLOWED_INITIAL_FILES: Tuple[str, ...] = (
+    STAGE30_11_SPEC_LOCK_FILENAME,
+    STAGE30_11_MANIFEST_BASENAME,
+)
+
+
+# The only NEW production .py Stage 30.11.0 adds is this constants-only
+# manifest; the spec lock is markdown. The boundary scan checks this
+# basename for forbidden imports / needles.
+STAGE30_11_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_MANIFEST_BASENAME,
+)
+
+
+# Every non-PHX2 import in this manifest must be in this stdlib allowlist
+# (the manifest is constants-only: it needs only ``__future__`` +
+# ``typing``). The spec-lock slice has NO PHX2 production import at all.
+STAGE30_11_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+)
+
+
+# ---------------------------------------------------------------------------
+# Planned substage sequence + next allowed stage
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11 is sequenced fake / offline before live, smallest reversible
+# slice first. Exactly five planned substages; each separately
+# operator-authorized.
+
+
+STAGE30_11_PLANNED_SUBSTAGES: Tuple[str, ...] = (
+    "30.11.0",
+    "30.11.1",
+    "30.11.2",
+    "30.11.3",
+    "30.11.4",
+)
+
+
+STAGE30_11_NEXT_ALLOWED_STAGE: str = "30.11.1"
+STAGE30_11_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "fake / offline live-candidate -> dip-gate-input assembly bridge (a pure "
+    "mapping that composes the existing tier / ATH / migration / market-"
+    "context surfaces into the committed Stage 30.9.3 live gate input, proven "
+    "with fakes only; no runtime wiring, no live provider call, no Discord "
+    "send)"
+)
+
+
+# The locked substage roadmap (safe paraphrase labels). The controlled
+# dip-filtered live ceremony runs only AFTER Stage 30.11 wires + proves the
+# dip-gated live dispatch path offline.
+STAGE30_11_SUBSTAGE_ROADMAP: Tuple[str, ...] = (
+    (
+        "30.11.0 -- this spec lock only (spec doc + constants-only manifest "
+        "+ pin test); no runtime, no bridge, no seam, no sink, no live"
+    ),
+    (
+        "30.11.1 -- fake / offline live-candidate -> dip-gate-input assembly "
+        "bridge"
+    ),
+    (
+        "30.11.2 -- runtime gate seam with fakes only (run the committed dip "
+        "gate over each live-assembled candidate; reserve a dispatch ONLY for "
+        "a PASS candidate; enforce a wall-clock max_runtime_seconds bound)"
+    ),
+    (
+        "30.11.3 -- real dispatch sink adapter (compose the committed private "
+        "ping + audited transport, invoked ONLY for a PASS candidate; still "
+        "proven with fakes)"
+    ),
+    (
+        "30.11.4 -- offline end-to-end proof (fake provider -> assembly -> "
+        "committed dip gate -> fake sink; proves only-PASS dispatches + caps "
+        "+ the wall-clock bound)"
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
+# One-line purpose
+# ---------------------------------------------------------------------------
+
+
+STAGE30_11_PURPOSE: str = "dip-gated live dispatch wiring"
+
+
+# ---------------------------------------------------------------------------
+# Locked why-now finding
+# ---------------------------------------------------------------------------
+#
+# The dip-focused eligibility decision is already proven offline by the
+# committed Stage 30.9.3 seam, but nothing wires it into the live path; the
+# only committed live path is the ungated Stage 29.3 smoke. Each entry is a
+# safe paraphrase / existing surface name (NOT a secret, host, or transport
+# destination).
+
+
+STAGE30_11_WHY_NOW_FINDINGS: Tuple[str, ...] = (
+    (
+        "the committed Stage 30.9.3 seam composes the Stage 30.10 dip-gate "
+        "stack and lets ONLY a PASS candidate reserve a dispatch -- but it is "
+        "pure / offline and consumes a pre-assembled live gate input"
+    ),
+    (
+        "nothing committed assembles a live candidate into the Stage 30.9.3 "
+        "live gate input"
+    ),
+    (
+        "nothing committed wires the Stage 30.9.3 seam into the live "
+        "candidate -> dispatch path"
+    ),
+    (
+        "the only committed live path is the ungated Stage 29.3 smoke, which "
+        "dispatches the first assembled tradeable candidate with no dip gate"
+    ),
+    (
+        "running the live ceremony today would require hand-improvising a "
+        "live dispatch path; Stage 30.11 builds + proves it first"
+    ),
+    (
+        "the bounded session has count bounds + an external stop signal but "
+        "no native wall-clock runtime bound"
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
+# Gate placement contract (locked)
+# ---------------------------------------------------------------------------
+#
+# The committed dip gate is evaluated BEFORE dispatch reservation and BEFORE
+# the private send. ONLY a PASS candidate may reserve a dispatch and drive the
+# private send. A normal non-dip skip is a clean no-send, NOT a dispatch
+# failure: Stage 30.11 must NOT reuse the Stage 28.4 / Stage 30.3
+# ``PAYLOAD_REFUSED`` transport-veto path for a normal non-dip skip.
+
+
+STAGE30_11_GATE_PLACEMENT: Tuple[str, ...] = (
+    "committed dip gate evaluated BEFORE dispatch reservation",
+    "committed dip gate evaluated BEFORE the private Discord send",
+    "only a PASS candidate may reserve a dispatch",
+    "only a PASS candidate may drive the private send",
+    "non-dip skip is a normal no-send, NOT a dispatch failure",
+    "no transport-layer veto for a normal non-dip skip",
+    "no PAYLOAD_REFUSED-style transport veto for a normal non-dip skip",
+    "tier / ATH / drawdown stay dispatch eligibility, not display-only",
+)
+
+
+# ---------------------------------------------------------------------------
+# Only-PASS real-send rule (locked)
+# ---------------------------------------------------------------------------
+#
+# The real dispatch sink (the committed private ping + audited transport) may
+# be invoked ONLY for a PASS candidate and ONLY within the dispatch /
+# private-send caps. There is NO other call site for the real sink.
+
+
+STAGE30_11_ONLY_PASS_SEND_RULE: Tuple[str, ...] = (
+    "the real dispatch sink is invoked ONLY for a PASS candidate",
+    "the real dispatch sink is invoked ONLY within the dispatch cap",
+    "the real dispatch sink is invoked ONLY within the private-send cap",
+    "a non-dip / invalid candidate can never reach the real sink",
+    "the run stops after the dispatch / private-send cap is reached",
+    "the real send is impossible without a PASS decision",
+)
+
+
+# ---------------------------------------------------------------------------
+# Required wall-clock runtime bound (locked)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11 adds the wall-clock ``max_runtime_seconds`` bound the bounded
+# session lacks. The bound is an explicit cap; the wiring stops cleanly when
+# it elapses. Stage 30.11 invents NO broad always-on daemon / background
+# service / autorestart loop.
+
+
+STAGE30_11_RUNTIME_BOUND: Tuple[str, ...] = (
+    "max_runtime_seconds is an explicit wall-clock cap",
+    "the wiring stops cleanly when max_runtime_seconds elapses",
+    "the wall-clock bound composes with the existing count bounds",
+    "the wall-clock bound composes with the existing external stop signal",
+    "no broad always-on daemon",
+    "no background service",
+    "no autorestart loop",
+)
+
+
+# ---------------------------------------------------------------------------
+# Existing reuse surfaces (by exact name)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11 MUST reuse the committed dip-gate seam, the committed dip-gate
+# stack, the existing tier / ATH / migration / market context, and the
+# existing live session + transport + private ping. It builds NO new gate, NO
+# new provider, NO new live runner, NO new transport. These are existing
+# production surface names (not secrets, not hosts, not transport
+# destinations).
+
+
+STAGE30_11_EXISTING_REUSE_SURFACES: Tuple[str, ...] = (
+    "run_dip_filtered_live_gate_integration",
+    "evaluate_dip_filtered_live_gate",
+    "Stage30_9_3LiveGateInput",
+    "Stage30_9_3LiveGateDecision",
+    "Stage30_9_3LiveGateIntegrationResult",
+    "the Stage 30.10.1 / 30.10.2 / 30.10.3 dip-gate stack",
+    "decide_tier",
+    "TierDecisionRecord",
+    "tier_token",
+    "existing ATH context",
+    "existing migration context",
+    "existing MC / LP / current market context",
+    "existing Stage 28 / 29 / 30 live session + gates",
+    "existing audited transport + private ping + private webhook transport",
+)
+
+
+# ---------------------------------------------------------------------------
+# Permitted scope expansion (locked, paraphrased)
+# ---------------------------------------------------------------------------
+#
+# Unlike the offline-only Stage 30.9.x / 30.10.x slices (which forbid every
+# Stage 21-29 production import), the Stage 30.11 RUNTIME wiring slices
+# (30.11.1+) are EXPLICITLY permitted to compose the committed live surfaces
+# BEHIND the dip gate. The permitted-import allowlists are pinned per-slice
+# when each runtime slice lands; the Stage 30.11.0 spec-lock files themselves
+# import nothing (this manifest is constants-only). The expansion is bounded:
+# Stage 30.11 wires + composes; it never forks, never reimplements, never adds
+# a new provider / runner / readiness gate, and never widens routing.
+
+
+STAGE30_11_PERMITTED_SCOPE_NOTE: Tuple[str, ...] = (
+    (
+        "Stage 30.11 runtime slices MAY compose the committed live surfaces "
+        "behind the dip gate"
+    ),
+    (
+        "the Stage 30.11.0 spec-lock files import nothing (this manifest is "
+        "constants-only)"
+    ),
+    "per-slice permitted-import allowlists are pinned when each slice lands",
+    "Stage 30.11 wires + composes; it never forks or reimplements",
+    "Stage 30.11 adds no new provider, no new runner, no new readiness gate",
+    "Stage 30.11 never widens routing beyond the private operator route",
+)
+
+
+# ---------------------------------------------------------------------------
+# Dip-gate decision tokens (mirrored BY VALUE from the committed Stage 30.9.3
+# seam; this manifest imports no Stage 30.9 / 30.10 module)
+# ---------------------------------------------------------------------------
+#
+# Exactly one gate decision per evaluated live candidate. ``PASS_TO_DISPATCH``
+# is the only decision that reserves a dispatch / drives the private send;
+# ``SKIP_BEFORE_DISPATCH`` cleanly suppresses a non-dip BEFORE reservation
+# (NOT a dispatch failure, NOT a transport veto); ``INVALID_INPUT`` fails
+# closed on a malformed candidate.
+
+
+STAGE30_11_GATE_DECISIONS: Tuple[str, ...] = (
+    "PASS_TO_DISPATCH",
+    "SKIP_BEFORE_DISPATCH",
+    "INVALID_INPUT",
+)
+
+
+# The single decision that reserves a dispatch / drives the private send.
+STAGE30_11_GATE_PASS_DECISION: str = "PASS_TO_DISPATCH"
+
+
+# ---------------------------------------------------------------------------
+# Live result counter axes (mirrored BY VALUE from the committed Stage 30.9.3
+# integration result; the live wiring tallies these over a bounded run)
+# ---------------------------------------------------------------------------
+#
+# ``dispatch_failures_recorded`` / ``transport_veto_count`` /
+# ``payload_refused_count`` are ALWAYS 0 for a dip-gated skip (a non-dip is
+# suppressed BEFORE reservation; it is never a dispatch failure / transport
+# veto / PAYLOAD_REFUSED). ``created_at_utc`` is caller-injected on the
+# offline proof; the live wiring stamps a bounded-run timestamp. NONE is a
+# secret, a raw payload, a host, or a transport destination.
+
+
+STAGE30_11_RESULT_COUNTER_AXES: Tuple[str, ...] = (
+    "candidates_seen",
+    "candidates_evaluated",
+    "candidates_passed_gate",
+    "candidates_skipped_before_dispatch",
+    "invalid_inputs",
+    "dispatch_attempts_reserved",
+    "dispatch_failures_recorded",
+    "transport_veto_count",
+    "payload_refused_count",
+    "private_discord_sends",
+    "created_at_utc",
+)
+
+
+# The counter axes that are ALWAYS 0 for a dip-gated pre-dispatch skip.
+STAGE30_11_ALWAYS_ZERO_AXES: Tuple[str, ...] = (
+    "dispatch_failures_recorded",
+    "transport_veto_count",
+    "payload_refused_count",
+)
+
+
+# ---------------------------------------------------------------------------
+# Failure behavior (fail-closed, locked)
+# ---------------------------------------------------------------------------
+
+
+STAGE30_11_FAILURE_BEHAVIOR: Tuple[str, ...] = (
+    "readiness failure => no provider call, no Discord send",
+    "non-PASS candidate => suppressed BEFORE reservation, no send",
+    "invalid candidate => INVALID_INPUT, no reservation, no send",
+    "provider failure => bounded, no crash",
+    "Discord failure => closed-set transport failure, no crash",
+    "dispatch / private-send cap reached => clean bounded stop",
+    "max_runtime_seconds elapsed => clean bounded stop",
+    "non-dip skip is never a dispatch failure / transport veto / PAYLOAD_REFUSED",
+    "fail closed on any unknown / missing input, never fail open",
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.9.2 / 30.9.3 relationship (locked)
+# ---------------------------------------------------------------------------
+
+
+STAGE30_11_STAGE_30_9_RELATIONSHIP: str = (
+    "Stage 30.9.3 committed the pure / offline dip-gate seam; Stage 30.11 "
+    "wires it into the live path and proves it offline before the controlled "
+    "live ceremony resumes"
+)
+STAGE30_11_STAGE_30_9_2_STATUS: str = "paused, not abandoned"
+
+
+# ---------------------------------------------------------------------------
+# Forbidden surfaces (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The surfaces the Stage 30.11 family (and the Stage 30.11.0 spec-lock slice)
+# must not touch. Plain documentation words (family / feature names), NOT
+# secret / host / transport needle forms.
+
+
+STAGE30_11_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "direct Stage 28 suppression-logic edit",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "ungated Stage 29.3 send path reused directly",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "auto-buy",
+    "strategy execution",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "broad always-on daemon",
+    "background service",
+    "autorestart loop",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.1+ implementation file",
+    "Stage 31",
+)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden runtime imports (documentation tuple)
+# ---------------------------------------------------------------------------
+#
+# The Stage 30.11.0 pin test walks the actual import lines of the Stage
+# 30.11.0 Python files (this manifest + the pin test) and asserts none
+# resolve to a module covered by this policy. The strings below are plain
+# (the line-based scan never substring-matches them against source text).
+# This forbidden-import policy applies to the Stage 30.11.0 SPEC-LOCK files
+# only; the future Stage 30.11.1+ runtime slices carry their own per-slice
+# permitted-import allowlists (the permitted scope expansion above).
+
+
+STAGE30_11_FORBIDDEN_RUNTIME_IMPORTS: Tuple[str, ...] = (
+    # Stdlib surfaces the Stage 30.11.0 spec-lock files must not touch.
+    "import os",
+    "from os.",
+    "os.environ",
+    "os.getenv",
+    "os.environb",
+    "import dotenv",
+    "from dotenv",
+    "import keyring",
+    "from keyring",
+    "import requests",
+    "from requests",
+    "import httpx",
+    "from httpx",
+    "import aiohttp",
+    "from aiohttp",
+    "import urllib",
+    "from urllib",
+    "import socket",
+    "from socket",
+    "import grpc",
+    "from grpc",
+    "import http",
+    "from http",
+    "import websocket",
+    "import websockets",
+    "import sqlite3",
+    "from sqlite3",
+    # No zstd implementation / dependency at Stage 30.11.0 (docs + tests may
+    # name the WORD ``zstd``; no module import is allowed).
+    "import zstandard",
+    "from zstandard",
+    "import zstd",
+    "from zstd",
+    # Stage 21-29 production surfaces (incl. Stage 29.5). The spec-lock files
+    # import none of these; the future runtime slices carry their own
+    # per-slice allowlists.
+    "from PHX2.stage21",
+    "from PHX2.stage22",
+    "from PHX2.stage23",
+    "from PHX2.stage24",
+    "from PHX2.stage25",
+    "from PHX2.stage26",
+    "from PHX2.stage27",
+    "from PHX2.stage28",
+    "from PHX2.stage29",
+    "import PHX2.stage21",
+    "import PHX2.stage22",
+    "import PHX2.stage23",
+    "import PHX2.stage24",
+    "import PHX2.stage25",
+    "import PHX2.stage26",
+    "import PHX2.stage27",
+    "import PHX2.stage28",
+    "import PHX2.stage29",
+    # PHX1 / legacy.
+    "from PHX1",
+    "import PHX1",
+)
+
+
+# ---------------------------------------------------------------------------
+# Forbidden text needles (already-lowercased; scan must lowercase the
+# haystack)
+# ---------------------------------------------------------------------------
+#
+# Every needle below is built with a split-literal concatenation so this
+# manifest source text itself does NOT carry the bare needle. The Stage
+# 30.11.0 pin test imports this tuple at runtime and scans every Stage
+# 30.11.0 file (spec lock, manifest, test) case-insensitively for substring
+# matches against the runtime-concatenated values. The spec doc paraphrases
+# every secret / transport surface (for example "provider credential",
+# "private transport destination", "transport scheme prefix") so it carries
+# none of the bare needles.
+
+
+STAGE30_11_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
+    "discord" + ".com",
+    "discord" + "app.com",
+    "/web" + "hooks/",
+    "web" + "hook url",
+    "endpoint" + " url",
+    "endpoint" + "_secret",
+    "raw" + "_body",
+    "response" + "_body",
+    "head" + "ers",
+    "author" + "ization",
+    "b" + "earer",
+    "api" + " key",
+    "api_" + "key",
+    "x-api-" + "key",
+    "x-" + "token",
+    "public-api.birdeye" + ".so",
+    "dex" + "screener.com",
+    "chain" + "stack",
+    "hel" + "ius",
+    "h" + "ttps://",
+    "h" + "ttp://",
+    "w" + "ss://",
+    "w" + "s://",
+)
+
+
+__all__ = (
+    # Stage id + minor version + spec version.
+    "STAGE30_11_STAGE_ID",
+    "STAGE30_11_0_MINOR_VERSION",
+    "STAGE30_11_0_SPEC_VERSION",
+    # Locked basenames + path parts + inventory delta.
+    "STAGE30_11_SPEC_LOCK_FILENAME",
+    "STAGE30_11_MANIFEST_BASENAME",
+    "STAGE30_11_SPEC_LOCK_PATH_PARTS",
+    "STAGE30_11_0_TEST_BASENAMES",
+    "STAGE30_11_ALLOWED_INITIAL_FILES",
+    "STAGE30_11_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_ALLOWED_STDLIB_IMPORTS",
+    # Planned substages + next allowed stage + roadmap.
+    "STAGE30_11_PLANNED_SUBSTAGES",
+    "STAGE30_11_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_SUBSTAGE_ROADMAP",
+    # Purpose.
+    "STAGE30_11_PURPOSE",
+    # Why-now finding.
+    "STAGE30_11_WHY_NOW_FINDINGS",
+    # Gate placement.
+    "STAGE30_11_GATE_PLACEMENT",
+    # Only-PASS real-send rule.
+    "STAGE30_11_ONLY_PASS_SEND_RULE",
+    # Required wall-clock runtime bound.
+    "STAGE30_11_RUNTIME_BOUND",
+    # Existing reuse surfaces.
+    "STAGE30_11_EXISTING_REUSE_SURFACES",
+    # Permitted scope expansion.
+    "STAGE30_11_PERMITTED_SCOPE_NOTE",
+    # Dip-gate decision tokens + pass token.
+    "STAGE30_11_GATE_DECISIONS",
+    "STAGE30_11_GATE_PASS_DECISION",
+    # Live result counter axes + always-zero axes.
+    "STAGE30_11_RESULT_COUNTER_AXES",
+    "STAGE30_11_ALWAYS_ZERO_AXES",
+    # Failure behavior.
+    "STAGE30_11_FAILURE_BEHAVIOR",
+    # Stage 30.9.2 / 30.9.3 relationship.
+    "STAGE30_11_STAGE_30_9_RELATIONSHIP",
+    "STAGE30_11_STAGE_30_9_2_STATUS",
+    # Forbidden surfaces.
+    "STAGE30_11_FORBIDDEN_SURFACES",
+    # Forbidden imports + needles.
+    "STAGE30_11_FORBIDDEN_RUNTIME_IMPORTS",
+    "STAGE30_11_FORBIDDEN_TEXT_NEEDLES",
+)
