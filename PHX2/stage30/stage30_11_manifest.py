@@ -1268,6 +1268,328 @@ STAGE30_11_2_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.3 -- private sink adapter (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.3 is the THIRD Stage 30.11 production slice: the private sink
+# adapter boundary the Stage 30.11.2 runtime seam reaches ONLY behind a committed
+# dip-gate PASS, proven with fakes / offline tests only. It adds three NEW
+# production files -- the passive private sink models (the adapter-side private
+# sink request derived from a committed Stage 30.9.3 live gate input + the
+# per-call private sink result + the rolled-up private sink proof summary + the
+# closed-set sink decision / reason vocabularies), the pure private sink adapter
+# (which validates a PASS gate input, builds a SAFE compact operator body via an
+# injected builder, builds a private sink request, and hands it to an INJECTED
+# transport that is reachable ONLY for a well-shaped input -- plus a thin
+# seam-compatibility wrapper that maps the rich private sink result onto the
+# committed Stage 30.11.2 fake-dispatch-result type so the committed seam stays
+# untouched), and the offline fake private sink proof (a direct three-call sink
+# proof + a runtime seam integration proof, both driven by an in-memory recording
+# FAKE transport). It proves -- with fakes only -- that the private sink boundary
+# is reachable ONLY for a PASS candidate and that the recording fake transport is
+# attempted ONLY for the dip. It ships NO real transport, NO real Discord /
+# webhook send, NO dispatch reservation, NO live provider call, NO Discord send,
+# NO env read, NO wall-clock read, NO daemon / background loop, and edits NO
+# existing live runner / orchestrator / transport / Stage 28 suppression / Stage
+# 29 live provider file. Unlike the offline-only Stage 30.9.x / 30.10.x slices,
+# Stage 30.11.3 IS permitted to compose the committed live surfaces behind the dip
+# gate (the permitted scope expansion): the adapter composes the Stage 30.9.3
+# gate-input type + the Stage 30.11.2 fake-dispatch-result type, and the fake
+# proof composes the Stage 30.11.2 runtime seam + its deterministic fake stream;
+# no Stage 21-29 / live runner / provider / real transport module is imported. NO
+# Stage 30.11.4+ file ships at Stage 30.11.3.
+
+
+STAGE30_11_3_MINOR_VERSION: str = "30.11.3"
+
+
+# The Stage 30.11.3 private sink adapter schema version (mirrored BY VALUE by the
+# Stage 30.11.3 private-sink-models module; a pin test cross-checks it matches).
+# Distinct from the Stage 30.11.2 runtime gate schema version, the Stage 30.11.1
+# bridge schema version, and the Stage 30.9.3 integration schema version.
+STAGE30_11_3_PRIVATE_SINK_SCHEMA_VERSION: str = (
+    "stage30_11_3_v0_private_sink_adapter"
+)
+
+
+# The safe-shape source-stage provenance token stamped onto every built private
+# sink request (mirrored BY VALUE by the Stage 30.11.3 models module).
+STAGE30_11_3_SOURCE_STAGE: str = "30.11.3"
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_3_PRIVATE_SINK_MODELS_BASENAME: str = (
+    "stage30_11_3_private_sink_models.py"
+)
+STAGE30_11_3_PRIVATE_SINK_ADAPTER_BASENAME: str = (
+    "stage30_11_3_private_sink_adapter.py"
+)
+STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_BASENAME: str = (
+    "stage30_11_3_fake_private_sink_proof.py"
+)
+
+
+STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_private_sink_models"
+)
+STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_private_sink_adapter"
+)
+STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_fake_private_sink_proof"
+)
+
+
+# The ALREADY-COMMITTED sibling module paths the Stage 30.11.3 slice composes
+# (re-declared here as literals; the manifest imports no PHX2 module). The
+# adapter composes the Stage 30.9.3 gate-input model + the Stage 30.11.2
+# fake-dispatch-result model; the fake proof additionally composes the Stage
+# 30.11.2 runtime seam + its deterministic fake stream / clock / config. These
+# are the committed live-gate surfaces the Stage 30.11 wiring is explicitly
+# permitted to compose behind the dip gate.
+STAGE30_11_3_STAGE30_9_3_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_models"
+)
+STAGE30_11_3_STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_runtime_gate_models"
+)
+STAGE30_11_3_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_runtime_gate_seam"
+)
+STAGE30_11_3_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_fake_runtime_gate_proof"
+)
+
+
+# The three NEW production files Stage 30.11.3 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.11.2 inventory. NO Stage 30.11.4+
+# file.
+STAGE30_11_3_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_3_PRIVATE_SINK_MODELS_BASENAME,
+    STAGE30_11_3_PRIVATE_SINK_ADAPTER_BASENAME,
+    STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_BASENAME,
+)
+
+
+# The three production modules the Stage 30.11.3 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_11_3_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_3_PRIVATE_SINK_MODELS_BASENAME,
+    STAGE30_11_3_PRIVATE_SINK_ADAPTER_BASENAME,
+    STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_BASENAME,
+)
+
+
+STAGE30_11_3_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_3_private_sink_models.py",
+    "test_stage_30_11_3_private_sink_adapter.py",
+    "test_stage_30_11_3_fake_private_sink_proof.py",
+    "test_stage_30_11_3_boundaries.py",
+    "test_stage_30_11_3_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.3 production module must be in this
+# stdlib allowlist (the models need ``dataclasses`` / ``typing``; the adapter
+# needs ``typing``; the fake proof needs ``decimal`` / ``typing``). It admits NO
+# ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO ``sqlite3``, NO
+# ``zstd`` / compression, NO network module, and NO ``time`` / ``datetime`` (the
+# runtime clock is injected, never read).
+STAGE30_11_3_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# Every PHX2 import in a Stage 30.11.3 production module must be one of these
+# siblings: the Stage 30.11.3 own private-sink-models + adapter siblings plus the
+# committed Stage 30.9.3 gate-models sibling and the committed Stage 30.11.2
+# runtime-gate-models + seam + fake-proof siblings the slice composes. This
+# positive allowlist proves, by construction, that NO Stage 21-29 (incl. Stage 28
+# suppression / Stage 29.5 / Stage 29 live provider) / runtime orchestrator /
+# renderer / real transport / Discord / live provider module is imported (the
+# slice composes ONLY the committed Stage 30.9.3 + Stage 30.11.2 offline
+# surfaces).
+STAGE30_11_3_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE,
+    STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE,
+    STAGE30_11_3_STAGE30_9_3_GATE_MODELS_MODULE,
+    STAGE30_11_3_STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE,
+    STAGE30_11_3_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE,
+    STAGE30_11_3_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE,
+)
+
+
+# Closed-set private sink decision tokens (mirrored BY VALUE from the Stage
+# 30.11.3 private-sink-models module). ``PRIVATE_SINK_ACCEPTED`` is the only
+# decision on which the injected fake transport accepted a built request.
+STAGE30_11_3_PRIVATE_SINK_DECISIONS: Tuple[str, ...] = (
+    "PRIVATE_SINK_ACCEPTED",
+    "PRIVATE_SINK_REJECTED_INVALID_INPUT",
+    "PRIVATE_SINK_TRANSPORT_FAILED",
+)
+
+
+# The single decision on which the injected fake transport accepted a built
+# request (a recorded would-send).
+STAGE30_11_3_PRIVATE_SINK_ACCEPT_DECISION: str = "PRIVATE_SINK_ACCEPTED"
+
+
+# Closed-set private sink reason tokens (mirrored BY VALUE from the Stage 30.11.3
+# private-sink-models module). ``WOULD_SEND_PRIVATE_OPERATOR_MESSAGE`` names a
+# RECORDED would-send (the fake transport recorded the request), NEVER a real
+# send.
+STAGE30_11_3_PRIVATE_SINK_REASONS: Tuple[str, ...] = (
+    "WOULD_SEND_PRIVATE_OPERATOR_MESSAGE",
+    "INVALID_SINK_INPUT",
+    "FAKE_TRANSPORT_REJECTED",
+)
+
+
+# The single reason that accompanies the only accept decision.
+STAGE30_11_3_PRIVATE_SINK_ACCEPT_REASON: str = (
+    "WOULD_SEND_PRIVATE_OPERATOR_MESSAGE"
+)
+
+
+# The Stage 30.11.3 request / result / summary field names (mirrored BY VALUE
+# from the Stage 30.11.3 private-sink-models module; a pin test cross-checks
+# them). ``created_at_utc`` is caller-injected, never a wall-clock read; NONE is
+# a secret, a raw payload, a host, or a transport destination.
+STAGE30_11_3_PRIVATE_SINK_REQUEST_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "candidate_ref",
+    "tier_token",
+    "compact_body",
+    "created_at_utc",
+    "source_stage",
+)
+STAGE30_11_3_PRIVATE_SINK_RESULT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "sink_decision",
+    "sink_reason",
+    "transport_attempted",
+    "transport_accepted",
+    "created_at_utc",
+)
+STAGE30_11_3_PRIVATE_SINK_PROOF_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "requests_seen",
+    "accepted",
+    "rejected_invalid",
+    "transport_failed",
+    "transport_attempted",
+    "transport_accepted",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.11.3 fake private sink proof counts. The
+# direct three-call sink proof drives one valid-accept, one blank-id invalid, and
+# one valid-reject input through the private sink: three requests seen, exactly
+# one accepted (the valid accept), exactly one rejected-invalid (the blank id,
+# which never reaches the transport), exactly one transport-failed (the valid
+# reject), exactly two transport attempts (the two valid inputs), and exactly one
+# transport accept. The runtime seam integration proof runs the committed Stage
+# 30.11.2 seam over the first three default candidates (a dip, a non-dip, a
+# bridge-skip) with the Stage 30.11.3 private sink injected, and the recording
+# fake transport records exactly one attempt -- for the dip only. No real
+# dispatch reserved; no Discord sent.
+STAGE30_11_3_FAKE_PROOF_EXPECTED_REQUESTS_SEEN: int = 3
+STAGE30_11_3_FAKE_PROOF_EXPECTED_ACCEPTED: int = 1
+STAGE30_11_3_FAKE_PROOF_EXPECTED_REJECTED_INVALID: int = 1
+STAGE30_11_3_FAKE_PROOF_EXPECTED_TRANSPORT_FAILED: int = 1
+STAGE30_11_3_FAKE_PROOF_EXPECTED_TRANSPORT_ATTEMPTED: int = 2
+STAGE30_11_3_FAKE_PROOF_EXPECTED_TRANSPORT_ACCEPTED: int = 1
+STAGE30_11_3_FAKE_PROOF_EXPECTED_RUNTIME_TRANSPORT_ATTEMPTS: int = 1
+
+
+# After Stage 30.11.3 (the private sink adapter) the next allowed slice is Stage
+# 30.11.4 (the offline end-to-end proof, separately operator-gated). The Stage
+# 30.11.0 family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at
+# ``30.11.1``; this 30.11.3-scoped pointer names the slice that follows. NO Stage
+# 30.11.4 file ships at Stage 30.11.3.
+STAGE30_11_3_NEXT_ALLOWED_STAGE: str = "30.11.4"
+STAGE30_11_3_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "offline end-to-end proof (fake provider -> assembly -> committed dip gate "
+    "-> fake sink; proves only-PASS dispatches + the caps + the wall-clock "
+    "bound -- the runtime counterpart of the Stage 30.10.3 fake artifact proof)"
+)
+
+
+# The surfaces the Stage 30.11.3 private-sink-adapter slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms. The slice ONLY translates a PASS gate input into a private sink
+# request and hands it to an INJECTED fake transport; it must not reach any
+# surface below.
+STAGE30_11_3_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real transport call",
+    "real Discord send",
+    "Discord send",
+    "real private webhook send",
+    "real dispatch reservation",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "ungated Stage 29.3 send path reused directly",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 28 transport-internals edit",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.4+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.3 implements no part
+# of it; it only proves the private sink boundary the runtime seam reaches behind
+# the committed dip gate, with an injected fake transport).
+STAGE30_11_3_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_3_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.3 is the offline private sink adapter only; the controlled dip-"
+    "filtered private compact live ceremony remains a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -1404,4 +1726,50 @@ __all__ = (
     "STAGE30_11_2_FORBIDDEN_SURFACES",
     "STAGE30_11_2_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_2_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.3 private sink adapter ----
+    # Minor version + private sink schema identity.
+    "STAGE30_11_3_MINOR_VERSION",
+    "STAGE30_11_3_PRIVATE_SINK_SCHEMA_VERSION",
+    "STAGE30_11_3_SOURCE_STAGE",
+    # Basenames + module paths.
+    "STAGE30_11_3_PRIVATE_SINK_MODELS_BASENAME",
+    "STAGE30_11_3_PRIVATE_SINK_ADAPTER_BASENAME",
+    "STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_BASENAME",
+    "STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE",
+    "STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE",
+    "STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_MODULE",
+    "STAGE30_11_3_STAGE30_9_3_GATE_MODELS_MODULE",
+    "STAGE30_11_3_STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE",
+    "STAGE30_11_3_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE",
+    "STAGE30_11_3_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_3_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_3_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_3_TEST_BASENAMES",
+    # Import allowlists.
+    "STAGE30_11_3_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_3_ALLOWED_PHX2_IMPORTS",
+    # Sink decisions + reasons.
+    "STAGE30_11_3_PRIVATE_SINK_DECISIONS",
+    "STAGE30_11_3_PRIVATE_SINK_ACCEPT_DECISION",
+    "STAGE30_11_3_PRIVATE_SINK_REASONS",
+    "STAGE30_11_3_PRIVATE_SINK_ACCEPT_REASON",
+    # Model field tuples.
+    "STAGE30_11_3_PRIVATE_SINK_REQUEST_FIELDS",
+    "STAGE30_11_3_PRIVATE_SINK_RESULT_FIELDS",
+    "STAGE30_11_3_PRIVATE_SINK_PROOF_SUMMARY_FIELDS",
+    # Fake proof expected counts.
+    "STAGE30_11_3_FAKE_PROOF_EXPECTED_REQUESTS_SEEN",
+    "STAGE30_11_3_FAKE_PROOF_EXPECTED_ACCEPTED",
+    "STAGE30_11_3_FAKE_PROOF_EXPECTED_REJECTED_INVALID",
+    "STAGE30_11_3_FAKE_PROOF_EXPECTED_TRANSPORT_FAILED",
+    "STAGE30_11_3_FAKE_PROOF_EXPECTED_TRANSPORT_ATTEMPTED",
+    "STAGE30_11_3_FAKE_PROOF_EXPECTED_TRANSPORT_ACCEPTED",
+    "STAGE30_11_3_FAKE_PROOF_EXPECTED_RUNTIME_TRANSPORT_ATTEMPTS",
+    # Next allowed stage + forbidden surfaces + live ceremony note.
+    "STAGE30_11_3_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_3_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_3_FORBIDDEN_SURFACES",
+    "STAGE30_11_3_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_3_LIVE_CEREMONY_NOTE",
 )

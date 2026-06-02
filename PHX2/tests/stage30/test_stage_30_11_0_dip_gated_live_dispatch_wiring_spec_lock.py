@@ -62,6 +62,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_1_TEST_BASENAMES,
     STAGE30_11_2_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_2_TEST_BASENAMES,
+    STAGE30_11_3_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_3_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -170,10 +172,11 @@ def _extract_imported_module(line: str) -> str:
 
 # Matches any Stage 30.11.<N> minor-version token in a basename (both the
 # production ``stage30_11_<N>`` and the test ``stage_30_11_<N>`` spellings).
-# A captured N >= 3 names a future Stage 30.11.3+ file; N in {0, 1, 2} is the
+# A captured N >= 4 names a future Stage 30.11.4+ file; N in {0, 1, 2, 3} is the
 # Stage 30.11.0 scaffold (the spec doc + this pin test) / the now-admitted
 # Stage 30.11.1 assembly bridge slice / the now-admitted Stage 30.11.2 runtime
-# gate seam slice and is allowed. The Stage 30.11.0 manifest basename
+# gate seam slice / the now-admitted Stage 30.11.3 private sink adapter slice
+# and is allowed. The Stage 30.11.0 manifest basename
 # (``stage30_11_manifest.py``) carries no digit after ``stage30_11_`` and so
 # matches no token at all.
 _STAGE_30_11_MINOR_RE = re.compile(r"stage_?30_11_(\d+)")
@@ -186,7 +189,7 @@ def _future_30_11_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 3:
+            if int(match.group(1)) >= 4:
                 violations.append(basename)
     return violations
 
@@ -950,8 +953,9 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
     Stage 30.11.1 offline live-candidate assembly bridge production files
     (bridge models + bridge + fake bridge proof) PLUS the now-admitted Stage
     30.11.2 runtime gate seam production files (runtime gate models + seam +
-    fake runtime gate proof). NO Stage 30.11.3+ runtime / sink module may exist
-    yet.
+    fake runtime gate proof) PLUS the now-admitted Stage 30.11.3 private sink
+    adapter production files (private sink models + adapter + fake private sink
+    proof). NO Stage 30.11.4+ runtime / sink module may exist yet.
     """
     observed = {
         entry.name
@@ -969,11 +973,13 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
         }
         | set(STAGE30_11_1_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_2_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_3_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
         "spec lock + manifest plus the Stage 30.11.1 assembly bridge files "
-        "plus the Stage 30.11.2 runtime gate seam files; "
+        "plus the Stage 30.11.2 runtime gate seam files plus the Stage 30.11.3 "
+        "private sink adapter files; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
@@ -982,7 +988,8 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
     """Every Stage 30.11 test under ``PHX2/tests/stage30/`` must be exactly
     the Stage 30.11.0 spec-lock pin test PLUS the now-admitted Stage 30.11.1
     assembly bridge test files PLUS the now-admitted Stage 30.11.2 runtime gate
-    seam test files. NO Stage 30.11.3+ test may exist yet.
+    seam test files PLUS the now-admitted Stage 30.11.3 private sink adapter
+    test files. NO Stage 30.11.4+ test may exist yet.
     """
     observed = {
         entry.name
@@ -994,11 +1001,13 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
         {STAGE30_11_0_TEST_BASENAMES[0]}
         | set(STAGE30_11_1_TEST_BASENAMES)
         | set(STAGE30_11_2_TEST_BASENAMES)
+        | set(STAGE30_11_3_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "
         "the Stage 30.11.1 assembly bridge tests plus the Stage 30.11.2 "
-        "runtime gate seam tests; "
+        "runtime gate seam tests plus the Stage 30.11.3 private sink adapter "
+        "tests; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
@@ -1020,22 +1029,23 @@ def test_stage30_0_allowlist_admits_the_30_11_0_files() -> None:
     assert TEST_PATH.is_file()
 
 
-def test_stage30_0_allowlist_admits_no_stage_30_11_3_plus_file() -> None:
-    """No Stage 30.11.3+ production / test basename is admitted by the Stage
+def test_stage30_0_allowlist_admits_no_stage_30_11_4_plus_file() -> None:
+    """No Stage 30.11.4+ production / test basename is admitted by the Stage
     30.0 allowlist yet. The Stage 30.11.0 scaffold carries minor token 0 (the
     spec doc + pin test) or no minor token (the manifest), the now-admitted
-    Stage 30.11.1 assembly bridge slice carries minor token 1, and the
-    now-admitted Stage 30.11.2 runtime gate seam slice carries minor token 2;
-    the guard catches ANY Stage 30.11.<N>=3+ token (30_11_3, 30_11_4, ...).
+    Stage 30.11.1 assembly bridge slice carries minor token 1, the now-admitted
+    Stage 30.11.2 runtime gate seam slice carries minor token 2, and the
+    now-admitted Stage 30.11.3 private sink adapter slice carries minor token 3;
+    the guard catches ANY Stage 30.11.<N>=4+ token (30_11_4, 30_11_5, ...).
     """
     production = _future_30_11_violations(_STAGE30_ALLOWED_BASENAMES)
     assert production == [], (
-        "Stage 30.0 production allowlist must not admit a Stage 30.11.3+ file "
+        "Stage 30.0 production allowlist must not admit a Stage 30.11.4+ file "
         f"yet; saw {production!r}"
     )
     tests = _future_30_11_violations(_TESTS_STAGE30_ALLOWED_BASENAMES)
     assert tests == [], (
-        "Stage 30.0 test allowlist must not admit a Stage 30.11.3+ test file "
+        "Stage 30.0 test allowlist must not admit a Stage 30.11.4+ test file "
         f"yet; saw {tests!r}"
     )
 

@@ -61,6 +61,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_2_STAGE30_11_1_BRIDGE_MODELS_MODULE,
     STAGE30_11_2_STAGE30_11_1_BRIDGE_MODULE,
     STAGE30_11_2_TEST_BASENAMES,
+    STAGE30_11_3_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_FORBIDDEN_TEXT_NEEDLES,
 )
 
@@ -672,19 +673,28 @@ _STAGE_30_11_2_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_2_"
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    new_basenames = set(STAGE30_11_2_ALLOWED_STAGE30_BASENAMES)
+    # The Stage 30.11.2 runtime gate seam's ONLY permitted consumer is the
+    # now-admitted Stage 30.11.3 private sink adapter slice (whose adapter +
+    # fake proof compose the committed seam's fake-dispatch-result type / seam /
+    # fake stream -- the permitted Stage 30.11 scope expansion). Every OTHER
+    # stage30 file (Stage 28 / 29 / existing Stage 30 production) must still not
+    # import the Stage 30.11.2 slice: the seam is not wired into any pre-existing
+    # runtime / orchestrator / transport path.
+    allowed_importers = set(STAGE30_11_2_ALLOWED_STAGE30_BASENAMES) | set(
+        STAGE30_11_3_ALLOWED_STAGE30_BASENAMES
+    )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue
-        if entry.name in new_basenames:
+        if entry.name in allowed_importers:
             continue
         text = entry.read_text(encoding="utf-8")
         for module in _imports_of(text):
             assert not module.startswith(_STAGE_30_11_2_MODULE_PREFIX), (
                 f"{entry.name!r} imports the Stage 30.11.2 slice "
-                f"({module!r}); the slice is a leaf and is not wired into the "
-                f"runtime yet (no existing production file may be edited to "
-                f"import it)"
+                f"({module!r}); only the Stage 30.11.3 private sink adapter "
+                f"slice may compose the seam -- no other (Stage 28 / 29 / "
+                f"existing Stage 30) production file may be edited to import it"
             )
 
 

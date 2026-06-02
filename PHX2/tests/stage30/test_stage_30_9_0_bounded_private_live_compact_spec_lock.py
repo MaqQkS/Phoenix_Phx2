@@ -240,11 +240,13 @@ _ADMITTED_STAGE_30_10_BASENAMES = frozenset(
 # the now-admitted Stage 30.11.1 offline live-candidate assembly bridge slice
 # (the three production modules + their five tests) PLUS the now-admitted Stage
 # 30.11.2 offline runtime gate seam slice (the three production modules + their
-# five tests). These basenames carry the ``stage30_11`` / ``stage_30_11`` token
-# and so match the Stage 30.10+ guard regex; they are admitted here while the
-# Stage 30.11.0 pin test owns the authoritative "no Stage 30.11.3+ file" guard
-# going forward. Any other Stage 30.11+ token (a Stage 30.11.3+ implementation
-# file) remains forbidden in this guard.
+# five tests) PLUS the now-admitted Stage 30.11.3 private sink adapter slice
+# (the three production modules + their five tests). These basenames carry the
+# ``stage30_11`` / ``stage_30_11`` token and so match the Stage 30.10+ guard
+# regex; they are admitted here while the Stage 30.11.0 pin test owns the
+# authoritative "no Stage 30.11.4+ file" guard going forward. Any other Stage
+# 30.11+ token (a Stage 30.11.4+ implementation file) remains forbidden in this
+# guard.
 _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
     {
         # Stage 30.11.0 spec-lock scaffold.
@@ -269,6 +271,15 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_2_fake_runtime_gate_proof.py",
         "test_stage_30_11_2_boundaries.py",
         "test_stage_30_11_2_manifest.py",
+        # Stage 30.11.3 private sink adapter slice.
+        "stage30_11_3_private_sink_models.py",
+        "stage30_11_3_private_sink_adapter.py",
+        "stage30_11_3_fake_private_sink_proof.py",
+        "test_stage_30_11_3_private_sink_models.py",
+        "test_stage_30_11_3_private_sink_adapter.py",
+        "test_stage_30_11_3_fake_private_sink_proof.py",
+        "test_stage_30_11_3_boundaries.py",
+        "test_stage_30_11_3_manifest.py",
     }
 )
 

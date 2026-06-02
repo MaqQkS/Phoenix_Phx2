@@ -466,6 +466,21 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_2_runtime_gate_models.py",
         "stage30_11_2_runtime_gate_seam.py",
         "stage30_11_2_fake_runtime_gate_proof.py",
+        # Stage 30.11.3 private sink adapter production additions (private sink
+        # models, private sink adapter, fake private sink proof): the
+        # adapter-side private sink request / result / proof-summary models, the
+        # pure adapter that translates a committed PASS gate input into a private
+        # sink request and hands it to an INJECTED fake transport (plus a thin
+        # Stage 30.11.2 seam-compatibility wrapper), and the offline fake private
+        # sink proof (a direct three-call sink proof + a runtime seam integration
+        # proof driven by an in-memory recording FAKE transport). ZERO real
+        # transport / real Discord / webhook send / dispatch reservation / live
+        # run / provider call / Discord send / env read / wall-clock read /
+        # daemon ships here, and NO Stage 28 / 29 / existing Stage 30 production
+        # file is edited; no Stage 30.11.4+ file ships at Stage 30.11.3.
+        "stage30_11_3_private_sink_models.py",
+        "stage30_11_3_private_sink_adapter.py",
+        "stage30_11_3_fake_private_sink_proof.py",
     }
 )
 
@@ -682,6 +697,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_2_fake_runtime_gate_proof.py",
         "test_stage_30_11_2_boundaries.py",
         "test_stage_30_11_2_manifest.py",
+        # Stage 30.11.3 private sink adapter test additions (private sink
+        # models, private sink adapter, fake private sink proof, boundaries,
+        # manifest). Fakes / offline only.
+        "test_stage_30_11_3_private_sink_models.py",
+        "test_stage_30_11_3_private_sink_adapter.py",
+        "test_stage_30_11_3_fake_private_sink_proof.py",
+        "test_stage_30_11_3_boundaries.py",
+        "test_stage_30_11_3_manifest.py",
     }
 )
 
