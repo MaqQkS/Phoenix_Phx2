@@ -929,6 +929,345 @@ STAGE30_11_1_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.2 -- offline runtime gate seam + max_runtime_seconds (fakes /
+# offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.2 is the SECOND Stage 30.11 production slice: the offline runtime
+# gate seam with fakes / offline tests only. It adds three NEW production files
+# -- the passive runtime models (the bounded-runtime config + the per-candidate
+# runtime outcome + the rolled-up runtime summary + the fake dispatch
+# acknowledgement result + the closed-set runtime decision / reason
+# vocabularies), the pure runtime seam (which, per already-assembled candidate,
+# composes the committed Stage 30.11.1 bridge -> the committed Stage 30.9.3 dip
+# gate -> an INJECTED fake dispatch sink that is reachable ONLY behind a gate
+# PASS, while enforcing the wall-clock max_runtime_seconds bound via an injected
+# clock plus the max_candidates / max_dispatches count bounds), and the offline
+# fake runtime gate proof (which runs the seam over a deterministic five-
+# candidate stream with an in-memory recording sink + an injected fake clock).
+# It adds the wall-clock runtime bound the bounded session lacked and proves --
+# with fakes only -- that the dispatch sink is unreachable without a committed
+# dip-gate PASS. It ships NO real dispatch sink, NO real Discord / webhook /
+# transport wiring, NO dispatch reservation, NO live provider call, NO Discord
+# send, NO env read, NO wall-clock read (the runtime clock is injected), NO
+# daemon / background loop, and edits NO existing live runner / orchestrator /
+# transport / Stage 28 suppression / Stage 29 live provider file. Unlike the
+# offline-only Stage 30.9.x / 30.10.x slices, Stage 30.11.2 IS permitted to
+# compose the committed live surfaces behind the dip gate (the permitted scope
+# expansion): the seam composes the Stage 30.11.1 bridge + the Stage 30.9.3 dip
+# gate; no Stage 21-29 / live runner / provider / transport module is imported.
+# NO Stage 30.11.3+ file ships at Stage 30.11.2.
+
+
+STAGE30_11_2_MINOR_VERSION: str = "30.11.2"
+
+
+# The Stage 30.11.2 runtime gate seam schema version (mirrored BY VALUE by the
+# Stage 30.11.2 runtime-gate-models module; a pin test cross-checks it matches).
+# Distinct from the Stage 30.11.1 bridge schema version, the Stage 30.9.3
+# integration schema version, and the Stage 30.10.3 artifact schema version.
+STAGE30_11_2_RUNTIME_GATE_SCHEMA_VERSION: str = (
+    "stage30_11_2_v0_runtime_gate_seam"
+)
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_2_RUNTIME_GATE_MODELS_BASENAME: str = (
+    "stage30_11_2_runtime_gate_models.py"
+)
+STAGE30_11_2_RUNTIME_GATE_SEAM_BASENAME: str = (
+    "stage30_11_2_runtime_gate_seam.py"
+)
+STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_BASENAME: str = (
+    "stage30_11_2_fake_runtime_gate_proof.py"
+)
+
+
+STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_runtime_gate_models"
+)
+STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_runtime_gate_seam"
+)
+STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_fake_runtime_gate_proof"
+)
+
+
+# The ALREADY-COMMITTED sibling module paths the Stage 30.11.2 seam composes
+# (re-declared here as literals; the manifest imports no PHX2 module). The seam
+# composes the Stage 30.11.1 bridge + bridge models, the Stage 30.9.3 dip-gate
+# adapter + gate models, and the Stage 30.10.2 gate-decision token. These are the
+# committed live-gate surfaces the Stage 30.11 wiring is explicitly permitted to
+# compose behind the dip gate.
+STAGE30_11_2_STAGE30_11_1_BRIDGE_MODULE: str = (
+    "PHX2.stage30.stage30_11_1_live_candidate_bridge"
+)
+STAGE30_11_2_STAGE30_11_1_BRIDGE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_1_live_candidate_bridge_models"
+)
+STAGE30_11_2_STAGE30_9_3_GATE_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_adapter"
+)
+STAGE30_11_2_STAGE30_9_3_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_models"
+)
+STAGE30_11_2_STAGE30_10_2_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_10_2_pre_dispatch_gate_models"
+)
+
+
+# The three NEW production files Stage 30.11.2 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.11.1 inventory. NO Stage 30.11.3+
+# file.
+STAGE30_11_2_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_2_RUNTIME_GATE_MODELS_BASENAME,
+    STAGE30_11_2_RUNTIME_GATE_SEAM_BASENAME,
+    STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_BASENAME,
+)
+
+
+# The three production modules the Stage 30.11.2 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_11_2_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_2_RUNTIME_GATE_MODELS_BASENAME,
+    STAGE30_11_2_RUNTIME_GATE_SEAM_BASENAME,
+    STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_BASENAME,
+)
+
+
+STAGE30_11_2_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_2_runtime_gate_models.py",
+    "test_stage_30_11_2_runtime_gate_seam.py",
+    "test_stage_30_11_2_fake_runtime_gate_proof.py",
+    "test_stage_30_11_2_boundaries.py",
+    "test_stage_30_11_2_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.2 production module must be in this
+# stdlib allowlist (the models need ``dataclasses`` / ``decimal``; the seam needs
+# ``decimal`` / ``typing``; the fake proof needs ``decimal`` / ``typing``). It
+# admits NO ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO
+# ``sqlite3``, NO ``zstd`` / compression, NO network module, and NO ``time`` /
+# ``datetime`` (the runtime clock is injected, never read).
+STAGE30_11_2_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# Every PHX2 import in a Stage 30.11.2 production module must be one of these
+# siblings: the Stage 30.11.2 own runtime-gate-models + seam siblings plus the
+# committed Stage 30.11.1 bridge / bridge-models siblings, the committed Stage
+# 30.9.3 dip-gate adapter / gate-models siblings, and the committed Stage 30.10.2
+# gate-decision-token sibling the seam composes. This positive allowlist proves,
+# by construction, that NO Stage 21-29 (incl. Stage 28 suppression / Stage 29.5 /
+# Stage 29 live provider) / runtime orchestrator / renderer / transport / Discord
+# / live provider module is imported (the seam composes ONLY the committed Stage
+# 30.9.3 + Stage 30.10.2 + Stage 30.11.1 offline surfaces).
+STAGE30_11_2_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE,
+    STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE,
+    STAGE30_11_2_STAGE30_11_1_BRIDGE_MODULE,
+    STAGE30_11_2_STAGE30_11_1_BRIDGE_MODELS_MODULE,
+    STAGE30_11_2_STAGE30_9_3_GATE_ADAPTER_MODULE,
+    STAGE30_11_2_STAGE30_9_3_GATE_MODELS_MODULE,
+    STAGE30_11_2_STAGE30_10_2_GATE_MODELS_MODULE,
+)
+
+
+# Closed-set runtime decision tokens (mirrored BY VALUE from the Stage 30.11.2
+# runtime-gate-models module). ``DISPATCHED_AFTER_DIP_GATE_PASS`` is the only
+# decision on which the injected fake dispatch sink was called.
+STAGE30_11_2_RUNTIME_DECISIONS: Tuple[str, ...] = (
+    "DISPATCHED_AFTER_DIP_GATE_PASS",
+    "SUPPRESSED_BY_BRIDGE",
+    "SUPPRESSED_BY_DIP_GATE",
+    "STOPPED_BY_CANDIDATE_CAP",
+    "STOPPED_BY_DISPATCH_CAP",
+    "STOPPED_BY_RUNTIME_SECONDS",
+    "INVALID_RUNTIME_INPUT",
+)
+
+
+# The single runtime decision on which the injected fake dispatch sink was
+# called.
+STAGE30_11_2_RUNTIME_DISPATCH_DECISION: str = "DISPATCHED_AFTER_DIP_GATE_PASS"
+
+
+# Closed-set runtime reason tokens (mirrored BY VALUE from the Stage 30.11.2
+# runtime-gate-models module).
+STAGE30_11_2_RUNTIME_REASONS: Tuple[str, ...] = (
+    "PASS_TO_FAKE_DISPATCH",
+    "BRIDGE_SKIPPED_OR_INVALID",
+    "DIP_GATE_SKIPPED",
+    "CANDIDATE_CAP_REACHED",
+    "DISPATCH_CAP_REACHED",
+    "RUNTIME_SECONDS_REACHED",
+    "INVALID_CONFIG_OR_INPUT",
+)
+
+
+# The single runtime reason that accompanies the only dispatch decision.
+STAGE30_11_2_RUNTIME_DISPATCH_REASON: str = "PASS_TO_FAKE_DISPATCH"
+
+
+# The runtime-local not-evaluated sentinel for an outcome's bridge / gate
+# decision axis where the bridge / gate was not run (a cap / runtime stop or a
+# non-conforming stream item). NOT a Stage 30.11.1 bridge decision nor a Stage
+# 30.9.3 / 30.10.2 gate decision.
+STAGE30_11_2_NOT_EVALUATED: str = "NOT_EVALUATED"
+
+
+# The Stage 30.11.2 config / outcome / summary / fake-result field names
+# (mirrored BY VALUE from the Stage 30.11.2 runtime-gate-models module; a pin
+# test cross-checks them). ``created_at_utc`` is caller-injected, never a
+# wall-clock read; NONE is a secret, a raw payload, a host, or a transport
+# destination.
+STAGE30_11_2_RUNTIME_GATE_CONFIG_FIELDS: Tuple[str, ...] = (
+    "max_runtime_seconds",
+    "max_candidates",
+    "max_dispatches",
+    "created_at_utc",
+)
+STAGE30_11_2_RUNTIME_OUTCOME_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "bridge_decision",
+    "gate_decision",
+    "runtime_decision",
+    "runtime_reason",
+    "dispatch_attempted",
+    "dispatch_accepted",
+    "created_at_utc",
+)
+STAGE30_11_2_RUNTIME_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "candidates_seen",
+    "bridged",
+    "gate_passed",
+    "dispatch_attempted",
+    "dispatch_accepted",
+    "suppressed_by_bridge",
+    "suppressed_by_gate",
+    "stopped_by_candidate_cap",
+    "stopped_by_dispatch_cap",
+    "stopped_by_runtime_seconds",
+    "invalid_inputs",
+    "created_at_utc",
+)
+STAGE30_11_2_FAKE_DISPATCH_RESULT_FIELDS: Tuple[str, ...] = (
+    "accepted",
+    "candidate_id",
+    "token_mint",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.11.2 fake runtime gate proof counts over
+# the deterministic five-candidate default stream run with the permissive
+# baseline config (so no cap / runtime bound is tripped): five candidates seen,
+# exactly two bridged (the Tier 1 dip-context + the Tier Unknown non-dip-context
+# candidate), exactly one passed the committed dip gate (the Tier 1 dip), exactly
+# one fake dispatch attempted + accepted (the dip; the ONLY candidate the sink is
+# called for), exactly three suppressed by the bridge (missing ATH + missing
+# migration + invalid id), exactly one suppressed by the gate (the non-dip), and
+# exactly one invalid input (the invalid id, which is also a bridge suppression).
+# No real dispatch reserved; no Discord sent.
+STAGE30_11_2_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN: int = 5
+STAGE30_11_2_FAKE_PROOF_EXPECTED_BRIDGED: int = 2
+STAGE30_11_2_FAKE_PROOF_EXPECTED_GATE_PASSED: int = 1
+STAGE30_11_2_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTED: int = 1
+STAGE30_11_2_FAKE_PROOF_EXPECTED_DISPATCH_ACCEPTED: int = 1
+STAGE30_11_2_FAKE_PROOF_EXPECTED_SUPPRESSED_BY_BRIDGE: int = 3
+STAGE30_11_2_FAKE_PROOF_EXPECTED_SUPPRESSED_BY_GATE: int = 1
+STAGE30_11_2_FAKE_PROOF_EXPECTED_INVALID_INPUTS: int = 1
+
+
+# After Stage 30.11.2 (the runtime gate seam) the next allowed slice is Stage
+# 30.11.3 (the real dispatch sink adapter, separately operator-gated). The Stage
+# 30.11.0 family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at
+# ``30.11.1``; this 30.11.2-scoped pointer names the slice that follows. NO Stage
+# 30.11.3 file ships at Stage 30.11.2.
+STAGE30_11_2_NEXT_ALLOWED_STAGE: str = "30.11.3"
+STAGE30_11_2_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "real dispatch sink adapter (compose the committed private ping + audited "
+    "transport as the seam's dispatch sink, invoked ONLY for a PASS candidate; "
+    "still proven with fakes -- the live ceremony is a separate operator-"
+    "authorized step)"
+)
+
+
+# The surfaces the Stage 30.11.2 runtime-gate-seam slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms. The seam ONLY composes the committed bridge + dip gate + an
+# injected fake sink; it must not reach any surface below.
+STAGE30_11_2_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real dispatch sink",
+    "real dispatch sink wiring",
+    "dispatch reservation",
+    "real Discord send",
+    "Discord send",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "ungated Stage 29.3 send path reused directly",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.3+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.2 implements no part
+# of it; it only proves the bounded runtime seam composes the committed bridge +
+# dip gate behind an injected fake sink).
+STAGE30_11_2_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_2_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.2 is the offline runtime gate seam only; the controlled dip-"
+    "filtered private compact live ceremony remains a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -1016,4 +1355,53 @@ __all__ = (
     "STAGE30_11_1_FORBIDDEN_SURFACES",
     "STAGE30_11_1_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_1_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.2 runtime gate seam ----
+    # Minor version + runtime gate schema identity.
+    "STAGE30_11_2_MINOR_VERSION",
+    "STAGE30_11_2_RUNTIME_GATE_SCHEMA_VERSION",
+    # Basenames + module paths.
+    "STAGE30_11_2_RUNTIME_GATE_MODELS_BASENAME",
+    "STAGE30_11_2_RUNTIME_GATE_SEAM_BASENAME",
+    "STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_BASENAME",
+    "STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE",
+    "STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE",
+    "STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE",
+    "STAGE30_11_2_STAGE30_11_1_BRIDGE_MODULE",
+    "STAGE30_11_2_STAGE30_11_1_BRIDGE_MODELS_MODULE",
+    "STAGE30_11_2_STAGE30_9_3_GATE_ADAPTER_MODULE",
+    "STAGE30_11_2_STAGE30_9_3_GATE_MODELS_MODULE",
+    "STAGE30_11_2_STAGE30_10_2_GATE_MODELS_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_2_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_2_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_2_TEST_BASENAMES",
+    # Import allowlists.
+    "STAGE30_11_2_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_2_ALLOWED_PHX2_IMPORTS",
+    # Runtime decisions + reasons + sentinel.
+    "STAGE30_11_2_RUNTIME_DECISIONS",
+    "STAGE30_11_2_RUNTIME_DISPATCH_DECISION",
+    "STAGE30_11_2_RUNTIME_REASONS",
+    "STAGE30_11_2_RUNTIME_DISPATCH_REASON",
+    "STAGE30_11_2_NOT_EVALUATED",
+    # Model field tuples.
+    "STAGE30_11_2_RUNTIME_GATE_CONFIG_FIELDS",
+    "STAGE30_11_2_RUNTIME_OUTCOME_FIELDS",
+    "STAGE30_11_2_RUNTIME_SUMMARY_FIELDS",
+    "STAGE30_11_2_FAKE_DISPATCH_RESULT_FIELDS",
+    # Fake proof expected counts.
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN",
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_BRIDGED",
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_GATE_PASSED",
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_DISPATCH_ATTEMPTED",
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_DISPATCH_ACCEPTED",
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_SUPPRESSED_BY_BRIDGE",
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_SUPPRESSED_BY_GATE",
+    "STAGE30_11_2_FAKE_PROOF_EXPECTED_INVALID_INPUTS",
+    # Next allowed stage + forbidden surfaces + live ceremony note.
+    "STAGE30_11_2_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_2_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_2_FORBIDDEN_SURFACES",
+    "STAGE30_11_2_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_2_LIVE_CEREMONY_NOTE",
 )

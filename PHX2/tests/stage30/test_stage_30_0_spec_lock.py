@@ -446,6 +446,26 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_1_live_candidate_bridge_models.py",
         "stage30_11_1_live_candidate_bridge.py",
         "stage30_11_1_fake_bridge_proof.py",
+        # Stage 30.11.2 offline runtime gate seam production additions (the
+        # passive runtime models -- bounded-runtime config + per-candidate
+        # runtime outcome + rolled-up runtime summary + fake dispatch
+        # acknowledgement result + closed-set runtime decision / reason
+        # vocabularies, importing no PHX2 module -- the pure runtime seam that
+        # composes the committed Stage 30.11.1 bridge -> the committed Stage
+        # 30.9.3 dip gate -> an INJECTED fake dispatch sink reachable ONLY behind
+        # a gate PASS, enforcing the wall-clock max_runtime_seconds bound via an
+        # injected clock plus the max_candidates / max_dispatches count bounds,
+        # and the offline fake runtime gate proof composing the seam over a
+        # deterministic five-candidate stream with an in-memory recording sink +
+        # an injected fake clock; the runtime counterpart of the Stage 30.11.1
+        # bridge proof, but ZERO real dispatch sink / real Discord / transport
+        # wiring / dispatch reservation / live run / provider call / Discord
+        # send / env read / wall-clock read / daemon ships here, and NO Stage 28
+        # / 29 / existing Stage 30 production file is edited; no Stage 30.11.3+
+        # file ships at Stage 30.11.2.
+        "stage30_11_2_runtime_gate_models.py",
+        "stage30_11_2_runtime_gate_seam.py",
+        "stage30_11_2_fake_runtime_gate_proof.py",
     }
 )
 
@@ -654,6 +674,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_1_fake_bridge_proof.py",
         "test_stage_30_11_1_boundaries.py",
         "test_stage_30_11_1_manifest.py",
+        # Stage 30.11.2 offline runtime gate seam test additions (runtime gate
+        # models, runtime gate seam, fake runtime gate proof, boundaries,
+        # manifest). Fakes / offline only.
+        "test_stage_30_11_2_runtime_gate_models.py",
+        "test_stage_30_11_2_runtime_gate_seam.py",
+        "test_stage_30_11_2_fake_runtime_gate_proof.py",
+        "test_stage_30_11_2_boundaries.py",
+        "test_stage_30_11_2_manifest.py",
     }
 )
 

@@ -27,9 +27,11 @@ bridge, the fake bridge proof) for:
     and
   * no existing runtime / orchestrator / transport / Stage 28 suppression /
     Stage 29 live provider / committed Stage 30.9.3 file imports the Stage
-    30.11.1 slice (the slice is a leaf; nothing existing depends on it, and it
-    is NOT wired into the runtime yet -- proving no Stage 28 / 29 / existing
-    Stage 30 production file was edited to wire it in).
+    30.11.1 slice -- the ONLY permitted consumer is the now-admitted Stage
+    30.11.2 runtime gate seam slice (which composes the committed bridge behind
+    the committed dip gate); the bridge is still NOT wired into any pre-existing
+    runtime path, proving no Stage 28 / 29 / other existing Stage 30 production
+    file was edited to wire it in.
 
 Fake / offline only. No live call, no provider, no Discord, no env read.
 """
@@ -54,6 +56,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_1_STAGE30_9_3_GATE_ADAPTER_MODULE,
     STAGE30_11_1_STAGE30_9_3_GATE_MODELS_MODULE,
     STAGE30_11_1_TEST_BASENAMES,
+    STAGE30_11_2_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_FORBIDDEN_TEXT_NEEDLES,
 )
 
@@ -576,19 +579,27 @@ _STAGE_30_11_1_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_1_"
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    new_basenames = set(STAGE30_11_1_ALLOWED_STAGE30_BASENAMES)
+    # The Stage 30.11.1 bridge's ONLY permitted consumer is the now-admitted
+    # Stage 30.11.2 runtime gate seam slice (which composes the committed bridge
+    # behind the committed dip gate -- the permitted Stage 30.11 scope
+    # expansion). Every OTHER stage30 file (Stage 28 / 29 / existing Stage 30
+    # production) must still not import the Stage 30.11.1 slice: the bridge is
+    # not wired into any pre-existing runtime / orchestrator / transport path.
+    allowed_importers = set(STAGE30_11_1_ALLOWED_STAGE30_BASENAMES) | set(
+        STAGE30_11_2_ALLOWED_STAGE30_BASENAMES
+    )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue
-        if entry.name in new_basenames:
+        if entry.name in allowed_importers:
             continue
         text = entry.read_text(encoding="utf-8")
         for module in _imports_of(text):
             assert not module.startswith(_STAGE_30_11_1_MODULE_PREFIX), (
                 f"{entry.name!r} imports the Stage 30.11.1 slice "
-                f"({module!r}); the slice is a leaf and is not wired into the "
-                f"runtime yet (no existing production file may be edited to "
-                f"import it)"
+                f"({module!r}); only the Stage 30.11.2 runtime gate seam slice "
+                f"may compose the bridge -- no other (Stage 28 / 29 / existing "
+                f"Stage 30) production file may be edited to import it"
             )
 
 
