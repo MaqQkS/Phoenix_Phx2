@@ -427,6 +427,25 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # 30.11.1+ file ships at Stage 30.11.0.
         "STAGE_30_11_0_DIP_GATED_LIVE_DISPATCH_WIRING_SPEC_LOCK.md",
         "stage30_11_manifest.py",
+        # Stage 30.11.1 offline live-candidate -> Stage30_9_3LiveGateInput
+        # assembly bridge production additions (the passive bridge models --
+        # the Stage 30.11-owned already-assembled live candidate snapshot + the
+        # per-candidate bridge result carrying the committed Stage 30.9.3 live
+        # gate input + the rolled-up proof summary, embedding only that ONE
+        # committed Stage 30.9.3 model -- the pure bridge that maps an already-
+        # assembled snapshot's present fields one-to-one onto a committed Stage
+        # 30.9.3 Stage30_9_3LiveGateInput, and the fake / offline bridge proof
+        # that tallies the bridge over a deterministic five-candidate stream and
+        # OPTIONALLY feeds the bridged inputs into the committed Stage 30.9.3
+        # gate to prove compatibility; the missing assembly link the prior
+        # controlled live ceremony lacked, but ZERO runtime wiring / runtime
+        # gate seam / real dispatch sink / dispatch reservation / live run /
+        # provider call / Discord send / env read ships here, and NO Stage 28 /
+        # 29 / existing Stage 30 production file is edited; no Stage 30.11.2+
+        # file ships at Stage 30.11.1.
+        "stage30_11_1_live_candidate_bridge_models.py",
+        "stage30_11_1_live_candidate_bridge.py",
+        "stage30_11_1_fake_bridge_proof.py",
     }
 )
 
@@ -627,6 +646,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_9_3_manifest.py",
         # Stage 30.11.0 dip-gated live dispatch wiring spec-lock pin test.
         "test_stage_30_11_0_dip_gated_live_dispatch_wiring_spec_lock.py",
+        # Stage 30.11.1 offline live-candidate assembly bridge test additions
+        # (bridge models, bridge, fake bridge proof, boundaries, manifest).
+        # Fakes / offline only.
+        "test_stage_30_11_1_live_candidate_bridge_models.py",
+        "test_stage_30_11_1_live_candidate_bridge.py",
+        "test_stage_30_11_1_fake_bridge_proof.py",
+        "test_stage_30_11_1_boundaries.py",
+        "test_stage_30_11_1_manifest.py",
     }
 )
 

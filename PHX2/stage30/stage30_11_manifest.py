@@ -645,6 +645,290 @@ STAGE30_11_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.1 -- offline live-candidate -> Stage30_9_3LiveGateInput assembly
+# bridge (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.1 is the FIRST Stage 30.11 production slice: the offline
+# live-candidate assembly bridge with fakes / offline tests only. It adds three
+# NEW production files -- the passive bridge models (the Stage 30.11-owned
+# already-assembled live candidate snapshot + the per-candidate bridge result
+# carrying the committed Stage 30.9.3 live gate input + the rolled-up proof
+# summary), the pure bridge (which maps an already-assembled snapshot's
+# present fields ONE-TO-ONE onto a committed Stage 30.9.3
+# ``Stage30_9_3LiveGateInput``, failing closed on a blank id / missing
+# context), and the offline fake bridge proof (which tallies the bridge over a
+# deterministic five-candidate stream and OPTIONALLY feeds the bridged inputs
+# into the committed Stage 30.9.3 gate to prove compatibility WITHOUT
+# dispatching). It is the missing assembly link the prior controlled live
+# ceremony lacked. It ships NO runtime wiring, NO runtime gate seam, NO real
+# dispatch sink, NO dispatch reservation, NO live provider call, NO Discord
+# send, NO env read, and edits NO existing live runner / orchestrator /
+# transport / Stage 28 suppression / Stage 29 live provider file. Unlike the
+# offline-only Stage 30.9.x / 30.10.x slices, Stage 30.11.1 IS permitted to
+# compose the committed Stage 30.9.3 surfaces (the permitted scope expansion):
+# the bridge models embed the Stage 30.9.3 live gate input, and the fake proof
+# composes the Stage 30.9.3 dip-gate adapter; no Stage 21-29 / live runner /
+# provider / transport module is imported. NO Stage 30.11.2+ file ships at
+# Stage 30.11.1.
+
+
+STAGE30_11_1_MINOR_VERSION: str = "30.11.1"
+
+
+# The Stage 30.11.1 live-candidate assembly bridge schema version (mirrored BY
+# VALUE by the Stage 30.11.1 bridge-models module; a pin test cross-checks it
+# matches). Distinct from the Stage 30.9.3 integration schema version and the
+# Stage 30.10.3 artifact schema version.
+STAGE30_11_1_BRIDGE_SCHEMA_VERSION: str = (
+    "stage30_11_1_v0_live_candidate_bridge"
+)
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_1_BRIDGE_MODELS_BASENAME: str = (
+    "stage30_11_1_live_candidate_bridge_models.py"
+)
+STAGE30_11_1_BRIDGE_BASENAME: str = "stage30_11_1_live_candidate_bridge.py"
+STAGE30_11_1_FAKE_BRIDGE_PROOF_BASENAME: str = (
+    "stage30_11_1_fake_bridge_proof.py"
+)
+
+
+STAGE30_11_1_BRIDGE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_1_live_candidate_bridge_models"
+)
+STAGE30_11_1_BRIDGE_MODULE: str = (
+    "PHX2.stage30.stage30_11_1_live_candidate_bridge"
+)
+STAGE30_11_1_FAKE_BRIDGE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_1_fake_bridge_proof"
+)
+
+
+# The ALREADY-COMMITTED Stage 30.9.3 sibling module paths the Stage 30.11.1
+# bridge composes (re-declared here as literals; the manifest imports no PHX2
+# module). The bridge models embed the gate-input model; the fake proof
+# composes the dip-gate adapter. These are the committed live-gate surfaces the
+# Stage 30.11 wiring is explicitly permitted to compose behind the dip gate.
+STAGE30_11_1_STAGE30_9_3_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_models"
+)
+STAGE30_11_1_STAGE30_9_3_GATE_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_9_3_dip_filtered_live_gate_adapter"
+)
+
+
+# The three NEW production files Stage 30.11.1 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.11.0 inventory. NO Stage 30.11.2+
+# file.
+STAGE30_11_1_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_1_BRIDGE_MODELS_BASENAME,
+    STAGE30_11_1_BRIDGE_BASENAME,
+    STAGE30_11_1_FAKE_BRIDGE_PROOF_BASENAME,
+)
+
+
+# The three production modules the Stage 30.11.1 boundary test scans for
+# forbidden imports / text needles.
+STAGE30_11_1_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_1_BRIDGE_MODELS_BASENAME,
+    STAGE30_11_1_BRIDGE_BASENAME,
+    STAGE30_11_1_FAKE_BRIDGE_PROOF_BASENAME,
+)
+
+
+STAGE30_11_1_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_1_live_candidate_bridge_models.py",
+    "test_stage_30_11_1_live_candidate_bridge.py",
+    "test_stage_30_11_1_fake_bridge_proof.py",
+    "test_stage_30_11_1_boundaries.py",
+    "test_stage_30_11_1_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.1 production module must be in this
+# stdlib allowlist (the models need ``dataclasses`` / ``decimal``; the bridge
+# needs ``typing``; the fake proof needs ``decimal`` / ``typing``). It admits
+# NO ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO ``sqlite3``, NO
+# ``zstd`` / compression, and NO network module.
+STAGE30_11_1_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# Every PHX2 import in a Stage 30.11.1 production module must be one of these
+# siblings: the Stage 30.11.1 bridge-models + bridge siblings plus the
+# committed Stage 30.9.3 integration-models + dip-gate-adapter siblings the
+# bridge composes. This positive allowlist proves, by construction, that NO
+# Stage 21-29 (incl. Stage 28 suppression / Stage 29.5) / runtime orchestrator
+# / renderer / transport / Discord / live provider module is imported (the
+# bridge composes ONLY the committed Stage 30.9.3 offline surfaces).
+STAGE30_11_1_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_1_BRIDGE_MODELS_MODULE,
+    STAGE30_11_1_BRIDGE_MODULE,
+    STAGE30_11_1_STAGE30_9_3_GATE_MODELS_MODULE,
+    STAGE30_11_1_STAGE30_9_3_GATE_ADAPTER_MODULE,
+)
+
+
+# Closed-set bridge decision tokens (mirrored BY VALUE from the Stage 30.11.1
+# bridge-models module). ``BRIDGED_TO_LIVE_GATE_INPUT`` is the only decision
+# that carries a built Stage 30.9.3 live gate input; the other two carry
+# ``None``.
+STAGE30_11_1_BRIDGE_DECISIONS: Tuple[str, ...] = (
+    "BRIDGED_TO_LIVE_GATE_INPUT",
+    "SKIPPED_MISSING_REQUIRED_CONTEXT",
+    "INVALID_BRIDGE_INPUT",
+)
+
+
+# The single decision that yields a built Stage 30.9.3 live gate input.
+STAGE30_11_1_BRIDGE_PASS_DECISION: str = "BRIDGED_TO_LIVE_GATE_INPUT"
+
+
+# Closed-set bridge reason tokens (mirrored BY VALUE from the Stage 30.11.1
+# bridge-models module).
+STAGE30_11_1_BRIDGE_REASONS: Tuple[str, ...] = (
+    "READY_FOR_DIP_GATE",
+    "MISSING_REQUIRED_CONTEXT",
+    "INVALID_FIELD_SHAPE",
+)
+
+
+# The Stage 30.11.1 candidate snapshot / bridge result / bridge proof summary
+# field names (mirrored BY VALUE from the Stage 30.11.1 bridge-models module;
+# a pin test cross-checks them). ``created_at_utc`` is caller-injected, never a
+# wall-clock read; NONE is a secret, a raw payload, a host, or a transport
+# destination.
+STAGE30_11_1_CANDIDATE_SNAPSHOT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "post_migration_ath_verified",
+    "source_ref",
+    "created_at_utc",
+)
+STAGE30_11_1_BRIDGE_RESULT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "bridge_decision",
+    "bridge_reason",
+    "live_gate_input",
+    "created_at_utc",
+)
+STAGE30_11_1_BRIDGE_PROOF_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "candidates_seen",
+    "bridged",
+    "skipped_missing_context",
+    "invalid_inputs",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.11.1 fake bridge proof counts over the
+# deterministic five-candidate default stream: five candidates seen, exactly
+# two bridged into a committed Stage 30.9.3 live gate input (a Tier 1 dip-
+# context candidate + a Tier Unknown non-dip-context candidate -- the non-dip
+# decision is the GATE's, made LATER, not the bridge's), exactly two skipped
+# for missing required context (missing ATH + missing migration), and exactly
+# one invalid (a blank candidate id). The bridge reserves NO dispatch and
+# sends NO Discord.
+STAGE30_11_1_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN: int = 5
+STAGE30_11_1_FAKE_PROOF_EXPECTED_BRIDGED: int = 2
+STAGE30_11_1_FAKE_PROOF_EXPECTED_SKIPPED_MISSING_CONTEXT: int = 2
+STAGE30_11_1_FAKE_PROOF_EXPECTED_INVALID_INPUTS: int = 1
+
+
+# After Stage 30.11.1 (the offline assembly bridge) the next allowed slice is
+# Stage 30.11.2 (the runtime gate seam with fakes only, separately operator-
+# gated). The Stage 30.11.0 family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE``
+# stays pinned at ``30.11.1``; this 30.11.1-scoped pointer names the slice that
+# follows. NO Stage 30.11.2 file ships at Stage 30.11.1.
+STAGE30_11_1_NEXT_ALLOWED_STAGE: str = "30.11.2"
+STAGE30_11_1_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "runtime gate seam with fakes only (run the committed dip gate over each "
+    "live-assembled candidate inside the bounded session; reserve a dispatch "
+    "ONLY for a PASS candidate; enforce a wall-clock max_runtime_seconds "
+    "bound; fake provider + fake transport only)"
+)
+
+
+# The surfaces the Stage 30.11.1 assembly-bridge slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms. The bridge ONLY assembles a gate input; it must not reach any
+# surface below.
+STAGE30_11_1_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "runtime gate seam",
+    "run the dip gate inside the bridge",
+    "real dispatch sink",
+    "dispatch reservation",
+    "dispatch sink call",
+    "runtime session loop",
+    "live run",
+    "live provider call",
+    "Discord send",
+    "env read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "ungated Stage 29.3 send path reused directly",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "broad always-on daemon",
+    "background service",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.2+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.1 implements no
+# part of it; it only assembles the gate input the ceremony will later gate).
+STAGE30_11_1_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_1_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.1 is the offline assembly bridge only; the controlled dip-"
+    "filtered private compact live ceremony remains a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -693,4 +977,43 @@ __all__ = (
     # Forbidden imports + needles.
     "STAGE30_11_FORBIDDEN_RUNTIME_IMPORTS",
     "STAGE30_11_FORBIDDEN_TEXT_NEEDLES",
+    # ---- Stage 30.11.1 assembly bridge ----
+    # Minor version + bridge schema identity.
+    "STAGE30_11_1_MINOR_VERSION",
+    "STAGE30_11_1_BRIDGE_SCHEMA_VERSION",
+    # Basenames + module paths.
+    "STAGE30_11_1_BRIDGE_MODELS_BASENAME",
+    "STAGE30_11_1_BRIDGE_BASENAME",
+    "STAGE30_11_1_FAKE_BRIDGE_PROOF_BASENAME",
+    "STAGE30_11_1_BRIDGE_MODELS_MODULE",
+    "STAGE30_11_1_BRIDGE_MODULE",
+    "STAGE30_11_1_FAKE_BRIDGE_PROOF_MODULE",
+    "STAGE30_11_1_STAGE30_9_3_GATE_MODELS_MODULE",
+    "STAGE30_11_1_STAGE30_9_3_GATE_ADAPTER_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_1_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_1_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_1_TEST_BASENAMES",
+    # Import allowlists.
+    "STAGE30_11_1_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_1_ALLOWED_PHX2_IMPORTS",
+    # Bridge decisions + reasons.
+    "STAGE30_11_1_BRIDGE_DECISIONS",
+    "STAGE30_11_1_BRIDGE_PASS_DECISION",
+    "STAGE30_11_1_BRIDGE_REASONS",
+    # Model field tuples.
+    "STAGE30_11_1_CANDIDATE_SNAPSHOT_FIELDS",
+    "STAGE30_11_1_BRIDGE_RESULT_FIELDS",
+    "STAGE30_11_1_BRIDGE_PROOF_SUMMARY_FIELDS",
+    # Fake proof expected counts.
+    "STAGE30_11_1_FAKE_PROOF_EXPECTED_CANDIDATES_SEEN",
+    "STAGE30_11_1_FAKE_PROOF_EXPECTED_BRIDGED",
+    "STAGE30_11_1_FAKE_PROOF_EXPECTED_SKIPPED_MISSING_CONTEXT",
+    "STAGE30_11_1_FAKE_PROOF_EXPECTED_INVALID_INPUTS",
+    # Next allowed stage + forbidden surfaces + live ceremony note.
+    "STAGE30_11_1_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_1_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_1_FORBIDDEN_SURFACES",
+    "STAGE30_11_1_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_1_LIVE_CEREMONY_NOTE",
 )

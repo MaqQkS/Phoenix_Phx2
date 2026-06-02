@@ -58,6 +58,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_0_MINOR_VERSION,
     STAGE30_11_0_SPEC_VERSION,
     STAGE30_11_0_TEST_BASENAMES,
+    STAGE30_11_1_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_1_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -166,10 +168,11 @@ def _extract_imported_module(line: str) -> str:
 
 # Matches any Stage 30.11.<N> minor-version token in a basename (both the
 # production ``stage30_11_<N>`` and the test ``stage_30_11_<N>`` spellings).
-# A captured N >= 1 names a future Stage 30.11.1+ file; N == 0 is the Stage
-# 30.11.0 scaffold (the spec doc + this pin test). The Stage 30.11.0 manifest
-# basename (``stage30_11_manifest.py``) carries no digit after ``stage30_11_``
-# and so matches no token at all.
+# A captured N >= 2 names a future Stage 30.11.2+ file; N in {0, 1} is the
+# Stage 30.11.0 scaffold (the spec doc + this pin test) / the now-admitted
+# Stage 30.11.1 assembly bridge slice and is allowed. The Stage 30.11.0
+# manifest basename (``stage30_11_manifest.py``) carries no digit after
+# ``stage30_11_`` and so matches no token at all.
 _STAGE_30_11_MINOR_RE = re.compile(r"stage_?30_11_(\d+)")
 
 # Matches a Stage 31 token (``stage31`` / ``stage_31``); not admitted yet.
@@ -180,7 +183,7 @@ def _future_30_11_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 1:
+            if int(match.group(1)) >= 2:
                 violations.append(basename)
     return violations
 
@@ -938,10 +941,12 @@ def test_forbidden_text_needles_tuple_is_non_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_stage30_11_production_entries_are_exactly_the_scaffold() -> None:
+def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
     """Every Stage 30.11 entry under ``PHX2/stage30/`` must be exactly the
-    Stage 30.11.0 spec doc + constants-only manifest. NO Stage 30.11.1+
-    runtime / bridge / seam / sink module may exist yet.
+    Stage 30.11.0 spec doc + constants-only manifest PLUS the now-admitted
+    Stage 30.11.1 offline live-candidate assembly bridge production files
+    (bridge models + bridge + fake bridge proof). NO Stage 30.11.2+ runtime /
+    seam / sink module may exist yet.
     """
     observed = {
         entry.name
@@ -955,18 +960,18 @@ def test_stage30_11_production_entries_are_exactly_the_scaffold() -> None:
     allowed = {
         STAGE30_11_SPEC_LOCK_FILENAME,
         STAGE30_11_MANIFEST_BASENAME,
-    }
+    } | set(STAGE30_11_1_ALLOWED_STAGE30_BASENAMES)
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
-        "spec lock + manifest; "
+        "spec lock + manifest plus the Stage 30.11.1 assembly bridge files; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
 
-def test_stage30_11_test_entries_are_exactly_the_scaffold() -> None:
+def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
     """Every Stage 30.11 test under ``PHX2/tests/stage30/`` must be exactly
-    the Stage 30.11.0 spec-lock pin test. NO Stage 30.11.1+ test may exist
-    yet.
+    the Stage 30.11.0 spec-lock pin test PLUS the now-admitted Stage 30.11.1
+    assembly bridge test files. NO Stage 30.11.2+ test may exist yet.
     """
     observed = {
         entry.name
@@ -974,9 +979,12 @@ def test_stage30_11_test_entries_are_exactly_the_scaffold() -> None:
         if entry.name != "__pycache__"
         and entry.name.startswith("test_stage_30_11")
     }
-    allowed = {STAGE30_11_0_TEST_BASENAMES[0]}
+    allowed = {STAGE30_11_0_TEST_BASENAMES[0]} | set(
+        STAGE30_11_1_TEST_BASENAMES
+    )
     assert observed == allowed, (
-        "Stage 30.11 test entries must be exactly the 30.11.0 pin test; "
+        "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "
+        "the Stage 30.11.1 assembly bridge tests; "
         f"unexpected entries: {sorted(observed - allowed)}"
     )
 
@@ -998,20 +1006,21 @@ def test_stage30_0_allowlist_admits_the_30_11_0_files() -> None:
     assert TEST_PATH.is_file()
 
 
-def test_stage30_0_allowlist_admits_no_stage_30_11_1_plus_file() -> None:
-    """No Stage 30.11.1+ production / test basename is admitted by the Stage
+def test_stage30_0_allowlist_admits_no_stage_30_11_2_plus_file() -> None:
+    """No Stage 30.11.2+ production / test basename is admitted by the Stage
     30.0 allowlist yet. The Stage 30.11.0 scaffold carries minor token 0 (the
-    spec doc + pin test) or no minor token (the manifest); the guard catches
-    ANY Stage 30.11.<N>=1+ token (30_11_1, 30_11_2, ...).
+    spec doc + pin test) or no minor token (the manifest), and the now-admitted
+    Stage 30.11.1 assembly bridge slice carries minor token 1; the guard
+    catches ANY Stage 30.11.<N>=2+ token (30_11_2, 30_11_3, ...).
     """
     production = _future_30_11_violations(_STAGE30_ALLOWED_BASENAMES)
     assert production == [], (
-        "Stage 30.0 production allowlist must not admit a Stage 30.11.1+ file "
+        "Stage 30.0 production allowlist must not admit a Stage 30.11.2+ file "
         f"yet; saw {production!r}"
     )
     tests = _future_30_11_violations(_TESTS_STAGE30_ALLOWED_BASENAMES)
     assert tests == [], (
-        "Stage 30.0 test allowlist must not admit a Stage 30.11.1+ test file "
+        "Stage 30.0 test allowlist must not admit a Stage 30.11.2+ test file "
         f"yet; saw {tests!r}"
     )
 

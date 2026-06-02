@@ -236,17 +236,29 @@ _ADMITTED_STAGE_30_10_BASENAMES = frozenset(
 
 
 # The now-admitted Stage 30.11.0 dip-gated live dispatch wiring spec-lock
-# scaffold (the spec-lock markdown + constants-only manifest + pin test).
-# These basenames carry the ``stage30_11`` / ``stage_30_11`` token and so
-# match the Stage 30.10+ guard regex; they are admitted here while the Stage
-# 30.11.0 pin test owns the authoritative "no Stage 30.11.1+ file" guard going
-# forward. Any other Stage 30.11+ token (a Stage 30.11.1+ implementation file)
-# remains forbidden in this guard.
+# scaffold (the spec-lock markdown + constants-only manifest + pin test) PLUS
+# the now-admitted Stage 30.11.1 offline live-candidate assembly bridge slice
+# (the three production modules + their five tests). These basenames carry the
+# ``stage30_11`` / ``stage_30_11`` token and so match the Stage 30.10+ guard
+# regex; they are admitted here while the Stage 30.11.0 pin test owns the
+# authoritative "no Stage 30.11.2+ file" guard going forward. Any other Stage
+# 30.11+ token (a Stage 30.11.2+ implementation file) remains forbidden in this
+# guard.
 _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
     {
+        # Stage 30.11.0 spec-lock scaffold.
         "STAGE_30_11_0_DIP_GATED_LIVE_DISPATCH_WIRING_SPEC_LOCK.md",
         "stage30_11_manifest.py",
         "test_stage_30_11_0_dip_gated_live_dispatch_wiring_spec_lock.py",
+        # Stage 30.11.1 offline live-candidate assembly bridge slice.
+        "stage30_11_1_live_candidate_bridge_models.py",
+        "stage30_11_1_live_candidate_bridge.py",
+        "stage30_11_1_fake_bridge_proof.py",
+        "test_stage_30_11_1_live_candidate_bridge_models.py",
+        "test_stage_30_11_1_live_candidate_bridge.py",
+        "test_stage_30_11_1_fake_bridge_proof.py",
+        "test_stage_30_11_1_boundaries.py",
+        "test_stage_30_11_1_manifest.py",
     }
 )
 
@@ -1102,11 +1114,12 @@ def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
     30.10.1 eligibility model + classifier slice + the Stage 30.10.2 optional
     pre-dispatch gate slice + the Stage 30.10.3 gate artifact integration
     proof slice + the now-admitted Stage 30.11.0 dip-gated live dispatch wiring
-    spec-lock scaffold are admitted among Stage 30.10+ tokens; every other
-    Stage 30.10+ token (a Stage 30.10.4+ implementation file, a Stage 30.11.1+
+    spec-lock scaffold + the now-admitted Stage 30.11.1 offline live-candidate
+    assembly bridge slice are admitted among Stage 30.10+ tokens; every other
+    Stage 30.10+ token (a Stage 30.10.4+ implementation file, a Stage 30.11.2+
     implementation file) and every Stage 31 token remains forbidden -- in both
     the Stage 30.0 allowlists and the on-disk Stage 30 dirs. The Stage 30.11.0
-    pin test owns the authoritative "no Stage 30.11.1+ file" guard going
+    pin test owns the authoritative "no Stage 30.11.2+ file" guard going
     forward.
     """
     haystacks = (
@@ -1121,14 +1134,15 @@ def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
             or basename in _ADMITTED_STAGE_30_11_BASENAMES
         ):
             # The Stage 30.10.0 scaffold + the Stage 30.10.1 / 30.10.2 /
-            # 30.10.3 slices + the Stage 30.11.0 spec-lock scaffold are
-            # admitted.
+            # 30.10.3 slices + the Stage 30.11.0 spec-lock scaffold + the
+            # Stage 30.11.1 assembly bridge slice are admitted.
             continue
         lowered = basename.lower()
         assert _STAGE_30_10_PLUS_RE.search(lowered) is None, (
             "Only the Stage 30.10.0 scaffold + the Stage 30.10.1 / 30.10.2 / "
-            "30.10.3 slices + the Stage 30.11.0 spec-lock scaffold are "
-            f"admitted among Stage 30.10+ files; offender {basename!r}"
+            "30.10.3 slices + the Stage 30.11.0 spec-lock scaffold + the "
+            "Stage 30.11.1 assembly bridge slice are admitted among Stage "
+            f"30.10+ files; offender {basename!r}"
         )
         assert _STAGE_31_RE.search(lowered) is None, (
             f"Stage 31 file is not admitted yet; offender {basename!r}"
