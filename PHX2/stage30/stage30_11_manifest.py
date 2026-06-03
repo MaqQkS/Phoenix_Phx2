@@ -2402,6 +2402,452 @@ STAGE30_11_5_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.6 -- real candidate source / harvest seam (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.6 is the SIXTH Stage 30.11 production slice: the real candidate
+# source / harvest seam -- the narrowest remaining blocker before the controlled
+# live ceremony can actually run. The Stage 30.11.5 bounded live runner needs a
+# ``candidate_source`` of already-assembled flat projections, but the ONLY
+# committed live assembly path (the Stage 28.9 / Stage 29.3 live provider session,
+# ``run_stage28_9_live_provider_session``) FUSES candidate assembly with its OWN
+# older ungated dispatch (the Stage 28.6 runner + transport) and returns only
+# counters -- never the assembled candidate record. Stage 30.11.6 adds four NEW
+# production files -- the passive candidate-source models (the closed-set harvest /
+# projection decision + reason vocabularies, the Stage 30.11.5-shaped flat
+# ``Stage30_11_6CandidateProjection``, the per-record projection result, the
+# per-event harvest outcome, and the rolled-up harvest summary / result), the
+# fail-closed projection adapter (which converts a HARVESTED candidate's flat
+# safe-scalar fields into the Stage 30.11.5 projection shape, failing closed on a
+# missing / malformed field and never fabricating a dip), the harvest adapter
+# (which drives an INJECTED committed assembler boundary -- the
+# ``Stage28_9CandidateAssembler.assemble`` protocol BY STRUCTURE -- over a bounded
+# event source, CAPTURES each assembled record, flattens it via an INJECTED record
+# flattener, and projects it, WITHOUT ever constructing a transport / dispatch sink
+# / runner, so the old ungated dispatch is STRUCTURALLY impossible here), and the
+# offline fake candidate source proof (which drives a deterministic five-event fake
+# source through the harvest adapter and feeds the harvested ``candidate_source``
+# through the committed Stage 30.11.5 fake live wiring proof). It ships NO real
+# candidate source binding, NO real transport / Discord / webhook send, NO real
+# dispatch reservation, NO live provider call, NO Discord send, NO env read, NO
+# wall-clock read (every clock is injected), NO daemon / background loop, and edits
+# NO existing Stage 27 / Stage 28 / Stage 29 / existing Stage 30 production file.
+# Unlike the offline-only Stage 30.9.x / 30.10.x slices, Stage 30.11.6 IS permitted
+# to compose the committed Stage 30.11.5 surfaces (the permitted scope expansion):
+# the proof composes the committed Stage 30.11.5 fake live wiring proof; the harvest
+# adapter is GENERIC (it drives an INJECTED assembler / flattener duck-typed as
+# ``object``), so NO Stage 21-29 (incl. the nested Stage 27 / 28 / 29 live candidate
+# record, the Stage 28.9 live provider session adapter, Stage 28 suppression, Stage
+# 29 live provider) module is imported. NO Stage 30.11.7+ file ships at Stage
+# 30.11.6.
+
+
+STAGE30_11_6_MINOR_VERSION: str = "30.11.6"
+
+
+# The Stage 30.11.6 real candidate source / harvest seam schema version (mirrored
+# BY VALUE by the Stage 30.11.6 candidate-source-models module; a pin test
+# cross-checks it matches). Distinct from the Stage 30.11.5 live wiring schema
+# version and every earlier Stage 30.11 schema version.
+STAGE30_11_6_CANDIDATE_SOURCE_SCHEMA_VERSION: str = (
+    "stage30_11_6_v0_candidate_source"
+)
+
+
+# The safe-shape source-stage provenance token the harvest seam stamps onto its
+# results (provenance only; names the slice, never a secret / host / transport
+# destination).
+STAGE30_11_6_SOURCE_STAGE: str = "30.11.6"
+
+
+# The four NEW production basenames + their dotted module paths.
+STAGE30_11_6_CANDIDATE_SOURCE_MODELS_BASENAME: str = (
+    "stage30_11_6_candidate_source_models.py"
+)
+STAGE30_11_6_STAGE29_PROJECTION_ADAPTER_BASENAME: str = (
+    "stage30_11_6_stage29_projection_adapter.py"
+)
+STAGE30_11_6_CANDIDATE_HARVEST_ADAPTER_BASENAME: str = (
+    "stage30_11_6_candidate_harvest_adapter.py"
+)
+STAGE30_11_6_FAKE_CANDIDATE_SOURCE_PROOF_BASENAME: str = (
+    "stage30_11_6_fake_candidate_source_proof.py"
+)
+
+
+STAGE30_11_6_CANDIDATE_SOURCE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_6_candidate_source_models"
+)
+STAGE30_11_6_STAGE29_PROJECTION_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_6_stage29_projection_adapter"
+)
+STAGE30_11_6_CANDIDATE_HARVEST_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_6_candidate_harvest_adapter"
+)
+STAGE30_11_6_FAKE_CANDIDATE_SOURCE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_6_fake_candidate_source_proof"
+)
+
+
+# The ALREADY-COMMITTED Stage 30.11.5 sibling module path the Stage 30.11.6 fake
+# proof composes (re-declared here as a literal; the manifest imports no PHX2
+# module). The proof feeds the harvested candidate source through the committed
+# Stage 30.11.5 fake live wiring proof (the committed bounded runner + the injected
+# recording fake transport client + injected clock). This is the committed surface
+# the Stage 30.11.6 slice is explicitly permitted to compose behind the dip gate.
+STAGE30_11_6_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof"
+)
+
+
+# The four NEW production files Stage 30.11.6 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.11.5 inventory. NO Stage 30.11.7+ file.
+STAGE30_11_6_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_6_CANDIDATE_SOURCE_MODELS_BASENAME,
+    STAGE30_11_6_STAGE29_PROJECTION_ADAPTER_BASENAME,
+    STAGE30_11_6_CANDIDATE_HARVEST_ADAPTER_BASENAME,
+    STAGE30_11_6_FAKE_CANDIDATE_SOURCE_PROOF_BASENAME,
+)
+
+
+# The four production modules the Stage 30.11.6 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_6_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_6_CANDIDATE_SOURCE_MODELS_BASENAME,
+    STAGE30_11_6_STAGE29_PROJECTION_ADAPTER_BASENAME,
+    STAGE30_11_6_CANDIDATE_HARVEST_ADAPTER_BASENAME,
+    STAGE30_11_6_FAKE_CANDIDATE_SOURCE_PROOF_BASENAME,
+)
+
+
+STAGE30_11_6_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_6_candidate_source_models.py",
+    "test_stage_30_11_6_stage29_projection_adapter.py",
+    "test_stage_30_11_6_candidate_harvest_adapter.py",
+    "test_stage_30_11_6_fake_candidate_source_proof.py",
+    "test_stage_30_11_6_boundaries.py",
+    "test_stage_30_11_6_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.6 production module must be in this stdlib
+# allowlist (the models need ``dataclasses`` / ``decimal``; the projection adapter
+# needs ``decimal``; the harvest adapter needs ``typing``; the fake proof needs
+# ``dataclasses`` / ``typing``). It admits NO ``os`` (so NO ``os.environ`` /
+# ``os.getenv`` env read), NO ``sqlite3``, NO ``zstd`` / compression, NO network
+# module, and NO ``time`` / ``datetime`` (every clock is injected, never read).
+STAGE30_11_6_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# Every PHX2 import in a Stage 30.11.6 production module must be one of these
+# siblings: the Stage 30.11.6 own candidate-source-models + projection-adapter +
+# harvest-adapter + fake-proof siblings plus the committed Stage 30.11.5
+# fake-live-wiring-proof sibling the proof composes. This positive allowlist
+# proves, by construction, that NO Stage 21-29 (incl. the nested Stage 27 / 28 / 29
+# live candidate record, the Stage 28.9 live provider session adapter, Stage 28
+# suppression, Stage 29.5, Stage 29 live provider) / runtime orchestrator /
+# renderer / real transport / Discord / live provider module is imported (the
+# slice composes ONLY the committed Stage 30.11.5 offline surface; the assembler /
+# record flattener are INJECTED, duck-typed as ``object``).
+STAGE30_11_6_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_6_CANDIDATE_SOURCE_MODELS_MODULE,
+    STAGE30_11_6_STAGE29_PROJECTION_ADAPTER_MODULE,
+    STAGE30_11_6_CANDIDATE_HARVEST_ADAPTER_MODULE,
+    STAGE30_11_6_FAKE_CANDIDATE_SOURCE_PROOF_MODULE,
+    STAGE30_11_6_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE,
+)
+
+
+# Closed-set per-record projection decision tokens (mirrored BY VALUE from the
+# Stage 30.11.6 candidate-source-models module). ``PROJECTED_LIVE_CANDIDATE`` is
+# the only decision that carries a built ``Stage30_11_6CandidateProjection``; the
+# two reject decisions carry ``None`` and never become a candidate the runner could
+# dispatch.
+STAGE30_11_6_PROJECTION_DECISIONS: Tuple[str, ...] = (
+    "PROJECTED_LIVE_CANDIDATE",
+    "REJECTED_MISSING_REQUIRED_FIELD",
+    "REJECTED_INVALID_FIELD_SHAPE",
+)
+STAGE30_11_6_PROJECTION_PASS_DECISION: str = "PROJECTED_LIVE_CANDIDATE"
+
+
+# Closed-set per-record projection reason tokens (mirrored BY VALUE from the
+# models module). ``READY_FOR_LIVE_RUNNER`` names the projection as the INPUT the
+# committed Stage 30.11.5 runner / assembler later consume, NEVER a bypass of the
+# committed bridge / dip gate.
+STAGE30_11_6_PROJECTION_REASONS: Tuple[str, ...] = (
+    "READY_FOR_LIVE_RUNNER",
+    "MISSING_REQUIRED_CANDIDATE_FIELD",
+    "INVALID_CANDIDATE_FIELD_SHAPE",
+)
+STAGE30_11_6_PROJECTION_PASS_REASON: str = "READY_FOR_LIVE_RUNNER"
+
+
+# Closed-set per-event harvest decision tokens (mirrored BY VALUE from the models
+# module). ``HARVESTED_LIVE_CANDIDATE`` is the only decision that yields a
+# ``candidate_source`` projection; the two skip decisions yield nothing (a failed
+# assembly / a rejected projection never reaches the Stage 30.11.5 transport).
+STAGE30_11_6_HARVEST_DECISIONS: Tuple[str, ...] = (
+    "HARVESTED_LIVE_CANDIDATE",
+    "SKIPPED_ASSEMBLY_FAILED",
+    "SKIPPED_PROJECTION_REJECTED",
+)
+STAGE30_11_6_HARVEST_PASS_DECISION: str = "HARVESTED_LIVE_CANDIDATE"
+
+
+# Closed-set per-event harvest reason tokens (mirrored BY VALUE from the models
+# module).
+STAGE30_11_6_HARVEST_REASONS: Tuple[str, ...] = (
+    "HARVESTED_READY_FOR_LIVE_RUNNER",
+    "ASSEMBLY_RAISED_OR_EMPTY",
+    "PROJECTION_FAILED_CLOSED",
+)
+STAGE30_11_6_HARVEST_PASS_REASON: str = "HARVESTED_READY_FOR_LIVE_RUNNER"
+
+
+# The projection sentinel stamped on a harvest outcome whose assembler RAISED (so
+# no record was captured and the projection adapter was never reached); NOT a
+# member of the projection decision / reason vocabularies.
+STAGE30_11_6_NOT_PROJECTED: str = "NOT_PROJECTED"
+
+
+# The Stage 30.11.6 flat projection field names (the Stage 30.11.5-shaped flat
+# safe-scalar projection the harvest seam emits; mirrored BY VALUE from the models
+# module AND equal to the committed Stage 30.11.5 projection field names BY VALUE,
+# a pin test cross-checks both). ``created_at_utc`` is caller-injected, never a
+# wall-clock read; NONE is a secret, a raw payload, a host, or a transport
+# destination.
+STAGE30_11_6_PROJECTION_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "post_migration_ath_verified",
+    "source_ref",
+    "created_at_utc",
+)
+STAGE30_11_6_REQUIRED_PROJECTION_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "created_at_utc",
+)
+STAGE30_11_6_OPTIONAL_PROJECTION_FIELDS: Tuple[str, ...] = (
+    "post_migration_ath_verified",
+    "source_ref",
+)
+
+
+# The Stage 30.11.6 projection / projection-result / harvest-outcome / harvest-
+# summary / harvest-result field names (mirrored BY VALUE from the models module;
+# a pin test cross-checks them). NONE is a secret, a raw payload, a host, or a
+# transport destination.
+STAGE30_11_6_CANDIDATE_PROJECTION_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "post_migration_ath_verified",
+    "source_ref",
+    "created_at_utc",
+)
+STAGE30_11_6_PROJECTION_RESULT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "projection_decision",
+    "projection_reason",
+    "rejected_field",
+    "projection",
+    "created_at_utc",
+)
+STAGE30_11_6_HARVEST_OUTCOME_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "harvest_decision",
+    "harvest_reason",
+    "projection_decision",
+    "projection_reason",
+    "rejected_field",
+    "created_at_utc",
+)
+STAGE30_11_6_HARVEST_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "events_seen",
+    "harvested",
+    "skipped_assembly_failed",
+    "skipped_projection_rejected",
+    "created_at_utc",
+)
+STAGE30_11_6_HARVEST_RESULT_FIELDS: Tuple[str, ...] = (
+    "outcomes",
+    "candidate_source",
+    "summary",
+    "created_at_utc",
+)
+
+
+# The HARD harvest cap the harvest adapter enforces + the default + the run-scoped
+# candidate-id prefix (mirrored BY VALUE from the models module). The cap mirrors
+# the Stage 30.11.5 ``max_candidates <= 10`` ceiling; a ``max_harvest`` above the
+# cap fails closed BEFORE harvesting.
+STAGE30_11_6_MAX_HARVEST_HARD_CAP: int = 10
+STAGE30_11_6_DEFAULT_MAX_HARVEST: int = 10
+STAGE30_11_6_DEFAULT_CANDIDATE_ID_PREFIX: str = "stage30_11_6_cand_"
+
+
+# The author-verified expected Stage 30.11.6 fake candidate source proof counts
+# over the deterministic five-event default fake source: five events seen, exactly
+# three harvested (one non-dip + one bridge-suppressed + one Tier 1 dip), exactly
+# one skipped for a failed assembly (the injected assembler raised), exactly one
+# skipped for a rejected projection (a required field absent). The committed Stage
+# 30.11.5 runner over the three harvested projections: three candidates seen, two
+# bridged, one dip-gate PASS, exactly one dispatch attempt + accept, exactly one
+# fake transport attempt + accept -- for the Tier 1 dip
+# (``stage30_11_6_cand_000002`` / ``mint-tier1``) ONLY. The old ungated dispatch
+# path is never invoked (the fake assembler's dispatch tripwire records zero
+# calls). No real dispatch reserved; no Discord sent.
+STAGE30_11_6_EXPECTED_EVENTS_SEEN: int = 5
+STAGE30_11_6_EXPECTED_HARVESTED: int = 3
+STAGE30_11_6_EXPECTED_SKIPPED_ASSEMBLY_FAILED: int = 1
+STAGE30_11_6_EXPECTED_SKIPPED_PROJECTION_REJECTED: int = 1
+STAGE30_11_6_EXPECTED_RUNNER_CANDIDATES_SEEN: int = 3
+STAGE30_11_6_EXPECTED_RUNNER_BRIDGED: int = 2
+STAGE30_11_6_EXPECTED_RUNNER_GATE_PASSED: int = 1
+STAGE30_11_6_EXPECTED_RUNNER_DISPATCH_ATTEMPTED: int = 1
+STAGE30_11_6_EXPECTED_RUNNER_DISPATCH_ACCEPTED: int = 1
+STAGE30_11_6_EXPECTED_TRANSPORT_ATTEMPTS: int = 1
+STAGE30_11_6_EXPECTED_TRANSPORT_ACCEPTS: int = 1
+STAGE30_11_6_EXPECTED_DIP_CANDIDATE_ID: str = "stage30_11_6_cand_000002"
+STAGE30_11_6_EXPECTED_DIP_TOKEN_MINT: str = "mint-tier1"
+
+
+# After Stage 30.11.6 (the real candidate source / harvest seam) the WHOLE
+# dip-gated private dispatch chain -- from harvesting a real-shaped assembled
+# candidate (WITHOUT the old ungated dispatch) through the committed Stage 30.11.5
+# bounded runner to the private operator transport boundary -- is wired + proven
+# offline / with fakes. The next allowed step is NOT a further Stage 30.11.<N>
+# implementation slice: it is the controlled dip-filtered private compact live
+# ceremony, which remains a SEPARATE, explicitly operator-authorized step (NOT run
+# here, NOT in this stage). The Stage 30.11.0 family pointer
+# ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at ``30.11.1``; this 30.11.6-
+# scoped pointer names the operator-authorized ceremony as the next step. NO Stage
+# 30.11.7+ file ships at Stage 30.11.6.
+STAGE30_11_6_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_6_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony (a SEPARATE, "
+    "explicitly operator-authorized step run against committed + green code; "
+    "NOT run here -- the real candidate source / harvest seam now harvests an "
+    "assembled candidate WITHOUT the old ungated dispatch and feeds it through "
+    "the committed Stage 30.11.5 bounded runner, all proven offline with fakes, "
+    "so the next ceremony attempt composes committed + tested code for the "
+    "candidate source as well)"
+)
+
+
+# The surfaces the Stage 30.11.6 real-candidate-source / harvest-seam slice must
+# not touch. Plain documentation words (family / feature names), NOT secret / host
+# / transport needle forms. The slice ONLY harvests an assembled candidate (via an
+# INJECTED assembler / flattener) + projects it + feeds the committed Stage 30.11.5
+# runner; it must not reach any surface below, and it must NOT run the controlled
+# live ceremony.
+STAGE30_11_6_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real candidate source binding",
+    "real transport call",
+    "real Discord send",
+    "Discord send",
+    "real private webhook send",
+    "real dispatch reservation",
+    "old ungated dispatch invoked",
+    "Stage 28.9 live provider session call",
+    "ungated Stage 29.3 send path reused directly",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "new runtime gate seam",
+    "new private sink adapter",
+    "new dip gate",
+    "new broad live runner",
+    "bypass Stage 30.11.5 bounded runner",
+    "bypass Stage 30.9.3 dip gate",
+    "max_harvest above 10",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 27 / 28 / 29 candidate-record import",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.7+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.6 implements no part
+# of it; it only harvests + projects -- with fakes -- the missing real candidate
+# source, so the next ceremony attempt composes committed + tested code).
+STAGE30_11_6_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_6_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.6 is the offline real-candidate-source / harvest seam only; the "
+    "controlled dip-filtered private compact live ceremony remains a separate, "
+    "explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -2707,4 +3153,70 @@ __all__ = (
     "STAGE30_11_5_FORBIDDEN_SURFACES",
     "STAGE30_11_5_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_5_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.6 real candidate source / harvest seam ----
+    # Minor version + candidate-source schema identity.
+    "STAGE30_11_6_MINOR_VERSION",
+    "STAGE30_11_6_CANDIDATE_SOURCE_SCHEMA_VERSION",
+    "STAGE30_11_6_SOURCE_STAGE",
+    # Basenames + module paths.
+    "STAGE30_11_6_CANDIDATE_SOURCE_MODELS_BASENAME",
+    "STAGE30_11_6_STAGE29_PROJECTION_ADAPTER_BASENAME",
+    "STAGE30_11_6_CANDIDATE_HARVEST_ADAPTER_BASENAME",
+    "STAGE30_11_6_FAKE_CANDIDATE_SOURCE_PROOF_BASENAME",
+    "STAGE30_11_6_CANDIDATE_SOURCE_MODELS_MODULE",
+    "STAGE30_11_6_STAGE29_PROJECTION_ADAPTER_MODULE",
+    "STAGE30_11_6_CANDIDATE_HARVEST_ADAPTER_MODULE",
+    "STAGE30_11_6_FAKE_CANDIDATE_SOURCE_PROOF_MODULE",
+    "STAGE30_11_6_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_6_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_6_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_6_TEST_BASENAMES",
+    # Import allowlists.
+    "STAGE30_11_6_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_6_ALLOWED_PHX2_IMPORTS",
+    # Projection decisions + reasons.
+    "STAGE30_11_6_PROJECTION_DECISIONS",
+    "STAGE30_11_6_PROJECTION_PASS_DECISION",
+    "STAGE30_11_6_PROJECTION_REASONS",
+    "STAGE30_11_6_PROJECTION_PASS_REASON",
+    # Harvest decisions + reasons + sentinel.
+    "STAGE30_11_6_HARVEST_DECISIONS",
+    "STAGE30_11_6_HARVEST_PASS_DECISION",
+    "STAGE30_11_6_HARVEST_REASONS",
+    "STAGE30_11_6_HARVEST_PASS_REASON",
+    "STAGE30_11_6_NOT_PROJECTED",
+    # Projection + model field tuples.
+    "STAGE30_11_6_PROJECTION_FIELDS",
+    "STAGE30_11_6_REQUIRED_PROJECTION_FIELDS",
+    "STAGE30_11_6_OPTIONAL_PROJECTION_FIELDS",
+    "STAGE30_11_6_CANDIDATE_PROJECTION_FIELDS",
+    "STAGE30_11_6_PROJECTION_RESULT_FIELDS",
+    "STAGE30_11_6_HARVEST_OUTCOME_FIELDS",
+    "STAGE30_11_6_HARVEST_SUMMARY_FIELDS",
+    "STAGE30_11_6_HARVEST_RESULT_FIELDS",
+    # Hard cap + default + candidate-id prefix.
+    "STAGE30_11_6_MAX_HARVEST_HARD_CAP",
+    "STAGE30_11_6_DEFAULT_MAX_HARVEST",
+    "STAGE30_11_6_DEFAULT_CANDIDATE_ID_PREFIX",
+    # Expected proof counts.
+    "STAGE30_11_6_EXPECTED_EVENTS_SEEN",
+    "STAGE30_11_6_EXPECTED_HARVESTED",
+    "STAGE30_11_6_EXPECTED_SKIPPED_ASSEMBLY_FAILED",
+    "STAGE30_11_6_EXPECTED_SKIPPED_PROJECTION_REJECTED",
+    "STAGE30_11_6_EXPECTED_RUNNER_CANDIDATES_SEEN",
+    "STAGE30_11_6_EXPECTED_RUNNER_BRIDGED",
+    "STAGE30_11_6_EXPECTED_RUNNER_GATE_PASSED",
+    "STAGE30_11_6_EXPECTED_RUNNER_DISPATCH_ATTEMPTED",
+    "STAGE30_11_6_EXPECTED_RUNNER_DISPATCH_ACCEPTED",
+    "STAGE30_11_6_EXPECTED_TRANSPORT_ATTEMPTS",
+    "STAGE30_11_6_EXPECTED_TRANSPORT_ACCEPTS",
+    "STAGE30_11_6_EXPECTED_DIP_CANDIDATE_ID",
+    "STAGE30_11_6_EXPECTED_DIP_TOKEN_MINT",
+    # Next allowed step + forbidden surfaces + live ceremony note.
+    "STAGE30_11_6_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_6_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_6_FORBIDDEN_SURFACES",
+    "STAGE30_11_6_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_6_LIVE_CEREMONY_NOTE",
 )

@@ -521,6 +521,17 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_5_private_transport_adapter.py",
         "stage30_11_5_bounded_live_runner.py",
         "stage30_11_5_fake_live_wiring_proof.py",
+        # Stage 30.11.6 real candidate source / harvest seam additions (candidate
+        # source models, harvested-candidate -> Stage 30.11.5 projection adapter,
+        # candidate harvest adapter, fake candidate source proof). The harvest
+        # adapter drives an INJECTED committed assembler boundary, captures the
+        # assembled record, and projects it into the Stage 30.11.5 shape WITHOUT
+        # ever constructing a transport / dispatch sink / runner (the old ungated
+        # dispatch is structurally impossible). Fakes / offline only.
+        "stage30_11_6_candidate_source_models.py",
+        "stage30_11_6_stage29_projection_adapter.py",
+        "stage30_11_6_candidate_harvest_adapter.py",
+        "stage30_11_6_fake_candidate_source_proof.py",
     }
 )
 
@@ -762,6 +773,15 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_5_fake_live_wiring_proof.py",
         "test_stage_30_11_5_boundaries.py",
         "test_stage_30_11_5_manifest.py",
+        # Stage 30.11.6 real candidate source / harvest seam test additions
+        # (candidate source models, projection adapter, harvest adapter, fake
+        # candidate source proof, boundaries, manifest). Fakes / offline only.
+        "test_stage_30_11_6_candidate_source_models.py",
+        "test_stage_30_11_6_stage29_projection_adapter.py",
+        "test_stage_30_11_6_candidate_harvest_adapter.py",
+        "test_stage_30_11_6_fake_candidate_source_proof.py",
+        "test_stage_30_11_6_boundaries.py",
+        "test_stage_30_11_6_manifest.py",
     }
 )
 

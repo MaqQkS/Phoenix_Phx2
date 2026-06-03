@@ -68,6 +68,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_4_TEST_BASENAMES,
     STAGE30_11_5_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_5_TEST_BASENAMES,
+    STAGE30_11_6_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_6_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -176,12 +178,13 @@ def _extract_imported_module(line: str) -> str:
 
 # Matches any Stage 30.11.<N> minor-version token in a basename (both the
 # production ``stage30_11_<N>`` and the test ``stage_30_11_<N>`` spellings).
-# A captured N >= 6 names a future Stage 30.11.6+ file; N in {0, 1, 2, 3, 4, 5}
+# A captured N >= 7 names a future Stage 30.11.7+ file; N in {0, 1, 2, 3, 4, 5, 6}
 # is the Stage 30.11.0 scaffold (the spec doc + this pin test) / the now-admitted
 # Stage 30.11.1 assembly bridge slice / the now-admitted Stage 30.11.2 runtime
 # gate seam slice / the now-admitted Stage 30.11.3 private sink adapter slice /
 # the now-admitted Stage 30.11.4 offline end-to-end proof slice / the now-admitted
-# Stage 30.11.5 controlled live ceremony wiring slice and is allowed.
+# Stage 30.11.5 controlled live ceremony wiring slice / the now-admitted Stage
+# 30.11.6 real candidate source / harvest seam slice and is allowed.
 # The Stage 30.11.0 manifest basename (``stage30_11_manifest.py``) carries no
 # digit after ``stage30_11_`` and so matches no token at all.
 _STAGE_30_11_MINOR_RE = re.compile(r"stage_?30_11_(\d+)")
@@ -194,7 +197,7 @@ def _future_30_11_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 6:
+            if int(match.group(1)) >= 7:
                 violations.append(basename)
     return violations
 
@@ -983,6 +986,7 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_3_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_4_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_5_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_6_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
@@ -1015,6 +1019,7 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_3_TEST_BASENAMES)
         | set(STAGE30_11_4_TEST_BASENAMES)
         | set(STAGE30_11_5_TEST_BASENAMES)
+        | set(STAGE30_11_6_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "

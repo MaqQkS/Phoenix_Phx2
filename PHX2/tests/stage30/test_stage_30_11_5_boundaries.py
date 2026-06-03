@@ -59,6 +59,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_5_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE,
     STAGE30_11_5_STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE,
     STAGE30_11_5_TEST_BASENAMES,
+    STAGE30_11_6_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_FORBIDDEN_TEXT_NEEDLES,
 )
 
@@ -617,17 +618,34 @@ _STAGE_30_11_5_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_5_"
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    # The Stage 30.11.5 controlled live ceremony wiring slice is the newest Stage
-    # 30.11 slice and a clean leaf: only its OWN five modules import each other; no
+    # The Stage 30.11.5 controlled live ceremony wiring slice is a clean leaf for
+    # every EXISTING stage30 file: only its OWN five modules import each other; no
     # OTHER stage30 file (Stage 28 / 29 / existing Stage 30 production, incl. the
     # committed Stage 30.11.1 bridge + Stage 30.11.2 seam + Stage 30.11.3 sink it
     # composes) imports it -- proving nothing existing was edited to wire in the
-    # new live wiring.
+    # new live wiring. The SOLE permitted exception is the explicitly
+    # operator-authorized successor slice Stage 30.11.6 (the real candidate source /
+    # harvest seam), which composes the committed Stage 30.11.5 bounded runner /
+    # fake wiring proof as its downstream sink (the permitted Stage 30.11 scope
+    # expansion). That successor is NEW (not an edit of an existing file) and is
+    # excluded here; the guard still forbids every other stage30 file from
+    # importing the slice.
     own_basenames = set(STAGE30_11_5_ALLOWED_STAGE30_BASENAMES)
+    # The SOLE permitted importers are the FOUR EXACT Stage 30.11.6 production
+    # basenames (from the manifest's pinned inventory) -- an exact membership
+    # check, NOT a wildcard / prefix: it admits neither a future stage30_11_6_*
+    # file, nor the Stage 30.11.6 test files, nor any other stage30 file.
+    admitted_successor_basenames = set(STAGE30_11_6_ALLOWED_STAGE30_BASENAMES)
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue
         if entry.name in own_basenames:
+            continue
+        if entry.name in admitted_successor_basenames:
+            # The authorized Stage 30.11.6 successor PRODUCTION modules MAY compose
+            # the committed Stage 30.11.5 surface (the permitted Stage 30.11 scope
+            # expansion); their own boundary test pins exactly which Stage 30.11.5
+            # module each imports.
             continue
         text = entry.read_text(encoding="utf-8")
         for module in _imports_of(text):

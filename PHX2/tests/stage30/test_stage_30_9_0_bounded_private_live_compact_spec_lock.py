@@ -301,6 +301,17 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_5_fake_live_wiring_proof.py",
         "test_stage_30_11_5_boundaries.py",
         "test_stage_30_11_5_manifest.py",
+        # Stage 30.11.6 real candidate source / harvest seam slice.
+        "stage30_11_6_candidate_source_models.py",
+        "stage30_11_6_stage29_projection_adapter.py",
+        "stage30_11_6_candidate_harvest_adapter.py",
+        "stage30_11_6_fake_candidate_source_proof.py",
+        "test_stage_30_11_6_candidate_source_models.py",
+        "test_stage_30_11_6_stage29_projection_adapter.py",
+        "test_stage_30_11_6_candidate_harvest_adapter.py",
+        "test_stage_30_11_6_fake_candidate_source_proof.py",
+        "test_stage_30_11_6_boundaries.py",
+        "test_stage_30_11_6_manifest.py",
     }
 )
 
