@@ -312,6 +312,15 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_6_fake_candidate_source_proof.py",
         "test_stage_30_11_6_boundaries.py",
         "test_stage_30_11_6_manifest.py",
+        # Stage 30.11.7 candidate dip-enrichment bridge slice.
+        "stage30_11_7_candidate_enrichment_models.py",
+        "stage30_11_7_candidate_enrichment_adapter.py",
+        "stage30_11_7_fake_enrichment_proof.py",
+        "test_stage_30_11_7_candidate_enrichment_models.py",
+        "test_stage_30_11_7_candidate_enrichment_adapter.py",
+        "test_stage_30_11_7_fake_enrichment_proof.py",
+        "test_stage_30_11_7_boundaries.py",
+        "test_stage_30_11_7_manifest.py",
     }
 )
 

@@ -2848,6 +2848,435 @@ STAGE30_11_6_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.7 -- candidate dip-enrichment bridge (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.7 is the SEVENTH Stage 30.11 production slice: the narrow candidate
+# dip-enrichment bridge -- the blocker the controlled live ceremony retry surfaced.
+# The committed Stage 30.11.6 harvest seam captures + projects a real assembled
+# candidate's flat fields, but the committed live chain produces only candidate
+# IDENTITY; it does NOT produce the Stage 30 dip / enrichment fields (a
+# ``tier_hint``, a ``current_market_cap_usd``, real migration evidence, an ATH /
+# drawdown), so the fail-closed Stage 30.11.6 projection correctly rejected the
+# harvested candidate with ``MISSING_REQUIRED_FIELD`` (rejected field
+# ``tier_hint``) -- and that safety behavior MUST remain. Stage 30.11.7 adds three
+# NEW production files -- the passive enrichment models (the closed-set enrichment
+# decision / reason / dimension vocabularies, the four INJECTED resolver-result
+# carriers, the Stage 30.11.5-shaped flat ``Stage30_11_7EnrichedCandidate``, the
+# per-candidate enrichment result, and the rolled-up enrichment summary / run
+# result), the fail-closed enrichment adapter (which fills the missing dip fields
+# from four INJECTED resolvers, mapping a CONFIRMED verdict to the gate's
+# ``PRESENT`` token + a finite -- cap strictly positive -- ``Decimal`` magnitude,
+# carrying the tier token VERBATIM, and failing closed on the FIRST missing /
+# unavailable / unconfirmed / stale / pre-migration / malformed dimension, never
+# fabricating a dip), and the offline fake enrichment proof (which drives a
+# deterministic six-base fake source through the enrichment bridge with injected
+# fake resolvers). It ships NO real resolver binding, NO real transport / Discord /
+# webhook send, NO real dispatch reservation, NO live provider call, NO Discord
+# send, NO env read, NO wall-clock read (every clock is injected), NO daemon /
+# background loop, and edits NO existing Stage 27 / Stage 28 / Stage 29 / existing
+# Stage 30 production file. Unlike the Stage 30.11.6 slice, the Stage 30.11.7
+# PRODUCTION slice is a clean LEAF: it imports ONLY its own three siblings (no
+# Stage 30.11.5 / Stage 30.11.6 import), so the committed Stage 30.11.5 /
+# Stage 30.11.6 leaf boundary tests stay green untouched; the committed Stage
+# 30.11.5 bounded runner is composed -- and the "exactly one PASS dip reaches the
+# fake transport" end-to-end assertion proven -- by the Stage 30.11.7 TEST (which
+# feeds the enriched ``candidate_source`` through the committed Stage 30.11.5 fake
+# live wiring proof; a test file is not boundary-scanned). The real Stage 30.4
+# market context / Stage 30.5 migration / Stage 30.7 ATH adapters plug in at the
+# INJECTED resolver seam via out-of-repo, operator-authorized wrappers, exactly as
+# the Stage 30.11.6 record flattener wraps the real flattener at the ceremony
+# boundary; NO Stage 21-29 module is imported. NO Stage 30.11.8+ file ships at
+# Stage 30.11.7.
+
+
+STAGE30_11_7_MINOR_VERSION: str = "30.11.7"
+
+
+# The Stage 30.11.7 candidate dip-enrichment bridge schema version (mirrored BY
+# VALUE by the Stage 30.11.7 enrichment-models module; a pin test cross-checks it
+# matches). Distinct from the Stage 30.11.6 candidate-source schema version and
+# every earlier Stage 30.11 schema version.
+STAGE30_11_7_ENRICHMENT_SCHEMA_VERSION: str = (
+    "stage30_11_7_v0_candidate_enrichment"
+)
+
+
+# The safe-shape source-stage provenance token the enrichment bridge stamps onto
+# its results (provenance only; names the slice, never a secret / host / transport
+# destination).
+STAGE30_11_7_SOURCE_STAGE: str = "30.11.7"
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_7_ENRICHMENT_MODELS_BASENAME: str = (
+    "stage30_11_7_candidate_enrichment_models.py"
+)
+STAGE30_11_7_ENRICHMENT_ADAPTER_BASENAME: str = (
+    "stage30_11_7_candidate_enrichment_adapter.py"
+)
+STAGE30_11_7_FAKE_ENRICHMENT_PROOF_BASENAME: str = (
+    "stage30_11_7_fake_enrichment_proof.py"
+)
+
+
+STAGE30_11_7_ENRICHMENT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_models"
+)
+STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_adapter"
+)
+STAGE30_11_7_FAKE_ENRICHMENT_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_fake_enrichment_proof"
+)
+
+
+# The three NEW production files Stage 30.11.7 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.11.6 inventory. NO Stage 30.11.8+ file.
+STAGE30_11_7_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_7_ENRICHMENT_MODELS_BASENAME,
+    STAGE30_11_7_ENRICHMENT_ADAPTER_BASENAME,
+    STAGE30_11_7_FAKE_ENRICHMENT_PROOF_BASENAME,
+)
+
+
+# The three production modules the Stage 30.11.7 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_7_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_7_ENRICHMENT_MODELS_BASENAME,
+    STAGE30_11_7_ENRICHMENT_ADAPTER_BASENAME,
+    STAGE30_11_7_FAKE_ENRICHMENT_PROOF_BASENAME,
+)
+
+
+STAGE30_11_7_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_7_candidate_enrichment_models.py",
+    "test_stage_30_11_7_candidate_enrichment_adapter.py",
+    "test_stage_30_11_7_fake_enrichment_proof.py",
+    "test_stage_30_11_7_boundaries.py",
+    "test_stage_30_11_7_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.7 production module must be in this stdlib
+# allowlist (the models need ``dataclasses`` / ``decimal``; the adapter needs
+# ``decimal`` / ``typing``; the fake proof needs ``dataclasses`` / ``typing``). It
+# admits NO ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO ``sqlite3``,
+# NO ``zstd`` / compression, NO network module, and NO ``time`` / ``datetime``
+# (every clock is injected, never read).
+STAGE30_11_7_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# Every PHX2 import in a Stage 30.11.7 production module must be one of these
+# siblings: the Stage 30.11.7 own enrichment-models + enrichment-adapter +
+# fake-proof siblings. This positive allowlist proves, by construction, that the
+# Stage 30.11.7 PRODUCTION slice is a clean LEAF -- it imports NO Stage 30.11.5 /
+# Stage 30.11.6 module (so the committed Stage 30.11.5 / Stage 30.11.6 leaf
+# boundary tests stay green), NO Stage 21-29 (incl. the nested Stage 27 / 28 / 29
+# live candidate record, Stage 28 suppression, Stage 29 live provider) / runtime
+# orchestrator / renderer / real transport / Discord / live provider module. The
+# four resolvers are INJECTED, duck-typed; the committed Stage 30.11.5 runner is
+# composed by the Stage 30.11.7 TEST, never by a Stage 30.11.7 production module.
+STAGE30_11_7_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_7_ENRICHMENT_MODELS_MODULE,
+    STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE,
+    STAGE30_11_7_FAKE_ENRICHMENT_PROOF_MODULE,
+)
+
+
+# The committed Stage 30.11.5 fake-live-wiring-proof module the Stage 30.11.7 TEST
+# (NOT a Stage 30.11.7 production module) composes to prove the enriched
+# ``candidate_source`` reaches the committed bounded runner and dip gate. Declared
+# here as a literal (the manifest imports no PHX2 module); it is NOT in the Stage
+# 30.11.7 production PHX2 import allowlist -- the production slice is a leaf.
+STAGE30_11_7_TEST_COMPOSES_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof"
+)
+
+
+# Closed-set per-candidate enrichment decision tokens (mirrored BY VALUE from the
+# Stage 30.11.7 enrichment-models module). ``ENRICHED_DIP_CANDIDATE`` is the only
+# decision that carries a built ``Stage30_11_7EnrichedCandidate``; the reject
+# decision carries ``None`` and never becomes a candidate the runner could
+# dispatch.
+STAGE30_11_7_ENRICHMENT_DECISIONS: Tuple[str, ...] = (
+    "ENRICHED_DIP_CANDIDATE",
+    "REJECTED_ENRICHMENT",
+)
+STAGE30_11_7_ENRICHMENT_PASS_DECISION: str = "ENRICHED_DIP_CANDIDATE"
+
+
+# Closed-set per-candidate enrichment reason tokens (mirrored BY VALUE from the
+# models module). ``READY_FOR_LIVE_RUNNER`` names the enriched candidate as the
+# INPUT the committed Stage 30.11.5 runner / dip gate later consume; every other
+# reason names the FIRST failing dimension's fail-closed cause (an UNKNOWN
+# migration, a missing / stale market context or ATH, a malformed magnitude can
+# never become eligible).
+STAGE30_11_7_ENRICHMENT_REASONS: Tuple[str, ...] = (
+    "READY_FOR_LIVE_RUNNER",
+    "MISSING_MARKET_CONTEXT",
+    "INVALID_MARKET_CAP",
+    "MISSING_TIER",
+    "MISSING_MIGRATION_EVIDENCE",
+    "UNCONFIRMED_MIGRATION",
+    "MISSING_ATH",
+    "STALE_ATH",
+    "PRE_MIGRATION_ATH_NOT_VERIFIED",
+    "INVALID_DRAWDOWN",
+)
+STAGE30_11_7_ENRICHMENT_PASS_REASON: str = "READY_FOR_LIVE_RUNNER"
+
+
+# Closed-set rejected enrichment dimension tokens (mirrored BY VALUE from the
+# models module); the empty ``""`` enriched sentinel is NOT a dimension.
+STAGE30_11_7_ENRICHMENT_DIMENSIONS: Tuple[str, ...] = (
+    "MARKET_CONTEXT",
+    "TIER",
+    "MIGRATION",
+    "ATH",
+)
+
+
+# The Stage 30.11.7 enriched-candidate field names (the Stage 30.11.5-shaped flat
+# safe-scalar enriched candidate the enrichment bridge emits; mirrored BY VALUE
+# from the models module AND equal to the committed Stage 30.11.6 projection field
+# names BY VALUE, a pin test cross-checks both). ``created_at_utc`` is
+# caller-injected, never a wall-clock read; NONE is a secret, a raw payload, a
+# host, or a transport destination.
+STAGE30_11_7_ENRICHED_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "post_migration_ath_verified",
+    "source_ref",
+    "created_at_utc",
+)
+STAGE30_11_7_REQUIRED_ENRICHED_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "created_at_utc",
+)
+STAGE30_11_7_OPTIONAL_ENRICHED_FIELDS: Tuple[str, ...] = (
+    "post_migration_ath_verified",
+    "source_ref",
+)
+
+
+# The Stage 30.11.7 enrichment result / summary / run-result + resolver-result
+# field names (mirrored BY VALUE from the models module; a pin test cross-checks
+# them). NONE is a secret, a raw payload, a host, or a transport destination.
+STAGE30_11_7_ENRICHMENT_RESULT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "enrichment_decision",
+    "enrichment_reason",
+    "rejected_dimension",
+    "enriched_candidate",
+    "created_at_utc",
+)
+STAGE30_11_7_ENRICHMENT_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "bases_seen",
+    "enriched",
+    "rejected_market_context",
+    "rejected_tier",
+    "rejected_migration",
+    "rejected_ath",
+    "created_at_utc",
+)
+STAGE30_11_7_ENRICHMENT_RUN_RESULT_FIELDS: Tuple[str, ...] = (
+    "outcomes",
+    "candidate_source",
+    "summary",
+    "created_at_utc",
+)
+STAGE30_11_7_MARKET_CONTEXT_RESOLUTION_FIELDS: Tuple[str, ...] = (
+    "present",
+    "current_market_cap_usd",
+    "source_ref",
+)
+STAGE30_11_7_TIER_RESOLUTION_FIELDS: Tuple[str, ...] = ("tier_hint",)
+STAGE30_11_7_MIGRATION_RESOLUTION_FIELDS: Tuple[str, ...] = (
+    "confirmed",
+    "source_ref",
+)
+STAGE30_11_7_ATH_RESOLUTION_FIELDS: Tuple[str, ...] = (
+    "present",
+    "fresh",
+    "post_migration_ath_verified",
+    "drawdown_from_ath",
+    "source_ref",
+)
+
+
+# The gate-facing PRESENT token the enrichment maps a confirmed verdict onto
+# (mirrored BY VALUE from the committed Stage 30.10.1 / Stage 30.11.1 PRESENT
+# tokens). The HARD enrichment cap the bounded helper enforces + the default
+# (mirrored BY VALUE from the models module). The cap mirrors the Stage 30.11.5
+# ``max_candidates <= 10`` ceiling; a ``max_enrich`` above the cap fails closed
+# BEFORE enriching.
+STAGE30_11_7_CONTEXT_STATUS_PRESENT: str = "PRESENT"
+STAGE30_11_7_MAX_ENRICH_HARD_CAP: int = 10
+STAGE30_11_7_DEFAULT_MAX_ENRICH: int = 10
+
+
+# The author-verified expected Stage 30.11.7 fake enrichment proof counts over the
+# deterministic six-base default fake source: six bases seen, exactly two enriched
+# (one Tier 1 dip + one Tier Unknown non-dip), exactly one rejected per dimension
+# (a missing market context + a missing tier + an unconfirmed UNKNOWN migration + a
+# stale ATH). The committed Stage 30.11.5 runner over the two enriched candidates
+# (composed by the Stage 30.11.7 TEST): two candidates seen, two bridged, one
+# dip-gate PASS, exactly one fake transport attempt + accept -- for the Tier 1 dip
+# (``stage30_11_7_cand_dip`` / ``mint-dip``) ONLY. The old ungated dispatch path is
+# never invoked. No real dispatch reserved; no Discord sent.
+STAGE30_11_7_EXPECTED_BASES_SEEN: int = 6
+STAGE30_11_7_EXPECTED_ENRICHED: int = 2
+STAGE30_11_7_EXPECTED_REJECTED_MARKET_CONTEXT: int = 1
+STAGE30_11_7_EXPECTED_REJECTED_TIER: int = 1
+STAGE30_11_7_EXPECTED_REJECTED_MIGRATION: int = 1
+STAGE30_11_7_EXPECTED_REJECTED_ATH: int = 1
+STAGE30_11_7_EXPECTED_RUNNER_CANDIDATES_SEEN: int = 2
+STAGE30_11_7_EXPECTED_RUNNER_BRIDGED: int = 2
+STAGE30_11_7_EXPECTED_RUNNER_GATE_PASSED: int = 1
+STAGE30_11_7_EXPECTED_TRANSPORT_ATTEMPTS: int = 1
+STAGE30_11_7_EXPECTED_TRANSPORT_ACCEPTS: int = 1
+STAGE30_11_7_EXPECTED_DIP_CANDIDATE_ID: str = "stage30_11_7_cand_dip"
+STAGE30_11_7_EXPECTED_DIP_TOKEN_MINT: str = "mint-dip"
+
+
+# After Stage 30.11.7 (the candidate dip-enrichment bridge) the WHOLE dip-gated
+# private dispatch chain -- from harvesting a real-shaped assembled candidate
+# (Stage 30.11.6) through ENRICHING its missing Stage 30 dip fields (Stage 30.11.7)
+# through the committed Stage 30.11.5 bounded runner to the private operator
+# transport boundary -- is wired + proven offline / with fakes. The next allowed
+# step is NOT a further Stage 30.11.<N> implementation slice: it is the controlled
+# dip-filtered private compact live ceremony retry, which remains a SEPARATE,
+# explicitly operator-authorized step (NOT run here, NOT in this stage). The Stage
+# 30.11.0 family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at
+# ``30.11.1``; the Stage 30.11.6 scoped pointer stays pinned at the ceremony; this
+# 30.11.7-scoped pointer names the operator-authorized ceremony retry as the next
+# step. NO Stage 30.11.8+ file ships at Stage 30.11.7.
+STAGE30_11_7_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_7_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony retry (a SEPARATE, "
+    "explicitly operator-authorized step run against committed + green code; NOT "
+    "run here -- the enrichment bridge now fills the missing Stage 30 dip fields "
+    "the prior ceremony lacked (the MISSING_REQUIRED_FIELD -> tier_hint gap) onto "
+    "a harvested candidate, failing closed on every missing / unconfirmed / stale "
+    "/ malformed dimension, so the next ceremony attempt composes committed + "
+    "tested code for the enrichment as well)"
+)
+
+
+# The surfaces the Stage 30.11.7 candidate-dip-enrichment slice must not touch.
+# Plain documentation words (family / feature names), NOT secret / host / transport
+# needle forms. The slice ONLY enriches a harvested candidate (via INJECTED
+# resolvers) into a flat enriched candidate the committed runner consumes; it must
+# not reach any surface below, must NOT fabricate a missing dip field, and must NOT
+# run the controlled live ceremony.
+STAGE30_11_7_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real resolver binding",
+    "real market context provider call",
+    "real migration provider call",
+    "real ATH provider call",
+    "real transport call",
+    "real Discord send",
+    "Discord send",
+    "real private webhook send",
+    "real dispatch reservation",
+    "old ungated dispatch invoked",
+    "ungated Stage 29.3 send path reused directly",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "new runtime gate seam",
+    "new private sink adapter",
+    "new dip gate",
+    "parallel tier model",
+    "fabricate missing dip field",
+    "treat UNKNOWN migration as eligible",
+    "treat missing or stale market context as eligible",
+    "treat missing or stale ATH as eligible",
+    "bypass Stage 30.11.5 bounded runner",
+    "bypass Stage 30.11.6 harvest projection",
+    "bypass Stage 30.9.3 dip gate",
+    "max_enrich above 10",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 27 / 28 / 29 candidate-record import",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "Stage 30.11.5 / Stage 30.11.6 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.8+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony retry remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.7 implements no part
+# of it; it only enriches -- with fakes -- the missing dip fields, so the next
+# ceremony attempt composes committed + tested code).
+STAGE30_11_7_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_7_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.7 is the offline candidate dip-enrichment bridge only; the "
+    "controlled dip-filtered private compact live ceremony retry remains a "
+    "separate, explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -3219,4 +3648,65 @@ __all__ = (
     "STAGE30_11_6_FORBIDDEN_SURFACES",
     "STAGE30_11_6_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_6_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.7 candidate dip-enrichment bridge ----
+    # Minor version + enrichment schema identity.
+    "STAGE30_11_7_MINOR_VERSION",
+    "STAGE30_11_7_ENRICHMENT_SCHEMA_VERSION",
+    "STAGE30_11_7_SOURCE_STAGE",
+    # Basenames + module paths.
+    "STAGE30_11_7_ENRICHMENT_MODELS_BASENAME",
+    "STAGE30_11_7_ENRICHMENT_ADAPTER_BASENAME",
+    "STAGE30_11_7_FAKE_ENRICHMENT_PROOF_BASENAME",
+    "STAGE30_11_7_ENRICHMENT_MODELS_MODULE",
+    "STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE",
+    "STAGE30_11_7_FAKE_ENRICHMENT_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_7_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_7_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_7_TEST_BASENAMES",
+    # Import allowlists + the test-composed committed runner module.
+    "STAGE30_11_7_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_7_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_7_TEST_COMPOSES_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE",
+    # Enrichment decisions + reasons + dimensions.
+    "STAGE30_11_7_ENRICHMENT_DECISIONS",
+    "STAGE30_11_7_ENRICHMENT_PASS_DECISION",
+    "STAGE30_11_7_ENRICHMENT_REASONS",
+    "STAGE30_11_7_ENRICHMENT_PASS_REASON",
+    "STAGE30_11_7_ENRICHMENT_DIMENSIONS",
+    # Enriched + model + resolver field tuples.
+    "STAGE30_11_7_ENRICHED_FIELDS",
+    "STAGE30_11_7_REQUIRED_ENRICHED_FIELDS",
+    "STAGE30_11_7_OPTIONAL_ENRICHED_FIELDS",
+    "STAGE30_11_7_ENRICHMENT_RESULT_FIELDS",
+    "STAGE30_11_7_ENRICHMENT_SUMMARY_FIELDS",
+    "STAGE30_11_7_ENRICHMENT_RUN_RESULT_FIELDS",
+    "STAGE30_11_7_MARKET_CONTEXT_RESOLUTION_FIELDS",
+    "STAGE30_11_7_TIER_RESOLUTION_FIELDS",
+    "STAGE30_11_7_MIGRATION_RESOLUTION_FIELDS",
+    "STAGE30_11_7_ATH_RESOLUTION_FIELDS",
+    # PRESENT token + hard cap + default.
+    "STAGE30_11_7_CONTEXT_STATUS_PRESENT",
+    "STAGE30_11_7_MAX_ENRICH_HARD_CAP",
+    "STAGE30_11_7_DEFAULT_MAX_ENRICH",
+    # Expected proof counts.
+    "STAGE30_11_7_EXPECTED_BASES_SEEN",
+    "STAGE30_11_7_EXPECTED_ENRICHED",
+    "STAGE30_11_7_EXPECTED_REJECTED_MARKET_CONTEXT",
+    "STAGE30_11_7_EXPECTED_REJECTED_TIER",
+    "STAGE30_11_7_EXPECTED_REJECTED_MIGRATION",
+    "STAGE30_11_7_EXPECTED_REJECTED_ATH",
+    "STAGE30_11_7_EXPECTED_RUNNER_CANDIDATES_SEEN",
+    "STAGE30_11_7_EXPECTED_RUNNER_BRIDGED",
+    "STAGE30_11_7_EXPECTED_RUNNER_GATE_PASSED",
+    "STAGE30_11_7_EXPECTED_TRANSPORT_ATTEMPTS",
+    "STAGE30_11_7_EXPECTED_TRANSPORT_ACCEPTS",
+    "STAGE30_11_7_EXPECTED_DIP_CANDIDATE_ID",
+    "STAGE30_11_7_EXPECTED_DIP_TOKEN_MINT",
+    # Next allowed step + forbidden surfaces + live ceremony note.
+    "STAGE30_11_7_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_7_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_7_FORBIDDEN_SURFACES",
+    "STAGE30_11_7_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_7_LIVE_CEREMONY_NOTE",
 )

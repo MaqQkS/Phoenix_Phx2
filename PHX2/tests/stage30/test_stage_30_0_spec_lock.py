@@ -532,6 +532,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_6_stage29_projection_adapter.py",
         "stage30_11_6_candidate_harvest_adapter.py",
         "stage30_11_6_fake_candidate_source_proof.py",
+        # Stage 30.11.7 candidate dip-enrichment bridge additions (enrichment
+        # models, fail-closed enrichment adapter, fake enrichment proof). The
+        # adapter fills the missing Stage 30 dip fields onto a harvested candidate
+        # from four INJECTED resolvers, failing closed on every missing /
+        # unconfirmed / stale / malformed dimension and never fabricating a dip.
+        # A clean leaf: imports only its own three siblings. Fakes / offline only.
+        "stage30_11_7_candidate_enrichment_models.py",
+        "stage30_11_7_candidate_enrichment_adapter.py",
+        "stage30_11_7_fake_enrichment_proof.py",
     }
 )
 
@@ -782,6 +791,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_6_fake_candidate_source_proof.py",
         "test_stage_30_11_6_boundaries.py",
         "test_stage_30_11_6_manifest.py",
+        # Stage 30.11.7 candidate dip-enrichment bridge test additions (enrichment
+        # models, enrichment adapter, fake enrichment proof + end-to-end runner
+        # composition, boundaries, manifest). Fakes / offline only.
+        "test_stage_30_11_7_candidate_enrichment_models.py",
+        "test_stage_30_11_7_candidate_enrichment_adapter.py",
+        "test_stage_30_11_7_fake_enrichment_proof.py",
+        "test_stage_30_11_7_boundaries.py",
+        "test_stage_30_11_7_manifest.py",
     }
 )
 
