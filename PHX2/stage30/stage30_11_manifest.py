@@ -1590,6 +1590,334 @@ STAGE30_11_3_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.4 -- offline end-to-end proof (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.4 is the FOURTH (and final planned) Stage 30.11 production slice:
+# the offline END-TO-END proof that COMPOSES the committed Stage 30.11.1 bridge +
+# Stage 30.11.2 runtime gate seam + committed Stage 30.9.3 dip gate + Stage
+# 30.11.3 private sink adapter behind an INJECTED in-memory recording FAKE
+# private transport, proven with fakes / offline tests only. It adds two NEW
+# production files -- the passive end-to-end proof models (the rolled-up
+# end-to-end proof summary carrying the chain counters + the proof verdict, the
+# end-to-end proof result carrying the verdict + summary + the recorded runtime
+# outcomes + the safe-shape transport identities, and the closed-set proof
+# decision / reason vocabularies, importing no PHX2 module) and the pure proof
+# (which composes the committed Stage 30.11.2 default stream -> the committed
+# runtime seam -> the committed dip gate -> the committed Stage 30.11.3 private
+# sink wrapped for seam compatibility -> an INJECTED recording fake transport,
+# folds the recorded private sink results via the committed Stage 30.11.3 fold,
+# and judges the composed run against the author-verified baseline). It is the
+# runtime counterpart of the Stage 30.10.3 fake artifact proof -- the FINAL fake
+# / offline proof before the controlled live ceremony. It REIMPLEMENTS none of
+# the composed slices (no new bridge / gate / runtime seam / sink adapter), ships
+# NO real transport, NO real Discord / private send, NO dispatch reservation, NO
+# live provider call, NO Discord send, NO env read, NO wall-clock read, NO daemon
+# / background loop / while loop, and edits NO existing live runner / orchestrator
+# / transport / Stage 28 suppression / Stage 29 live provider file. Unlike the
+# offline-only Stage 30.9.x / 30.10.x slices, Stage 30.11.4 IS permitted to
+# compose the committed live surfaces behind the dip gate (the permitted scope
+# expansion): the proof composes the committed Stage 30.11.2 runtime seam + fake
+# stream and the committed Stage 30.11.3 private sink adapter + fake proof, and
+# the Stage 30.11.1 bridge + Stage 30.9.3 dip gate are exercised TRANSITIVELY
+# through the committed seam; no Stage 21-29 / live runner / provider / real
+# transport module is imported. NO Stage 30.11.5+ file ships at Stage 30.11.4.
+
+
+STAGE30_11_4_MINOR_VERSION: str = "30.11.4"
+
+
+# The Stage 30.11.4 offline end-to-end proof schema version (mirrored BY VALUE by
+# the Stage 30.11.4 end-to-end proof models module; a pin test cross-checks it
+# matches). Distinct from the Stage 30.11.3 private sink schema version, the
+# Stage 30.11.2 runtime gate schema version, the Stage 30.11.1 bridge schema
+# version, and the Stage 30.9.3 integration schema version.
+STAGE30_11_4_OFFLINE_E2E_PROOF_SCHEMA_VERSION: str = (
+    "stage30_11_4_v0_offline_e2e_proof"
+)
+
+
+# The two NEW production basenames + their dotted module paths.
+STAGE30_11_4_OFFLINE_E2E_PROOF_MODELS_BASENAME: str = (
+    "stage30_11_4_offline_e2e_proof_models.py"
+)
+STAGE30_11_4_OFFLINE_E2E_PROOF_BASENAME: str = (
+    "stage30_11_4_offline_e2e_proof.py"
+)
+
+
+STAGE30_11_4_OFFLINE_E2E_PROOF_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_4_offline_e2e_proof_models"
+)
+STAGE30_11_4_OFFLINE_E2E_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_4_offline_e2e_proof"
+)
+
+
+# The ALREADY-COMMITTED sibling module paths the Stage 30.11.4 proof composes
+# (re-declared here as literals; the manifest imports no PHX2 module). The proof
+# composes the Stage 30.11.2 runtime seam + its deterministic fake stream / config
+# / clock and the Stage 30.11.3 private sink adapter + fake proof (recording fake
+# transport) + models (result type). The Stage 30.11.1 bridge + Stage 30.9.3 dip
+# gate are composed TRANSITIVELY through the committed seam. These are the
+# committed live-gate surfaces the Stage 30.11 wiring is explicitly permitted to
+# compose behind the dip gate.
+STAGE30_11_4_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_runtime_gate_seam"
+)
+STAGE30_11_4_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_fake_runtime_gate_proof"
+)
+STAGE30_11_4_STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_private_sink_models"
+)
+STAGE30_11_4_STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_private_sink_adapter"
+)
+STAGE30_11_4_STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_fake_private_sink_proof"
+)
+
+
+# The two NEW production files Stage 30.11.4 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.11.3 inventory. NO Stage 30.11.5+ file.
+STAGE30_11_4_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_4_OFFLINE_E2E_PROOF_MODELS_BASENAME,
+    STAGE30_11_4_OFFLINE_E2E_PROOF_BASENAME,
+)
+
+
+# The two production modules the Stage 30.11.4 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_4_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_4_OFFLINE_E2E_PROOF_MODELS_BASENAME,
+    STAGE30_11_4_OFFLINE_E2E_PROOF_BASENAME,
+)
+
+
+STAGE30_11_4_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_4_offline_e2e_proof_models.py",
+    "test_stage_30_11_4_offline_e2e_proof.py",
+    "test_stage_30_11_4_boundaries.py",
+    "test_stage_30_11_4_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.4 production module must be in this
+# stdlib allowlist (the models need ``dataclasses`` / ``typing``; the proof needs
+# ``decimal`` / ``typing``). It admits NO ``os`` (so NO ``os.environ`` /
+# ``os.getenv`` env read), NO ``sqlite3``, NO ``zstd`` / compression, NO network
+# module, and NO ``time`` / ``datetime`` (every clock is injected, never read).
+STAGE30_11_4_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# Every PHX2 import in a Stage 30.11.4 production module must be one of these
+# siblings: the Stage 30.11.4 own end-to-end proof models sibling plus the
+# committed Stage 30.11.2 runtime seam + fake proof siblings and the committed
+# Stage 30.11.3 private sink models + adapter + fake proof siblings the proof
+# composes. This positive allowlist proves, by construction, that NO Stage 21-29
+# (incl. Stage 28 suppression / Stage 29.5 / Stage 29 live provider) / runtime
+# orchestrator / renderer / real transport / Discord / live provider module is
+# imported (the proof composes ONLY the committed Stage 30.11.2 + Stage 30.11.3
+# offline surfaces; the Stage 30.11.1 bridge + Stage 30.9.3 gate are reached
+# transitively through the committed seam).
+STAGE30_11_4_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_4_OFFLINE_E2E_PROOF_MODELS_MODULE,
+    STAGE30_11_4_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE,
+    STAGE30_11_4_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE,
+    STAGE30_11_4_STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE,
+    STAGE30_11_4_STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE,
+    STAGE30_11_4_STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_MODULE,
+)
+
+
+# Closed-set proof decision tokens (mirrored BY VALUE from the Stage 30.11.4
+# end-to-end proof models module). ``OFFLINE_E2E_PROOF_PASSED`` is the only
+# decision on which the whole composed chain behaved as the baseline requires
+# (the dip reached the fake transport ONLY).
+STAGE30_11_4_PROOF_DECISIONS: Tuple[str, ...] = (
+    "OFFLINE_E2E_PROOF_PASSED",
+    "OFFLINE_E2E_PROOF_FAILED",
+)
+
+
+# The single decision on which the composed chain matched the baseline.
+STAGE30_11_4_PROOF_PASS_DECISION: str = "OFFLINE_E2E_PROOF_PASSED"
+
+
+# Closed-set proof reason tokens (mirrored BY VALUE from the Stage 30.11.4
+# end-to-end proof models module). ``PASS_DIP_REACHED_FAKE_TRANSPORT_ONLY`` names
+# a RECORDED would-send for the dip ONLY, NEVER a real send.
+STAGE30_11_4_PROOF_REASONS: Tuple[str, ...] = (
+    "PASS_DIP_REACHED_FAKE_TRANSPORT_ONLY",
+    "UNEXPECTED_E2E_COUNTS",
+    "UNEXPECTED_TRANSPORT_ATTEMPT",
+    "INVALID_PROOF_INPUT",
+)
+
+
+# The single reason that accompanies the only passed decision.
+STAGE30_11_4_PROOF_PASS_REASON: str = "PASS_DIP_REACHED_FAKE_TRANSPORT_ONLY"
+
+
+# The Stage 30.11.4 proof summary / result field names (mirrored BY VALUE from
+# the Stage 30.11.4 end-to-end proof models module; a pin test cross-checks
+# them). ``created_at_utc`` is caller-injected, never a wall-clock read; NONE is
+# a secret, a raw payload, a host, or a transport destination.
+STAGE30_11_4_PROOF_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "candidates_seen",
+    "bridge_successes",
+    "bridge_suppressed",
+    "gate_passes",
+    "gate_suppressed",
+    "sink_attempts",
+    "sink_accepts",
+    "sink_failures",
+    "transport_attempts",
+    "transport_accepts",
+    "runtime_stopped_by_candidate_cap",
+    "runtime_stopped_by_dispatch_cap",
+    "runtime_stopped_by_runtime_seconds",
+    "proof_decision",
+    "proof_reason",
+    "created_at_utc",
+)
+STAGE30_11_4_PROOF_RESULT_FIELDS: Tuple[str, ...] = (
+    "proof_decision",
+    "proof_reason",
+    "summary",
+    "runtime_outcomes",
+    "transport_candidate_ids",
+    "transport_token_mints",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.11.4 offline end-to-end proof counts over
+# the committed Stage 30.11.2 deterministic five-candidate default stream run
+# through the committed runtime seam with the committed Stage 30.11.3 private sink
+# (wrapped for seam compatibility) injected and an INJECTED recording fake
+# transport: at least four scenario kinds (dip / non-dip / bridge-skip / invalid)
+# with five candidates seen, exactly two bridged, exactly one passed the
+# committed dip gate, exactly one private sink attempt + accept, exactly one fake
+# transport attempt + accept -- for the Tier 1 dip (``cand-tier1`` /
+# ``mint-tier1``) ONLY. Every non-dip / bridge-skip / invalid candidate is
+# suppressed cleanly BEFORE the sink and never reaches the transport, and no cap
+# / wall-clock bound is tripped. No real dispatch reserved; no Discord sent.
+STAGE30_11_4_MIN_EXPECTED_CANDIDATES_SEEN: int = 4
+STAGE30_11_4_EXPECTED_CANDIDATES_SEEN: int = 5
+STAGE30_11_4_EXPECTED_BRIDGE_SUCCESSES: int = 2
+STAGE30_11_4_EXPECTED_BRIDGE_SUPPRESSED: int = 3
+STAGE30_11_4_EXPECTED_GATE_PASSES: int = 1
+STAGE30_11_4_EXPECTED_GATE_SUPPRESSED: int = 1
+STAGE30_11_4_EXPECTED_SINK_ATTEMPTS: int = 1
+STAGE30_11_4_EXPECTED_SINK_ACCEPTS: int = 1
+STAGE30_11_4_EXPECTED_SINK_FAILURES: int = 0
+STAGE30_11_4_EXPECTED_TRANSPORT_ATTEMPTS: int = 1
+STAGE30_11_4_EXPECTED_TRANSPORT_ACCEPTS: int = 1
+STAGE30_11_4_EXPECTED_DIP_CANDIDATE_ID: str = "cand-tier1"
+STAGE30_11_4_EXPECTED_DIP_TOKEN_MINT: str = "mint-tier1"
+
+
+# After Stage 30.11.4 (the offline end-to-end proof) the WHOLE dip-gated private
+# sink chain is proven offline / with fakes. The next allowed step is NOT a
+# further Stage 30.11.<N> implementation slice: it is the controlled dip-filtered
+# private compact live ceremony, which remains a SEPARATE, explicitly
+# operator-authorized step (NOT run here, NOT in this stage). The Stage 30.11.0
+# family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at ``30.11.1``;
+# this 30.11.4-scoped pointer names the operator-authorized ceremony as the next
+# step. NO Stage 30.11.5+ file ships at Stage 30.11.4.
+STAGE30_11_4_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_4_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony (a SEPARATE, "
+    "explicitly operator-authorized step run against committed + green code; "
+    "NOT run here -- the offline dip-gated private sink chain is now proven end "
+    "to end with fakes)"
+)
+
+
+# The surfaces the Stage 30.11.4 offline end-to-end proof slice must not touch.
+# Plain documentation words (family / feature names), NOT secret / host /
+# transport needle forms. The slice ONLY composes the already-committed chain
+# behind the dip gate and judges the result against the baseline; it must not
+# reach any surface below, and it must NOT run the controlled live ceremony.
+STAGE30_11_4_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real transport call",
+    "real Discord send",
+    "Discord send",
+    "real private webhook send",
+    "real dispatch reservation",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "new runtime gate seam",
+    "new private sink adapter",
+    "new dip gate",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "ungated Stage 29.3 send path reused directly",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 28 transport-internals edit",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.5+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.4 implements no part
+# of it; it only proves -- with fakes -- that the whole committed dip-gated
+# private sink chain composes end to end, with the fake transport reached ONLY
+# for the dip).
+STAGE30_11_4_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_4_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.4 is the offline end-to-end proof only; the controlled dip-"
+    "filtered private compact live ceremony remains a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -1772,4 +2100,53 @@ __all__ = (
     "STAGE30_11_3_FORBIDDEN_SURFACES",
     "STAGE30_11_3_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_3_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.4 offline end-to-end proof ----
+    # Minor version + end-to-end proof schema identity.
+    "STAGE30_11_4_MINOR_VERSION",
+    "STAGE30_11_4_OFFLINE_E2E_PROOF_SCHEMA_VERSION",
+    # Basenames + module paths.
+    "STAGE30_11_4_OFFLINE_E2E_PROOF_MODELS_BASENAME",
+    "STAGE30_11_4_OFFLINE_E2E_PROOF_BASENAME",
+    "STAGE30_11_4_OFFLINE_E2E_PROOF_MODELS_MODULE",
+    "STAGE30_11_4_OFFLINE_E2E_PROOF_MODULE",
+    "STAGE30_11_4_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE",
+    "STAGE30_11_4_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE",
+    "STAGE30_11_4_STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE",
+    "STAGE30_11_4_STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE",
+    "STAGE30_11_4_STAGE30_11_3_FAKE_PRIVATE_SINK_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_4_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_4_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_4_TEST_BASENAMES",
+    # Import allowlists.
+    "STAGE30_11_4_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_4_ALLOWED_PHX2_IMPORTS",
+    # Proof decisions + reasons.
+    "STAGE30_11_4_PROOF_DECISIONS",
+    "STAGE30_11_4_PROOF_PASS_DECISION",
+    "STAGE30_11_4_PROOF_REASONS",
+    "STAGE30_11_4_PROOF_PASS_REASON",
+    # Model field tuples.
+    "STAGE30_11_4_PROOF_SUMMARY_FIELDS",
+    "STAGE30_11_4_PROOF_RESULT_FIELDS",
+    # Expected proof counts.
+    "STAGE30_11_4_MIN_EXPECTED_CANDIDATES_SEEN",
+    "STAGE30_11_4_EXPECTED_CANDIDATES_SEEN",
+    "STAGE30_11_4_EXPECTED_BRIDGE_SUCCESSES",
+    "STAGE30_11_4_EXPECTED_BRIDGE_SUPPRESSED",
+    "STAGE30_11_4_EXPECTED_GATE_PASSES",
+    "STAGE30_11_4_EXPECTED_GATE_SUPPRESSED",
+    "STAGE30_11_4_EXPECTED_SINK_ATTEMPTS",
+    "STAGE30_11_4_EXPECTED_SINK_ACCEPTS",
+    "STAGE30_11_4_EXPECTED_SINK_FAILURES",
+    "STAGE30_11_4_EXPECTED_TRANSPORT_ATTEMPTS",
+    "STAGE30_11_4_EXPECTED_TRANSPORT_ACCEPTS",
+    "STAGE30_11_4_EXPECTED_DIP_CANDIDATE_ID",
+    "STAGE30_11_4_EXPECTED_DIP_TOKEN_MINT",
+    # Next allowed stage + forbidden surfaces + live ceremony note.
+    "STAGE30_11_4_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_4_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_4_FORBIDDEN_SURFACES",
+    "STAGE30_11_4_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_4_LIVE_CEREMONY_NOTE",
 )

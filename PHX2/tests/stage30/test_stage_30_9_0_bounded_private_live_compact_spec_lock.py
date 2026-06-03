@@ -241,12 +241,13 @@ _ADMITTED_STAGE_30_10_BASENAMES = frozenset(
 # (the three production modules + their five tests) PLUS the now-admitted Stage
 # 30.11.2 offline runtime gate seam slice (the three production modules + their
 # five tests) PLUS the now-admitted Stage 30.11.3 private sink adapter slice
-# (the three production modules + their five tests). These basenames carry the
-# ``stage30_11`` / ``stage_30_11`` token and so match the Stage 30.10+ guard
-# regex; they are admitted here while the Stage 30.11.0 pin test owns the
-# authoritative "no Stage 30.11.4+ file" guard going forward. Any other Stage
-# 30.11+ token (a Stage 30.11.4+ implementation file) remains forbidden in this
-# guard.
+# (the three production modules + their five tests) PLUS the now-admitted Stage
+# 30.11.4 offline end-to-end proof slice (the two production modules + their four
+# tests). These basenames carry the ``stage30_11`` / ``stage_30_11`` token and so
+# match the Stage 30.10+ guard regex; they are admitted here while the Stage
+# 30.11.0 pin test owns the authoritative "no Stage 30.11.5+ file" guard going
+# forward. Any other Stage 30.11+ token (a Stage 30.11.5+ implementation file)
+# remains forbidden in this guard.
 _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
     {
         # Stage 30.11.0 spec-lock scaffold.
@@ -280,6 +281,13 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_3_fake_private_sink_proof.py",
         "test_stage_30_11_3_boundaries.py",
         "test_stage_30_11_3_manifest.py",
+        # Stage 30.11.4 offline end-to-end proof slice.
+        "stage30_11_4_offline_e2e_proof_models.py",
+        "stage30_11_4_offline_e2e_proof.py",
+        "test_stage_30_11_4_offline_e2e_proof_models.py",
+        "test_stage_30_11_4_offline_e2e_proof.py",
+        "test_stage_30_11_4_boundaries.py",
+        "test_stage_30_11_4_manifest.py",
     }
 )
 

@@ -62,6 +62,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_2_STAGE30_11_1_BRIDGE_MODULE,
     STAGE30_11_2_TEST_BASENAMES,
     STAGE30_11_3_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_4_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_FORBIDDEN_TEXT_NEEDLES,
 )
 
@@ -673,15 +674,19 @@ _STAGE_30_11_2_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_2_"
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    # The Stage 30.11.2 runtime gate seam's ONLY permitted consumer is the
+    # The Stage 30.11.2 runtime gate seam's ONLY permitted consumers are the
     # now-admitted Stage 30.11.3 private sink adapter slice (whose adapter +
     # fake proof compose the committed seam's fake-dispatch-result type / seam /
-    # fake stream -- the permitted Stage 30.11 scope expansion). Every OTHER
-    # stage30 file (Stage 28 / 29 / existing Stage 30 production) must still not
-    # import the Stage 30.11.2 slice: the seam is not wired into any pre-existing
+    # fake stream) and the now-admitted Stage 30.11.4 offline end-to-end proof
+    # slice (whose proof composes the committed seam + its fake stream behind the
+    # dip gate) -- the permitted Stage 30.11 scope expansion. Every OTHER stage30
+    # file (Stage 28 / 29 / existing Stage 30 production) must still not import
+    # the Stage 30.11.2 slice: the seam is not wired into any pre-existing
     # runtime / orchestrator / transport path.
-    allowed_importers = set(STAGE30_11_2_ALLOWED_STAGE30_BASENAMES) | set(
-        STAGE30_11_3_ALLOWED_STAGE30_BASENAMES
+    allowed_importers = (
+        set(STAGE30_11_2_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_3_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_4_ALLOWED_STAGE30_BASENAMES)
     )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
@@ -693,8 +698,9 @@ def test_no_existing_stage30_file_imports_the_slice() -> None:
             assert not module.startswith(_STAGE_30_11_2_MODULE_PREFIX), (
                 f"{entry.name!r} imports the Stage 30.11.2 slice "
                 f"({module!r}); only the Stage 30.11.3 private sink adapter "
-                f"slice may compose the seam -- no other (Stage 28 / 29 / "
-                f"existing Stage 30) production file may be edited to import it"
+                f"slice + the Stage 30.11.4 offline end-to-end proof slice may "
+                f"compose the seam -- no other (Stage 28 / 29 / existing Stage "
+                f"30) production file may be edited to import it"
             )
 
 

@@ -481,6 +481,19 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_3_private_sink_models.py",
         "stage30_11_3_private_sink_adapter.py",
         "stage30_11_3_fake_private_sink_proof.py",
+        # Stage 30.11.4 offline end-to-end proof production additions (end-to-end
+        # proof models, end-to-end proof): the passive proof summary / result
+        # models (importing no PHX2 module) and the pure proof that COMPOSES the
+        # committed Stage 30.11.2 runtime seam + the committed Stage 30.11.3
+        # private sink behind the dip gate over the committed default stream with
+        # an INJECTED recording FAKE transport, and judges the composed run
+        # against the author-verified baseline. ZERO real transport / real Discord
+        # / webhook send / dispatch reservation / live run / provider call /
+        # Discord send / env read / wall-clock read / daemon ships here, and NO
+        # Stage 28 / 29 / existing Stage 30 production file is edited; no Stage
+        # 30.11.5+ file ships at Stage 30.11.4.
+        "stage30_11_4_offline_e2e_proof_models.py",
+        "stage30_11_4_offline_e2e_proof.py",
     }
 )
 
@@ -705,6 +718,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_3_fake_private_sink_proof.py",
         "test_stage_30_11_3_boundaries.py",
         "test_stage_30_11_3_manifest.py",
+        # Stage 30.11.4 offline end-to-end proof test additions (end-to-end proof
+        # models, end-to-end proof, boundaries, manifest). Fakes / offline only.
+        "test_stage_30_11_4_offline_e2e_proof_models.py",
+        "test_stage_30_11_4_offline_e2e_proof.py",
+        "test_stage_30_11_4_boundaries.py",
+        "test_stage_30_11_4_manifest.py",
     }
 )
 
