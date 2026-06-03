@@ -56,6 +56,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_3_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE,
     STAGE30_11_3_TEST_BASENAMES,
     STAGE30_11_4_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_5_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_FORBIDDEN_TEXT_NEEDLES,
 )
 
@@ -639,15 +640,20 @@ _STAGE_30_11_3_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_3_"
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    # The Stage 30.11.3 private sink adapter's ONLY permitted consumer is the
+    # The Stage 30.11.3 private sink adapter's ONLY permitted consumers are the
     # now-admitted Stage 30.11.4 offline end-to-end proof slice (whose proof
-    # composes the committed adapter + fake transport behind the dip gate -- the
-    # permitted Stage 30.11 scope expansion). Every OTHER stage30 file (Stage 28
-    # / 29 / existing Stage 30 production, incl. the committed Stage 30.11.2 seam)
-    # must still not import the Stage 30.11.3 slice: the adapter is not wired into
-    # any pre-existing runtime / orchestrator / transport path.
-    allowed_importers = set(STAGE30_11_3_ALLOWED_STAGE30_BASENAMES) | set(
-        STAGE30_11_4_ALLOWED_STAGE30_BASENAMES
+    # composes the committed adapter + fake transport behind the dip gate) and the
+    # now-admitted Stage 30.11.5 controlled live ceremony wiring slice (whose
+    # transport adapter composes the committed sink request / result types and
+    # whose bounded runner composes the committed private sink) -- the permitted
+    # Stage 30.11 scope expansion. Every OTHER stage30 file (Stage 28 / 29 /
+    # existing Stage 30 production, incl. the committed Stage 30.11.2 seam) must
+    # still not import the Stage 30.11.3 slice: the adapter is not wired into any
+    # pre-existing runtime / orchestrator / transport path.
+    allowed_importers = (
+        set(STAGE30_11_3_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_4_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_5_ALLOWED_STAGE30_BASENAMES)
     )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):

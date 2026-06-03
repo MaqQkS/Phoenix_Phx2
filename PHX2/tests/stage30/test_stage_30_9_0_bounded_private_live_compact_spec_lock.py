@@ -288,6 +288,19 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_4_offline_e2e_proof.py",
         "test_stage_30_11_4_boundaries.py",
         "test_stage_30_11_4_manifest.py",
+        # Stage 30.11.5 controlled live ceremony wiring slice.
+        "stage30_11_5_live_wiring_models.py",
+        "stage30_11_5_live_candidate_snapshot_assembler.py",
+        "stage30_11_5_private_transport_adapter.py",
+        "stage30_11_5_bounded_live_runner.py",
+        "stage30_11_5_fake_live_wiring_proof.py",
+        "test_stage_30_11_5_live_wiring_models.py",
+        "test_stage_30_11_5_live_candidate_snapshot_assembler.py",
+        "test_stage_30_11_5_private_transport_adapter.py",
+        "test_stage_30_11_5_bounded_live_runner.py",
+        "test_stage_30_11_5_fake_live_wiring_proof.py",
+        "test_stage_30_11_5_boundaries.py",
+        "test_stage_30_11_5_manifest.py",
     }
 )
 

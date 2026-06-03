@@ -494,6 +494,33 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # 30.11.5+ file ships at Stage 30.11.4.
         "stage30_11_4_offline_e2e_proof_models.py",
         "stage30_11_4_offline_e2e_proof.py",
+        # Stage 30.11.5 controlled live ceremony wiring production additions
+        # (live wiring models, live-candidate snapshot assembler, private
+        # transport adapter, bounded live runner, fake live wiring proof): the
+        # passive models (the live-candidate assembly result embedding the
+        # committed Stage 30.11.1 snapshot + the private operator payload + the
+        # low-level transport-client result + the bounded-run summary / result),
+        # the assembler that converts an existing flat safe-scalar candidate
+        # projection into a committed Stage 30.11.1 snapshot (failing closed on a
+        # missing / malformed required field; never fabricating a dip; never
+        # bypassing the committed bridge / dip gate), the transport adapter that
+        # conforms to the committed Stage 30.11.3 sink transport protocol by
+        # rendering a SAFE operator payload and handing it to an INJECTED fake
+        # transport client, the bounded live runner that composes the source ->
+        # assembler -> committed Stage 30.11.2 seam -> committed Stage 30.11.3
+        # private sink -> injected transport adapter under HARD caps
+        # (max_dispatches <= 1 / max_runtime_seconds <= 60 / max_candidates <=
+        # 10, injected clock, single bounded for-loop, no daemon / while loop),
+        # and the offline fake live wiring proof. ZERO real candidate source /
+        # real transport / real Discord / webhook send / dispatch reservation /
+        # live run / provider call / Discord send / env read / wall-clock read /
+        # daemon ships here, and NO Stage 28 / 29 / existing Stage 30 production
+        # file is edited; no Stage 30.11.6+ file ships at Stage 30.11.5.
+        "stage30_11_5_live_wiring_models.py",
+        "stage30_11_5_live_candidate_snapshot_assembler.py",
+        "stage30_11_5_private_transport_adapter.py",
+        "stage30_11_5_bounded_live_runner.py",
+        "stage30_11_5_fake_live_wiring_proof.py",
     }
 )
 
@@ -724,6 +751,17 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_4_offline_e2e_proof.py",
         "test_stage_30_11_4_boundaries.py",
         "test_stage_30_11_4_manifest.py",
+        # Stage 30.11.5 controlled live ceremony wiring test additions (live
+        # wiring models, live-candidate snapshot assembler, private transport
+        # adapter, bounded live runner, fake live wiring proof, boundaries,
+        # manifest). Fakes / offline only.
+        "test_stage_30_11_5_live_wiring_models.py",
+        "test_stage_30_11_5_live_candidate_snapshot_assembler.py",
+        "test_stage_30_11_5_private_transport_adapter.py",
+        "test_stage_30_11_5_bounded_live_runner.py",
+        "test_stage_30_11_5_fake_live_wiring_proof.py",
+        "test_stage_30_11_5_boundaries.py",
+        "test_stage_30_11_5_manifest.py",
     }
 )
 

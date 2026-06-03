@@ -1918,6 +1918,490 @@ STAGE30_11_4_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.5 -- controlled live ceremony wiring (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.5 is the FIFTH Stage 30.11 production slice: the narrowest
+# controlled-live-ceremony WIRING the prior ceremony lacked between a real
+# candidate source and the private operator transport boundary, proven with
+# fakes / offline tests only. The prior controlled ceremony (after Stage 30.11.4)
+# stopped safely BEFORE env / provider / Discord because the committed path had
+# (a) NO committed source that produces a Stage 30.11.1
+# ``Stage30_11LiveCandidateSnapshot`` and (b) NO committed transport adapter
+# conforming to the Stage 30.11.3 sink transport protocol; the only full-chain
+# proof used a fake stream + a fake transport, so a real ceremony would have
+# required production edits and stopped. Stage 30.11.5 builds that missing wiring
+# slice, fake / offline first. It adds five NEW production files -- the passive
+# live wiring models (the live-candidate assembly result embedding the committed
+# Stage 30.11.1 snapshot + the private operator payload + the low-level
+# transport-client result + the bounded-run summary / result + the closed-set
+# assembly-decision / assembly-reason / transport-status vocabularies + the hard
+# bounded-run caps + the fake-wiring baseline), the live-candidate snapshot
+# ASSEMBLER (which converts an existing flat safe-scalar candidate projection
+# into a committed Stage 30.11.1 snapshot, failing closed on a missing / malformed
+# pair / price / ATH / migration / drawdown / tier field, fabricating no dip, and
+# never bypassing the committed bridge / dip gate -- the snapshot is their INPUT),
+# the private TRANSPORT ADAPTER boundary (which conforms to the committed Stage
+# 30.11.3 sink transport protocol by rendering a SAFE private operator payload
+# from a sink request and handing it to an INJECTED low-level transport client --
+# a FAKE in this slice -- never reading the private transport destination env var,
+# never sending real Discord), the BOUNDED LIVE RUNNER (which composes the source
+# -> the assembler -> the committed Stage 30.11.2 seam -> the committed Stage
+# 30.11.3 private sink -> the injected transport adapter under HARD caps:
+# max_dispatches <= 1, max_runtime_seconds <= 60, max_candidates <= 10, an
+# injected clock, a single bounded for-loop, no daemon / while loop / autorestart
+# / public routing), and the offline fake live wiring proof (which runs the
+# bounded runner over a deterministic four-candidate fake source with an INJECTED
+# recording fake transport client + an injected fake clock, proving the fake
+# transport is reached for the dip ONLY). It is the missing live-wiring link the
+# prior controlled live ceremony lacked. It ships NO real candidate source / real
+# transport / real Discord / webhook send, NO dispatch reservation, NO live
+# provider call, NO Discord send, NO env read, NO wall-clock read, NO daemon /
+# background loop, and edits NO existing live runner / orchestrator / transport /
+# Stage 28 suppression / Stage 29 live provider file. Unlike the offline-only
+# Stage 30.9.x / 30.10.x slices, Stage 30.11.5 IS permitted to compose the
+# committed live surfaces behind the dip gate (the permitted scope expansion): the
+# models embed the Stage 30.11.1 snapshot, the assembler builds it, the transport
+# adapter composes the Stage 30.11.3 request / result types, and the bounded
+# runner composes the Stage 30.11.2 seam + the Stage 30.11.3 private sink; no
+# Stage 21-29 (incl. the deeply-nested Stage 27 / 28 / 29 live candidate RECORD --
+# the assembler reads a flat safe projection only) / live runner / provider / real
+# transport module is imported. NO Stage 30.11.6+ file ships at Stage 30.11.5.
+
+
+STAGE30_11_5_MINOR_VERSION: str = "30.11.5"
+
+
+# The Stage 30.11.5 controlled live ceremony wiring schema version (mirrored BY
+# VALUE by the Stage 30.11.5 live-wiring-models module; a pin test cross-checks it
+# matches). Distinct from the Stage 30.11.4 end-to-end proof schema version, the
+# Stage 30.11.3 private sink schema version, the Stage 30.11.2 runtime gate schema
+# version, the Stage 30.11.1 bridge schema version, and the Stage 30.9.3
+# integration schema version.
+STAGE30_11_5_LIVE_WIRING_SCHEMA_VERSION: str = "stage30_11_5_v0_live_wiring"
+
+
+# The safe-shape source-stage provenance token the transport adapter stamps onto
+# every built private operator payload (mirrored BY VALUE by the Stage 30.11.5
+# models module).
+STAGE30_11_5_SOURCE_STAGE: str = "30.11.5"
+
+
+# The five NEW production basenames + their dotted module paths.
+STAGE30_11_5_LIVE_WIRING_MODELS_BASENAME: str = (
+    "stage30_11_5_live_wiring_models.py"
+)
+STAGE30_11_5_LIVE_CANDIDATE_SNAPSHOT_ASSEMBLER_BASENAME: str = (
+    "stage30_11_5_live_candidate_snapshot_assembler.py"
+)
+STAGE30_11_5_PRIVATE_TRANSPORT_ADAPTER_BASENAME: str = (
+    "stage30_11_5_private_transport_adapter.py"
+)
+STAGE30_11_5_BOUNDED_LIVE_RUNNER_BASENAME: str = (
+    "stage30_11_5_bounded_live_runner.py"
+)
+STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_BASENAME: str = (
+    "stage30_11_5_fake_live_wiring_proof.py"
+)
+
+
+STAGE30_11_5_LIVE_WIRING_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_live_wiring_models"
+)
+STAGE30_11_5_LIVE_CANDIDATE_SNAPSHOT_ASSEMBLER_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_live_candidate_snapshot_assembler"
+)
+STAGE30_11_5_PRIVATE_TRANSPORT_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_private_transport_adapter"
+)
+STAGE30_11_5_BOUNDED_LIVE_RUNNER_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_bounded_live_runner"
+)
+STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof"
+)
+
+
+# The ALREADY-COMMITTED sibling module paths the Stage 30.11.5 slice composes
+# (re-declared here as literals; the manifest imports no PHX2 module). The models
+# embed the Stage 30.11.1 snapshot; the assembler builds it; the transport adapter
+# composes the Stage 30.11.3 request / result types; the bounded runner composes
+# the Stage 30.11.2 runtime-gate-models + seam + the Stage 30.11.3 private sink
+# adapter; the fake proof composes the Stage 30.11.2 fake proof (for the injected
+# clock). These are the committed live-gate surfaces the Stage 30.11 wiring is
+# explicitly permitted to compose behind the dip gate.
+STAGE30_11_5_STAGE30_11_1_BRIDGE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_1_live_candidate_bridge_models"
+)
+STAGE30_11_5_STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_runtime_gate_models"
+)
+STAGE30_11_5_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_runtime_gate_seam"
+)
+STAGE30_11_5_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_2_fake_runtime_gate_proof"
+)
+STAGE30_11_5_STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_private_sink_models"
+)
+STAGE30_11_5_STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_3_private_sink_adapter"
+)
+
+
+# The five NEW production files Stage 30.11.5 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.11.4 inventory. NO Stage 30.11.6+ file.
+STAGE30_11_5_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_5_LIVE_WIRING_MODELS_BASENAME,
+    STAGE30_11_5_LIVE_CANDIDATE_SNAPSHOT_ASSEMBLER_BASENAME,
+    STAGE30_11_5_PRIVATE_TRANSPORT_ADAPTER_BASENAME,
+    STAGE30_11_5_BOUNDED_LIVE_RUNNER_BASENAME,
+    STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_BASENAME,
+)
+
+
+# The five production modules the Stage 30.11.5 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_5_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_5_LIVE_WIRING_MODELS_BASENAME,
+    STAGE30_11_5_LIVE_CANDIDATE_SNAPSHOT_ASSEMBLER_BASENAME,
+    STAGE30_11_5_PRIVATE_TRANSPORT_ADAPTER_BASENAME,
+    STAGE30_11_5_BOUNDED_LIVE_RUNNER_BASENAME,
+    STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_BASENAME,
+)
+
+
+STAGE30_11_5_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_5_live_wiring_models.py",
+    "test_stage_30_11_5_live_candidate_snapshot_assembler.py",
+    "test_stage_30_11_5_private_transport_adapter.py",
+    "test_stage_30_11_5_bounded_live_runner.py",
+    "test_stage_30_11_5_fake_live_wiring_proof.py",
+    "test_stage_30_11_5_boundaries.py",
+    "test_stage_30_11_5_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.5 production module must be in this stdlib
+# allowlist (the models need ``dataclasses`` / ``decimal``; the assembler needs
+# ``decimal``; the transport adapter needs ``typing``; the bounded runner needs
+# ``decimal`` / ``typing``; the fake proof needs ``decimal`` / ``typing``). It
+# admits NO ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO
+# ``sqlite3``, NO ``zstd`` / compression, NO network module, and NO ``time`` /
+# ``datetime`` (every clock is injected, never read).
+STAGE30_11_5_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# Every PHX2 import in a Stage 30.11.5 production module must be one of these
+# siblings: the Stage 30.11.5 own live-wiring-models + assembler + transport-
+# adapter + bounded-runner siblings plus the committed Stage 30.11.1 bridge-models
+# sibling (the snapshot type), the committed Stage 30.11.2 runtime-gate-models +
+# seam + fake-proof siblings, and the committed Stage 30.11.3 private-sink-models +
+# adapter siblings the slice composes. This positive allowlist proves, by
+# construction, that NO Stage 21-29 (incl. the nested Stage 27 / 28 / 29 live
+# candidate record, Stage 28 suppression, Stage 29.5, Stage 29 live provider) /
+# runtime orchestrator / renderer / real transport / Discord / live provider
+# module is imported (the slice composes ONLY the committed Stage 30.11.1 +
+# 30.11.2 + 30.11.3 offline surfaces).
+STAGE30_11_5_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_5_LIVE_WIRING_MODELS_MODULE,
+    STAGE30_11_5_LIVE_CANDIDATE_SNAPSHOT_ASSEMBLER_MODULE,
+    STAGE30_11_5_PRIVATE_TRANSPORT_ADAPTER_MODULE,
+    STAGE30_11_5_BOUNDED_LIVE_RUNNER_MODULE,
+    STAGE30_11_5_STAGE30_11_1_BRIDGE_MODELS_MODULE,
+    STAGE30_11_5_STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE,
+    STAGE30_11_5_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE,
+    STAGE30_11_5_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE,
+    STAGE30_11_5_STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE,
+    STAGE30_11_5_STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE,
+)
+
+
+# Closed-set live-candidate assembly decision tokens (mirrored BY VALUE from the
+# Stage 30.11.5 live-wiring-models module). ``ASSEMBLED_LIVE_CANDIDATE_SNAPSHOT``
+# is the only decision that carries a built Stage 30.11.1 snapshot; the two reject
+# decisions carry ``None`` and never reach the committed bridge / gate / transport.
+STAGE30_11_5_ASSEMBLY_DECISIONS: Tuple[str, ...] = (
+    "ASSEMBLED_LIVE_CANDIDATE_SNAPSHOT",
+    "REJECTED_MISSING_REQUIRED_FIELD",
+    "REJECTED_INVALID_FIELD_SHAPE",
+)
+
+
+# The single decision that yields a built Stage 30.11.1 live candidate snapshot.
+STAGE30_11_5_ASSEMBLY_PASS_DECISION: str = "ASSEMBLED_LIVE_CANDIDATE_SNAPSHOT"
+
+
+# Closed-set live-candidate assembly reason tokens (mirrored BY VALUE from the
+# Stage 30.11.5 live-wiring-models module). ``READY_FOR_BRIDGE`` names the built
+# snapshot as the INPUT the committed Stage 30.11.1 bridge later consumes, NEVER a
+# bypass of it.
+STAGE30_11_5_ASSEMBLY_REASONS: Tuple[str, ...] = (
+    "READY_FOR_BRIDGE",
+    "MISSING_REQUIRED_CANDIDATE_FIELD",
+    "INVALID_CANDIDATE_FIELD_SHAPE",
+)
+
+
+# The single reason that accompanies the only assembled decision.
+STAGE30_11_5_ASSEMBLY_PASS_REASON: str = "READY_FOR_BRIDGE"
+
+
+# Closed-set transport-client status tokens (mirrored BY VALUE from the Stage
+# 30.11.5 live-wiring-models module). ``WOULD_DELIVER_PRIVATE_OPERATOR_MESSAGE``
+# names a RECORDED would-deliver (the injected fake client recorded the payload),
+# NEVER a real send.
+STAGE30_11_5_TRANSPORT_STATUSES: Tuple[str, ...] = (
+    "WOULD_DELIVER_PRIVATE_OPERATOR_MESSAGE",
+    "TRANSPORT_REJECTED",
+)
+
+
+# The single status on which the injected transport client accepted the payload.
+STAGE30_11_5_TRANSPORT_ACCEPT_STATUS: str = (
+    "WOULD_DELIVER_PRIVATE_OPERATOR_MESSAGE"
+)
+
+
+# The Stage 30.11.5 candidate-projection field names (the flat safe-scalar shape
+# the assembler reads FROM; mirrored BY VALUE from the models module). The
+# projection field names equal the Stage 30.11.1 snapshot field names BY VALUE.
+# ``created_at_utc`` is caller-injected, never a wall-clock read; NONE is a secret,
+# a raw payload, a host, or a transport destination.
+STAGE30_11_5_PROJECTION_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "post_migration_ath_verified",
+    "source_ref",
+    "created_at_utc",
+)
+STAGE30_11_5_REQUIRED_PROJECTION_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "pair_type",
+    "tier_hint",
+    "drawdown_from_ath",
+    "migration_status",
+    "ath_status",
+    "market_context_status",
+    "current_market_cap_usd",
+    "created_at_utc",
+)
+STAGE30_11_5_OPTIONAL_PROJECTION_FIELDS: Tuple[str, ...] = (
+    "post_migration_ath_verified",
+    "source_ref",
+)
+
+
+# The Stage 30.11.5 assembly-result / payload / transport-client-result /
+# bounded-run summary / result field names (mirrored BY VALUE from the models
+# module; a pin test cross-checks them). NONE is a secret, a raw payload, a host,
+# or a transport destination.
+STAGE30_11_5_ASSEMBLY_RESULT_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "assembly_decision",
+    "assembly_reason",
+    "rejected_field",
+    "snapshot",
+    "created_at_utc",
+)
+STAGE30_11_5_PRIVATE_OPERATOR_PAYLOAD_FIELDS: Tuple[str, ...] = (
+    "candidate_id",
+    "token_mint",
+    "candidate_ref",
+    "tier_token",
+    "body",
+    "source_stage",
+    "created_at_utc",
+)
+STAGE30_11_5_TRANSPORT_CLIENT_RESULT_FIELDS: Tuple[str, ...] = (
+    "accepted",
+    "transport_status",
+    "candidate_id",
+    "token_mint",
+    "created_at_utc",
+)
+STAGE30_11_5_BOUNDED_RUN_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "source_items_seen",
+    "assembled",
+    "assembly_rejected",
+    "candidates_seen",
+    "bridged",
+    "gate_passed",
+    "dispatch_attempted",
+    "dispatch_accepted",
+    "suppressed_by_bridge",
+    "suppressed_by_gate",
+    "stopped_by_candidate_cap",
+    "stopped_by_dispatch_cap",
+    "stopped_by_runtime_seconds",
+    "created_at_utc",
+)
+STAGE30_11_5_BOUNDED_RUN_RESULT_FIELDS: Tuple[str, ...] = (
+    "assembly_outcomes",
+    "runtime_outcomes",
+    "summary",
+    "created_at_utc",
+)
+
+
+# The HARD bounded-run caps the runner enforces (mirrored BY VALUE from the models
+# module; the models express ``max_runtime_seconds`` as a ``Decimal`` magnitude --
+# this manifest is constants-only and mirrors the bound BY VALUE as an ``int``).
+# A config above any cap fails closed.
+STAGE30_11_5_MAX_DISPATCHES_HARD_CAP: int = 1
+STAGE30_11_5_MAX_RUNTIME_SECONDS_HARD_CAP: int = 60
+STAGE30_11_5_MAX_CANDIDATES_HARD_CAP: int = 10
+STAGE30_11_5_DEFAULT_MAX_DISPATCHES: int = 1
+STAGE30_11_5_DEFAULT_MAX_RUNTIME_SECONDS: int = 60
+STAGE30_11_5_DEFAULT_MAX_CANDIDATES: int = 10
+
+
+# The author-verified expected Stage 30.11.5 fake live wiring proof counts over
+# the deterministic four-candidate default fake source run through the bounded
+# runner with an INJECTED recording fake transport client + an injected constant
+# clock: four source items seen, exactly three assembled (the assembler-rejected
+# candidate -- a required ``current_market_cap_usd`` field absent -- never becomes
+# a snapshot), exactly three reach the committed seam, exactly two bridge, exactly
+# one passes the committed dip gate, exactly one dispatch attempt + accept, exactly
+# one fake transport attempt + accept -- for the Tier 1 dip (``cand-tier1`` /
+# ``mint-tier1``) ONLY. The non-dip is suppressed by the dip gate, the
+# bridge-suppressed by the bridge, the rejected one by the assembler, so none
+# reaches the transport; no cap / wall-clock bound is tripped. No real dispatch
+# reserved; no Discord sent.
+STAGE30_11_5_EXPECTED_SOURCE_ITEMS_SEEN: int = 4
+STAGE30_11_5_EXPECTED_ASSEMBLED: int = 3
+STAGE30_11_5_EXPECTED_ASSEMBLY_REJECTED: int = 1
+STAGE30_11_5_EXPECTED_CANDIDATES_SEEN: int = 3
+STAGE30_11_5_EXPECTED_BRIDGED: int = 2
+STAGE30_11_5_EXPECTED_GATE_PASSED: int = 1
+STAGE30_11_5_EXPECTED_DISPATCH_ATTEMPTED: int = 1
+STAGE30_11_5_EXPECTED_DISPATCH_ACCEPTED: int = 1
+STAGE30_11_5_EXPECTED_SUPPRESSED_BY_BRIDGE: int = 1
+STAGE30_11_5_EXPECTED_SUPPRESSED_BY_GATE: int = 1
+STAGE30_11_5_EXPECTED_TRANSPORT_ATTEMPTS: int = 1
+STAGE30_11_5_EXPECTED_TRANSPORT_ACCEPTS: int = 1
+STAGE30_11_5_EXPECTED_DIP_CANDIDATE_ID: str = "cand-tier1"
+STAGE30_11_5_EXPECTED_DIP_TOKEN_MINT: str = "mint-tier1"
+
+
+# After Stage 30.11.5 (the controlled live ceremony wiring) the WHOLE dip-gated
+# private dispatch chain -- from an existing candidate projection through the
+# private operator transport boundary -- is wired + proven offline / with fakes.
+# The next allowed step is NOT a further Stage 30.11.<N> implementation slice: it
+# is the controlled dip-filtered private compact live ceremony, which remains a
+# SEPARATE, explicitly operator-authorized step (NOT run here, NOT in this stage).
+# The Stage 30.11.0 family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned
+# at ``30.11.1``; this 30.11.5-scoped pointer names the operator-authorized
+# ceremony as the next step. NO Stage 30.11.6+ file ships at Stage 30.11.5.
+STAGE30_11_5_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_5_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony (a SEPARATE, "
+    "explicitly operator-authorized step run against committed + green code; "
+    "NOT run here -- the live candidate source -> snapshot assembler and the "
+    "private operator transport boundary are now wired + proven offline with "
+    "fakes, so the next ceremony attempt composes committed + tested code)"
+)
+
+
+# The surfaces the Stage 30.11.5 controlled-live-ceremony-wiring slice must not
+# touch. Plain documentation words (family / feature names), NOT secret / host /
+# transport needle forms. The slice ONLY assembles a snapshot from a flat
+# projection + renders a safe payload + composes the committed chain under hard
+# caps with an INJECTED fake transport client; it must not reach any surface
+# below, and it must NOT run the controlled live ceremony.
+STAGE30_11_5_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real candidate source",
+    "real transport call",
+    "real Discord send",
+    "Discord send",
+    "real private webhook send",
+    "real dispatch reservation",
+    "live run",
+    "live provider call",
+    "env read",
+    "private transport destination env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "new runtime gate seam",
+    "new private sink adapter",
+    "new dip gate",
+    "max_dispatches above 1",
+    "max_runtime_seconds above 60",
+    "max_candidates above 10",
+    "transport-layer veto for non-dip skip",
+    "PAYLOAD_REFUSED for normal non-dip skip",
+    "non-dip counted as dispatch failure",
+    "ungated Stage 29.3 send path reused directly",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 27 / 28 / 29 candidate-record import",
+    "Stage 28 transport-internals edit",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.6+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.5 implements no part
+# of it; it only wires + proves -- with fakes -- the missing live candidate source
+# -> snapshot assembler and the private operator transport boundary, so the next
+# ceremony attempt composes committed + tested code).
+STAGE30_11_5_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_5_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.5 is the offline controlled-live-ceremony wiring only; the "
+    "controlled dip-filtered private compact live ceremony remains a separate, "
+    "explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -2149,4 +2633,78 @@ __all__ = (
     "STAGE30_11_4_FORBIDDEN_SURFACES",
     "STAGE30_11_4_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_4_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.5 controlled live ceremony wiring ----
+    # Minor version + live wiring schema identity.
+    "STAGE30_11_5_MINOR_VERSION",
+    "STAGE30_11_5_LIVE_WIRING_SCHEMA_VERSION",
+    "STAGE30_11_5_SOURCE_STAGE",
+    # Basenames + module paths.
+    "STAGE30_11_5_LIVE_WIRING_MODELS_BASENAME",
+    "STAGE30_11_5_LIVE_CANDIDATE_SNAPSHOT_ASSEMBLER_BASENAME",
+    "STAGE30_11_5_PRIVATE_TRANSPORT_ADAPTER_BASENAME",
+    "STAGE30_11_5_BOUNDED_LIVE_RUNNER_BASENAME",
+    "STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_BASENAME",
+    "STAGE30_11_5_LIVE_WIRING_MODELS_MODULE",
+    "STAGE30_11_5_LIVE_CANDIDATE_SNAPSHOT_ASSEMBLER_MODULE",
+    "STAGE30_11_5_PRIVATE_TRANSPORT_ADAPTER_MODULE",
+    "STAGE30_11_5_BOUNDED_LIVE_RUNNER_MODULE",
+    "STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE",
+    "STAGE30_11_5_STAGE30_11_1_BRIDGE_MODELS_MODULE",
+    "STAGE30_11_5_STAGE30_11_2_RUNTIME_GATE_MODELS_MODULE",
+    "STAGE30_11_5_STAGE30_11_2_RUNTIME_GATE_SEAM_MODULE",
+    "STAGE30_11_5_STAGE30_11_2_FAKE_RUNTIME_GATE_PROOF_MODULE",
+    "STAGE30_11_5_STAGE30_11_3_PRIVATE_SINK_MODELS_MODULE",
+    "STAGE30_11_5_STAGE30_11_3_PRIVATE_SINK_ADAPTER_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_5_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_5_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_5_TEST_BASENAMES",
+    # Import allowlists.
+    "STAGE30_11_5_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_5_ALLOWED_PHX2_IMPORTS",
+    # Assembly decisions + reasons.
+    "STAGE30_11_5_ASSEMBLY_DECISIONS",
+    "STAGE30_11_5_ASSEMBLY_PASS_DECISION",
+    "STAGE30_11_5_ASSEMBLY_REASONS",
+    "STAGE30_11_5_ASSEMBLY_PASS_REASON",
+    # Transport-client statuses.
+    "STAGE30_11_5_TRANSPORT_STATUSES",
+    "STAGE30_11_5_TRANSPORT_ACCEPT_STATUS",
+    # Projection + model field tuples.
+    "STAGE30_11_5_PROJECTION_FIELDS",
+    "STAGE30_11_5_REQUIRED_PROJECTION_FIELDS",
+    "STAGE30_11_5_OPTIONAL_PROJECTION_FIELDS",
+    "STAGE30_11_5_ASSEMBLY_RESULT_FIELDS",
+    "STAGE30_11_5_PRIVATE_OPERATOR_PAYLOAD_FIELDS",
+    "STAGE30_11_5_TRANSPORT_CLIENT_RESULT_FIELDS",
+    "STAGE30_11_5_BOUNDED_RUN_SUMMARY_FIELDS",
+    "STAGE30_11_5_BOUNDED_RUN_RESULT_FIELDS",
+    # Hard caps + defaults.
+    "STAGE30_11_5_MAX_DISPATCHES_HARD_CAP",
+    "STAGE30_11_5_MAX_RUNTIME_SECONDS_HARD_CAP",
+    "STAGE30_11_5_MAX_CANDIDATES_HARD_CAP",
+    "STAGE30_11_5_DEFAULT_MAX_DISPATCHES",
+    "STAGE30_11_5_DEFAULT_MAX_RUNTIME_SECONDS",
+    "STAGE30_11_5_DEFAULT_MAX_CANDIDATES",
+    # Expected proof counts.
+    "STAGE30_11_5_EXPECTED_SOURCE_ITEMS_SEEN",
+    "STAGE30_11_5_EXPECTED_ASSEMBLED",
+    "STAGE30_11_5_EXPECTED_ASSEMBLY_REJECTED",
+    "STAGE30_11_5_EXPECTED_CANDIDATES_SEEN",
+    "STAGE30_11_5_EXPECTED_BRIDGED",
+    "STAGE30_11_5_EXPECTED_GATE_PASSED",
+    "STAGE30_11_5_EXPECTED_DISPATCH_ATTEMPTED",
+    "STAGE30_11_5_EXPECTED_DISPATCH_ACCEPTED",
+    "STAGE30_11_5_EXPECTED_SUPPRESSED_BY_BRIDGE",
+    "STAGE30_11_5_EXPECTED_SUPPRESSED_BY_GATE",
+    "STAGE30_11_5_EXPECTED_TRANSPORT_ATTEMPTS",
+    "STAGE30_11_5_EXPECTED_TRANSPORT_ACCEPTS",
+    "STAGE30_11_5_EXPECTED_DIP_CANDIDATE_ID",
+    "STAGE30_11_5_EXPECTED_DIP_TOKEN_MINT",
+    # Next allowed stage + forbidden surfaces + live ceremony note.
+    "STAGE30_11_5_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_5_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_5_FORBIDDEN_SURFACES",
+    "STAGE30_11_5_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_5_LIVE_CEREMONY_NOTE",
 )
