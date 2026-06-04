@@ -74,6 +74,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_7_TEST_BASENAMES,
     STAGE30_11_8_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_8_TEST_BASENAMES,
+    STAGE30_11_9_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_9_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -204,7 +206,7 @@ def _future_30_11_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 9:
+            if int(match.group(1)) >= 10:
                 violations.append(basename)
     return violations
 
@@ -996,6 +998,7 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_6_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_7_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_8_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_9_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
@@ -1031,6 +1034,7 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_6_TEST_BASENAMES)
         | set(STAGE30_11_7_TEST_BASENAMES)
         | set(STAGE30_11_8_TEST_BASENAMES)
+        | set(STAGE30_11_9_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "

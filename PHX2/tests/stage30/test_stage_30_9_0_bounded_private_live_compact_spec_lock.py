@@ -330,6 +330,18 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_8_fake_confirmation_proof.py",
         "test_stage_30_11_8_boundaries.py",
         "test_stage_30_11_8_manifest.py",
+        # Stage 30.11.9 mint-keyed migration evidence-source adapter slice (the
+        # per-mint source the Stage 30.11.8 confirmation seam was missing). A
+        # clean leaf; fakes / offline only.
+        "stage30_11_9_migration_evidence_source_models.py",
+        "stage30_11_9_migration_evidence_source_adapter.py",
+        "stage30_11_9_fake_evidence_source_proof.py",
+        "test_stage_30_11_9_migration_evidence_source_models.py",
+        "test_stage_30_11_9_migration_evidence_source_adapter.py",
+        "test_stage_30_11_9_fake_evidence_source_proof.py",
+        "test_stage_30_11_9_composition.py",
+        "test_stage_30_11_9_boundaries.py",
+        "test_stage_30_11_9_manifest.py",
     }
 )
 

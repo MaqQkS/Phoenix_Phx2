@@ -3649,6 +3649,323 @@ STAGE30_11_8_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.9 -- mint-keyed migration evidence-source adapter (fakes / offline
+# only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.9 is the NINTH Stage 30.11 production slice: the narrow, mint-keyed
+# migration evidence-SOURCE adapter that fills the last gap the Stage 30.11.8
+# controlled live ceremony surfaced. The committed Stage 30.11.8 confirmation adapter
+# consumes an INJECTED per-mint evidence source
+# (``lookup_migration_evidence(token_mint) -> evidence | None``), but nothing committed
+# implements that source over real, recorded migration evidence -- so the ceremony
+# could only inject a no-evidence source and every harvested candidate died at
+# ``MISSING_MIGRATION_EVIDENCE``. Stage 30.11.9 adds three NEW production files -- the
+# passive evidence-source models (the sanitized per-mint evidence record whose field
+# names equal the Stage 30.11.8 evidence field names BY VALUE, plus the source proof
+# summary / per-probe outcome / run-result shapes), the pure mint-keyed source adapter
+# (which, given a candidate token mint + an INJECTED per-mint record provider, binds
+# STRICTLY by mint, collapses value-identical duplicates, and returns the single bound
+# record VERBATIM -- failing closed on a missing / wrong-mint / conflicting / raising /
+# blank lookup -- plus a pure, rename-only, fail-closed mapper that turns a sanitized
+# Stage 29.5 projection summary into the evidence record without fabricating anything),
+# and the offline fake evidence-source proof (which probes the source over a
+# deterministic seven-mint probe set: two bind evidence, five fail closed). It ships NO
+# Stage 30.11.8 confirmation edit, NO Stage 30.11.7 enrichment edit, NO runtime wiring,
+# NO real dispatch sink, NO dispatch reservation, NO live provider call, NO private
+# send, NO env read, NO wall-clock read (every timestamp is injected / record-carried),
+# NO daemon / background loop, and edits NO existing live runner / orchestrator /
+# transport / Stage 28 suppression / Stage 29 live provider file
+# (``Stage29_3NoMigrationEvidenceSource`` stays untouched + fail-closed). Like the Stage
+# 30.11.8 slice it feeds, Stage 30.11.9 is a CLEAN LEAF: it mirrors the Stage 30.11.8
+# evidence field names BY VALUE and imports NO Stage 21-29 / Stage 30.11.5 / Stage
+# 30.11.6 / Stage 30.11.7 / Stage 30.11.8 module (importing the Stage 30.11.8 slice
+# would break its committed leaf boundary test); the committed Stage 30.11.8 + Stage
+# 30.11.7 adapters are composed by the Stage 30.11.9 TEST only. NO Stage 30.11.10+ file
+# ships at Stage 30.11.9.
+
+
+STAGE30_11_9_MINOR_VERSION: str = "30.11.9"
+
+
+# The Stage 30.11.9 mint-keyed evidence-source schema version (mirrored BY VALUE by the
+# Stage 30.11.9 evidence-source-models module; a pin test cross-checks it matches).
+# Distinct from the Stage 30.11.8 confirmation schema version and every earlier Stage
+# 30.11 schema version.
+STAGE30_11_9_EVIDENCE_SOURCE_SCHEMA_VERSION: str = (
+    "stage30_11_9_v0_migration_evidence_source"
+)
+
+
+# The safe-shape source-stage provenance token the evidence source stamps onto its
+# proof tally (provenance only; names the slice, never a secret / host / transport
+# destination).
+STAGE30_11_9_SOURCE_STAGE: str = "30.11.9"
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_9_SOURCE_MODELS_BASENAME: str = (
+    "stage30_11_9_migration_evidence_source_models.py"
+)
+STAGE30_11_9_SOURCE_ADAPTER_BASENAME: str = (
+    "stage30_11_9_migration_evidence_source_adapter.py"
+)
+STAGE30_11_9_FAKE_SOURCE_PROOF_BASENAME: str = (
+    "stage30_11_9_fake_evidence_source_proof.py"
+)
+
+
+STAGE30_11_9_SOURCE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_9_migration_evidence_source_models"
+)
+STAGE30_11_9_SOURCE_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_9_migration_evidence_source_adapter"
+)
+STAGE30_11_9_FAKE_SOURCE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_9_fake_evidence_source_proof"
+)
+
+
+# The three NEW production files Stage 30.11.9 adds under ``PHX2/stage30/`` on top of
+# the already-allowed Stage 30.0..30.11.8 inventory. NO Stage 30.11.10+ file.
+STAGE30_11_9_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_9_SOURCE_MODELS_BASENAME,
+    STAGE30_11_9_SOURCE_ADAPTER_BASENAME,
+    STAGE30_11_9_FAKE_SOURCE_PROOF_BASENAME,
+)
+
+
+# The three production modules the Stage 30.11.9 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_9_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_9_SOURCE_MODELS_BASENAME,
+    STAGE30_11_9_SOURCE_ADAPTER_BASENAME,
+    STAGE30_11_9_FAKE_SOURCE_PROOF_BASENAME,
+)
+
+
+STAGE30_11_9_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_9_migration_evidence_source_models.py",
+    "test_stage_30_11_9_migration_evidence_source_adapter.py",
+    "test_stage_30_11_9_fake_evidence_source_proof.py",
+    "test_stage_30_11_9_composition.py",
+    "test_stage_30_11_9_boundaries.py",
+    "test_stage_30_11_9_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.9 production module must be in this stdlib
+# allowlist (the models need ``dataclasses`` / ``typing``; the adapter needs
+# ``typing``; the fake proof needs ``dataclasses`` / ``typing``). It admits NO ``re``
+# (Stage 30.11.9 never inspects the anchor SHAPE -- a cleanup would let a bad timestamp
+# pass), NO ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO ``sqlite3``, NO
+# ``zstd`` / compression, NO network module, and NO ``time`` / ``datetime`` (every
+# clock is injected, never read).
+STAGE30_11_9_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# Every PHX2 import in a Stage 30.11.9 production module must be one of these siblings:
+# the Stage 30.11.9 own evidence-source-models + source-adapter + fake-proof siblings.
+# This positive allowlist proves, by construction, that the Stage 30.11.9 PRODUCTION
+# slice is a clean LEAF -- it imports NO Stage 30.11.5 / Stage 30.11.6 / Stage 30.11.7 /
+# Stage 30.11.8 module (so those committed leaf boundary tests stay green; importing the
+# Stage 30.11.8 slice would break its "no existing stage30 file imports the slice"
+# test), NO Stage 21-29 (incl. the nested Stage 27 / 28 / 29 live candidate record,
+# Stage 28 suppression, Stage 29 live provider) / runtime orchestrator / renderer / real
+# transport / live provider module. The record provider is INJECTED, duck-typed; the
+# committed Stage 30.11.8 + Stage 30.11.7 adapters are composed by the Stage 30.11.9
+# TEST, never by a Stage 30.11.9 production module.
+STAGE30_11_9_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_9_SOURCE_MODELS_MODULE,
+    STAGE30_11_9_SOURCE_ADAPTER_MODULE,
+    STAGE30_11_9_FAKE_SOURCE_PROOF_MODULE,
+)
+
+
+# The committed Stage 30.11.8 confirmation + Stage 30.11.7 enrichment modules the Stage
+# 30.11.9 TEST (NOT a Stage 30.11.9 production module) composes to prove a bound record
+# clears the Stage 30.11.8 confirmation + the Stage 30.11.7 MIGRATION dimension (and a
+# missing / conflicting record still fails it, and a confirmed migration plus a missing
+# ATH still fails before transport). Declared here as literals (the manifest imports no
+# PHX2 module); they are NOT in the Stage 30.11.9 production PHX2 import allowlist -- the
+# production slice is a leaf.
+STAGE30_11_9_TEST_COMPOSES_STAGE30_11_8_CONFIRMATION_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_8_migration_confirmation_adapter"
+)
+STAGE30_11_9_TEST_COMPOSES_STAGE30_11_8_CONFIRMATION_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_8_migration_confirmation_models"
+)
+STAGE30_11_9_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_adapter"
+)
+STAGE30_11_9_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_models"
+)
+
+
+# The Stage 30.11.9 sanitized evidence record field names (mirrored BY VALUE from the
+# models module; a pin test cross-checks them). They EQUAL the Stage 30.11.8 migration
+# evidence field names BY VALUE, so the committed Stage 30.11.8 confirmation reads a
+# Stage 30.11.9 record duck-typed.
+STAGE30_11_9_MIGRATION_EVIDENCE_RECORD_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "measurement_status",
+    "migration_event_time_utc",
+    "warnings",
+    "redaction_status",
+    "source_ref",
+)
+STAGE30_11_9_EVIDENCE_SOURCE_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "probes_seen",
+    "evidence_returned",
+    "no_evidence",
+    "created_at_utc",
+)
+STAGE30_11_9_EVIDENCE_SOURCE_PROBE_OUTCOME_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "evidence_present",
+)
+STAGE30_11_9_EVIDENCE_SOURCE_RUN_RESULT_FIELDS: Tuple[str, ...] = (
+    "outcomes",
+    "summary",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.11.9 fake evidence-source proof counts over the
+# deterministic seven-mint default probe set: seven probed, exactly TWO bound evidence
+# (``mint-present`` -- one matching record; ``mint-dup`` -- a value-identical duplicate
+# collapsed to one), exactly FIVE fail closed (absent / wrong-mint / conflicting /
+# raising / blank). No real provider binding; no private send; no transport reached.
+STAGE30_11_9_EXPECTED_PROBES_SEEN: int = 7
+STAGE30_11_9_EXPECTED_EVIDENCE_RETURNED: int = 2
+STAGE30_11_9_EXPECTED_NO_EVIDENCE: int = 5
+STAGE30_11_9_EXPECTED_PRESENT_TOKEN_MINT: str = "mint-present"
+
+
+# After Stage 30.11.9 (the mint-keyed migration evidence-source adapter) the dip-gated
+# private dispatch chain finally has a committed, tested SOURCE the Stage 30.11.8
+# confirmation seam can bind real recorded evidence through. The next allowed step is
+# NOT a further Stage 30.11.<N> implementation slice: it is the controlled dip-filtered
+# private compact live ceremony retry, which remains a SEPARATE, explicitly
+# operator-authorized step (NOT run here, NOT in this stage), now wiring a real Stage
+# 29.5 evidence reading into the injected record-provider seam via an out-of-repo
+# operator wrapper. The Stage 30.11.0 family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE``
+# stays pinned at ``30.11.1``; this 30.11.9-scoped pointer names the operator-authorized
+# ceremony retry as the next step. NO Stage 30.11.10+ file ships at Stage 30.11.9.
+STAGE30_11_9_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_9_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony retry (a SEPARATE, "
+    "explicitly operator-authorized step run against committed + green code; NOT "
+    "run here -- Stage 30.11.9 supplies the mint-keyed evidence source the Stage "
+    "30.11.8 confirmation seam was missing, so the next ceremony attempt can bind a "
+    "real Stage 29.5 evidence reading into the injected record-provider seam and "
+    "clear the MIGRATION dimension when real evidence confirms, while a candidate "
+    "with missing / conflicting / unknown evidence still fails closed at migration)"
+)
+
+
+# The surfaces the Stage 30.11.9 evidence-source slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport needle
+# forms. The slice ONLY routes a sanitized record by mint (over an INJECTED provider);
+# it must not reach any surface below, must NOT fabricate migration evidence, and must
+# NOT run the controlled live ceremony.
+STAGE30_11_9_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real provider binding",
+    "real migration provider call",
+    "real transport call",
+    "real private send",
+    "private send",
+    "real dispatch reservation",
+    "old ungated dispatch invoked",
+    "ungated Stage 29.3 send path reused directly",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "new runtime gate seam",
+    "new private sink adapter",
+    "new dip gate",
+    "fabricate migration evidence",
+    "fabricate measurement_status",
+    "fabricate migration timestamp",
+    "normalize a non-trailing-Z anchor into a passing one",
+    "invent a redaction-safe claim",
+    "promote an UNKNOWN reading",
+    "treat UNKNOWN migration as eligible",
+    "treat missing migration evidence as eligible",
+    "treat conflicting migration evidence as eligible",
+    "inherit another mint migration evidence",
+    "decide the migration verdict in the source",
+    "loosen Stage 30.11.8 confirmation",
+    "modify Stage 30.11.8 confirmation",
+    "loosen Stage 30.11.7 enrichment",
+    "modify Stage 30.11.7 enrichment",
+    "modify Stage 29.3 no-migration-evidence source",
+    "bypass Stage 30.11.8 confirmation",
+    "bypass Stage 30.11.7 enrichment",
+    "bypass Stage 30.11.6 harvest projection",
+    "bypass Stage 30.11.5 bounded runner",
+    "bypass Stage 30.9.3 dip gate",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 27 / 28 / 29 candidate-record import",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "Stage 30.11.5 / Stage 30.11.6 / Stage 30.11.7 / Stage 30.11.8 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.10+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony retry remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.9 implements no part of
+# it; it only supplies -- with fakes -- the mint-keyed evidence source, so the next
+# ceremony attempt composes committed + tested code for the evidence source as well).
+STAGE30_11_9_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_9_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.9 is the offline mint-keyed migration evidence-source adapter only; "
+    "the controlled dip-filtered private compact live ceremony retry remains a "
+    "separate, explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -4133,4 +4450,43 @@ __all__ = (
     "STAGE30_11_8_FORBIDDEN_SURFACES",
     "STAGE30_11_8_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_8_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.9 mint-keyed migration evidence-source adapter ----
+    # Minor version + evidence-source schema identity.
+    "STAGE30_11_9_MINOR_VERSION",
+    "STAGE30_11_9_EVIDENCE_SOURCE_SCHEMA_VERSION",
+    "STAGE30_11_9_SOURCE_STAGE",
+    # Basenames + module paths.
+    "STAGE30_11_9_SOURCE_MODELS_BASENAME",
+    "STAGE30_11_9_SOURCE_ADAPTER_BASENAME",
+    "STAGE30_11_9_FAKE_SOURCE_PROOF_BASENAME",
+    "STAGE30_11_9_SOURCE_MODELS_MODULE",
+    "STAGE30_11_9_SOURCE_ADAPTER_MODULE",
+    "STAGE30_11_9_FAKE_SOURCE_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_9_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_9_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_9_TEST_BASENAMES",
+    # Import allowlists + the test-composed committed Stage 30.11.8 / 30.11.7 modules.
+    "STAGE30_11_9_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_9_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_9_TEST_COMPOSES_STAGE30_11_8_CONFIRMATION_ADAPTER_MODULE",
+    "STAGE30_11_9_TEST_COMPOSES_STAGE30_11_8_CONFIRMATION_MODELS_MODULE",
+    "STAGE30_11_9_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE",
+    "STAGE30_11_9_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_MODELS_MODULE",
+    # Evidence-record + summary + probe-outcome + run-result field tuples.
+    "STAGE30_11_9_MIGRATION_EVIDENCE_RECORD_FIELDS",
+    "STAGE30_11_9_EVIDENCE_SOURCE_SUMMARY_FIELDS",
+    "STAGE30_11_9_EVIDENCE_SOURCE_PROBE_OUTCOME_FIELDS",
+    "STAGE30_11_9_EVIDENCE_SOURCE_RUN_RESULT_FIELDS",
+    # Expected proof counts.
+    "STAGE30_11_9_EXPECTED_PROBES_SEEN",
+    "STAGE30_11_9_EXPECTED_EVIDENCE_RETURNED",
+    "STAGE30_11_9_EXPECTED_NO_EVIDENCE",
+    "STAGE30_11_9_EXPECTED_PRESENT_TOKEN_MINT",
+    # Next allowed step + forbidden surfaces + live ceremony note.
+    "STAGE30_11_9_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_9_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_9_FORBIDDEN_SURFACES",
+    "STAGE30_11_9_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_9_LIVE_CEREMONY_NOTE",
 )
