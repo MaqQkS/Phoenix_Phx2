@@ -541,6 +541,16 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_7_candidate_enrichment_models.py",
         "stage30_11_7_candidate_enrichment_adapter.py",
         "stage30_11_7_fake_enrichment_proof.py",
+        # Stage 30.11.8 narrow migration-confirmation bridge additions (confirmation
+        # models, fail-closed confirmation adapter, fake confirmation proof). The
+        # adapter maps an injected per-mint migration evidence onto a confirmed
+        # verdict ONLY for a bound, redaction-safe, on-chain COMPLETE, fresh,
+        # valid-anchor reading, failing closed (with a precise reason) otherwise and
+        # never fabricating evidence. A clean leaf: imports only its own three
+        # siblings. Fakes / offline only.
+        "stage30_11_8_migration_confirmation_models.py",
+        "stage30_11_8_migration_confirmation_adapter.py",
+        "stage30_11_8_fake_confirmation_proof.py",
     }
 )
 
@@ -799,6 +809,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_7_fake_enrichment_proof.py",
         "test_stage_30_11_7_boundaries.py",
         "test_stage_30_11_7_manifest.py",
+        # Stage 30.11.8 narrow migration-confirmation bridge test additions
+        # (confirmation models, confirmation adapter + Stage 30.11.7 composition,
+        # fake confirmation proof, boundaries, manifest). Fakes / offline only.
+        "test_stage_30_11_8_migration_confirmation_models.py",
+        "test_stage_30_11_8_migration_confirmation_adapter.py",
+        "test_stage_30_11_8_fake_confirmation_proof.py",
+        "test_stage_30_11_8_boundaries.py",
+        "test_stage_30_11_8_manifest.py",
     }
 )
 

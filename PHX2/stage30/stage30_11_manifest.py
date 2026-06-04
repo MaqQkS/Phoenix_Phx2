@@ -3277,6 +3277,378 @@ STAGE30_11_7_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.8 -- narrow real migration-confirmation bridge (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.8 is the narrow CONFIRMATION bridge for the Stage 30.11.7 enrichment
+# ``migration_resolver`` seam. The controlled live ceremony retry confirmed the
+# committed live path opens, harvests a real candidate, and clears market-context +
+# tier enrichment -- then fails the candidate CLOSED at the MIGRATION dimension
+# (``UNCONFIRMED_MIGRATION``), because the only committed live migration source
+# (``Stage29_3NoMigrationEvidenceSource``) returns an UNKNOWN snapshot for every
+# mint, so nothing committed produces a ``confirmed is True`` result the Stage
+# 30.11.7 adapter can clear on. Stage 30.11.8 adds three NEW production files -- the
+# passive confirmation models (a sanitized per-mint migration-evidence carrier + a
+# ``confirmed``-bearing resolution whose ``confirmed`` / ``source_ref`` field names
+# equal the Stage 30.11.7 migration-resolver result fields BY VALUE + the closed-set
+# confirmation decision / reason vocabularies + the proof summary / run-result), the
+# pure confirmation adapter (which, per candidate, reads the base ``token_mint``,
+# looks up THAT mint's evidence from an INJECTED evidence source, and confirms ONLY a
+# bound, redaction-safe, on-chain ``COMPLETE``, fresh, valid-ISO-8601-UTC-anchor
+# reading -- failing closed with a PRECISE reason on every missing / mismatched /
+# unsafe / unknown / partial / no-migration / contradictory / invalid / stale /
+# mis-anchored reading, and exposing :func:`build_migration_resolver`, the drop-in
+# for the Stage 30.11.7 seam), and the offline fake confirmation proof (which runs
+# the resolver over a deterministic eleven-base fake source: one confirms, ten fail
+# closed on ten DISTINCT reasons). It ships NO Stage 30.11.7 enrichment edit, NO
+# runtime wiring, NO real dispatch sink, NO dispatch reservation, NO live provider
+# call, NO Discord send, NO env read, NO wall-clock read (every timestamp is injected
+# / evidence-carried), NO daemon / background loop, and edits NO existing live runner
+# / orchestrator / transport / Stage 28 suppression / Stage 29 live provider file
+# (``Stage29_3NoMigrationEvidenceSource`` stays untouched + fail-closed). Unlike the
+# committed Stage 30.11 RUNTIME wiring slices, Stage 30.11.8 is a CLEAN LEAF: it
+# mirrors the Stage 29.5 measurement-status tokens + the Stage 30.11.7
+# migration-resolver field names BY VALUE and imports NO Stage 21-29 / Stage 30.11.5
+# / Stage 30.11.6 / Stage 30.11.7 module; the committed Stage 30.11.7 enrichment is
+# composed by the Stage 30.11.8 TEST only. NO Stage 30.11.9+ file ships at Stage
+# 30.11.8.
+
+
+STAGE30_11_8_MINOR_VERSION: str = "30.11.8"
+
+
+# The Stage 30.11.8 narrow migration-confirmation bridge schema version (mirrored BY
+# VALUE by the Stage 30.11.8 confirmation-models module; a pin test cross-checks it
+# matches). Distinct from the Stage 30.11.7 enrichment schema version and every
+# earlier Stage 30.11 schema version.
+STAGE30_11_8_CONFIRMATION_SCHEMA_VERSION: str = (
+    "stage30_11_8_v0_migration_confirmation"
+)
+
+
+# The safe-shape source-stage provenance token the confirmation bridge stamps onto
+# its results (provenance only; names the slice, never a secret / host / transport
+# destination).
+STAGE30_11_8_SOURCE_STAGE: str = "30.11.8"
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_8_CONFIRMATION_MODELS_BASENAME: str = (
+    "stage30_11_8_migration_confirmation_models.py"
+)
+STAGE30_11_8_CONFIRMATION_ADAPTER_BASENAME: str = (
+    "stage30_11_8_migration_confirmation_adapter.py"
+)
+STAGE30_11_8_FAKE_CONFIRMATION_PROOF_BASENAME: str = (
+    "stage30_11_8_fake_confirmation_proof.py"
+)
+
+
+STAGE30_11_8_CONFIRMATION_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_8_migration_confirmation_models"
+)
+STAGE30_11_8_CONFIRMATION_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_8_migration_confirmation_adapter"
+)
+STAGE30_11_8_FAKE_CONFIRMATION_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_8_fake_confirmation_proof"
+)
+
+
+# The three NEW production files Stage 30.11.8 adds under ``PHX2/stage30/`` on top of
+# the already-allowed Stage 30.0..30.11.7 inventory. NO Stage 30.11.9+ file.
+STAGE30_11_8_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_8_CONFIRMATION_MODELS_BASENAME,
+    STAGE30_11_8_CONFIRMATION_ADAPTER_BASENAME,
+    STAGE30_11_8_FAKE_CONFIRMATION_PROOF_BASENAME,
+)
+
+
+# The three production modules the Stage 30.11.8 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_8_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_8_CONFIRMATION_MODELS_BASENAME,
+    STAGE30_11_8_CONFIRMATION_ADAPTER_BASENAME,
+    STAGE30_11_8_FAKE_CONFIRMATION_PROOF_BASENAME,
+)
+
+
+STAGE30_11_8_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_8_migration_confirmation_models.py",
+    "test_stage_30_11_8_migration_confirmation_adapter.py",
+    "test_stage_30_11_8_fake_confirmation_proof.py",
+    "test_stage_30_11_8_boundaries.py",
+    "test_stage_30_11_8_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.8 production module must be in this stdlib
+# allowlist (the models need ``dataclasses`` / ``typing``; the adapter needs ``re``
+# / ``typing``; the fake proof needs ``dataclasses`` / ``typing``). ``re`` is
+# admitted ONLY to mirror the committed Stage 30.5 ``is_safe_iso8601_utc``
+# migration-anchor pattern BY VALUE. It admits NO ``os`` (so NO ``os.environ`` /
+# ``os.getenv`` env read), NO ``sqlite3``, NO ``zstd`` / compression, NO network
+# module, and NO ``time`` / ``datetime`` (every clock is injected, never read).
+STAGE30_11_8_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "re",
+)
+
+
+# Every PHX2 import in a Stage 30.11.8 production module must be one of these
+# siblings: the Stage 30.11.8 own confirmation-models + confirmation-adapter +
+# fake-proof siblings. This positive allowlist proves, by construction, that the
+# Stage 30.11.8 PRODUCTION slice is a clean LEAF -- it imports NO Stage 30.11.5 /
+# Stage 30.11.6 / Stage 30.11.7 module (so those committed leaf boundary tests stay
+# green), NO Stage 21-29 (incl. the nested Stage 27 / 28 / 29 live candidate record,
+# Stage 28 suppression, Stage 29 live provider) / runtime orchestrator / renderer /
+# real transport / Discord / live provider module. The evidence source is INJECTED,
+# duck-typed; the committed Stage 30.11.7 enrichment is composed by the Stage 30.11.8
+# TEST, never by a Stage 30.11.8 production module.
+STAGE30_11_8_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_8_CONFIRMATION_MODELS_MODULE,
+    STAGE30_11_8_CONFIRMATION_ADAPTER_MODULE,
+    STAGE30_11_8_FAKE_CONFIRMATION_PROOF_MODULE,
+)
+
+
+# The committed Stage 30.11.7 enrichment modules the Stage 30.11.8 TEST (NOT a Stage
+# 30.11.8 production module) composes to prove a confirmed verdict clears the Stage
+# 30.11.7 MIGRATION dimension (and an UNKNOWN verdict still fails it, and a confirmed
+# verdict plus a missing ATH still fails before transport). Declared here as literals
+# (the manifest imports no PHX2 module); they are NOT in the Stage 30.11.8 production
+# PHX2 import allowlist -- the production slice is a leaf.
+STAGE30_11_8_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_adapter"
+)
+STAGE30_11_8_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_models"
+)
+
+
+# The Stage 29.5 private-ping measurement-status tokens the confirmation mirrors BY
+# VALUE (mirrored from the Stage 30.11.8 confirmation-models module; a pin test
+# cross-checks them). ``COMPLETE`` is the ONLY status that can confirm; every other
+# recognized status, and any unrecognized / missing token, fails closed.
+STAGE30_11_8_MEASUREMENT_STATUS_COMPLETE: str = "COMPLETE"
+STAGE30_11_8_MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT: str = (
+    "PARTIAL_MIGRATION_PRESENT"
+)
+STAGE30_11_8_MEASUREMENT_STATUS_MISSING_MIGRATION: str = "MISSING_MIGRATION"
+STAGE30_11_8_MEASUREMENT_STATUS_INVALID_MIGRATION: str = "INVALID_MIGRATION"
+STAGE30_11_8_MEASUREMENT_STATUS_CONFLICTING_MIGRATION: str = (
+    "CONFLICTING_MIGRATION"
+)
+STAGE30_11_8_RECOGNIZED_MEASUREMENT_STATUS_VALUES: Tuple[str, ...] = (
+    STAGE30_11_8_MEASUREMENT_STATUS_COMPLETE,
+    STAGE30_11_8_MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT,
+    STAGE30_11_8_MEASUREMENT_STATUS_MISSING_MIGRATION,
+    STAGE30_11_8_MEASUREMENT_STATUS_INVALID_MIGRATION,
+    STAGE30_11_8_MEASUREMENT_STATUS_CONFLICTING_MIGRATION,
+)
+STAGE30_11_8_CONFIRMING_MEASUREMENT_STATUS: str = "COMPLETE"
+STAGE30_11_8_MIGRATION_WARNING_STALE: str = "MIGRATION_STALE"
+STAGE30_11_8_REDACTION_STATUS_SAFE: str = "SAFE"
+
+
+# Closed-set per-candidate confirmation decision tokens (mirrored BY VALUE from the
+# Stage 30.11.8 confirmation-models module). ``CONFIRMED_MIGRATION`` is the only
+# decision that carries a ``confirmed=True`` resolution; ``UNCONFIRMED_MIGRATION``
+# carries ``confirmed=False`` and never becomes eligible.
+STAGE30_11_8_CONFIRMATION_DECISIONS: Tuple[str, ...] = (
+    "CONFIRMED_MIGRATION",
+    "UNCONFIRMED_MIGRATION",
+)
+STAGE30_11_8_CONFIRMATION_PASS_DECISION: str = "CONFIRMED_MIGRATION"
+
+
+# Closed-set per-candidate confirmation reason tokens (mirrored BY VALUE from the
+# models module). ``CONFIRMED_ON_CHAIN_EVENT`` names a confirmed migration; every
+# other reason names the FIRST failing check's PRECISE fail-closed cause (a
+# contradictory / invalid / partial / stale / missing reading is NEVER collapsed
+# into a single silent unknown).
+STAGE30_11_8_CONFIRMATION_REASONS: Tuple[str, ...] = (
+    "CONFIRMED_ON_CHAIN_EVENT",
+    "BLANK_CANDIDATE_MINT",
+    "MISSING_MIGRATION_EVIDENCE",
+    "EVIDENCE_MINT_MISMATCH",
+    "REDACTION_UNSAFE",
+    "UNKNOWN_MIGRATION",
+    "PARTIAL_MIGRATION_UNVERIFIED",
+    "EVIDENCE_REPORTS_NO_MIGRATION",
+    "CONTRADICTORY_MIGRATION_EVIDENCE",
+    "INVALID_MIGRATION_EVIDENCE",
+    "STALE_MIGRATION_EVIDENCE",
+    "INVALID_MIGRATION_ANCHOR",
+)
+STAGE30_11_8_CONFIRMATION_PASS_REASON: str = "CONFIRMED_ON_CHAIN_EVENT"
+
+
+# The Stage 30.11.8 evidence / resolution / summary / run-result field names
+# (mirrored BY VALUE from the models module; a pin test cross-checks them). The
+# resolution ``confirmed`` / ``source_ref`` fields equal the Stage 30.11.7
+# migration-resolver result fields BY VALUE. ``created_at_utc`` is caller-injected,
+# never a wall-clock read; NONE is a secret, a raw payload, a host, or a transport
+# destination.
+STAGE30_11_8_MIGRATION_EVIDENCE_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "measurement_status",
+    "migration_event_time_utc",
+    "warnings",
+    "redaction_status",
+    "source_ref",
+)
+STAGE30_11_8_MIGRATION_RESOLUTION_FIELDS: Tuple[str, ...] = (
+    "confirmed",
+    "decision",
+    "reason",
+    "token_mint",
+    "migration_event_time_utc",
+    "source_ref",
+)
+STAGE30_11_8_CONFIRMATION_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "bases_seen",
+    "confirmed",
+    "unconfirmed",
+    "created_at_utc",
+)
+STAGE30_11_8_CONFIRMATION_RUN_RESULT_FIELDS: Tuple[str, ...] = (
+    "outcomes",
+    "summary",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.11.8 fake confirmation proof counts over the
+# deterministic eleven-base default fake source: eleven bases seen, exactly ONE
+# confirmed (``mint-confirmed`` -- a bound, redaction-safe, on-chain COMPLETE, fresh,
+# valid-anchor reading), exactly TEN unconfirmed (ten DISTINCT fail-closed reasons).
+# No real evidence-source binding; no Discord sent; no transport reached.
+STAGE30_11_8_EXPECTED_BASES_SEEN: int = 11
+STAGE30_11_8_EXPECTED_CONFIRMED: int = 1
+STAGE30_11_8_EXPECTED_UNCONFIRMED: int = 10
+STAGE30_11_8_EXPECTED_CONFIRMED_TOKEN_MINT: str = "mint-confirmed"
+
+
+# After Stage 30.11.8 (the narrow migration-confirmation bridge) the dip-gated
+# private dispatch chain now has an evidence-based migration confirmation source the
+# Stage 30.11.7 enrichment seam can clear on (when real evidence confirms). The next
+# allowed step is NOT a further Stage 30.11.<N> implementation slice: it is the
+# controlled dip-filtered private compact live ceremony retry, which remains a
+# SEPARATE, explicitly operator-authorized step (NOT run here, NOT in this stage),
+# now wiring a real Stage 29.5 / Stage 30.5 evidence source into the injected source
+# seam via an out-of-repo operator wrapper. The Stage 30.11.0 family pointer
+# ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at ``30.11.1``; this 30.11.8-scoped
+# pointer names the operator-authorized ceremony retry as the next step. NO Stage
+# 30.11.9+ file ships at Stage 30.11.8.
+STAGE30_11_8_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_8_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony retry (a SEPARATE, "
+    "explicitly operator-authorized step run against committed + green code; NOT "
+    "run here -- Stage 30.11.8 replaces the always-UNKNOWN migration resolver with "
+    "an evidence-based confirmation source, so the next ceremony attempt can clear "
+    "the MIGRATION dimension when a real Stage 29.5 / Stage 30.5 evidence source is "
+    "wired into the injected source seam, while a candidate with UNKNOWN / missing "
+    "evidence still fails closed at migration)"
+)
+
+
+# The surfaces the Stage 30.11.8 migration-confirmation slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport needle
+# forms. The slice ONLY confirms a migration verdict (via an INJECTED evidence
+# source); it must not reach any surface below, must NOT fabricate migration
+# evidence, and must NOT run the controlled live ceremony.
+STAGE30_11_8_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real evidence-source binding",
+    "real migration provider call",
+    "real transport call",
+    "real Discord send",
+    "Discord send",
+    "real private webhook send",
+    "real dispatch reservation",
+    "old ungated dispatch invoked",
+    "ungated Stage 29.3 send path reused directly",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "new runtime gate seam",
+    "new private sink adapter",
+    "new dip gate",
+    "fabricate migration evidence",
+    "fabricate migration_status",
+    "fabricate migration timestamp",
+    "treat UNKNOWN migration as eligible",
+    "treat missing migration evidence as eligible",
+    "treat contradictory migration evidence as eligible",
+    "treat invalid migration evidence as eligible",
+    "treat stale migration evidence as eligible",
+    "inherit another mint migration evidence",
+    "collapse contradictory or invalid evidence into silent unknown",
+    "loosen Stage 30.11.7 enrichment",
+    "modify Stage 30.11.7 enrichment",
+    "modify Stage 29.3 no-migration-evidence source",
+    "bypass Stage 30.11.7 enrichment",
+    "bypass Stage 30.11.6 harvest projection",
+    "bypass Stage 30.11.5 bounded runner",
+    "bypass Stage 30.9.3 dip gate",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 27 / 28 / 29 candidate-record import",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "Stage 30.11.5 / Stage 30.11.6 / Stage 30.11.7 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.9+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony retry remains a
+# SEPARATE, explicitly operator-authorized step (Stage 30.11.8 implements no part of
+# it; it only confirms -- with fakes -- a migration verdict, so the next ceremony
+# attempt composes committed + tested code for the migration confirmation as well).
+STAGE30_11_8_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_8_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.8 is the offline narrow migration-confirmation bridge only; the "
+    "controlled dip-filtered private compact live ceremony retry remains a "
+    "separate, explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -3709,4 +4081,56 @@ __all__ = (
     "STAGE30_11_7_FORBIDDEN_SURFACES",
     "STAGE30_11_7_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_7_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.8 narrow migration-confirmation bridge ----
+    # Minor version + confirmation schema identity.
+    "STAGE30_11_8_MINOR_VERSION",
+    "STAGE30_11_8_CONFIRMATION_SCHEMA_VERSION",
+    "STAGE30_11_8_SOURCE_STAGE",
+    # Basenames + module paths.
+    "STAGE30_11_8_CONFIRMATION_MODELS_BASENAME",
+    "STAGE30_11_8_CONFIRMATION_ADAPTER_BASENAME",
+    "STAGE30_11_8_FAKE_CONFIRMATION_PROOF_BASENAME",
+    "STAGE30_11_8_CONFIRMATION_MODELS_MODULE",
+    "STAGE30_11_8_CONFIRMATION_ADAPTER_MODULE",
+    "STAGE30_11_8_FAKE_CONFIRMATION_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_8_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_8_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_8_TEST_BASENAMES",
+    # Import allowlists + the test-composed committed Stage 30.11.7 modules.
+    "STAGE30_11_8_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_8_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_8_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE",
+    "STAGE30_11_8_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_MODELS_MODULE",
+    # Measurement-status vocabulary (mirrored BY VALUE).
+    "STAGE30_11_8_MEASUREMENT_STATUS_COMPLETE",
+    "STAGE30_11_8_MEASUREMENT_STATUS_PARTIAL_MIGRATION_PRESENT",
+    "STAGE30_11_8_MEASUREMENT_STATUS_MISSING_MIGRATION",
+    "STAGE30_11_8_MEASUREMENT_STATUS_INVALID_MIGRATION",
+    "STAGE30_11_8_MEASUREMENT_STATUS_CONFLICTING_MIGRATION",
+    "STAGE30_11_8_RECOGNIZED_MEASUREMENT_STATUS_VALUES",
+    "STAGE30_11_8_CONFIRMING_MEASUREMENT_STATUS",
+    "STAGE30_11_8_MIGRATION_WARNING_STALE",
+    "STAGE30_11_8_REDACTION_STATUS_SAFE",
+    # Confirmation decisions + reasons.
+    "STAGE30_11_8_CONFIRMATION_DECISIONS",
+    "STAGE30_11_8_CONFIRMATION_PASS_DECISION",
+    "STAGE30_11_8_CONFIRMATION_REASONS",
+    "STAGE30_11_8_CONFIRMATION_PASS_REASON",
+    # Evidence + resolution + summary + run-result field tuples.
+    "STAGE30_11_8_MIGRATION_EVIDENCE_FIELDS",
+    "STAGE30_11_8_MIGRATION_RESOLUTION_FIELDS",
+    "STAGE30_11_8_CONFIRMATION_SUMMARY_FIELDS",
+    "STAGE30_11_8_CONFIRMATION_RUN_RESULT_FIELDS",
+    # Expected proof counts.
+    "STAGE30_11_8_EXPECTED_BASES_SEEN",
+    "STAGE30_11_8_EXPECTED_CONFIRMED",
+    "STAGE30_11_8_EXPECTED_UNCONFIRMED",
+    "STAGE30_11_8_EXPECTED_CONFIRMED_TOKEN_MINT",
+    # Next allowed step + forbidden surfaces + live ceremony note.
+    "STAGE30_11_8_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_8_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_8_FORBIDDEN_SURFACES",
+    "STAGE30_11_8_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_8_LIVE_CEREMONY_NOTE",
 )

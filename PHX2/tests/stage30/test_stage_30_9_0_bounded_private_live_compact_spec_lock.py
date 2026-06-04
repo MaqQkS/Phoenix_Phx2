@@ -321,6 +321,15 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_7_fake_enrichment_proof.py",
         "test_stage_30_11_7_boundaries.py",
         "test_stage_30_11_7_manifest.py",
+        # Stage 30.11.8 narrow migration-confirmation bridge slice.
+        "stage30_11_8_migration_confirmation_models.py",
+        "stage30_11_8_migration_confirmation_adapter.py",
+        "stage30_11_8_fake_confirmation_proof.py",
+        "test_stage_30_11_8_migration_confirmation_models.py",
+        "test_stage_30_11_8_migration_confirmation_adapter.py",
+        "test_stage_30_11_8_fake_confirmation_proof.py",
+        "test_stage_30_11_8_boundaries.py",
+        "test_stage_30_11_8_manifest.py",
     }
 )
 
