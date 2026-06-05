@@ -26,6 +26,19 @@ _EXPECTED_DOC_BASENAMES: tuple[str, ...] = (
 )
 
 
+# Stage 29.5.7 (raw Helius migration evidence producer) ships exactly these four
+# sibling production modules under PHX2/stage29/. They are admitted by EXACT
+# basename below -- NOT by a broad ``startswith("stage29_5_7_")`` prefix, so a
+# stray fifth Stage 29.5.7 file (or any future Stage 29.5.8+ / Stage 30 / Stage 31
+# module) is NOT silently admitted and trips the inventory cross-check.
+_STAGE_29_5_7_PRODUCTION_BASENAMES: tuple[str, ...] = (
+    "stage29_5_7_helius_raw_migration_models.py",
+    "stage29_5_7_helius_raw_migration_normalizer.py",
+    "stage29_5_7_live_migration_evidence_producer.py",
+    "stage29_5_7_manifest.py",
+)
+
+
 _EXPECTED_TEST_BASENAMES: tuple[str, ...] = (
     "test_stage_29_5_migration_models.py",
     "test_stage_29_5_helius_ws_adapter.py",
@@ -264,6 +277,8 @@ def test_manifest_actual_inventory_matches_stage29_root():
         and not entry.name.startswith("stage29_5_4_")
         and not entry.name.startswith("stage29_5_5_")
         and not entry.name.startswith("stage29_5_6_")
+        # Stage 29.5.7 admitted by EXACT basename, never a broad prefix.
+        and entry.name not in _STAGE_29_5_7_PRODUCTION_BASENAMES
     }
     expected = set(
         stage29_5_manifest.STAGE29_5_PRODUCTION_PY_BASENAMES

@@ -341,6 +341,22 @@ _STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_PROD_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.7 Helius raw migration evidence producer/normalizer
+# (authorized 2026-06-04). Narrow amendment widens the Stage-29
+# allowlist to admit the Stage 29.5.7 production + test inventory.
+_STAGE_29_5_7_HELIUS_RAW_MIGRATION_ALLOWED_PROD_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "STAGE_29_5_7_HELIUS_RAW_MIGRATION_RUNBOOK.md",
+        "stage29_5_7_helius_raw_migration_models.py",
+        "stage29_5_7_helius_raw_migration_normalizer.py",
+        "stage29_5_7_live_migration_evidence_producer.py",
+        "stage29_5_7_manifest.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_PROD_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_PROD_BASENAMES
@@ -354,6 +370,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_PROD_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_PROD_BASENAMES
     | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_PROD_BASENAMES
     | _STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_PROD_BASENAMES
+    | _STAGE_29_5_7_HELIUS_RAW_MIGRATION_ALLOWED_PROD_BASENAMES
 )
 
 
@@ -567,6 +584,26 @@ _STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_TEST_BASENAMES: frozenset[
 )
 
 
+# Stage 29.5.7 Helius raw migration evidence producer/normalizer
+# (authorized 2026-06-04). Narrow amendment widens the Stage-29
+# allowlist to admit the Stage 29.5.7 production + test inventory.
+_STAGE_29_5_7_HELIUS_RAW_MIGRATION_ALLOWED_TEST_BASENAMES: frozenset[
+    str
+] = frozenset(
+    {
+        "test_stage_29_5_7_helius_raw_migration_models.py",
+        "test_stage_29_5_7_helius_raw_migration_normalizer.py",
+        "test_stage_29_5_7_live_migration_evidence_producer.py",
+        "test_stage_29_5_7_composition.py",
+        "test_stage_29_5_7_vendored_idl.py",
+        "test_stage_29_5_7_boundaries.py",
+        "test_stage_29_5_7_manifest.py",
+        "test_stage_29_5_7_fake_evidence_proof.py",
+        "_stage_29_5_7_helius_fixtures.py",
+    }
+)
+
+
 _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     _STAGE_29_0_ALLOWED_TEST_BASENAMES
     | _STAGE_29_1_PUMPSWAP_ALLOWED_TEST_BASENAMES
@@ -580,6 +617,7 @@ _STAGE_29_0_PLUS_29_1_ALLOWED_TEST_BASENAMES: frozenset[str] = (
     | _STAGE_29_5_5_PRIVATE_DISCORD_RENDERING_ALLOWED_TEST_BASENAMES
     | _STAGE_29_5_6_PRIVATE_PING_MIGRATION_CONTEXT_ALLOWED_TEST_BASENAMES
     | _STAGE_29_6_BOUNDED_LIVE_PROOF_ALLOWED_TEST_BASENAMES
+    | _STAGE_29_5_7_HELIUS_RAW_MIGRATION_ALLOWED_TEST_BASENAMES
 )
 
 

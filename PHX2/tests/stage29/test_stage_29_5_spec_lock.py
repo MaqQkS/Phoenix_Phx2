@@ -48,6 +48,19 @@ RUNBOOK_PATH: Path = (
 )
 
 
+# Stage 29.5.7 (raw Helius migration evidence producer) ships exactly these four
+# sibling production modules under PHX2/stage29/. They are admitted by EXACT
+# basename below -- NOT by a broad ``startswith("stage29_5_7_")`` prefix, so a
+# stray fifth Stage 29.5.7 file (or any future Stage 29.5.8+ / Stage 30 / Stage 31
+# module) is NOT silently admitted and trips the Stage 29.5 inventory pin.
+_STAGE_29_5_7_PRODUCTION_BASENAMES: tuple[str, ...] = (
+    "stage29_5_7_helius_raw_migration_models.py",
+    "stage29_5_7_helius_raw_migration_normalizer.py",
+    "stage29_5_7_live_migration_evidence_producer.py",
+    "stage29_5_7_manifest.py",
+)
+
+
 # Canonical Stage 29.5 mission sentence. Must appear verbatim
 # in the runbook; future Stage 29.5 patches must preserve it.
 STAGE_29_5_MISSION_SENTENCE: str = (
@@ -609,6 +622,8 @@ def test_only_planned_stage29_5_py_modules_exist_at_29_5_1():
             and not name.startswith("stage29_5_4_")
             and not name.startswith("stage29_5_5_")
             and not name.startswith("stage29_5_6_")
+            # Stage 29.5.7 admitted by EXACT basename, never a broad prefix.
+            and name not in _STAGE_29_5_7_PRODUCTION_BASENAMES
         ):
             actual.add(name)
     expected = set(_STAGE_29_5_1_PLANNED_PROD_BASENAMES)
