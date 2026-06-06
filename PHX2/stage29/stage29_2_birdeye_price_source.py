@@ -43,6 +43,7 @@ transport / readiness. It does NOT import:
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Optional
 
 from PHX2.stage27.price_ath_context_contracts import (
@@ -271,11 +272,14 @@ def _format_decimal(value: object) -> str:
     if isinstance(value, int) and not isinstance(value, bool):
         return str(value)
     if isinstance(value, float):
-        # ``repr`` on a float gives the shortest round-tripping
-        # decimal representation; Stage 29.2 prefers this over
-        # ``str`` because ``str`` may emit scientific notation
-        # for tiny values.
-        text = format(value, "f")
+        # Preserve FULL precision for sub-micro values. ``format(value, "f")``
+        # on a float defaults to 6 decimal places, so a tiny Birdeye price such
+        # as ``3.9914185551409724e-07`` collapses to ``"0.000000"`` -> ``"0.0"``
+        # (the Stage 30.11.10 real-data proof root cause). ``Decimal(repr(value))``
+        # takes the shortest round-tripping decimal for the float; ``format(...,
+        # "f")`` on a ``Decimal`` renders PLAIN fixed-point text (never
+        # scientific notation) at FULL precision, with no 6-decimal default.
+        text = format(Decimal(repr(value)), "f")
         # Trim trailing zeros after a decimal point, but keep at
         # least one digit after the point if a point exists.
         if "." in text:

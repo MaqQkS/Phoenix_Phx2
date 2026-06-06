@@ -335,7 +335,14 @@ def _format_decimal(value: object) -> str:
     if isinstance(value, int) and not isinstance(value, bool):
         return str(value)
     if isinstance(value, float):
-        text = format(value, "f")
+        # Preserve FULL precision for sub-micro values (mirror of the Stage 29.2
+        # price source). ``format(value, "f")`` on a float defaults to 6 decimal
+        # places, so a tiny OHLCV high such as ``4.2789e-07`` collapses to
+        # ``"0.000000"`` -> ``"0.0"`` (the Stage 30.11.10 real-data proof root
+        # cause). ``Decimal(repr(value))`` takes the shortest round-tripping
+        # decimal; ``format(..., "f")`` on a ``Decimal`` renders PLAIN
+        # fixed-point text at FULL precision (never scientific notation).
+        text = format(Decimal(repr(value)), "f")
         if "." in text:
             text = text.rstrip("0")
             if text.endswith("."):
