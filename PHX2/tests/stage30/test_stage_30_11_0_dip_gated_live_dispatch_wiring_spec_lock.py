@@ -76,6 +76,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_8_TEST_BASENAMES,
     STAGE30_11_9_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_9_TEST_BASENAMES,
+    STAGE30_11_10_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_10_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -184,16 +186,17 @@ def _extract_imported_module(line: str) -> str:
 
 # Matches any Stage 30.11.<N> minor-version token in a basename (both the
 # production ``stage30_11_<N>`` and the test ``stage_30_11_<N>`` spellings).
-# A captured N >= 9 names a future Stage 30.11.9+ file; N in {0, 1, 2, 3, 4, 5, 6,
-# 7, 8} is the Stage 30.11.0 scaffold (the spec doc + this pin test) / the
+# A captured N >= 11 names a future Stage 30.11.11+ file; N in {0, 1, 2, 3, 4, 5, 6,
+# 7, 8, 9, 10} is the Stage 30.11.0 scaffold (the spec doc + this pin test) / the
 # now-admitted Stage 30.11.1 assembly bridge slice / the now-admitted Stage 30.11.2
 # runtime gate seam slice / the now-admitted Stage 30.11.3 private sink adapter
 # slice / the now-admitted Stage 30.11.4 offline end-to-end proof slice / the
 # now-admitted Stage 30.11.5 controlled live ceremony wiring slice / the
 # now-admitted Stage 30.11.6 real candidate source / harvest seam slice / the
 # now-admitted Stage 30.11.7 candidate dip-enrichment bridge slice / the
-# now-admitted Stage 30.11.8 narrow migration-confirmation bridge slice and is
-# allowed.
+# now-admitted Stage 30.11.8 narrow migration-confirmation bridge slice / the
+# now-admitted Stage 30.11.9 mint-keyed migration evidence-source slice / the
+# now-admitted Stage 30.11.10 real ATH-resolver bridge slice and is allowed.
 # The Stage 30.11.0 manifest basename (``stage30_11_manifest.py``) carries no
 # digit after ``stage30_11_`` and so matches no token at all.
 _STAGE_30_11_MINOR_RE = re.compile(r"stage_?30_11_(\d+)")
@@ -206,7 +209,7 @@ def _future_30_11_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 10:
+            if int(match.group(1)) >= 11:
                 violations.append(basename)
     return violations
 
@@ -999,6 +1002,7 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_7_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_8_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_9_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_10_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
@@ -1035,6 +1039,7 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_7_TEST_BASENAMES)
         | set(STAGE30_11_8_TEST_BASENAMES)
         | set(STAGE30_11_9_TEST_BASENAMES)
+        | set(STAGE30_11_10_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "
@@ -1063,23 +1068,24 @@ def test_stage30_0_allowlist_admits_the_30_11_0_files() -> None:
 
 
 def test_stage30_0_allowlist_admits_no_stage_30_11_5_plus_file() -> None:
-    """No Stage 30.11.5+ production / test basename is admitted by the Stage
+    """No Stage 30.11.11+ production / test basename is admitted by the Stage
     30.0 allowlist yet. The Stage 30.11.0 scaffold carries minor token 0 (the
-    spec doc + pin test) or no minor token (the manifest), the now-admitted
-    Stage 30.11.1 assembly bridge slice carries minor token 1, the now-admitted
-    Stage 30.11.2 runtime gate seam slice carries minor token 2, the now-admitted
-    Stage 30.11.3 private sink adapter slice carries minor token 3, and the
-    now-admitted Stage 30.11.4 offline end-to-end proof slice carries minor token
-    4; the guard catches ANY Stage 30.11.<N>=5+ token (30_11_5, 30_11_6, ...).
+    spec doc + pin test) or no minor token (the manifest); the now-admitted Stage
+    30.11.1..30.11.10 slices carry minor tokens 1..10 (the assembly bridge,
+    runtime gate seam, private sink adapter, offline end-to-end proof, controlled
+    live ceremony wiring, real candidate source / harvest seam, candidate
+    dip-enrichment bridge, narrow migration-confirmation bridge, mint-keyed
+    migration evidence-source, and real ATH-resolver bridge slices); the guard
+    catches ANY Stage 30.11.<N>=11+ token (30_11_11, 30_11_12, ...).
     """
     production = _future_30_11_violations(_STAGE30_ALLOWED_BASENAMES)
     assert production == [], (
-        "Stage 30.0 production allowlist must not admit a Stage 30.11.5+ file "
+        "Stage 30.0 production allowlist must not admit a Stage 30.11.11+ file "
         f"yet; saw {production!r}"
     )
     tests = _future_30_11_violations(_TESTS_STAGE30_ALLOWED_BASENAMES)
     assert tests == [], (
-        "Stage 30.0 test allowlist must not admit a Stage 30.11.5+ test file "
+        "Stage 30.0 test allowlist must not admit a Stage 30.11.11+ test file "
         f"yet; saw {tests!r}"
     )
 

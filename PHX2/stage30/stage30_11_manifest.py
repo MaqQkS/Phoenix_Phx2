@@ -3966,6 +3966,394 @@ STAGE30_11_9_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.10 -- real ATH-resolver bridge (fakes / offline only)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.10 is the TENTH Stage 30.11 production slice: the narrow, real
+# ATH-resolver bridge that fills the last enrichment-dimension gap the ATH blocker
+# audit surfaced. The committed Stage 30.11.7 enrichment adapter checks an ATH
+# dimension LAST, requiring its injected ``ath_resolver`` to return a resolution that
+# is ``present`` + ``fresh`` + ``post_migration_ath_verified`` with a finite-coercible
+# ``drawdown_from_ath`` -- but the only committed thing that produces that exact shape
+# is a FAKE ATH resolver. The real post-migration drawdown brain (the committed Stage
+# 27.4 ``read_ath_context`` / ``_compute_drawdown`` / ``AthContextRecord``, fed by the
+# committed Stage 29.2 Birdeye ATH + current-price sources) already EXISTS but nothing
+# maps it into the Stage 30.11.7 ATH resolver seam. Stage 30.11.10 adds three NEW
+# production files -- the passive ATH-resolver models (the committed-shape ATH context
+# reading whose field names are a SUBSET of the Stage 27.4 ``AthContextRecord`` field
+# names BY VALUE, plus the ATH resolution whose ``present`` / ``fresh`` /
+# ``post_migration_ath_verified`` / ``drawdown_from_ath`` / ``source_ref`` field names
+# equal the Stage 30.11.7 ATH resolver result fields BY VALUE, plus the resolver proof
+# summary / run-result shapes), the pure ATH-resolver adapter (which, given a candidate
+# token mint + an INJECTED Stage 30.11.8-style migration resolver -- the confirmed
+# anchor -- + an INJECTED per-mint ATH context source, maps the committed reading onto
+# the Stage 30.11.7 contract, carrying the committed ``drawdown_from_ath`` VERBATIM --
+# NEVER recomputing it -- and failing closed on every missing-anchor / unavailable /
+# stale / pre-migration / missing-drawdown / wrong-mint reading), and the offline fake
+# ATH-resolver proof (which drives the resolver over a deterministic nine-base
+# scenario: one resolves, eight fail closed on eight DISTINCT reasons). It ships NO
+# Stage 30.11.7 enrichment edit, NO migration rebuild, NO migration loosening, NO Stage
+# 29.5.7 edit, NO Stage 30.11.8 loosening, NO dip-gate change, NO runtime wiring, NO
+# real dispatch sink, NO dispatch reservation, NO live provider call, NO private send,
+# NO env read, NO wall-clock read, NO daemon / background loop, and edits NO existing
+# live runner / orchestrator / transport / Stage 28 suppression / Stage 29 live provider
+# file. It deliberately does NOT reuse the Stage 30.7 sanitized-ATH DISPLAY bridge as
+# the runtime resolver (the Stage 30.7 bridge emits operator display text and does NOT
+# recompute / re-expose the drawdown -- the wrong shape for the Stage 30.11.7 seam).
+# Like the Stage 30.11.8 / 30.11.9 slices it follows, Stage 30.11.10 is a CLEAN LEAF:
+# it mirrors the Stage 30.11.7 ATH resolver result field names + the Stage 27.4
+# ``AthContextRecord`` tokens BY VALUE and imports NO Stage 21-29 / Stage 30.7 / Stage
+# 30.11.5 / 30.11.6 / 30.11.7 / 30.11.8 / 30.11.9 module (importing the Stage 30.11.7
+# slice would break its committed leaf boundary test); the committed Stage 30.11.7 /
+# 30.11.8 / 30.11.9 adapters + the committed Stage 27.4 reader are composed by the
+# Stage 30.11.10 TEST only. NO Stage 30.11.11+ file ships at Stage 30.11.10.
+
+
+STAGE30_11_10_MINOR_VERSION: str = "30.11.10"
+
+
+# The Stage 30.11.10 real ATH-resolver bridge schema version (mirrored BY VALUE by the
+# Stage 30.11.10 ATH-resolver-models module; a pin test cross-checks it matches).
+# Distinct from the Stage 30.11.9 evidence-source schema version and every earlier
+# Stage 30.11 schema version.
+STAGE30_11_10_ATH_RESOLVER_SCHEMA_VERSION: str = (
+    "stage30_11_10_v0_ath_resolver"
+)
+
+
+# The safe-shape source-stage provenance token the ATH resolver stamps onto its proof
+# tally (provenance only; names the slice, never a secret / host / transport
+# destination).
+STAGE30_11_10_SOURCE_STAGE: str = "30.11.10"
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_10_ATH_RESOLVER_MODELS_BASENAME: str = (
+    "stage30_11_10_ath_resolver_models.py"
+)
+STAGE30_11_10_ATH_RESOLVER_ADAPTER_BASENAME: str = (
+    "stage30_11_10_ath_resolver_adapter.py"
+)
+STAGE30_11_10_FAKE_ATH_RESOLVER_PROOF_BASENAME: str = (
+    "stage30_11_10_fake_ath_resolver_proof.py"
+)
+
+
+STAGE30_11_10_ATH_RESOLVER_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_10_ath_resolver_models"
+)
+STAGE30_11_10_ATH_RESOLVER_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_10_ath_resolver_adapter"
+)
+STAGE30_11_10_FAKE_ATH_RESOLVER_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_10_fake_ath_resolver_proof"
+)
+
+
+# The three NEW production files Stage 30.11.10 adds under ``PHX2/stage30/`` on top of
+# the already-allowed Stage 30.0..30.11.9 inventory. NO Stage 30.11.11+ file.
+STAGE30_11_10_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_10_ATH_RESOLVER_MODELS_BASENAME,
+    STAGE30_11_10_ATH_RESOLVER_ADAPTER_BASENAME,
+    STAGE30_11_10_FAKE_ATH_RESOLVER_PROOF_BASENAME,
+)
+
+
+# The three production modules the Stage 30.11.10 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_10_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_10_ATH_RESOLVER_MODELS_BASENAME,
+    STAGE30_11_10_ATH_RESOLVER_ADAPTER_BASENAME,
+    STAGE30_11_10_FAKE_ATH_RESOLVER_PROOF_BASENAME,
+)
+
+
+STAGE30_11_10_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_10_ath_resolver_models.py",
+    "test_stage_30_11_10_ath_resolver_adapter.py",
+    "test_stage_30_11_10_fake_ath_resolver_proof.py",
+    "test_stage_30_11_10_composition.py",
+    "test_stage_30_11_10_boundaries.py",
+    "test_stage_30_11_10_manifest.py",
+)
+
+
+# Every non-PHX2 import in a Stage 30.11.10 production module must be in this stdlib
+# allowlist (the models need ``dataclasses`` / ``typing``; the adapter needs
+# ``typing``; the fake proof needs ``dataclasses`` / ``typing``). It admits NO
+# ``decimal`` (the slice carries the committed ``drawdown_from_ath`` VERBATIM -- it
+# never coerces / recomputes the drawdown; the committed Stage 30.11.7 enrichment does),
+# NO ``re``, NO ``os`` (so NO ``os.environ`` / ``os.getenv`` env read), NO ``sqlite3``,
+# NO ``zstd`` / compression, NO network module, and NO ``time`` / ``datetime`` (every
+# clock is injected, never read).
+STAGE30_11_10_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# Every PHX2 import in a Stage 30.11.10 production module must be one of these siblings:
+# the Stage 30.11.10 own ATH-resolver-models + adapter + fake-proof siblings. This
+# positive allowlist proves, by construction, that the Stage 30.11.10 PRODUCTION slice
+# is a clean LEAF -- it imports NO Stage 30.7 display bridge / Stage 30.11.5 / 30.11.6 /
+# 30.11.7 / 30.11.8 / 30.11.9 module (so those committed leaf boundary tests stay green;
+# importing the Stage 30.11.7 slice would break its "no existing stage30 file imports the
+# slice" test), NO Stage 21-29 (incl. the nested Stage 27 / 28 / 29 live candidate
+# record, Stage 28 suppression, Stage 29 live provider) / runtime orchestrator / renderer
+# / real transport / live provider module. The migration resolver + ATH context source
+# are INJECTED, duck-typed; the committed Stage 30.11.7 / 30.11.8 / 30.11.9 adapters + the
+# committed Stage 27.4 reader are composed by the Stage 30.11.10 TEST, never by a Stage
+# 30.11.10 production module.
+STAGE30_11_10_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_10_ATH_RESOLVER_MODELS_MODULE,
+    STAGE30_11_10_ATH_RESOLVER_ADAPTER_MODULE,
+    STAGE30_11_10_FAKE_ATH_RESOLVER_PROOF_MODULE,
+)
+
+
+# The committed modules the Stage 30.11.10 TEST (NOT a Stage 30.11.10 production module)
+# composes to prove a resolved ATH clears the Stage 30.11.7 ATH dimension end to end
+# (migration confirmed through Stage 30.11.8 over a Stage 30.11.9 source -> the Stage
+# 30.11.10 ATH resolver -> the Stage 30.11.7 enrichment), and that the committed Stage
+# 27.4 ``read_ath_context`` output maps through the resolver BY VALUE. Declared here as
+# literals (the manifest imports no PHX2 module); they are NOT in the Stage 30.11.10
+# production PHX2 import allowlist -- the production slice is a leaf.
+STAGE30_11_10_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_adapter"
+)
+STAGE30_11_10_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_7_candidate_enrichment_models"
+)
+STAGE30_11_10_TEST_COMPOSES_STAGE30_11_8_CONFIRMATION_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_8_migration_confirmation_adapter"
+)
+STAGE30_11_10_TEST_COMPOSES_STAGE30_11_9_EVIDENCE_SOURCE_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_9_migration_evidence_source_adapter"
+)
+STAGE30_11_10_TEST_COMPOSES_STAGE27_4_ATH_READER_MODULE: str = (
+    "PHX2.stage27.price_ath_context_reader"
+)
+STAGE30_11_10_TEST_COMPOSES_STAGE27_4_ATH_MODELS_MODULE: str = (
+    "PHX2.stage27.price_ath_context_models"
+)
+
+
+# The committed Stage 27.4 ATH vocabulary the Stage 30.11.10 resolver mirrors BY VALUE
+# (the resolver maps ``ath_status == PRESENT`` -> ``present`` / ``fresh`` and
+# ``drawdown_basis == FROM_POST_MIGRATION_ATH`` -> ``post_migration_ath_verified``). A
+# pin test cross-checks these equal the committed Stage 27.4 constants BY VALUE.
+STAGE30_11_10_ATH_STATUS_PRESENT: str = "PRESENT"
+STAGE30_11_10_DRAWDOWN_BASIS_FROM_POST_MIGRATION_ATH: str = (
+    "FROM_POST_MIGRATION_ATH"
+)
+
+
+# Closed-set ATH resolver decision tokens (mirrored BY VALUE from the Stage 30.11.10
+# models module). ``RESOLVED_ATH`` is the only decision whose resolution clears the
+# Stage 30.11.7 ATH dimension end to end.
+STAGE30_11_10_ATH_DECISIONS: Tuple[str, ...] = (
+    "RESOLVED_ATH",
+    "UNRESOLVED_ATH",
+)
+STAGE30_11_10_ATH_PASS_DECISION: str = "RESOLVED_ATH"
+
+
+# Closed-set ATH resolver reason tokens (mirrored BY VALUE from the Stage 30.11.10
+# models module). ``RESOLVED_POST_MIGRATION_ATH`` is the only reason that accompanies a
+# resolved ATH; every other names a precise fail-closed cause.
+STAGE30_11_10_ATH_REASONS: Tuple[str, ...] = (
+    "RESOLVED_POST_MIGRATION_ATH",
+    "BLANK_CANDIDATE_MINT",
+    "MISSING_MIGRATION_ANCHOR",
+    "MISSING_ATH_SOURCE",
+    "ATH_SOURCE_ERROR",
+    "ATH_SOURCE_UNAVAILABLE",
+    "ATH_MINT_MISMATCH",
+    "ATH_NOT_PRESENT",
+    "PRE_MIGRATION_ATH_NOT_VERIFIED",
+    "MISSING_DRAWDOWN",
+)
+STAGE30_11_10_ATH_PASS_REASON: str = "RESOLVED_POST_MIGRATION_ATH"
+
+
+# The Stage 30.11.10 ATH context record + resolution + summary + run-result field names
+# (mirrored BY VALUE from the models module; a pin test cross-checks them). The ATH
+# context record fields are a SUBSET of the committed Stage 27.4 ``AthContextRecord``
+# fields BY VALUE; the resolution fields' ``present`` / ``fresh`` /
+# ``post_migration_ath_verified`` / ``drawdown_from_ath`` / ``source_ref`` equal the
+# Stage 30.11.7 ATH resolver result fields BY VALUE.
+STAGE30_11_10_ATH_CONTEXT_RECORD_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "ath_status",
+    "ath_since_migration_status",
+    "drawdown_basis",
+    "drawdown_from_ath",
+    "ath_source",
+)
+STAGE30_11_10_ATH_RESOLUTION_FIELDS: Tuple[str, ...] = (
+    "present",
+    "fresh",
+    "post_migration_ath_verified",
+    "drawdown_from_ath",
+    "token_mint",
+    "decision",
+    "reason",
+    "source_ref",
+)
+STAGE30_11_10_ATH_RESOLVER_SUMMARY_FIELDS: Tuple[str, ...] = (
+    "bases_seen",
+    "resolved",
+    "unresolved",
+    "created_at_utc",
+)
+STAGE30_11_10_ATH_RESOLVER_RUN_RESULT_FIELDS: Tuple[str, ...] = (
+    "outcomes",
+    "summary",
+    "created_at_utc",
+)
+
+
+# The author-verified expected Stage 30.11.10 fake ATH-resolver proof counts over the
+# deterministic nine-base default scenario: nine seen, exactly ONE resolved
+# (``mint-resolved`` -- a PRESENT, post-migration-verified reading carrying a drawdown),
+# exactly EIGHT fail closed on eight DISTINCT reasons (blank mint, missing migration
+# anchor, unavailable source, source error, cross-mint, not-present, pre-migration,
+# missing drawdown). No real ATH reader binding; no private send; no transport reached.
+STAGE30_11_10_EXPECTED_BASES_SEEN: int = 9
+STAGE30_11_10_EXPECTED_RESOLVED: int = 1
+STAGE30_11_10_EXPECTED_UNRESOLVED: int = 8
+STAGE30_11_10_EXPECTED_RESOLVED_TOKEN_MINT: str = "mint-resolved"
+
+
+# After Stage 30.11.10 (the real ATH-resolver bridge) the dip-gated private dispatch
+# chain finally has a committed, tested resolver for EVERY Stage 30.11.7 enrichment
+# dimension (market context / tier / migration / ATH). The next allowed step is NOT a
+# further Stage 30.11.<N> implementation slice: it is the controlled dip-filtered private
+# compact live ceremony, which remains a SEPARATE, explicitly operator-authorized step
+# (NOT run here, NOT in this stage), now wiring the real Stage 27.4 ``read_ath_context``
+# (fed by the committed Stage 29.2 Birdeye ATH + current-price sources) into the injected
+# ATH-context-source seam via an out-of-repo operator wrapper. The Stage 30.11.0 family
+# pointer ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at ``30.11.1``; this
+# 30.11.10-scoped pointer names the operator-authorized ceremony as the next step. NO
+# Stage 30.11.11+ file ships at Stage 30.11.10.
+STAGE30_11_10_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_10_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "controlled dip-filtered private compact live ceremony (a SEPARATE, explicitly "
+    "operator-authorized step run against committed + green code; NOT run here -- Stage "
+    "30.11.10 supplies the real ATH resolver the Stage 30.11.7 ATH dimension was "
+    "missing, so the next ceremony attempt can bind the real Stage 27.4 read_ath_context "
+    "/ Stage 29.2 Birdeye ATH + current-price brain into the injected ATH-context-source "
+    "seam and clear the ATH dimension when a real post-migration ATH with a drawdown "
+    "verifies, while a candidate with a missing / stale / pre-migration / drawdownless "
+    "ATH still fails closed at the ATH dimension)"
+)
+
+
+# The surfaces the Stage 30.11.10 ATH-resolver slice must not touch. Plain documentation
+# words (family / feature names), NOT secret / host / transport needle forms. The slice
+# ONLY maps a committed ATH reading onto the Stage 30.11.7 resolver contract (over
+# INJECTED dependencies); it must not reach any surface below, must NOT fabricate an ATH,
+# must NOT recompute the drawdown, and must NOT run the controlled live ceremony.
+STAGE30_11_10_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real ATH reader binding",
+    "real ATH provider call",
+    "real current-price provider call",
+    "real transport call",
+    "real private send",
+    "private send",
+    "real dispatch reservation",
+    "old ungated dispatch invoked",
+    "ungated Stage 29.3 send path reused directly",
+    "live run",
+    "live provider call",
+    "env read",
+    "wall-clock read",
+    "WebSocket / gRPC / HTTP session",
+    "new live runner",
+    "new provider",
+    "new readiness gate",
+    "new runtime gate seam",
+    "new private sink adapter",
+    "new dip gate",
+    "fabricate ATH",
+    "fabricate ath_status",
+    "fabricate drawdown",
+    "recompute drawdown",
+    "recompute drawdown independently",
+    "use Stage 30.7 display bridge as the runtime resolver",
+    "promote a STALE ATH",
+    "promote a pre-migration ATH",
+    "treat a pre-migration ATH as verified",
+    "treat a missing drawdown as present",
+    "inherit another mint ATH",
+    "rebuild migration",
+    "loosen migration",
+    "modify Stage 29.5.7",
+    "loosen Stage 30.11.8 confirmation",
+    "modify Stage 30.11.8 confirmation",
+    "modify Stage 30.11.8",
+    "loosen Stage 30.11.7 enrichment",
+    "modify Stage 30.11.7 enrichment",
+    "modify the dip gate",
+    "change the dip gate",
+    "depth-based dip filtering",
+    "bypass Stage 30.11.7 enrichment",
+    "bypass Stage 30.11.6 harvest projection",
+    "bypass Stage 30.11.5 bounded runner",
+    "bypass Stage 30.9.3 dip gate",
+    "daemon",
+    "background service",
+    "autorestart loop",
+    "unbounded loop",
+    "filesystem write",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "zstd dependency",
+    "compression implementation",
+    "default storage root",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "existing live runner edit",
+    "existing orchestrator edit",
+    "existing transport edit",
+    "Stage 27 / 28 / 29 candidate-record import",
+    "Stage 28 suppression-logic edit",
+    "Stage 29 live provider / session edit",
+    "Stage 25/27/28/29 production import",
+    "Stage 30.7 display bridge production import",
+    "Stage 30.11.5 / Stage 30.11.6 / Stage 30.11.7 / Stage 30.11.8 / Stage 30.11.9 production import",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.11+ implementation file",
+    "Stage 31",
+)
+
+
+# The actual controlled dip-filtered private compact live ceremony remains a SEPARATE,
+# explicitly operator-authorized step (Stage 30.11.10 implements no part of it; it only
+# supplies -- with fakes -- the real ATH resolver, so the next ceremony attempt composes
+# committed + tested code for the ATH dimension as well).
+STAGE30_11_10_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_10_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.10 is the offline real ATH-resolver bridge only; the controlled "
+    "dip-filtered private compact live ceremony remains a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
@@ -4489,4 +4877,53 @@ __all__ = (
     "STAGE30_11_9_FORBIDDEN_SURFACES",
     "STAGE30_11_9_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_9_LIVE_CEREMONY_NOTE",
+    # ---- Stage 30.11.10 real ATH-resolver bridge ----
+    # Minor version + ATH-resolver schema identity.
+    "STAGE30_11_10_MINOR_VERSION",
+    "STAGE30_11_10_ATH_RESOLVER_SCHEMA_VERSION",
+    "STAGE30_11_10_SOURCE_STAGE",
+    # Basenames + module paths.
+    "STAGE30_11_10_ATH_RESOLVER_MODELS_BASENAME",
+    "STAGE30_11_10_ATH_RESOLVER_ADAPTER_BASENAME",
+    "STAGE30_11_10_FAKE_ATH_RESOLVER_PROOF_BASENAME",
+    "STAGE30_11_10_ATH_RESOLVER_MODELS_MODULE",
+    "STAGE30_11_10_ATH_RESOLVER_ADAPTER_MODULE",
+    "STAGE30_11_10_FAKE_ATH_RESOLVER_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_10_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_10_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_10_TEST_BASENAMES",
+    # Import allowlists + the test-composed committed modules.
+    "STAGE30_11_10_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_10_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_10_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE",
+    "STAGE30_11_10_TEST_COMPOSES_STAGE30_11_7_ENRICHMENT_MODELS_MODULE",
+    "STAGE30_11_10_TEST_COMPOSES_STAGE30_11_8_CONFIRMATION_ADAPTER_MODULE",
+    "STAGE30_11_10_TEST_COMPOSES_STAGE30_11_9_EVIDENCE_SOURCE_ADAPTER_MODULE",
+    "STAGE30_11_10_TEST_COMPOSES_STAGE27_4_ATH_READER_MODULE",
+    "STAGE30_11_10_TEST_COMPOSES_STAGE27_4_ATH_MODELS_MODULE",
+    # Stage 27.4 ATH vocabulary (mirrored BY VALUE).
+    "STAGE30_11_10_ATH_STATUS_PRESENT",
+    "STAGE30_11_10_DRAWDOWN_BASIS_FROM_POST_MIGRATION_ATH",
+    # ATH resolver decisions + reasons.
+    "STAGE30_11_10_ATH_DECISIONS",
+    "STAGE30_11_10_ATH_PASS_DECISION",
+    "STAGE30_11_10_ATH_REASONS",
+    "STAGE30_11_10_ATH_PASS_REASON",
+    # Record + resolution + summary + run-result field tuples.
+    "STAGE30_11_10_ATH_CONTEXT_RECORD_FIELDS",
+    "STAGE30_11_10_ATH_RESOLUTION_FIELDS",
+    "STAGE30_11_10_ATH_RESOLVER_SUMMARY_FIELDS",
+    "STAGE30_11_10_ATH_RESOLVER_RUN_RESULT_FIELDS",
+    # Expected proof counts.
+    "STAGE30_11_10_EXPECTED_BASES_SEEN",
+    "STAGE30_11_10_EXPECTED_RESOLVED",
+    "STAGE30_11_10_EXPECTED_UNRESOLVED",
+    "STAGE30_11_10_EXPECTED_RESOLVED_TOKEN_MINT",
+    # Next allowed step + forbidden surfaces + live ceremony note.
+    "STAGE30_11_10_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_10_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_10_FORBIDDEN_SURFACES",
+    "STAGE30_11_10_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_10_LIVE_CEREMONY_NOTE",
 )

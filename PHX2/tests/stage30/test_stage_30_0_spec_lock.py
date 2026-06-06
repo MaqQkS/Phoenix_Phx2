@@ -558,6 +558,16 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_9_migration_evidence_source_models.py",
         "stage30_11_9_migration_evidence_source_adapter.py",
         "stage30_11_9_fake_evidence_source_proof.py",
+        # Stage 30.11.10 real ATH-resolver bridge slice (the real ATH resolver the
+        # Stage 30.11.7 ATH dimension was missing). A clean leaf: imports only its
+        # own three siblings; maps a committed Stage 27.4 AthContextRecord-shaped
+        # reading onto the Stage 30.11.7 ATH resolver contract, carrying the
+        # committed drawdown VERBATIM and never recomputing it, failing closed on a
+        # missing / stale / pre-migration / drawdownless / wrong-mint reading.
+        # Fakes / offline only.
+        "stage30_11_10_ath_resolver_models.py",
+        "stage30_11_10_ath_resolver_adapter.py",
+        "stage30_11_10_fake_ath_resolver_proof.py",
     }
 )
 
@@ -834,6 +844,16 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_9_composition.py",
         "test_stage_30_11_9_boundaries.py",
         "test_stage_30_11_9_manifest.py",
+        # Stage 30.11.10 real ATH-resolver bridge test additions (ATH-resolver
+        # models, ATH-resolver adapter, fake ATH-resolver proof, composition with
+        # the committed Stage 30.11.7 / 30.11.8 / 30.11.9 adapters + the committed
+        # Stage 27.4 read_ath_context, boundaries, manifest). Fakes / offline only.
+        "test_stage_30_11_10_ath_resolver_models.py",
+        "test_stage_30_11_10_ath_resolver_adapter.py",
+        "test_stage_30_11_10_fake_ath_resolver_proof.py",
+        "test_stage_30_11_10_composition.py",
+        "test_stage_30_11_10_boundaries.py",
+        "test_stage_30_11_10_manifest.py",
     }
 )
 

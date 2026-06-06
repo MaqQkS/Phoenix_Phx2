@@ -342,6 +342,18 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_9_composition.py",
         "test_stage_30_11_9_boundaries.py",
         "test_stage_30_11_9_manifest.py",
+        # Stage 30.11.10 real ATH-resolver bridge slice (the real ATH resolver
+        # the Stage 30.11.7 ATH dimension was missing). A clean leaf; fakes /
+        # offline only.
+        "stage30_11_10_ath_resolver_models.py",
+        "stage30_11_10_ath_resolver_adapter.py",
+        "stage30_11_10_fake_ath_resolver_proof.py",
+        "test_stage_30_11_10_ath_resolver_models.py",
+        "test_stage_30_11_10_ath_resolver_adapter.py",
+        "test_stage_30_11_10_fake_ath_resolver_proof.py",
+        "test_stage_30_11_10_composition.py",
+        "test_stage_30_11_10_boundaries.py",
+        "test_stage_30_11_10_manifest.py",
     }
 )
 
