@@ -24,18 +24,30 @@ Deterministic decision precedence (top-down, first match wins):
   6. ``drawdown_from_ath`` fails the strict regex / Decimal parse /
      finiteness check -> ``Tier Unknown`` /
      ``UNKNOWN_DRAWDOWN_MALFORMED``.
-  7. Band classification on ``drop = abs(Decimal(drawdown_from_ath))``:
-     - ``drop <  0.50``                  -> ``UNKNOWN_BELOW_TIER_1``
-     - ``0.50 <= drop <= 0.60``          -> ``TIER_1_IN_BAND``
-     - ``0.60 <  drop <  0.62``          -> ``UNKNOWN_IN_GAP_T1_T2``
-     - ``0.62 <= drop <= 0.80``          -> ``TIER_2_IN_BAND``
-     - ``0.80 <  drop <  0.82``          -> ``UNKNOWN_IN_GAP_T2_T3``
-     - ``0.82 <= drop <= 0.95``          -> ``TIER_3_IN_BAND``
-     - ``drop >  0.95``                  -> ``UNKNOWN_GRAVEYARD``
+  7. ``ath_value`` is missing / blank / malformed / non-finite / zero /
+     negative (so the fractional drop has no safe denominator) ->
+     ``Tier Unknown`` / ``UNKNOWN_ATH_VALUE_INVALID``.
+  8. Band classification on the FRACTIONAL drop
+     ``frac = abs(drawdown_from_ath) / ath_value``, evaluated by EXACT Decimal
+     CROSS-MULTIPLICATION (compare the exact absolute drop against
+     ``ath_value * boundary``) -- NEVER a context-rounded quotient, which could
+     round a just-below-boundary value up into a band. ``drawdown_from_ath`` is
+     the ABSOLUTE ``ATH - current_price`` delta Stage 27.4 emits (same currency
+     as ``ath_value``) and is UNCHANGED, still echoed as the absolute
+     ``drawdown_from_ath_raw``:
+     - ``frac <  0.50``                  -> ``UNKNOWN_BELOW_TIER_1``
+     - ``0.50 <= frac <= 0.60``          -> ``TIER_1_IN_BAND``
+     - ``0.60 <  frac <  0.62``          -> ``UNKNOWN_IN_GAP_T1_T2``
+     - ``0.62 <= frac <= 0.80``          -> ``TIER_2_IN_BAND``
+     - ``0.80 <  frac <  0.82``          -> ``UNKNOWN_IN_GAP_T2_T3``
+     - ``0.82 <= frac <= 0.95``          -> ``TIER_3_IN_BAND``
+     - ``frac >  0.95``                  -> ``UNKNOWN_GRAVEYARD``
 
 The band check uses ``Decimal`` exclusively; ``float`` is NEVER
-introduced. The projector NEVER rounds ``drop`` before tier
-comparison and NEVER squeezes an in-gap drop into a nearby band.
+introduced. The absolute drop is taken with ``copy_abs`` (no context
+rounding), the band edges are computed exactly, and the projector NEVER
+rounds across a boundary and NEVER divides (so it NEVER divides by zero;
+a non-positive ``ath_value`` fails closed above).
 
 Caller-shape failures (invalid ``basis`` token, non-string /
 unsafe-shape ``created_at_utc``, ``ath_record`` not a
@@ -63,7 +75,7 @@ Discipline:
 from __future__ import annotations
 
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 from typing import Optional
 
 from PHX2.stage27.migration_context_models import (
@@ -95,6 +107,7 @@ from PHX2.stage30.tier_decision_models import (
     TIER_REASON_TIER_2_IN_BAND,
     TIER_REASON_TIER_3_IN_BAND,
     TIER_REASON_UNKNOWN_ATH_NOT_PRESENT,
+    TIER_REASON_UNKNOWN_ATH_VALUE_INVALID,
     TIER_REASON_UNKNOWN_BELOW_TIER_1,
     TIER_REASON_UNKNOWN_DRAWDOWN_MALFORMED,
     TIER_REASON_UNKNOWN_DRAWDOWN_MISSING,
@@ -204,6 +217,31 @@ def _is_strict_decimal_text(value: object) -> bool:
     if not isinstance(value, str):
         return False
     return _STRICT_DECIMAL_TEXT_PATTERN.fullmatch(value) is not None
+
+
+def _positive_finite_decimal_or_none(value: object) -> Optional[Decimal]:
+    """Return a finite, strictly-positive ``Decimal`` parsed from a strict
+    canonical decimal-text ``value``, or ``None``.
+
+    Pure / total; never raises. ``None`` is returned for a missing (``None``),
+    blank, non-string, malformed, scientific-notation, non-finite
+    (``NaN`` / ``Infinity``), zero, or negative value -- i.e. for every input
+    that cannot serve as a safe strictly-positive denominator. Used to gate the
+    ``ath_value`` the fractional-drawdown band divides by, so a bad ATH value
+    fails the tier closed to ``Tier Unknown`` and the projector NEVER divides by
+    zero.
+    """
+    if not _is_strict_decimal_text(value):
+        return None
+    try:
+        parsed = Decimal(value)  # type: ignore[arg-type]
+    except (InvalidOperation, ValueError, ArithmeticError, TypeError):
+        return None
+    if not parsed.is_finite():
+        return None
+    if parsed <= 0:
+        return None
+    return parsed
 
 
 def _is_safe_iso8601_utc_text(value: object) -> bool:
@@ -386,12 +424,14 @@ def decide_tier(
             ATH_SINCE_MIGRATION_STATUS_UNKNOWN
         )
         raw_drawdown: Optional[str] = None
+        raw_ath_value: Optional[str] = None
     else:
         ath_status = ath_record.ath_status
         ath_since_migration_status = (
             ath_record.ath_since_migration_status
         )
         raw_drawdown = ath_record.drawdown_from_ath
+        raw_ath_value = ath_record.ath_value
 
     safe_drawdown_echo = _safe_drawdown_text_echo(raw_drawdown)
 
@@ -555,26 +595,84 @@ def decide_tier(
             created_at_utc=created_at_utc,
         )
 
-    drop = abs(signed)
+    # ---- Step 7: ath_value must be a safe strictly-positive denominator ----
+    #
+    # Stage 27.4 emits ``drawdown_from_ath`` as an ABSOLUTE price delta
+    # (``ATH - current_price``) in the ATH's own currency. The Stage 30.1 tier
+    # bands (0.50..0.95, graveyard above 0.95) are FRACTIONAL drop bands, so the
+    # tier MUST classify the fraction ``abs(drawdown) / ath_value`` -- NOT the
+    # absolute delta (which would push every sub-dollar / memecoin token below
+    # Tier 1). ``drawdown_from_ath`` itself stays the absolute USD delta (echoed
+    # unchanged as ``drawdown_from_ath_raw``); only the BAND INPUT is the
+    # fraction. A missing / blank / malformed / non-finite / zero / negative
+    # ``ath_value`` cannot be a safe denominator -> fail closed (NEVER /0).
+    #
+    # ``copy_abs`` (NOT ``abs``) so a long-precision drawdown is NEVER rounded to
+    # the context precision: the absolute value is preserved EXACTLY for the
+    # display echo and the exact band comparison below.
+    drop = signed.copy_abs()
+    ath_value_dec = _positive_finite_decimal_or_none(raw_ath_value)
+    if ath_value_dec is None:
+        return TierDecisionRecord(
+            schema_version=STAGE30_1_TIER_DECISION_SCHEMA_VERSION,
+            session_id=safe_session_id,
+            ping_id=safe_ping_id,
+            candidate_id=safe_candidate_id,
+            mint=safe_mint,
+            basis=basis,
+            drawdown_from_ath_raw=safe_drawdown_echo,
+            drop_positive=None,
+            ath_status=ath_status,
+            ath_since_migration_status=ath_since_migration_status,
+            migration_status=migration_status,
+            tier_token=TIER_TOKEN_TIER_UNKNOWN,
+            tier_reason=TIER_REASON_UNKNOWN_ATH_VALUE_INVALID,
+            created_at_utc=created_at_utc,
+        )
+
+    # ``drop_positive`` stays the EXACT absolute drop (no context rounding);
+    # only the band CLASSIFICATION is fractional. The absolute delta is also
+    # echoed as ``drawdown_from_ath_raw``.
     drop_positive_text = format(drop, "f")
 
-    # ---- Step 7: band classification (Decimal-exact, no rounding) ----
-    if drop < _BAND_T1_LOW:
+    # ---- Step 8: band classification via EXACT Decimal cross-multiplication ----
+    #
+    # The bands are fractional (``frac = drop / ath_value``), but computing the
+    # quotient under the Decimal context can ROUND a value just below a boundary
+    # UP into the band (e.g. ``1.8599..99 / 3`` rounds to ``0.6200..00`` and
+    # mis-bands a gap value as Tier 2). So instead of a rounded quotient we
+    # compare the EXACT absolute drop against the band edges
+    # ``ath_value * boundary``. ``ath_value`` is strictly positive, so the
+    # inequality directions are identical to the quotient form. The edge products
+    # are computed at precision high enough that the multiplications are exact;
+    # Decimal comparisons themselves never round. Boundaries are UNCHANGED.
+    with localcontext() as ctx:
+        edge_prec = len(ath_value_dec.as_tuple().digits) + 6
+        if ctx.prec < edge_prec:
+            ctx.prec = edge_prec
+        edge_t1_low = ath_value_dec * _BAND_T1_LOW
+        edge_t1_high = ath_value_dec * _BAND_T1_HIGH
+        edge_t2_low = ath_value_dec * _BAND_T2_LOW
+        edge_t2_high = ath_value_dec * _BAND_T2_HIGH
+        edge_t3_low = ath_value_dec * _BAND_T3_LOW
+        edge_t3_high = ath_value_dec * _BAND_T3_HIGH
+
+    if drop < edge_t1_low:
         tier_token = TIER_TOKEN_TIER_UNKNOWN
         tier_reason = TIER_REASON_UNKNOWN_BELOW_TIER_1
-    elif drop <= _BAND_T1_HIGH:
+    elif drop <= edge_t1_high:
         tier_token = TIER_TOKEN_TIER_1
         tier_reason = TIER_REASON_TIER_1_IN_BAND
-    elif drop < _BAND_T2_LOW:
+    elif drop < edge_t2_low:
         tier_token = TIER_TOKEN_TIER_UNKNOWN
         tier_reason = TIER_REASON_UNKNOWN_IN_GAP_T1_T2
-    elif drop <= _BAND_T2_HIGH:
+    elif drop <= edge_t2_high:
         tier_token = TIER_TOKEN_TIER_2
         tier_reason = TIER_REASON_TIER_2_IN_BAND
-    elif drop < _BAND_T3_LOW:
+    elif drop < edge_t3_low:
         tier_token = TIER_TOKEN_TIER_UNKNOWN
         tier_reason = TIER_REASON_UNKNOWN_IN_GAP_T2_T3
-    elif drop <= _BAND_T3_HIGH:
+    elif drop <= edge_t3_high:
         tier_token = TIER_TOKEN_TIER_3
         tier_reason = TIER_REASON_TIER_3_IN_BAND
     else:

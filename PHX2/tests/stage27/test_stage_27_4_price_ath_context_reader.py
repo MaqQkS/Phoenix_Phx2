@@ -632,6 +632,34 @@ def test_ath_context_post_migration_only_when_window_and_migration_present():
     assert record.drawdown_from_ath == "0.0008"
 
 
+def test_ath_context_drawdown_is_absolute_delta_at_memecoin_scale():
+    """Stage 27.4 keeps ``drawdown_from_ath`` as the ABSOLUTE ``ATH - price``
+    delta, even at sub-micro memecoin prices. The Stage 30.1 tier-units fix
+    converts to a fraction DOWNSTREAM; Stage 27.4 itself NEVER emits a
+    fractional drawdown. Locks the absolute meaning the fix relies on.
+    """
+    ingest = _ingest_output_sol_confirmed()
+    snapshot = reader.AthSourceSnapshot(
+        ath_value="0.00000100",
+        ath_unit=m.ATH_UNIT_SOL,
+        source_label="fake",
+        ath_observed_at_utc="2026-05-22T11:30:00+00:00",
+        window_starts_post_migration=True,
+    )
+    price = _present_price_record_sol()._replace(price_value="0.00000045")
+    record = reader.build_ath_context_record(
+        snapshot,
+        ingest,
+        migration_record=_present_migration_record(),
+        current_price_record=price,
+    )
+    assert record.ath_status == m.ATH_STATUS_PRESENT
+    assert record.drawdown_basis == m.DRAWDOWN_BASIS_FROM_POST_MIGRATION_ATH
+    # 0.00000100 - 0.00000045 = 0.00000055 (absolute delta, NOT a fraction).
+    assert record.drawdown_from_ath == "0.00000055"
+    assert record.drawdown_unit == m.ATH_UNIT_SOL
+
+
 # ---------------------------------------------------------------------------
 # ATH context: pre-migration data rejected
 # ---------------------------------------------------------------------------
