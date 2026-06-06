@@ -358,6 +358,24 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
 )
 
 
+# The now-admitted Stage 30.12 PHOENIX private operator ping renderer slice (the
+# rich committed operator-body renderer the first real private send improvised
+# out-of-repo). A pure leaf: models + renderer + constants-only manifest, plus
+# their four tests. NOT wired into the Stage 30.11.5 send path; wiring it live
+# is a separate operator-authorized step.
+_ADMITTED_STAGE_30_12_BASENAMES = frozenset(
+    {
+        "stage30_12_phoenix_operator_ping_models.py",
+        "stage30_12_phoenix_operator_ping_renderer.py",
+        "stage30_12_manifest.py",
+        "test_stage_30_12_phoenix_operator_ping_models.py",
+        "test_stage_30_12_phoenix_operator_ping_renderer.py",
+        "test_stage_30_12_boundaries.py",
+        "test_stage_30_12_manifest.py",
+    }
+)
+
+
 # The now-admitted Stage 30.9.2_RESUME dip-filtered live proof planning /
 # fake-proof slice (the three production modules + their five tests). These
 # basenames carry the ``stage30_9_2`` / ``stage_30_9_2`` minor token but are
@@ -1228,11 +1246,12 @@ def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
         if (
             basename in _ADMITTED_STAGE_30_10_BASENAMES
             or basename in _ADMITTED_STAGE_30_11_BASENAMES
+            or basename in _ADMITTED_STAGE_30_12_BASENAMES
         ):
             # The Stage 30.10.0 scaffold + the Stage 30.10.1 / 30.10.2 /
             # 30.10.3 slices + the Stage 30.11.0 spec-lock scaffold + the
-            # Stage 30.11.1 assembly bridge slice + the Stage 30.11.2 runtime
-            # gate seam slice are admitted.
+            # Stage 30.11.1..30.11.10 slices + the Stage 30.12 PHOENIX operator
+            # ping renderer slice are admitted.
             continue
         lowered = basename.lower()
         assert _STAGE_30_10_PLUS_RE.search(lowered) is None, (

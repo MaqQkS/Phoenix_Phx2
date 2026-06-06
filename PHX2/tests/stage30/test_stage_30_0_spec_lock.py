@@ -568,6 +568,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_10_ath_resolver_models.py",
         "stage30_11_10_ath_resolver_adapter.py",
         "stage30_11_10_fake_ath_resolver_proof.py",
+        # Stage 30.12 PHOENIX private operator ping renderer slice (the rich
+        # committed operator-body renderer the first real private send improvised
+        # out-of-repo). A pure LEAF: the models import no PHX2 module, the
+        # renderer imports only the models sibling, and the manifest is
+        # constants-only. NOT wired into the Stage 30.11.5 send path; wiring it
+        # live is a separate operator-authorized step.
+        "stage30_12_phoenix_operator_ping_models.py",
+        "stage30_12_phoenix_operator_ping_renderer.py",
+        "stage30_12_manifest.py",
     }
 )
 
@@ -580,6 +589,10 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_1_tier_decision_models.py",
         "test_stage_30_1_tier_decision_projector.py",
         "test_stage_30_1_tier_decision_artifact_writer.py",
+        # Stage 30.1 tier-band fractional-drawdown regression suite (committed
+        # at HEAD e32b8ce; registered here to close a pre-existing inventory
+        # gap -- the HEAD commit added the file without listing it).
+        "test_stage_30_1_tier_units_regression.py",
         # Stage 30.2 test additions.
         "test_stage_30_2_compact_ping_models.py",
         "test_stage_30_2_compact_ping_renderer.py",
@@ -854,6 +867,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_10_composition.py",
         "test_stage_30_11_10_boundaries.py",
         "test_stage_30_11_10_manifest.py",
+        # Stage 30.12 PHOENIX private operator ping renderer test additions
+        # (models, renderer, boundaries, manifest). Pure / offline only.
+        "test_stage_30_12_phoenix_operator_ping_models.py",
+        "test_stage_30_12_phoenix_operator_ping_renderer.py",
+        "test_stage_30_12_boundaries.py",
+        "test_stage_30_12_manifest.py",
     }
 )
 
