@@ -577,6 +577,13 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_12_phoenix_operator_ping_models.py",
         "stage30_12_phoenix_operator_ping_renderer.py",
         "stage30_12_manifest.py",
+        # Stage 30.12.1 body-builder factory (the committed home for the
+        # body-builder glue that feeds the Stage 30.12 renderer through the
+        # EXISTING Stage 30.11.5 ``compact_body_builder`` seam, with NO runner /
+        # sink / gate edit and no monkey-patch). A clean leaf: imports only the
+        # two Stage 30.12 siblings (models + renderer) and renders at
+        # construction so a fail-closed surfaces before the runner. Offline only.
+        "stage30_12_1_phoenix_operator_ping_body_builder.py",
     }
 )
 
@@ -873,6 +880,10 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_12_phoenix_operator_ping_renderer.py",
         "test_stage_30_12_boundaries.py",
         "test_stage_30_12_manifest.py",
+        # Stage 30.12.1 body-builder factory test additions (factory unit +
+        # render-at-construction + fail-closed + mint-mismatch + committed-runner
+        # end-to-end + leaf boundaries). Fakes / offline only.
+        "test_stage_30_12_1_phoenix_operator_ping_body_builder.py",
     }
 )
 

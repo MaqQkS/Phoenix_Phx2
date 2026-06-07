@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Dict, Set, Tuple
 
 from PHX2.stage30.stage30_12_manifest import (
+    STAGE30_12_1_BODY_BUILDER_BASENAME,
     STAGE30_12_ALLOWED_PHX2_IMPORTS,
     STAGE30_12_ALLOWED_STAGE30_BASENAMES,
     STAGE30_12_ALLOWED_STDLIB_IMPORTS,
@@ -103,12 +104,13 @@ def test_production_files_exist() -> None:
         )
 
 
-def test_scanned_basenames_are_the_two_non_manifest_modules() -> None:
+def test_scanned_basenames_are_the_three_non_manifest_modules() -> None:
     assert STAGE30_12_SCANNED_PRODUCTION_BASENAMES == (
         STAGE30_12_MODELS_BASENAME,
         STAGE30_12_RENDERER_BASENAME,
+        STAGE30_12_1_BODY_BUILDER_BASENAME,
     )
-    assert len(STAGE30_12_SCANNED_PRODUCTION_BASENAMES) == 2
+    assert len(STAGE30_12_SCANNED_PRODUCTION_BASENAMES) == 3
     assert STAGE30_12_MANIFEST_BASENAME not in (
         STAGE30_12_SCANNED_PRODUCTION_BASENAMES
     )
@@ -118,6 +120,7 @@ def test_modules_import_cleanly() -> None:
     import PHX2.stage30.stage30_12_phoenix_operator_ping_models  # noqa: F401
     import PHX2.stage30.stage30_12_phoenix_operator_ping_renderer  # noqa: F401
     import PHX2.stage30.stage30_12_manifest  # noqa: F401
+    import PHX2.stage30.stage30_12_1_phoenix_operator_ping_body_builder  # noqa: F401,E501
 
 
 # ---------------------------------------------------------------------------

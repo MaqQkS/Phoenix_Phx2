@@ -104,19 +104,26 @@ def test_production_basenames_and_modules() -> None:
         "stage30_12_phoenix_operator_ping_renderer.py"
     )
     assert M.STAGE30_12_MANIFEST_BASENAME == "stage30_12_manifest.py"
+    assert M.STAGE30_12_1_BODY_BUILDER_BASENAME == (
+        "stage30_12_1_phoenix_operator_ping_body_builder.py"
+    )
     assert M.STAGE30_12_MODELS_MODULE == (
         "PHX2.stage30.stage30_12_phoenix_operator_ping_models"
     )
     assert M.STAGE30_12_RENDERER_MODULE == (
         "PHX2.stage30.stage30_12_phoenix_operator_ping_renderer"
     )
+    assert M.STAGE30_12_1_BODY_BUILDER_MODULE == (
+        "PHX2.stage30.stage30_12_1_phoenix_operator_ping_body_builder"
+    )
 
 
-def test_allowed_stage30_basenames_are_the_three_new_files() -> None:
+def test_allowed_stage30_basenames_are_the_four_files() -> None:
     assert M.STAGE30_12_ALLOWED_STAGE30_BASENAMES == (
         M.STAGE30_12_MODELS_BASENAME,
         M.STAGE30_12_RENDERER_BASENAME,
         M.STAGE30_12_MANIFEST_BASENAME,
+        M.STAGE30_12_1_BODY_BUILDER_BASENAME,
     )
 
 
@@ -124,15 +131,20 @@ def test_scanned_excludes_manifest() -> None:
     assert M.STAGE30_12_SCANNED_PRODUCTION_BASENAMES == (
         M.STAGE30_12_MODELS_BASENAME,
         M.STAGE30_12_RENDERER_BASENAME,
+        M.STAGE30_12_1_BODY_BUILDER_BASENAME,
+    )
+    assert M.STAGE30_12_MANIFEST_BASENAME not in (
+        M.STAGE30_12_SCANNED_PRODUCTION_BASENAMES
     )
 
 
-def test_test_basenames_are_the_four_test_files() -> None:
+def test_test_basenames_are_the_five_test_files() -> None:
     assert M.STAGE30_12_TEST_BASENAMES == (
         "test_stage_30_12_phoenix_operator_ping_models.py",
         "test_stage_30_12_phoenix_operator_ping_renderer.py",
         "test_stage_30_12_boundaries.py",
         "test_stage_30_12_manifest.py",
+        "test_stage_30_12_1_phoenix_operator_ping_body_builder.py",
     )
 
 
@@ -193,7 +205,7 @@ def test_live_wiring_requires_operator_auth() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_all_three_production_files_exist() -> None:
+def test_all_production_files_exist() -> None:
     for basename in M.STAGE30_12_ALLOWED_STAGE30_BASENAMES:
         assert (STAGE30_ROOT / basename).is_file(), (
             f"Stage 30.12 requires {basename}"

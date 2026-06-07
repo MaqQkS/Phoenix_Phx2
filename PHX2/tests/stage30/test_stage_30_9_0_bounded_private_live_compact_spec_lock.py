@@ -360,18 +360,24 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
 
 # The now-admitted Stage 30.12 PHOENIX private operator ping renderer slice (the
 # rich committed operator-body renderer the first real private send improvised
-# out-of-repo). A pure leaf: models + renderer + constants-only manifest, plus
-# their four tests. NOT wired into the Stage 30.11.5 send path; wiring it live
-# is a separate operator-authorized step.
+# out-of-repo) PLUS the now-admitted Stage 30.12.1 body-builder factory slice
+# (the committed home for the body-builder glue that feeds the Stage 30.12
+# renderer through the EXISTING Stage 30.11.5 ``compact_body_builder`` seam, with
+# NO runner / sink / gate edit and no monkey-patch). A pure leaf: models +
+# renderer + constants-only manifest + the body-builder factory, plus their five
+# tests. NOT wired into the Stage 30.11.5 send path; wiring it live is a separate
+# operator-authorized step.
 _ADMITTED_STAGE_30_12_BASENAMES = frozenset(
     {
         "stage30_12_phoenix_operator_ping_models.py",
         "stage30_12_phoenix_operator_ping_renderer.py",
         "stage30_12_manifest.py",
+        "stage30_12_1_phoenix_operator_ping_body_builder.py",
         "test_stage_30_12_phoenix_operator_ping_models.py",
         "test_stage_30_12_phoenix_operator_ping_renderer.py",
         "test_stage_30_12_boundaries.py",
         "test_stage_30_12_manifest.py",
+        "test_stage_30_12_1_phoenix_operator_ping_body_builder.py",
     }
 )
 

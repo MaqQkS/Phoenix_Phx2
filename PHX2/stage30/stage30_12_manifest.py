@@ -71,6 +71,13 @@ STAGE30_12_RENDERER_BASENAME: str = (
     "stage30_12_phoenix_operator_ping_renderer.py"
 )
 STAGE30_12_MANIFEST_BASENAME: str = "stage30_12_manifest.py"
+# Stage 30.12.1 body-builder factory: the committed home for the body-builder
+# glue that feeds the Stage 30.12 renderer through the EXISTING Stage 30.11.5
+# ``compact_body_builder`` seam (no runner / sink / gate edit, no monkey-patch).
+# A clean leaf -- it imports ONLY the two Stage 30.12 siblings below.
+STAGE30_12_1_BODY_BUILDER_BASENAME: str = (
+    "stage30_12_1_phoenix_operator_ping_body_builder.py"
+)
 
 
 STAGE30_12_MODELS_MODULE: str = (
@@ -79,14 +86,20 @@ STAGE30_12_MODELS_MODULE: str = (
 STAGE30_12_RENDERER_MODULE: str = (
     "PHX2.stage30.stage30_12_phoenix_operator_ping_renderer"
 )
+STAGE30_12_1_BODY_BUILDER_MODULE: str = (
+    "PHX2.stage30.stage30_12_1_phoenix_operator_ping_body_builder"
+)
 
 
-# The three NEW production files Stage 30.12 adds under ``PHX2/stage30/`` on top
-# of the already-allowed Stage 30.0..30.11.10 inventory.
+# The NEW production files Stage 30.12 + Stage 30.12.1 add under ``PHX2/stage30/``
+# on top of the already-allowed Stage 30.0..30.11.10 inventory: the Stage 30.12
+# models + renderer + constants-only manifest, plus the Stage 30.12.1 body-builder
+# factory.
 STAGE30_12_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
     STAGE30_12_MODELS_BASENAME,
     STAGE30_12_RENDERER_BASENAME,
     STAGE30_12_MANIFEST_BASENAME,
+    STAGE30_12_1_BODY_BUILDER_BASENAME,
 )
 
 
@@ -95,10 +108,12 @@ STAGE30_12_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
 # (it documents the forbidden-surface family names + builds the forbidden-needle
 # fragments, so scanning it against its own needles would self-collide); the
 # manifest is validated separately by the Stage 30.12 manifest test (import
-# cleanliness + no transport-scheme literal + no top-level call).
+# cleanliness + no transport-scheme literal + no top-level call). The Stage
+# 30.12.1 body-builder factory IS scanned (it is a clean leaf and must stay one).
 STAGE30_12_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
     STAGE30_12_MODELS_BASENAME,
     STAGE30_12_RENDERER_BASENAME,
+    STAGE30_12_1_BODY_BUILDER_BASENAME,
 )
 
 
@@ -107,6 +122,7 @@ STAGE30_12_TEST_BASENAMES: Tuple[str, ...] = (
     "test_stage_30_12_phoenix_operator_ping_renderer.py",
     "test_stage_30_12_boundaries.py",
     "test_stage_30_12_manifest.py",
+    "test_stage_30_12_1_phoenix_operator_ping_body_builder.py",
 )
 
 
@@ -262,8 +278,10 @@ __all__ = (
     "STAGE30_12_MODELS_BASENAME",
     "STAGE30_12_RENDERER_BASENAME",
     "STAGE30_12_MANIFEST_BASENAME",
+    "STAGE30_12_1_BODY_BUILDER_BASENAME",
     "STAGE30_12_MODELS_MODULE",
     "STAGE30_12_RENDERER_MODULE",
+    "STAGE30_12_1_BODY_BUILDER_MODULE",
     "STAGE30_12_ALLOWED_STAGE30_BASENAMES",
     "STAGE30_12_SCANNED_PRODUCTION_BASENAMES",
     "STAGE30_12_TEST_BASENAMES",
