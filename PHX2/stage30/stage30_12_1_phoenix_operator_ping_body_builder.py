@@ -79,8 +79,9 @@ class PhoenixOperatorPingContext(NamedTuple):
 
     A passive carrier of the rich renderer-only fields a ceremony has honestly
     revalidated -- the fields the committed Stage 30.9.3 gate input does NOT
-    carry at the body-builder boundary (LP / current price / ATH price /
-    fractional drop / migration timestamp / provenance ref / age / symbol), plus
+    carry at the body-builder boundary (LP / current price / ATH price / ATH MC
+    display / fractional drop / migration timestamp / provenance ref / age /
+    symbol), plus
     the two required identity fields. It maps one-to-one onto the committed Stage
     30.12 ``PhoenixOperatorPingInput`` (the renderer owns all formatting,
     safe-shape validation, and fail-closed behavior). It carries no secret, no
@@ -107,6 +108,7 @@ class PhoenixOperatorPingContext(NamedTuple):
     basis_display: Optional[str] = None
     source_ref: Optional[str] = None
     age_display: Optional[str] = None
+    ath_market_cap_display: Optional[str] = None
 
 
 # The Stage 30.11.5-seam-compatible compact body builder type: a callable that,
@@ -149,6 +151,7 @@ def context_to_input(
         basis_display=context.basis_display,
         source_ref=context.source_ref,
         age_display=context.age_display,
+        ath_market_cap_display=context.ath_market_cap_display,
     )
 
 

@@ -129,6 +129,7 @@ def test_required_fields_and_optional_defaults() -> None:
         record.basis_display,
         record.source_ref,
         record.age_display,
+        record.ath_market_cap_display,
     ):
         assert optional is None
 

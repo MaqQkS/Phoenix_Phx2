@@ -15,7 +15,7 @@ Rendered body shape:
     CA: <full-token-mint>
 
     🧠 State
-    MC: <X> | ATH: <X> | Drop: <X>
+    MC: <X> | ATH MC: <X> | Drop: <X>
     LP: <X> | Mig: <Confirmed/Unknown> | Age: <X>
 
     💰 Price
@@ -438,6 +438,7 @@ def render_phoenix_operator_ping(input_record: PhoenixOperatorPingInput) -> str:
         input_record.symbol_or_name,
         input_record.migration_time_utc,
         input_record.market_cap_display,
+        input_record.ath_market_cap_display,
         input_record.liquidity_display,
         input_record.current_price,
         input_record.ath_price,
@@ -459,6 +460,7 @@ def render_phoenix_operator_ping(input_record: PhoenixOperatorPingInput) -> str:
         input_record.symbol_or_name, token_mint
     )
     mc_display = _text_or_unknown(input_record.market_cap_display)
+    ath_mc_display = _text_or_unknown(input_record.ath_market_cap_display)
     lp_display = _text_or_unknown(input_record.liquidity_display)
     drop_display = _text_or_unknown(input_record.fractional_drop_pct)
     now_price_display = _format_price(input_record.current_price)
@@ -484,7 +486,7 @@ def render_phoenix_operator_ping(input_record: PhoenixOperatorPingInput) -> str:
         f"CA: {token_mint}",
         "",
         f"{_BRAIN} State",
-        f"MC: {mc_display} | ATH: {ath_price_display} | Drop: {drop_display}",
+        f"MC: {mc_display} | ATH MC: {ath_mc_display} | Drop: {drop_display}",
         f"LP: {lp_display} | Mig: {mig_display} | Age: {age_display}",
         "",
         f"{_MONEY} Price",

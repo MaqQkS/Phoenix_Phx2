@@ -85,6 +85,7 @@ def _full_context(*, mint: str = VALID_MINT, tier: str = "Tier 1"):
         basis_display="Post-migration ATH",
         source_ref="helius:sig:5hMAYVvmcYNxV29b5TAboHuKEXKjURwU484fjHr:slot:424620715",
         age_display="12.0h",
+        ath_market_cap_display="$24.6k",
     )
 
 
@@ -189,6 +190,15 @@ def test_body_contains_expected_sections() -> None:
         assert needle in body, f"body missing {needle!r}"
 
 
+def test_factory_body_contains_ath_market_cap_display() -> None:
+    # Stage 30.12.2: the context's ATH market-cap display reaches the State line.
+    builder = make_phoenix_operator_ping_body_builder(
+        _full_context(mint=VALID_MINT, tier="Tier 1")
+    )
+    body = builder(_FakeGateInput(VALID_MINT))
+    assert "ATH MC: $24.6k" in body
+
+
 # ---------------------------------------------------------------------------
 # 3 + 8. Render-at-construction (not per call)
 # ---------------------------------------------------------------------------
@@ -288,6 +298,7 @@ def test_missing_optional_fields_render_unknown() -> None:
     body = builder(_FakeGateInput(VALID_MINT))
     assert f"CA: {VALID_MINT}" in body
     assert "MC: Unknown" in body          # market_cap_display None
+    assert "ATH MC: Unknown" in body      # ath_market_cap_display None
     assert "Now: Unknown" in body         # current_price None
     assert "Age: Unknown" in body         # age_display None
     assert "Tier: Tier 2" in body         # required field echoed

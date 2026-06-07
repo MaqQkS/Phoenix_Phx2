@@ -75,6 +75,7 @@ def _golden_input() -> PhoenixOperatorPingInput:
         fractional_drop_pct="-75.39%",
         basis_display="Post-migration ATH",
         source_ref=_GOLDEN_SOURCE_REF,
+        ath_market_cap_display="$20.7k",
     )
 
 
@@ -89,6 +90,7 @@ def test_golden_full_body_contains_every_section_and_field() -> None:
         "🎯 Dip Gate",
         "🧾 Provenance",
         "MC: $5.1k",
+        "ATH MC: $20.7k",
         "LP: $4.8k",
         "Drop: -75.39%",
         "Mig: Confirmed",
@@ -134,6 +136,7 @@ def test_missing_optionals_render_unknown_not_blank_or_zero() -> None:
         _make_input(tier_token=TIER_TOKEN_TIER_2)
     )
     assert "MC: Unknown" in body
+    assert "ATH MC: Unknown" in body
     assert "LP: Unknown" in body
     assert "Drop: Unknown" in body
     assert "Mig: Unknown" in body
@@ -225,6 +228,7 @@ _DANGEROUS_VALUES = (
     (
         "symbol_or_name",
         "market_cap_display",
+        "ath_market_cap_display",
         "liquidity_display",
         "source_ref",
         "basis_display",
@@ -472,3 +476,52 @@ def test_malformed_price_renders_unknown() -> None:
     # decimal text; negative ath is rejected by the formatter.
     assert "Now: Unknown" in body
     assert "ATH: Unknown" in body
+
+
+# ---------------------------------------------------------------------------
+# 11. ATH market-cap display (Stage 30.12.2)
+# ---------------------------------------------------------------------------
+#
+# The State line shows ATH *market cap* beside the current MC; the Price section
+# keeps the ATH *price*. The renderer never computes ATH MC -- it echoes the
+# supplied display string (or ``Unknown`` when absent).
+
+
+def test_ath_market_cap_display_renders_in_state_line() -> None:
+    body = render_phoenix_operator_ping(
+        _make_input(
+            tier_token=TIER_TOKEN_TIER_3,
+            market_cap_display="$3.0k",
+            ath_market_cap_display="$28.4k",
+            fractional_drop_pct="-89.24%",
+        )
+    )
+    assert "MC: $3.0k | ATH MC: $28.4k | Drop: -89.24%" in body
+
+
+def test_missing_ath_market_cap_display_renders_unknown() -> None:
+    body = render_phoenix_operator_ping(
+        _make_input(ath_market_cap_display=None)
+    )
+    assert "ATH MC: Unknown" in body
+
+
+def test_state_line_ath_mc_is_distinct_from_price_section_ath_price() -> None:
+    # The State line carries the ATH *market cap*; the Price section carries the
+    # ATH *price*. The ATH price must NOT leak into the State line.
+    body = render_phoenix_operator_ping(
+        _make_input(
+            market_cap_display="$3.0k",
+            ath_market_cap_display="$28.4k",
+            current_price="0.0000030532",
+            ath_price="0.0000283688",
+        )
+    )
+    state_line = next(
+        ln for ln in body.splitlines() if ln.startswith("MC:")
+    )
+    assert "ATH MC: $28.4k" in state_line
+    assert "$0.0000283688" not in state_line   # no ATH price in the State line
+    # The Price section still renders Now + ATH price.
+    assert "Now: $0.0000030532" in body
+    assert "ATH: $0.0000283688" in body

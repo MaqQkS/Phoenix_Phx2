@@ -28,7 +28,7 @@ Target body shape (full case):
     CA: <full-token-mint>
 
     🧠 State
-    MC: <X> | ATH: <X> | Drop: <X>
+    MC: <X> | ATH MC: <X> | Drop: <X>
     LP: <X> | Mig: <Confirmed/Unknown> | Age: <X>
 
     💰 Price
@@ -228,6 +228,13 @@ class PhoenixOperatorPingInput(NamedTuple):
                                     segments; it NEVER admits a URL / secret.
       * ``age_display``          -- already-formatted age-since-migration display
                                     (e.g. ``16.6h``), or ``None``.
+      * ``ath_market_cap_display`` -- already-formatted ATH market-cap display
+                                    (e.g. ``$28.4k``) shown beside the current MC
+                                    in the State line, or ``None``. Echoed
+                                    verbatim; the renderer NEVER computes ATH MC
+                                    from ``ath_price`` (the upstream ceremony
+                                    derives it and formats it). A missing value
+                                    renders as ``Unknown``.
     """
 
     token_mint: str
@@ -245,6 +252,7 @@ class PhoenixOperatorPingInput(NamedTuple):
     basis_display: Optional[str] = None
     source_ref: Optional[str] = None
     age_display: Optional[str] = None
+    ath_market_cap_display: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
