@@ -4354,7 +4354,315 @@ STAGE30_11_10_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.11 -- migration-anchored ATH source (the committed real ATH
+# context source; the ATH-correctness fix for the clipped sliding window)
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.11 is the ELEVENTH Stage 30.11 production slice and the committed
+# home for the real ATH context source the prior ceremonies improvised
+# out-of-repo. The Stage 30 ATH-correctness audit surfaced the defect: the
+# out-of-repo source built the committed Stage 29.2 ATH source with a SLIDING
+# ``now - floor(elapsed_h)h`` window, so for a ~24.9h-old mint the window started
+# ~52 min AFTER migration and CLIPPED the first post-migration peak (the true ATH
+# was ~2x the reported one, mis-tiering the candidate). Stage 30.11.11 anchors the
+# OHLCV window at the confirmed migration moment (``time_from = migration_unix``,
+# ``time_to = now``) and selects the finest candle interval whose count over the
+# window fits the provider item cap, failing closed with
+# ``ATH_UNVERIFIED_WINDOW_TOO_LONG`` rather than truncate the start.
+#
+# It adds ONE NEW production file -- the migration-anchored ATH context source --
+# plus an additive Stage 29.2 companion fetch
+# (``fetch_birdeye_ath_snapshot_migration_anchored``; the legacy sliding fetch is
+# unchanged). Its ``read_ath_context(token_mint, migration_event_time_utc=...)``
+# method conforms to the committed Stage 30.11.10 ATH-context-source contract
+# verbatim, so it drops into ``build_ath_resolver(ath_context_source=...)`` with
+# NO Stage 30.11.10 edit. UNLIKE the leaf Stage 30.11.10 resolver, this source IS
+# the committed real ATH source, so it imports the committed Stage 27.4 reader +
+# Stage 29.2 sources DIRECTLY (read-only) -- the deliberate, audited Stage
+# 30.11.11 import expansion pinned in ``STAGE30_11_11_ALLOWED_PHX2_IMPORTS``. The
+# low-level provider transport + private endpoint secret + the ``now`` clock are
+# INJECTED, so the source reads NO env, opens NO network of its own, and is fully
+# offline-testable with a fake transport. It RECOMPUTES no drawdown (the
+# committed Stage 27.4 ``_compute_drawdown`` owns that) and LOOSENS no
+# post-migration verification. It ships NO renderer / display change (Stage 30.12
+# is untouched), NO Stage 30.11.5 runner / transport edit, NO real send, NO env
+# read, NO live run. NO Stage 30.11.12+ file ships at Stage 30.11.11.
+
+
+STAGE30_11_11_MINOR_VERSION: str = "30.11.11"
+
+
+# The Stage 30.11.11 migration-anchored ATH schema version (mirrored BY VALUE by
+# the Stage 30.11.11 source module; a pin test cross-checks it matches).
+STAGE30_11_11_ANCHORED_ATH_SCHEMA_VERSION: str = (
+    "stage30_11_11_v0_migration_anchored_ath"
+)
+
+
+# Safe-shape source-stage provenance token (names the slice; never a secret).
+STAGE30_11_11_SOURCE_STAGE: str = "30.11.11"
+
+
+# The ONE NEW production basename + its dotted module path.
+STAGE30_11_11_ANCHORED_ATH_SOURCE_BASENAME: str = (
+    "stage30_11_11_migration_anchored_ath_source.py"
+)
+STAGE30_11_11_ANCHORED_ATH_SOURCE_MODULE: str = (
+    "PHX2.stage30.stage30_11_11_migration_anchored_ath_source"
+)
+
+
+# The additive companion the Stage 30.11.11 source calls on the committed Stage
+# 29.2 ATH source (the migration-anchored window fetch; the legacy sliding fetch
+# ``fetch_birdeye_ath_snapshot`` is unchanged).
+STAGE30_11_11_STAGE29_2_ANCHORED_FETCH_NAME: str = (
+    "fetch_birdeye_ath_snapshot_migration_anchored"
+)
+
+
+# The ONE NEW production file Stage 30.11.11 adds under ``PHX2/stage30/`` on top
+# of the already-allowed Stage 30.0..30.11.10 + 30.12 / 30.12.1 inventory. NO
+# Stage 30.11.12+ file.
+STAGE30_11_11_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_11_ANCHORED_ATH_SOURCE_BASENAME,
+)
+
+
+# The one production module the Stage 30.11.11 boundary test scans for forbidden
+# imports / text needles.
+STAGE30_11_11_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_11_ANCHORED_ATH_SOURCE_BASENAME,
+)
+
+
+STAGE30_11_11_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_11_migration_anchored_ath_source.py",
+    "test_stage_30_11_11_boundaries.py",
+    "test_stage_30_11_11_manifest.py",
+)
+
+
+# Every non-PHX2 import in the Stage 30.11.11 source must be in this stdlib
+# allowlist (it needs ``dataclasses`` for the result record, ``datetime`` to
+# PARSE the caller anchor + the injected ``now`` -- the clock is injected so it
+# never calls ``datetime.now`` -- and ``typing``). It admits NO ``os`` (so NO env
+# read), NO ``sqlite3`` / compression, and NO network module.
+STAGE30_11_11_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "datetime",
+)
+
+
+# Every PHX2 import in the Stage 30.11.11 source must be one of these committed
+# Stage 27.4 + Stage 29.2 modules. This positive allowlist is the deliberate,
+# audited Stage 30.11.11 import expansion: the source IS the committed real ATH
+# context source, so it composes the committed Stage 27.4 reader + Stage 29.2
+# anchored fetch / price source DIRECTLY (read-only; it modifies none of them).
+# It proves, by construction, that NO Stage 28 / Stage 21-26 / other Stage 30
+# (no Stage 30.12 renderer / display, no Stage 30.11.5 runner / transport, no
+# Stage 30.11.10 resolver) / PHX1 / network-transport / Discord module is
+# imported.
+STAGE30_11_11_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    "PHX2.stage27.price_ath_context_contracts",
+    "PHX2.stage27.price_ath_context_models",
+    "PHX2.stage27.price_ath_context_reader",
+    "PHX2.stage27.migration_context_models",
+    "PHX2.stage27.provider_ingest_models",
+    "PHX2.stage27.pair_detection_constants",
+    "PHX2.stage29.birdeye_constants",
+    "PHX2.stage29.stage29_2_birdeye_ath_source",
+    "PHX2.stage29.stage29_2_birdeye_models",
+    "PHX2.stage29.stage29_2_birdeye_price_source",
+)
+
+
+# Provider OHLCV item cap + the finest-first interval ladder (mirrored BY VALUE
+# by the Stage 30.11.11 source; a pin test cross-checks them).
+STAGE30_11_11_OHLCV_MAX_ITEMS: int = 1000
+STAGE30_11_11_INTERVAL_LADDER: Tuple[Tuple[str, int], ...] = (
+    ("1m", 60),
+    ("5m", 300),
+    ("15m", 900),
+    ("1H", 3600),
+    ("4H", 14400),
+    ("1D", 86400),
+)
+
+
+# Closed-set anchored-ATH decision + reason tokens (mirrored BY VALUE from the
+# Stage 30.11.11 source). ``RESOLVED_ANCHORED_ATH`` carries the committed Stage
+# 27.4 reading; ``UNRESOLVED_ANCHORED_ATH`` fails closed (None reading).
+STAGE30_11_11_ANCHORED_ATH_DECISIONS: Tuple[str, ...] = (
+    "RESOLVED_ANCHORED_ATH",
+    "UNRESOLVED_ANCHORED_ATH",
+)
+STAGE30_11_11_ANCHORED_ATH_PASS_DECISION: str = "RESOLVED_ANCHORED_ATH"
+STAGE30_11_11_ANCHORED_ATH_PASS_REASON: str = "RESOLVED_POST_MIGRATION_ATH"
+STAGE30_11_11_WINDOW_TOO_LONG_REASON: str = "ATH_UNVERIFIED_WINDOW_TOO_LONG"
+STAGE30_11_11_ANCHORED_ATH_REASONS: Tuple[str, ...] = (
+    "RESOLVED_POST_MIGRATION_ATH",
+    "BLANK_CANDIDATE_MINT",
+    "MISSING_MIGRATION_ANCHOR",
+    "UNPARSEABLE_MIGRATION_ANCHOR",
+    "MIGRATION_ANCHOR_IN_FUTURE",
+    "NON_POSITIVE_WINDOW",
+    "ATH_UNVERIFIED_WINDOW_TOO_LONG",
+    "ATH_SOURCE_EMPTY",
+    "ATH_SOURCE_ERROR",
+    "ATH_NOT_PRESENT",
+    "NOT_POST_MIGRATION_ONLY",
+    "MISSING_DRAWDOWN",
+)
+
+
+# The committed Stage 27.4 ATH vocabulary the Stage 30.11.11 source verifies
+# against (mirrored BY VALUE; a pin test cross-checks them against the real
+# Stage 27.4 constants).
+STAGE30_11_11_ATH_STATUS_PRESENT: str = "PRESENT"
+STAGE30_11_11_ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY: str = (
+    "POST_MIGRATION_ONLY"
+)
+STAGE30_11_11_DRAWDOWN_BASIS_FROM_POST_MIGRATION_ATH: str = (
+    "FROM_POST_MIGRATION_ATH"
+)
+
+
+# The Stage 30.11.11 source boundary test scans the source for these forbidden
+# text needles. This is the Stage 30.11 family needle set MINUS the committed
+# Stage 29.2 private-secret-parameter keyword the source forwards (a committed
+# parameter NAME, never a secret VALUE -- the actual secret stays inside the
+# injected secret object, never in this source). Every real URL / credential /
+# auth / transport-scheme / provider-host needle is RETAINED. Each is
+# split-literal-concatenated so this manifest carries no bare needle.
+STAGE30_11_11_FORBIDDEN_TEXT_NEEDLES: Tuple[str, ...] = (
+    "discord" + ".com",
+    "discord" + "app.com",
+    "/web" + "hooks/",
+    "web" + "hook url",
+    "endpoint" + " url",
+    "raw" + "_body",
+    "response" + "_body",
+    "head" + "ers",
+    "author" + "ization",
+    "b" + "earer",
+    "api" + " key",
+    "api_" + "key",
+    "x-api-" + "key",
+    "x-" + "token",
+    "public-api.birdeye" + ".so",
+    "dex" + "screener.com",
+    "chain" + "stack",
+    "hel" + "ius",
+    "h" + "ttps://",
+    "h" + "ttp://",
+    "w" + "ss://",
+    "w" + "s://",
+)
+
+
+# After Stage 30.11.11 (the migration-anchored ATH source) the dip-gated private
+# dispatch path resolves a CORRECT, non-clipped post-migration ATH; the next
+# allowed step is the SEPARATE, operator-authorized controlled live ceremony (the
+# family pointer ``STAGE30_11_NEXT_ALLOWED_STAGE`` stays pinned at ``30.11.1``).
+# A Stage 30.12.2 display fix (show ATH market cap beside current MC, label price
+# vs MC) remains a SEPARATE later slice and is NOT part of Stage 30.11.11. NO
+# Stage 30.11.12+ file ships at Stage 30.11.11.
+STAGE30_11_11_NEXT_ALLOWED_STAGE: str = (
+    "CONTROLLED_LIVE_CEREMONY_OPERATOR_AUTHORIZED"
+)
+STAGE30_11_11_NEXT_ALLOWED_STAGE_TITLE: str = (
+    "the separate, operator-authorized controlled dip-filtered private compact "
+    "live ceremony (re-validated against the corrected migration-anchored ATH); "
+    "a Stage 30.12.2 display fix is a separate later slice"
+)
+
+
+# The surfaces the Stage 30.11.11 anchored-ATH slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms.
+STAGE30_11_11_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "controlled live ceremony executed in this stage",
+    "real transport call",
+    "private send",
+    "Discord send",
+    "webhook call",
+    "live provider call",
+    "live run",
+    "env read",
+    "wall-clock read",
+    "sliding now-minus-lookback ATH window for the live dip gate",
+    "clip the first post-migration peak",
+    "silently truncate the anchored window start",
+    "accept partial window coverage as a verified ATH",
+    "fabricate ATH",
+    "fabricate drawdown",
+    "recompute drawdown independently",
+    "loosen post-migration ATH verification",
+    "promote a pre-migration ATH",
+    "modify Stage 27.4 reader",
+    "modify the Stage 29.2 lookback fetch path",
+    "modify Stage 30.11.10 resolver",
+    "modify Stage 30.11.7 enrichment",
+    "modify the dip gate",
+    "change the dip gate",
+    "modify the Stage 30.12 renderer / display",
+    "modify Stage 30.12.1 body builder",
+    "alter tier bands",
+    "wallet / signing",
+    "automated trading",
+    "public routing",
+    "subscriber routing",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.12+ implementation file",
+    "Stage 31",
+)
+
+
+# The controlled live ceremony remains a SEPARATE, explicitly operator-authorized
+# step (Stage 30.11.11 implements no part of it; it only supplies the committed,
+# corrected migration-anchored ATH source the next ceremony composes).
+STAGE30_11_11_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_11_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.11 is the committed migration-anchored ATH source only; the "
+    "controlled dip-filtered private compact live ceremony remains a separate, "
+    "explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
+    # Stage 30.11.11 migration-anchored ATH source surface.
+    "STAGE30_11_11_MINOR_VERSION",
+    "STAGE30_11_11_ANCHORED_ATH_SCHEMA_VERSION",
+    "STAGE30_11_11_SOURCE_STAGE",
+    "STAGE30_11_11_ANCHORED_ATH_SOURCE_BASENAME",
+    "STAGE30_11_11_ANCHORED_ATH_SOURCE_MODULE",
+    "STAGE30_11_11_STAGE29_2_ANCHORED_FETCH_NAME",
+    "STAGE30_11_11_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_11_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_11_TEST_BASENAMES",
+    "STAGE30_11_11_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_11_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_11_OHLCV_MAX_ITEMS",
+    "STAGE30_11_11_INTERVAL_LADDER",
+    "STAGE30_11_11_ANCHORED_ATH_DECISIONS",
+    "STAGE30_11_11_ANCHORED_ATH_PASS_DECISION",
+    "STAGE30_11_11_ANCHORED_ATH_PASS_REASON",
+    "STAGE30_11_11_WINDOW_TOO_LONG_REASON",
+    "STAGE30_11_11_ANCHORED_ATH_REASONS",
+    "STAGE30_11_11_ATH_STATUS_PRESENT",
+    "STAGE30_11_11_ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY",
+    "STAGE30_11_11_DRAWDOWN_BASIS_FROM_POST_MIGRATION_ATH",
+    "STAGE30_11_11_FORBIDDEN_TEXT_NEEDLES",
+    "STAGE30_11_11_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_11_NEXT_ALLOWED_STAGE_TITLE",
+    "STAGE30_11_11_FORBIDDEN_SURFACES",
+    "STAGE30_11_11_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_11_LIVE_CEREMONY_NOTE",
     # Stage id + minor version + spec version.
     "STAGE30_11_STAGE_ID",
     "STAGE30_11_0_MINOR_VERSION",

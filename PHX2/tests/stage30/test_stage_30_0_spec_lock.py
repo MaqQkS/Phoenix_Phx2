@@ -584,6 +584,13 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # two Stage 30.12 siblings (models + renderer) and renders at
         # construction so a fail-closed surfaces before the runner. Offline only.
         "stage30_12_1_phoenix_operator_ping_body_builder.py",
+        # Stage 30.11.11 migration-anchored ATH source slice (the committed real
+        # ATH context source; the ATH-correctness fix anchoring the OHLCV window
+        # at the migration moment so a live post-migration ATH cannot clip the
+        # first peak). Imports the committed Stage 27.4 reader + Stage 29.2
+        # sources DIRECTLY (the audited Stage 30.11.11 import expansion);
+        # transport + secret + now-clock injected; fail-closed; offline-testable.
+        "stage30_11_11_migration_anchored_ath_source.py",
     }
 )
 
@@ -884,6 +891,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # render-at-construction + fail-closed + mint-mismatch + committed-runner
         # end-to-end + leaf boundaries). Fakes / offline only.
         "test_stage_30_12_1_phoenix_operator_ping_body_builder.py",
+        # Stage 30.11.11 migration-anchored ATH source test additions (source
+        # behavior + anchored window + interval selection + fail-closed +
+        # Stage 27.4 compat + tier correction, boundaries, manifest). Fakes /
+        # offline only.
+        "test_stage_30_11_11_migration_anchored_ath_source.py",
+        "test_stage_30_11_11_boundaries.py",
+        "test_stage_30_11_11_manifest.py",
     }
 )
 

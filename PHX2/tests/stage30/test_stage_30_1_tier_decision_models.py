@@ -471,6 +471,33 @@ _STAGE30_4_3_BRIDGE_ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
 )
 
 
+# The Stage 30.11.11 migration-anchored ATH source is the committed real ATH
+# context source (the ATH-correctness fix). UNLIKE the leaf Stage 30.11.x
+# slices it composes the committed Stage 27.4 reader + Stage 29.2 anchored ATH
+# fetch / price source DIRECTLY (read-only), so it may import these four Stage
+# 29.2 modules (Stage 27.4 is already universally admitted for stage30); every
+# other Stage 21-29 prefix stays forbidden for it.
+_STAGE30_11_11_ANCHORED_ATH_BASENAME: str = (
+    "stage30_11_11_migration_anchored_ath_source.py"
+)
+_STAGE30_11_11_ALLOWED_STAGE29_2_MODULES: frozenset = frozenset(
+    {
+        "PHX2.stage29.birdeye_constants",
+        "PHX2.stage29.stage29_2_birdeye_ath_source",
+        "PHX2.stage29.stage29_2_birdeye_models",
+        "PHX2.stage29.stage29_2_birdeye_price_source",
+    }
+)
+_STAGE30_11_11_ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
+    "PHX2.stage27.",
+    "PHX2.stage29.birdeye_constants",
+    "PHX2.stage29.stage29_2_birdeye_ath_source",
+    "PHX2.stage29.stage29_2_birdeye_models",
+    "PHX2.stage29.stage29_2_birdeye_price_source",
+    "PHX2.stage30.",
+)
+
+
 def _stage30_production_module_paths() -> list[Path]:
     stage30_root = (
         Path(__file__).resolve().parent.parent.parent / "stage30"
@@ -563,6 +590,19 @@ def test_stage30_production_modules_dont_import_other_phx2_stages() -> (
                         f"Stage package: {imported}"
                     )
             continue
+        # The Stage 30.11.11 anchored-ATH source may import the four approved
+        # Stage 29.2 modules (Stage 27.4 is universally admitted); every other
+        # Stage 21-29 prefix stays forbidden for it.
+        if module_path.name == _STAGE30_11_11_ANCHORED_ATH_BASENAME:
+            for imported in imports:
+                if imported in _STAGE30_11_11_ALLOWED_STAGE29_2_MODULES:
+                    continue
+                for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
+                    assert not imported.startswith(prefix), (
+                        f"{module_path.name} imports forbidden "
+                        f"Stage package: {imported}"
+                    )
+            continue
         for imported in imports:
             for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
                 assert not imported.startswith(prefix), (
@@ -610,6 +650,22 @@ def test_stage30_production_modules_only_phx2_dep_is_stage27_or_stage30() -> (
                     for prefix in (
                         _STAGE30_4_3_BRIDGE_ALLOWED_PHX2_PREFIXES
                     )
+                ), (
+                    f"{module_path.name} imports unexpected PHX2 "
+                    f"module: {imported}"
+                )
+            continue
+        # The Stage 30.11.11 anchored-ATH carve-out admits the four approved
+        # Stage 29.2 modules in addition to the closed Stage 27 / Stage 30
+        # dependency boundary.
+        if module_path.name == _STAGE30_11_11_ANCHORED_ATH_BASENAME:
+            for imported in imports:
+                if not imported.startswith("PHX2"):
+                    continue
+                assert any(
+                    imported.startswith(prefix)
+                    or imported == prefix.rstrip(".")
+                    for prefix in _STAGE30_11_11_ALLOWED_PHX2_PREFIXES
                 ), (
                     f"{module_path.name} imports unexpected PHX2 "
                     f"module: {imported}"

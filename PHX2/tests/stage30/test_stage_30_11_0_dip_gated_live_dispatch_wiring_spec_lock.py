@@ -78,6 +78,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_9_TEST_BASENAMES,
     STAGE30_11_10_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_10_TEST_BASENAMES,
+    STAGE30_11_11_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_11_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -186,7 +188,7 @@ def _extract_imported_module(line: str) -> str:
 
 # Matches any Stage 30.11.<N> minor-version token in a basename (both the
 # production ``stage30_11_<N>`` and the test ``stage_30_11_<N>`` spellings).
-# A captured N >= 11 names a future Stage 30.11.11+ file; N in {0, 1, 2, 3, 4, 5, 6,
+# A captured N >= 12 names a future Stage 30.11.12+ file; N in {0, 1, 2, 3, 4, 5, 6,
 # 7, 8, 9, 10} is the Stage 30.11.0 scaffold (the spec doc + this pin test) / the
 # now-admitted Stage 30.11.1 assembly bridge slice / the now-admitted Stage 30.11.2
 # runtime gate seam slice / the now-admitted Stage 30.11.3 private sink adapter
@@ -196,7 +198,8 @@ def _extract_imported_module(line: str) -> str:
 # now-admitted Stage 30.11.7 candidate dip-enrichment bridge slice / the
 # now-admitted Stage 30.11.8 narrow migration-confirmation bridge slice / the
 # now-admitted Stage 30.11.9 mint-keyed migration evidence-source slice / the
-# now-admitted Stage 30.11.10 real ATH-resolver bridge slice and is allowed.
+# now-admitted Stage 30.11.10 real ATH-resolver bridge slice / the now-admitted
+# Stage 30.11.11 migration-anchored ATH source slice and is allowed.
 # The Stage 30.11.0 manifest basename (``stage30_11_manifest.py``) carries no
 # digit after ``stage30_11_`` and so matches no token at all.
 _STAGE_30_11_MINOR_RE = re.compile(r"stage_?30_11_(\d+)")
@@ -209,7 +212,7 @@ def _future_30_11_violations(basenames) -> list:
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 11:
+            if int(match.group(1)) >= 12:
                 violations.append(basename)
     return violations
 
@@ -1003,6 +1006,7 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_8_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_9_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_10_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_11_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
@@ -1040,6 +1044,7 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_8_TEST_BASENAMES)
         | set(STAGE30_11_9_TEST_BASENAMES)
         | set(STAGE30_11_10_TEST_BASENAMES)
+        | set(STAGE30_11_11_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "

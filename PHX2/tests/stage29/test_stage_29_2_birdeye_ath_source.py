@@ -33,6 +33,7 @@ from PHX2.stage29.birdeye_constants import (
 from PHX2.stage29.stage29_2_birdeye_ath_source import (
     Stage29_2BirdeyeAthSource,
     fetch_birdeye_ath_snapshot,
+    fetch_birdeye_ath_snapshot_migration_anchored,
 )
 from PHX2.stage29.stage29_2_birdeye_http_transport import (
     Stage29_2BirdeyeHttpResult,
@@ -603,3 +604,139 @@ def test_protocol_rejects_unknown_ohlcv_type_at_construct():
             lookback_hours=24,
             ohlcv_type="hourly",
         )
+
+
+# ---------------------------------------------------------------------------
+# Stage 30.11.11 additive migration-anchored fetch (explicit time_from window)
+# ---------------------------------------------------------------------------
+
+
+def test_anchored_uses_explicit_time_from_not_a_lookback():
+    body = {
+        "success": True,
+        "data": {
+            "items": [
+                {"h": 0.9, "unixTime": 1716000300},  # peak
+                {"h": 0.2, "unixTime": 1716050000},
+            ]
+        },
+    }
+    transport = FakeTransport(_ok_result(body))
+    tf = 1716000000
+    tt = 1716100000
+    snap = fetch_birdeye_ath_snapshot_migration_anchored(
+        base_mint=GOOD_MINT,
+        transport=transport,
+        endpoint_secret=_secret(),
+        timeout_seconds=10,
+        time_from_unix=tf,
+        time_to_unix=tt,
+        ohlcv_type="5m",
+        migration_timestamp_utc=None,
+    )
+    call = transport.calls[0]
+    assert call["path"] == BIRDEYE_PATH_OHLCV
+    assert call["query_params"]["time_from"] == str(tf)
+    assert call["query_params"]["time_to"] == str(tt)
+    assert call["query_params"]["type"] == "5m"
+    assert snap.birdeye_ath_status == BIRDEYE_ATH_STATUS_PRESENT
+    assert snap.ath_value == "0.9"
+
+
+def test_anchored_window_flag_true_when_time_from_at_migration():
+    body = {
+        "success": True,
+        "data": {"items": [{"h": 0.5, "unixTime": 1716000300}]},
+    }
+    transport = FakeTransport(_ok_result(body))
+    mig_unix = 1716000000
+    mig_iso = datetime.fromtimestamp(
+        mig_unix, tz=timezone.utc
+    ).strftime("%Y-%m-%dT%H:%M:%SZ")
+    snap = fetch_birdeye_ath_snapshot_migration_anchored(
+        base_mint=GOOD_MINT,
+        transport=transport,
+        endpoint_secret=_secret(),
+        timeout_seconds=10,
+        time_from_unix=mig_unix,
+        time_to_unix=mig_unix + 86400,
+        ohlcv_type="15m",
+        migration_timestamp_utc=mig_iso,
+    )
+    # time_from == migration => the window is cleanly post-migration.
+    assert snap.window_starts_post_migration is True
+
+
+def test_anchored_degenerate_window_is_source_error_no_call():
+    transport = FakeTransport(
+        _ok_result(
+            {"success": True, "data": {"items": [{"h": 0.5, "unixTime": 1}]}}
+        )
+    )
+    snap = fetch_birdeye_ath_snapshot_migration_anchored(
+        base_mint=GOOD_MINT,
+        transport=transport,
+        endpoint_secret=_secret(),
+        timeout_seconds=10,
+        time_from_unix=2000,
+        time_to_unix=2000,  # time_to <= time_from
+        ohlcv_type="15m",
+    )
+    assert snap.birdeye_ath_status == BIRDEYE_ATH_STATUS_SOURCE_ERROR
+    assert transport.calls == []
+
+
+def test_anchored_unsafe_mint_is_source_error_no_call():
+    transport = FakeTransport(
+        _ok_result({"success": True, "data": {"items": []}})
+    )
+    snap = fetch_birdeye_ath_snapshot_migration_anchored(
+        base_mint="bad",
+        transport=transport,
+        endpoint_secret=_secret(),
+        timeout_seconds=10,
+        time_from_unix=1000,
+        time_to_unix=2000,
+        ohlcv_type="15m",
+    )
+    assert snap.birdeye_ath_status == BIRDEYE_ATH_STATUS_SOURCE_ERROR
+    assert transport.calls == []
+
+
+def test_anchored_empty_items_is_missing():
+    transport = FakeTransport(
+        _ok_result({"success": True, "data": {"items": []}})
+    )
+    snap = fetch_birdeye_ath_snapshot_migration_anchored(
+        base_mint=GOOD_MINT,
+        transport=transport,
+        endpoint_secret=_secret(),
+        timeout_seconds=10,
+        time_from_unix=1000,
+        time_to_unix=90000,
+        ohlcv_type="15m",
+    )
+    assert snap.birdeye_ath_status == BIRDEYE_ATH_STATUS_MISSING
+    assert snap.ath_value is None
+
+
+def test_legacy_lookback_path_time_from_unchanged_regression():
+    # The legacy sliding fetch STILL computes time_from = time_to - lookback*3600
+    # (Stage 30.11.11 added the anchored companion without changing this path).
+    body = {
+        "success": True,
+        "data": {"items": [{"h": 0.5, "unixTime": 1716010000}]},
+    }
+    transport = FakeTransport(_ok_result(body))
+    fetch_birdeye_ath_snapshot(
+        base_mint=GOOD_MINT,
+        transport=transport,
+        endpoint_secret=_secret(),
+        timeout_seconds=10,
+        lookback_hours=24,
+        ohlcv_type="15m",
+        now_utc=FROZEN_NOW,
+    )
+    call = transport.calls[0]
+    expected_to = int(FROZEN_NOW.timestamp())
+    assert call["query_params"]["time_from"] == str(expected_to - 24 * 3600)

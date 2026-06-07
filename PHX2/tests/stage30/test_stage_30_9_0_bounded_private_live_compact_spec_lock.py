@@ -354,6 +354,16 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_10_composition.py",
         "test_stage_30_11_10_boundaries.py",
         "test_stage_30_11_10_manifest.py",
+        # Stage 30.11.11 migration-anchored ATH source slice (the committed real
+        # ATH context source; anchors the OHLCV window at the migration moment so
+        # a live post-migration ATH cannot clip the first peak). Composes the
+        # committed Stage 27.4 reader + Stage 29.2 sources directly (audited
+        # import expansion); transport / secret / now-clock injected; fakes /
+        # offline only.
+        "stage30_11_11_migration_anchored_ath_source.py",
+        "test_stage_30_11_11_migration_anchored_ath_source.py",
+        "test_stage_30_11_11_boundaries.py",
+        "test_stage_30_11_11_manifest.py",
     }
 )
 

@@ -218,6 +218,135 @@ def fetch_birdeye_ath_snapshot(
     )
 
 
+def fetch_birdeye_ath_snapshot_migration_anchored(
+    *,
+    base_mint: str,
+    transport: Stage29_2BirdeyeHttpTransport,
+    endpoint_secret: Stage29_2BirdeyeEndpointSecret,
+    timeout_seconds: int,
+    time_from_unix: int,
+    time_to_unix: int,
+    ohlcv_type: str = BIRDEYE_DEFAULT_OHLCV_TYPE,
+    migration_timestamp_utc: Optional[str] = None,
+) -> Stage29_2BirdeyeAthSnapshot:
+    """Fetch a Stage 29.2 Birdeye ATH snapshot over an EXPLICIT
+    ``[time_from_unix, time_to_unix]`` window ANCHORED at the migration
+    moment (the caller passes ``time_from_unix == migration_unix``),
+    instead of the sliding ``now - lookback_hours`` window of
+    ``fetch_birdeye_ath_snapshot``.
+
+    This is the additive companion the Stage 30.11.11 migration-anchored
+    ATH source uses so a live post-migration ATH cannot CLIP the first
+    post-migration peak (the sliding-window defect the ATH audit surfaced:
+    a ``floor(elapsed_h)`` lookback started AFTER the migration moment and
+    missed the early peak). The legacy ``fetch_birdeye_ath_snapshot``
+    lookback path is UNCHANGED.
+
+    Same closed-set projection + ATH-from-``max(items[].h)`` semantics as
+    the lookback fetch, and the SAME ``window_starts_post_migration`` rule
+    (``True`` iff ``time_from_unix`` is at / after the migration moment --
+    by construction ``time_from_unix == migration_unix`` => ``True`` for a
+    valid anchored window, so the committed Stage 27.4 reader records a
+    ``POST_MIGRATION_ONLY`` ATH). NEVER raises.
+
+    Fails closed to a SOURCE_ERROR snapshot (``ath_value`` ``None``) when
+    the mint / timeout / ohlcv type is unsafe or the window is degenerate
+    (non-int / negative ``time_from_unix`` / ``time_to_unix <=
+    time_from_unix``). The caller (Stage 30.11.11) selects an OHLCV
+    ``ohlcv_type`` whose candle count over the window fits the provider cap;
+    this fetch does not itself page or step the interval.
+    """
+    if not is_safe_mint(base_mint):
+        return _build_error_ath_snapshot(lookback_hours=0)
+    if not is_safe_timeout_seconds(timeout_seconds):
+        return _build_error_ath_snapshot(lookback_hours=0)
+    if not is_allowed_ohlcv_type(ohlcv_type):
+        return _build_error_ath_snapshot(lookback_hours=0)
+    if (
+        isinstance(time_from_unix, bool)
+        or isinstance(time_to_unix, bool)
+        or not isinstance(time_from_unix, int)
+        or not isinstance(time_to_unix, int)
+        or time_from_unix < 0
+        or time_to_unix <= time_from_unix
+    ):
+        return _build_error_ath_snapshot(lookback_hours=0)
+
+    # The recorded ``lookback_hours`` is the anchored span in whole hours
+    # (NOT a sliding lookback): record-only metadata. The window is the
+    # explicit ``[time_from_unix, time_to_unix]`` below. The
+    # ``Stage29_2BirdeyeAthSnapshot`` validator admits any non-negative int
+    # (no 168h cap on the record), so an anchored span > 168h is recorded
+    # faithfully.
+    span_hours = (time_to_unix - time_from_unix) // 3600
+
+    http_result: Stage29_2BirdeyeHttpResult = transport.get(
+        endpoint_secret=endpoint_secret,
+        path=BIRDEYE_PATH_OHLCV,
+        query_params={
+            "address": base_mint,
+            "type": ohlcv_type,
+            "time_from": str(time_from_unix),
+            "time_to": str(time_to_unix),
+        },
+        timeout_seconds=timeout_seconds,
+    )
+
+    if http_result.refusal_reason != BIRDEYE_REFUSAL_REASON_NONE:
+        return _build_error_ath_snapshot(
+            lookback_hours=span_hours,
+            fetched_at_utc=http_result.fetched_at_utc,
+        )
+    body = http_result.body
+    if body is None:
+        return _build_error_ath_snapshot(
+            lookback_hours=span_hours,
+            fetched_at_utc=http_result.fetched_at_utc,
+        )
+
+    data = body.get("data")
+    if not isinstance(data, dict):
+        return _build_missing_ath_snapshot(
+            lookback_hours=span_hours,
+            items_count=0,
+        )
+
+    items_raw = data.get("items")
+    if not isinstance(items_raw, list) or len(items_raw) == 0:
+        return _build_missing_ath_snapshot(
+            lookback_hours=span_hours,
+            items_count=(
+                len(items_raw) if isinstance(items_raw, list) else 0
+            ),
+        )
+
+    best = _select_best_high_candle(items_raw)
+    if best is None:
+        return _build_missing_ath_snapshot(
+            lookback_hours=span_hours,
+            items_count=len(items_raw),
+        )
+    ath_value_text, candle_unix = best
+    ath_observed_at_utc = _iso_utc_from_unix(candle_unix)
+
+    window_flag = _window_starts_post_migration(
+        time_from_unix=time_from_unix,
+        migration_timestamp_utc=migration_timestamp_utc,
+    )
+
+    return build_birdeye_ath_snapshot(
+        ath_value=ath_value_text,
+        ath_unit=BIRDEYE_REPORTING_UNIT_USD,
+        source_label=BIRDEYE_OHLCV_SOURCE_LABEL,
+        ath_observed_at_utc=ath_observed_at_utc,
+        window_starts_post_migration=window_flag,
+        lookback_hours=span_hours,
+        items_count=len(items_raw),
+        birdeye_ath_status=BIRDEYE_ATH_STATUS_PRESENT,
+        birdeye_freshness_status=BIRDEYE_FRESHNESS_STATUS_FRESH,
+    )
+
+
 def _build_error_ath_snapshot(
     *,
     lookback_hours: int,
@@ -529,5 +658,6 @@ class Stage29_2BirdeyeAthSource:
 
 __all__ = (
     "fetch_birdeye_ath_snapshot",
+    "fetch_birdeye_ath_snapshot_migration_anchored",
     "Stage29_2BirdeyeAthSource",
 )
