@@ -942,15 +942,19 @@ def _compute_drawdown(
 ) -> Optional[str]:
     """Compute ``ath_value - current_price`` as canonical decimal text.
 
-    Returns ``None`` when the current price is missing, when units
+    The drawdown REQUIRES a ``PRICE_STATUS_PRESENT`` current price.
+    A ``STALE`` current price preserves the ATH (the caller still
+    surfaces ``ath_value`` and the post-migration window) but yields
+    NO usable drawdown -- Stage 30.11.12 fails closed so a stale
+    current price can never drive a drawdown / tier / private ping.
+
+    Returns ``None`` when the current price is missing, NOT PRESENT
+    (e.g. ``STALE`` / ``UNAVAILABLE`` / ``SOURCE_ERROR``), when units
     disagree, or when arithmetic fails. Pure / deterministic.
     """
     if current_price_record is None:
         return None
-    if current_price_record.price_status not in (
-        PRICE_STATUS_PRESENT,
-        PRICE_STATUS_STALE,
-    ):
+    if current_price_record.price_status != PRICE_STATUS_PRESENT:
         return None
     if current_price_record.price_value is None:
         return None

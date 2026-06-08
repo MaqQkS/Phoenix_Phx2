@@ -37,6 +37,7 @@ from PHX2.stage27.price_ath_context_models import (
     ATH_STATUS_PRESENT,
     AthContextRecord,
     DRAWDOWN_BASIS_FROM_POST_MIGRATION_ATH,
+    DRAWDOWN_BASIS_NOT_APPLICABLE,
 )
 from PHX2.stage29.birdeye_constants import (
     BIRDEYE_PATH_OHLCV,
@@ -65,6 +66,7 @@ from PHX2.stage30.stage30_11_11_migration_anchored_ath_source import (
     ANCHORED_ATH_REASON_BLANK_CANDIDATE_MINT,
     ANCHORED_ATH_REASON_MIGRATION_ANCHOR_IN_FUTURE,
     ANCHORED_ATH_REASON_MISSING_MIGRATION_ANCHOR,
+    ANCHORED_ATH_REASON_NOT_POST_MIGRATION_ONLY,
     ANCHORED_ATH_REASON_RESOLVED_POST_MIGRATION_ATH,
     ANCHORED_ATH_REASON_UNPARSEABLE_MIGRATION_ANCHOR,
     ANCHORED_ATH_REASON_WINDOW_TOO_LONG,
@@ -470,6 +472,46 @@ def test_read_ath_context_returns_none_on_source_error() -> None:
         ohlcv_refusal=BIRDEYE_REFUSAL_REASON_HTTP_TIMEOUT,
     )
     src = _source(transport)
+    assert (
+        src.read_ath_context(MINT, migration_event_time_utc=MIGRATION_ANCHOR)
+        is None
+    )
+
+
+def test_stale_current_price_fails_closed_no_resolution() -> None:
+    """Stage 30.11.12: a current price fetched OLDER than the staleness
+    threshold makes the committed Stage 27.4 price STALE, so
+    ``_compute_drawdown`` yields no drawdown and the anchored source
+    fails closed -- no usable drawdown, no RESOLVED_ATH, no private
+    ping. The anchored OHLCV peak is otherwise valid, proving it is the
+    STALE CURRENT PRICE (not a missing ATH) that closes the gate.
+    """
+    # fetched_at_utc is ~1h before NOW (2026-06-07T07:06:40Z), far past
+    # the 300s default staleness threshold -> Stage 27.4 PRICE_STATUS_STALE.
+    transport = FakeBirdeyeTransport(
+        price_body=_price_body(),
+        ohlcv_body=_ohlcv_body_with_peak(),
+        fetched_at_utc="2026-06-07T06:00:00+00:00",
+    )
+    src = _source(transport)
+    result = src.resolve_anchored_ath(MINT, MIGRATION_ANCHOR)
+
+    # Fail closed: NOT resolved, surfaced reason is the basis flip
+    # (drawdown withheld -> basis NOT_APPLICABLE -> not post-migration-only).
+    assert result.resolved is False
+    assert result.reason == ANCHORED_ATH_REASON_NOT_POST_MIGRATION_ONLY
+
+    # The ATH itself rode through PRESENT with its value intact: it is the
+    # stale CURRENT price, not a missing/absent ATH, that closes the gate.
+    assert result.ath_status == ATH_STATUS_PRESENT
+    assert result.ath_value == PEAK_ATH
+
+    # No usable drawdown can come from a stale current price.
+    assert result.drawdown_from_ath is None
+    assert result.drawdown_basis == DRAWDOWN_BASIS_NOT_APPLICABLE
+
+    # The resolver-facing reading is suppressed to None when unresolved,
+    # so Stage 30.11.10 can never bind a RESOLVED_ATH from a stale price.
     assert (
         src.read_ath_context(MINT, migration_event_time_utc=MIGRATION_ANCHOR)
         is None

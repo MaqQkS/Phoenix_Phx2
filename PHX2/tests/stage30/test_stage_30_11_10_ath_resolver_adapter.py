@@ -437,6 +437,34 @@ def test_present_post_migration_but_no_drawdown_is_missing_drawdown() -> None:
     assert res.drawdown_from_ath is None
 
 
+def test_stale_price_reading_shape_fails_closed_at_resolver() -> None:
+    """Stage 30.11.12: the committed Stage 27.4 brain emits THIS exact
+    shape for a STALE current price -- ATH ``PRESENT`` +
+    ``POST_MIGRATION_ONLY`` window, but the drawdown withheld
+    (``drawdown_basis == NOT_APPLICABLE`` and ``drawdown_from_ath is
+    None`` together). The resolver must fail closed -- a stale current
+    price can NEVER become a RESOLVED_ATH. The dropped
+    FROM_POST_MIGRATION_ATH basis trips PRE_MIGRATION_ATH_NOT_VERIFIED
+    (ahead of the also-failing missing-drawdown check).
+    """
+    res = _resolve(
+        _MINT,
+        _reading(
+            ath_status="PRESENT",
+            ath_since="POST_MIGRATION_ONLY",
+            drawdown_basis="NOT_APPLICABLE",
+            drawdown_from_ath=None,
+        ),
+    )
+    assert res.decision == ATH_DECISION_UNRESOLVED
+    assert res.reason == ATH_REASON_PRE_MIGRATION_ATH_NOT_VERIFIED
+    assert res.post_migration_ath_verified is False
+    # The ATH itself rides through present/fresh: it is the stale CURRENT
+    # price (drawdown withheld), not a missing ATH, that closes the gate.
+    assert res.present is True
+    assert res.fresh is True
+
+
 # ---------------------------------------------------------------------------
 # 9. Duck-typed object base + build_ath_resolver factory
 # ---------------------------------------------------------------------------

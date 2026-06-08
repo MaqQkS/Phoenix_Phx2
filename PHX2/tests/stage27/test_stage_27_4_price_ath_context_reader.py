@@ -660,6 +660,46 @@ def test_ath_context_drawdown_is_absolute_delta_at_memecoin_scale():
     assert record.drawdown_unit == m.ATH_UNIT_SOL
 
 
+def test_ath_context_no_drawdown_when_current_price_stale():
+    """Stage 30.11.12 fail-closed: a STALE current price preserves the
+    PRESENT post-migration ATH (value + window survive) but yields NO
+    usable drawdown, so a stale current price can never drive a
+    drawdown / tier / private ping. Only ``PRICE_STATUS_PRESENT`` may
+    produce a drawdown.
+    """
+    ingest = _ingest_output_sol_confirmed()
+    snapshot = reader.AthSourceSnapshot(
+        ath_value="0.0009",
+        ath_unit=m.ATH_UNIT_SOL,
+        source_label="fake",
+        ath_observed_at_utc="2026-05-22T11:30:00+00:00",
+        window_starts_post_migration=True,
+    )
+    stale_price = _present_price_record_sol()._replace(
+        price_status=m.PRICE_STATUS_STALE,
+        price_reason=m.PRICE_REASON_STALE_THRESHOLD_EXCEEDED,
+        staleness_seconds=630,
+    )
+    record = reader.build_ath_context_record(
+        snapshot,
+        ingest,
+        migration_record=_present_migration_record(),
+        current_price_record=stale_price,
+    )
+    # ATH itself stays PRESENT + POST_MIGRATION_ONLY with its value
+    # intact -- only the drawdown is withheld because the current
+    # price is stale.
+    assert record.ath_status == m.ATH_STATUS_PRESENT
+    assert (
+        record.ath_since_migration_status
+        == m.ATH_SINCE_MIGRATION_STATUS_POST_MIGRATION_ONLY
+    )
+    assert record.ath_value == "0.0009"
+    # Fail closed: NO usable drawdown from a stale current price.
+    assert record.drawdown_from_ath is None
+    assert record.drawdown_basis == m.DRAWDOWN_BASIS_NOT_APPLICABLE
+
+
 # ---------------------------------------------------------------------------
 # ATH context: pre-migration data rejected
 # ---------------------------------------------------------------------------
