@@ -591,6 +591,14 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # sources DIRECTLY (the audited Stage 30.11.11 import expansion);
         # transport + secret + now-clock injected; fail-closed; offline-testable.
         "stage30_11_11_migration_anchored_ath_source.py",
+        # Stage 30.11.13 committed end-to-end no-send composer slice (the
+        # integration capstone binding the gate decision + the PHOENIX body to
+        # ONE immutable revalidation snapshot; hard-wires the Stage 30.11.11
+        # anchored ATH source, computes the ATH market cap in committed code,
+        # and dispatches only through the Stage 30.11.5 recording FAKE
+        # transport). Integration module + offline fake proof; no real send.
+        "stage30_11_13_committed_no_send_composer.py",
+        "stage30_11_13_fake_composer_proof.py",
     }
 )
 
@@ -898,6 +906,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_11_migration_anchored_ath_source.py",
         "test_stage_30_11_11_boundaries.py",
         "test_stage_30_11_11_manifest.py",
+        # Stage 30.11.13 committed end-to-end no-send composer tests.
+        "test_stage_30_11_13_committed_no_send_composer.py",
     }
 )
 

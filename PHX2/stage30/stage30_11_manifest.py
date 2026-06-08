@@ -4634,6 +4634,37 @@ STAGE30_11_11_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.13 committed end-to-end no-send composer inventory
+# ---------------------------------------------------------------------------
+#
+# The committed composer binds the gate decision and the PHOENIX body to ONE
+# immutable revalidation snapshot, hard-wires the Stage 30.11.11 anchored ATH
+# source (no arbitrary duck-typed source), computes the ATH market cap in
+# committed code, and dispatches ONLY through the Stage 30.11.5 recording FAKE
+# transport. (Stage 30.11.12 added no Stage 30.11.x production file -- it
+# tightened the committed Stage 27.4 ``_compute_drawdown`` -- so the next
+# Stage 30.11.x file basenames jump to 30.11.13.)
+STAGE30_11_13_MINOR_VERSION: str = "30.11.13"
+STAGE30_11_13_COMPOSER_BASENAME: str = (
+    "stage30_11_13_committed_no_send_composer.py"
+)
+STAGE30_11_13_FAKE_PROOF_BASENAME: str = (
+    "stage30_11_13_fake_composer_proof.py"
+)
+
+# The TWO NEW production files Stage 30.11.13 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.11.11 + 30.12 / 30.12.1 inventory.
+STAGE30_11_13_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_13_COMPOSER_BASENAME,
+    STAGE30_11_13_FAKE_PROOF_BASENAME,
+)
+
+STAGE30_11_13_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_13_committed_no_send_composer.py",
+)
+
+
 __all__ = (
     # Stage 30.11.11 migration-anchored ATH source surface.
     "STAGE30_11_11_MINOR_VERSION",
@@ -5234,4 +5265,10 @@ __all__ = (
     "STAGE30_11_10_FORBIDDEN_SURFACES",
     "STAGE30_11_10_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_10_LIVE_CEREMONY_NOTE",
+    # Stage 30.11.13 committed end-to-end no-send composer inventory.
+    "STAGE30_11_13_MINOR_VERSION",
+    "STAGE30_11_13_COMPOSER_BASENAME",
+    "STAGE30_11_13_FAKE_PROOF_BASENAME",
+    "STAGE30_11_13_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_13_TEST_BASENAMES",
 )

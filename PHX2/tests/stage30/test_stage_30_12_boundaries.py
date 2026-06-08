@@ -534,7 +534,14 @@ _STAGE_30_12_MODULE_PREFIX: str = "PHX2.stage30.stage30_12_"
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    own_basenames = set(STAGE30_12_ALLOWED_STAGE30_BASENAMES)
+    # The Stage 30.11.13 committed no-send composer + its fake proof (the
+    # integration capstone) compose the Stage 30.12.1 body builder through the
+    # committed Stage 30.11.5 ``compact_body_builder`` seam into a NO-SEND
+    # offline proof -- the sole permitted importers of the Stage 30.12 slice.
+    own_basenames = set(STAGE30_12_ALLOWED_STAGE30_BASENAMES) | {
+        "stage30_11_13_committed_no_send_composer.py",
+        "stage30_11_13_fake_composer_proof.py",
+    }
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue

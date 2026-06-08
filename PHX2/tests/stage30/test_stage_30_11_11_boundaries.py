@@ -37,6 +37,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_11_ALLOWED_PHX2_IMPORTS,
     STAGE30_11_11_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_11_ALLOWED_STDLIB_IMPORTS,
+    STAGE30_11_13_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_11_ANCHORED_ATH_SOURCE_BASENAME,
     STAGE30_11_11_ANCHORED_ATH_SOURCE_MODULE,
     STAGE30_11_11_FORBIDDEN_TEXT_NEEDLES,
@@ -447,7 +448,12 @@ def test_no_top_level_call_nodes() -> None:
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    own = set(STAGE30_11_11_ALLOWED_STAGE30_BASENAMES)
+    # The Stage 30.11.13 committed no-send composer + its fake proof (the
+    # integration capstone that hard-wires this anchored ATH source) are the
+    # SOLE permitted importers of this leaf.
+    own = set(STAGE30_11_11_ALLOWED_STAGE30_BASENAMES) | set(
+        STAGE30_11_13_ALLOWED_STAGE30_BASENAMES
+    )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue

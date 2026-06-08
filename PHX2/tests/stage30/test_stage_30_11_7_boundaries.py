@@ -43,6 +43,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_7_ALLOWED_PHX2_IMPORTS,
     STAGE30_11_7_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_7_ALLOWED_STDLIB_IMPORTS,
+    STAGE30_11_13_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_7_ENRICHMENT_ADAPTER_BASENAME,
     STAGE30_11_7_ENRICHMENT_ADAPTER_MODULE,
     STAGE30_11_7_ENRICHMENT_MODELS_BASENAME,
@@ -612,7 +613,11 @@ _STAGE_30_11_7_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_7_"
 
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
-    own_basenames = set(STAGE30_11_7_ALLOWED_STAGE30_BASENAMES)
+    # The Stage 30.11.13 committed no-send composer + its fake proof (the
+    # integration capstone) are the SOLE permitted importers of this leaf.
+    own_basenames = set(STAGE30_11_7_ALLOWED_STAGE30_BASENAMES) | set(
+        STAGE30_11_13_ALLOWED_STAGE30_BASENAMES
+    )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue

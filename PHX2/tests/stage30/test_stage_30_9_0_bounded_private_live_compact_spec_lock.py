@@ -364,6 +364,10 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_11_migration_anchored_ath_source.py",
         "test_stage_30_11_11_boundaries.py",
         "test_stage_30_11_11_manifest.py",
+        # Stage 30.11.13 committed end-to-end no-send composer slice.
+        "stage30_11_13_committed_no_send_composer.py",
+        "stage30_11_13_fake_composer_proof.py",
+        "test_stage_30_11_13_committed_no_send_composer.py",
     }
 )
 

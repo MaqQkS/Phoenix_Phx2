@@ -80,6 +80,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_10_TEST_BASENAMES,
     STAGE30_11_11_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_11_TEST_BASENAMES,
+    STAGE30_11_13_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_13_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -209,10 +211,14 @@ _STAGE_31_RE = re.compile(r"stage_?31\b")
 
 
 def _future_30_11_violations(basenames) -> list:
+    # The now-admitted Stage 30.11.13 committed no-send composer slice carries
+    # minor token 13 (Stage 30.11.12 added no Stage 30.11.x production file --
+    # it tightened the committed Stage 27.4 ``_compute_drawdown``). The guard
+    # catches ANY Stage 30.11.<N>=14+ token going forward.
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 12:
+            if int(match.group(1)) >= 14:
                 violations.append(basename)
     return violations
 
@@ -1007,6 +1013,7 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_9_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_10_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_11_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_13_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
@@ -1045,6 +1052,7 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_9_TEST_BASENAMES)
         | set(STAGE30_11_10_TEST_BASENAMES)
         | set(STAGE30_11_11_TEST_BASENAMES)
+        | set(STAGE30_11_13_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "
