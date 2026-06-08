@@ -599,6 +599,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # transport). Integration module + offline fake proof; no real send.
         "stage30_11_13_committed_no_send_composer.py",
         "stage30_11_13_fake_composer_proof.py",
+        # Stage 30.11.15 committed cross-run private operator ping dedupe slice
+        # (the dedupe key + outcome models, the append-only JSONL ledger + its
+        # in-memory twin, the total no-send guard + deduped orchestrator, and the
+        # offline fake dedupe proof). The ledger is the sole filesystem-
+        # persistence surface (an injected base path only); no real send.
+        "stage30_11_15_ping_dedupe_models.py",
+        "stage30_11_15_ping_dedupe_ledger.py",
+        "stage30_11_15_no_send_dedupe_guard.py",
+        "stage30_11_15_fake_dedupe_proof.py",
     }
 )
 
@@ -908,6 +917,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_11_manifest.py",
         # Stage 30.11.13 committed end-to-end no-send composer tests.
         "test_stage_30_11_13_committed_no_send_composer.py",
+        # Stage 30.11.15 committed cross-run ping dedupe tests (ledger replay +
+        # TTL + fail-closed, guard key derivation, composer hook, deduped
+        # orchestrator, boundaries, manifest). Fakes / offline only.
+        "test_stage_30_11_15_ping_dedupe_ledger.py",
+        "test_stage_30_11_15_no_send_dedupe_guard.py",
+        "test_stage_30_11_15_boundaries.py",
+        "test_stage_30_11_15_manifest.py",
+        "test_stage_30_11_15_fake_dedupe_proof.py",
     }
 )
 

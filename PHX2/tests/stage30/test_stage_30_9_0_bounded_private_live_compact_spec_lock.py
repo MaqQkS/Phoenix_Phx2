@@ -368,6 +368,16 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "stage30_11_13_committed_no_send_composer.py",
         "stage30_11_13_fake_composer_proof.py",
         "test_stage_30_11_13_committed_no_send_composer.py",
+        # Stage 30.11.15 committed cross-run private operator ping dedupe slice.
+        "stage30_11_15_ping_dedupe_models.py",
+        "stage30_11_15_ping_dedupe_ledger.py",
+        "stage30_11_15_no_send_dedupe_guard.py",
+        "stage30_11_15_fake_dedupe_proof.py",
+        "test_stage_30_11_15_ping_dedupe_ledger.py",
+        "test_stage_30_11_15_no_send_dedupe_guard.py",
+        "test_stage_30_11_15_boundaries.py",
+        "test_stage_30_11_15_manifest.py",
+        "test_stage_30_11_15_fake_dedupe_proof.py",
     }
 )
 

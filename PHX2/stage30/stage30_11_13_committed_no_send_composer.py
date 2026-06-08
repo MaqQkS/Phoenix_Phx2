@@ -77,7 +77,9 @@ Discipline:
   * No database / SQLite, no zstd / compression, no default storage root.
   * No real provider, transport-destination, webhook, or request-metadata
     reference; no wallet / signing / trading surface; no public / subscriber
-    routing; no dedupe.
+    routing; no dedupe of its own (an optional INJECTED pre-dispatch guard MAY
+    suppress a duplicate before dispatch -- the guard owns any persistence; the
+    composer itself still reads no env and writes no file).
   * No PHX1 import. No ``time`` import. ``datetime`` is imported ONLY to PARSE
     caller-injected ISO-8601 timestamps (the market-context freshness bound --
     ``created_at_utc`` minus ``market_context_fetched_at_utc``); this module
@@ -237,6 +239,12 @@ COMPOSE_REJECTED_ENRICHMENT_FAILED: str = "ENRICHMENT_FAILED"
 COMPOSE_REJECTED_GATE_DID_NOT_PASS: str = "GATE_DID_NOT_PASS"
 COMPOSE_REJECTED_GATE_BODY_MISMATCH: str = "GATE_BODY_MISMATCH"
 COMPOSE_REJECTED_BODY_BUILD_FAILED: str = "BODY_BUILD_FAILED"
+# Stage 30.11.15 committed cross-run dedupe fail-closed reasons: an INJECTED
+# pre-dispatch guard suppressed a duplicate within TTL, or the dedupe ledger was
+# unavailable / corrupt / unwritable. Either fails closed -- no runner call, no
+# body, transport_attempts 0.
+COMPOSE_REJECTED_DEDUPE_SUPPRESSED: str = "DEDUPE_SUPPRESSED_DUPLICATE"
+COMPOSE_REJECTED_DEDUPE_UNAVAILABLE: str = "DEDUPE_UNAVAILABLE"
 
 STAGE30_11_13_COMPOSE_REASONS: Tuple[str, ...] = (
     COMPOSE_REASON_NO_SEND_DISPATCH_RECORDED,
@@ -260,6 +268,8 @@ STAGE30_11_13_COMPOSE_REASONS: Tuple[str, ...] = (
     COMPOSE_REJECTED_GATE_DID_NOT_PASS,
     COMPOSE_REJECTED_GATE_BODY_MISMATCH,
     COMPOSE_REJECTED_BODY_BUILD_FAILED,
+    COMPOSE_REJECTED_DEDUPE_SUPPRESSED,
+    COMPOSE_REJECTED_DEDUPE_UNAVAILABLE,
 )
 
 
@@ -695,6 +705,7 @@ def compose_no_send_dispatch(
     market_context_max_age_seconds: int = (
         STAGE30_11_13_DEFAULT_MARKET_CONTEXT_MAX_AGE_SECONDS
     ),
+    pre_dispatch_guard: Optional[Callable[[Any], Any]] = None,
 ) -> Stage30_11_13ComposeResult:
     """Compose ONE no-send dispatch from ONE immutable revalidation snapshot.
 
@@ -711,6 +722,17 @@ def compose_no_send_dispatch(
     effects + the injected fake ATH transport's behavior; reads no env, no
     network, no wall clock; sends no Discord, reserves no real dispatch, writes
     no file.
+
+    Optional cross-run dedupe (Stage 30.11.15): when ``pre_dispatch_guard`` is
+    provided it is called ONCE with the frozen snapshot AFTER the snapshot is
+    built and BEFORE the runner. A guard verdict whose ``allowed`` is not truthy
+    fails closed -- the composer returns a ``REJECTED`` result (reason
+    ``DEDUPE_SUPPRESSED_DUPLICATE`` when the verdict is a suppressed duplicate,
+    else ``DEDUPE_UNAVAILABLE``) with the snapshot attached, ``run_result``
+    ``None``, ``dispatched_body`` ``None``, and ``transport_attempts`` 0, and the
+    runner is NOT called (the fake transport records no body). ``None`` (the
+    default) preserves the exact prior behavior. The guard owns any ledger /
+    file I/O; the composer itself still reads no env and writes no file.
     """
     # ---- 0. Fake-transport-only: a non-fake client fails closed first ----
     if not isinstance(
@@ -995,6 +1017,40 @@ def compose_no_send_dispatch(
         gate_binding_key=binding_key,
     )
 
+    # ---- 7b. Optional Stage 30.11.15 cross-run dedupe guard (fail closed) ----
+    #          Runs ONCE on the frozen snapshot BEFORE enrichment / body render /
+    #          the runner. A verdict whose ``allowed`` is not truthy suppresses
+    #          the dispatch: NO runner call, NO body, transport_attempts 0. The
+    #          composer does NO ledger / file I/O -- the INJECTED guard owns any
+    #          persistence; the verdict is read duck-typed so the composer
+    #          imports no Stage 30.11.15 type and a guard exception fails closed.
+    if pre_dispatch_guard is not None:
+        try:
+            guard_verdict = pre_dispatch_guard(snapshot)
+        except Exception:
+            guard_verdict = None
+        if not bool(getattr(guard_verdict, "allowed", False)):
+            dedupe_reason = (
+                COMPOSE_REJECTED_DEDUPE_UNAVAILABLE
+                if (
+                    guard_verdict is None
+                    or bool(getattr(guard_verdict, "unavailable", False))
+                )
+                else COMPOSE_REJECTED_DEDUPE_SUPPRESSED
+            )
+            return Stage30_11_13ComposeResult(
+                decision=COMPOSE_DECISION_REJECTED,
+                reason=dedupe_reason,
+                token_mint=request.token_mint,
+                candidate_id=request.candidate_id,
+                created_at_utc=request.created_at_utc,
+                snapshot=snapshot,
+                run_result=None,
+                transport_attempts=0,
+                transport_accepts=0,
+                dispatched_body=None,
+            )
+
     # ---- 8. Derive the committed Stage 30.11.7 enriched candidate FROM the
     #         snapshot (its ATH dimension is the SAME committed 30.11.10 ->
     #         30.11.11 resolution) ----
@@ -1175,6 +1231,8 @@ __all__ = (
     "COMPOSE_REJECTED_GATE_DID_NOT_PASS",
     "COMPOSE_REJECTED_GATE_BODY_MISMATCH",
     "COMPOSE_REJECTED_BODY_BUILD_FAILED",
+    "COMPOSE_REJECTED_DEDUPE_SUPPRESSED",
+    "COMPOSE_REJECTED_DEDUPE_UNAVAILABLE",
     "STAGE30_11_13_COMPOSE_REASONS",
     "Stage30_11_13ComposerError",
     "Stage30_11_13RevalidationRequest",

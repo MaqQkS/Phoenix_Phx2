@@ -50,6 +50,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_5_ALLOWED_PHX2_IMPORTS,
     STAGE30_11_5_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_13_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_15_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_5_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_5_BOUNDED_LIVE_RUNNER_BASENAME,
     STAGE30_11_5_BOUNDED_LIVE_RUNNER_MODULE,
@@ -636,14 +637,18 @@ def test_no_existing_stage30_file_imports_the_slice() -> None:
     # basenames (from the manifest's pinned inventory) -- an exact membership
     # check, NOT a wildcard / prefix: it admits neither a future stage30_11_6_*
     # file, nor the Stage 30.11.6 test files, nor any other stage30 file.
-    # The authorized importers: the Stage 30.11.6 harvest successor AND the
-    # Stage 30.11.13 committed no-send composer + its fake proof (the
-    # integration capstone that composes the committed bounded runner). Both are
-    # NEW files (not edits of existing files); every OTHER stage30 file is still
-    # forbidden from importing the slice.
-    admitted_successor_basenames = set(
-        STAGE30_11_6_ALLOWED_STAGE30_BASENAMES
-    ) | set(STAGE30_11_13_ALLOWED_STAGE30_BASENAMES)
+    # The authorized importers: the Stage 30.11.6 harvest successor, the Stage
+    # 30.11.13 committed no-send composer + its fake proof (the integration
+    # capstone that composes the committed bounded runner), AND the Stage
+    # 30.11.15 cross-run dedupe slice (its fake dedupe proof composes the
+    # committed Stage 30.11.5 recording fake transport client to drive the
+    # deduped composer). All are NEW files (not edits of existing files); every
+    # OTHER stage30 file is still forbidden from importing the slice.
+    admitted_successor_basenames = (
+        set(STAGE30_11_6_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_13_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_15_ALLOWED_STAGE30_BASENAMES)
+    )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue

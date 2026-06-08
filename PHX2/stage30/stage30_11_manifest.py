@@ -4665,6 +4665,243 @@ STAGE30_11_13_TEST_BASENAMES: Tuple[str, ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.15 committed cross-run private operator ping dedupe inventory
+# ---------------------------------------------------------------------------
+#
+# The committed cross-run dedupe layer: a mint-anchored, state-classed,
+# drawdown-banded dedupe KEY derived from the frozen Stage 30.11.13 composed
+# snapshot, an append-only JSONL LEDGER (restart-safe via replay; an in-memory
+# ledger is the test / diagnostic twin), a TOTAL no-send GUARD that consults the
+# ledger BEFORE dispatch through the committed composer's ``pre_dispatch_guard``
+# hook, and the deduped ORCHESTRATOR. Suppression fails closed: no runner call,
+# no body, transport_attempts 0. The JSONL ledger is the FIRST Stage 30.11.x
+# slice to persist to the filesystem (an INJECTED base path only; never the
+# repo, never a hardcoded root) -- the established Stage 30.2 / 30.8 append-only
+# writer discipline. (Stage 30.11.14 added no Stage 30.11.x production file -- it
+# tightened the composer's market-context freshness -- so the next Stage 30.11.x
+# file basenames jump to 30.11.15.)
+STAGE30_11_15_MINOR_VERSION: str = "30.11.15"
+
+# Mirrored BY VALUE by the Stage 30.11.15 models module; a pin test cross-checks.
+STAGE30_11_15_PING_DEDUPE_SCHEMA_VERSION: str = "stage30_11_15_v0_ping_dedupe"
+STAGE30_11_15_LEDGER_RECORD_SCHEMA_VERSION: str = (
+    "stage30_11_15_v0_ping_dedupe_ledger"
+)
+STAGE30_11_15_SOURCE_STAGE: str = "30.11.15"
+
+# Key policy defaults (mirrored BY VALUE from the models module).
+STAGE30_11_15_OPERATOR_SIGNAL_KIND: str = "PHOENIX_OPERATOR_DIP_PING"
+STAGE30_11_15_POLICY_VERSION: str = "stage30_11_15_v0"
+STAGE30_11_15_DEFAULT_TTL_SECONDS: int = 21600
+STAGE30_11_15_DEFAULT_DRAWDOWN_BUCKET_PCT: int = 10
+
+# The four NEW production basenames + their dotted module paths.
+STAGE30_11_15_PING_DEDUPE_MODELS_BASENAME: str = (
+    "stage30_11_15_ping_dedupe_models.py"
+)
+STAGE30_11_15_PING_DEDUPE_LEDGER_BASENAME: str = (
+    "stage30_11_15_ping_dedupe_ledger.py"
+)
+STAGE30_11_15_NO_SEND_DEDUPE_GUARD_BASENAME: str = (
+    "stage30_11_15_no_send_dedupe_guard.py"
+)
+STAGE30_11_15_FAKE_DEDUPE_PROOF_BASENAME: str = (
+    "stage30_11_15_fake_dedupe_proof.py"
+)
+
+STAGE30_11_15_PING_DEDUPE_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_15_ping_dedupe_models"
+)
+STAGE30_11_15_PING_DEDUPE_LEDGER_MODULE: str = (
+    "PHX2.stage30.stage30_11_15_ping_dedupe_ledger"
+)
+STAGE30_11_15_NO_SEND_DEDUPE_GUARD_MODULE: str = (
+    "PHX2.stage30.stage30_11_15_no_send_dedupe_guard"
+)
+STAGE30_11_15_FAKE_DEDUPE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_15_fake_dedupe_proof"
+)
+
+# The committed sibling modules the Stage 30.11.15 guard / proof compose
+# (re-declared here as literals; the manifest imports no PHX2 module). The guard
+# drives the committed Stage 30.11.13 composer; the fake proof composes the
+# committed composer fake-proof request factory + the committed Stage 30.11.5
+# recording fake transport client.
+STAGE30_11_15_STAGE30_11_13_COMPOSER_MODULE: str = (
+    "PHX2.stage30.stage30_11_13_committed_no_send_composer"
+)
+STAGE30_11_15_STAGE30_11_13_FAKE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_13_fake_composer_proof"
+)
+STAGE30_11_15_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof"
+)
+
+# The four NEW production files Stage 30.11.15 adds under ``PHX2/stage30/`` on
+# top of the already-allowed Stage 30.0..30.11.13 inventory.
+STAGE30_11_15_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_15_PING_DEDUPE_MODELS_BASENAME,
+    STAGE30_11_15_PING_DEDUPE_LEDGER_BASENAME,
+    STAGE30_11_15_NO_SEND_DEDUPE_GUARD_BASENAME,
+    STAGE30_11_15_FAKE_DEDUPE_PROOF_BASENAME,
+)
+
+STAGE30_11_15_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_15_ALLOWED_STAGE30_BASENAMES
+)
+
+STAGE30_11_15_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_15_ping_dedupe_ledger.py",
+    "test_stage_30_11_15_no_send_dedupe_guard.py",
+    "test_stage_30_11_15_boundaries.py",
+    "test_stage_30_11_15_manifest.py",
+    "test_stage_30_11_15_fake_dedupe_proof.py",
+)
+
+# Base stdlib allowlist for the NON-ledger Stage 30.11.15 production modules
+# (models / guard / fake proof): NO os / json / pathlib / datetime (no I/O, no
+# clock). The ledger carries its own wider allowlist below.
+STAGE30_11_15_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+# The ledger module is the SOLE Stage 30.11.15 filesystem-persistence surface, so
+# it additionally admits ``json`` / ``pathlib`` (the ``Path.open`` append, the
+# established Stage 30.2 / 30.8 writer discipline -- NO ``os``, which the global
+# Stage 30 import guard forbids) + ``datetime`` (PARSE-only TTL timestamps;
+# never ``datetime.now``, mirroring the committed Stage 30.11.13 composer).
+STAGE30_11_15_LEDGER_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "json",
+    "pathlib",
+    "datetime",
+)
+
+# Every PHX2 import in a Stage 30.11.15 production module must be one of these:
+# the three own siblings (models / ledger / guard) plus the committed Stage
+# 30.11.13 composer (driven by the guard) + composer fake-proof request factory
+# and the committed Stage 30.11.5 recording fake transport client (composed by
+# the fake proof). This positive allowlist proves NO Stage 21-29 / runtime
+# orchestrator / renderer / real transport / provider module is imported.
+STAGE30_11_15_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_15_PING_DEDUPE_MODELS_MODULE,
+    STAGE30_11_15_PING_DEDUPE_LEDGER_MODULE,
+    STAGE30_11_15_NO_SEND_DEDUPE_GUARD_MODULE,
+    STAGE30_11_15_STAGE30_11_13_COMPOSER_MODULE,
+    STAGE30_11_15_STAGE30_11_13_FAKE_PROOF_MODULE,
+    STAGE30_11_15_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE,
+)
+
+# Closed-set dedupe verdicts + reasons (mirrored BY VALUE from the models
+# module). ``DEDUPE_ALLOWED`` is the only verdict on which the composer proceeds.
+STAGE30_11_15_DEDUPE_VERDICTS: Tuple[str, ...] = (
+    "DEDUPE_ALLOWED",
+    "DEDUPE_SUPPRESSED_DUPLICATE",
+    "DEDUPE_UNAVAILABLE",
+)
+STAGE30_11_15_DEDUPE_ALLOW_VERDICT: str = "DEDUPE_ALLOWED"
+STAGE30_11_15_DEDUPE_REASONS: Tuple[str, ...] = (
+    "DEDUPE_REASON_NEW_KEY",
+    "DEDUPE_REASON_TTL_EXPIRED",
+    "DEDUPE_REASON_DUPLICATE_WITHIN_TTL",
+    "DEDUPE_REASON_LEDGER_UNAVAILABLE",
+    "DEDUPE_REASON_LEDGER_CORRUPT",
+    "DEDUPE_REASON_LEDGER_WRITE_FAILED",
+    "DEDUPE_REASON_MALFORMED_KEY",
+)
+
+# The dedupe key axes (mirrored BY VALUE from the models dataclass). NEVER
+# ``candidate_id`` / exact drawdown / MC / ATH price / timestamp.
+STAGE30_11_15_PING_DEDUPE_KEY_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "operator_signal_kind",
+    "tier_token",
+    "drawdown_band",
+    "post_migration_ath_verified",
+    "ath_source_stage",
+    "policy_version",
+)
+
+# The append-only JSONL ledger record field set (schema version + the seven key
+# axes + the caller-injected reserved-at timestamp).
+STAGE30_11_15_LEDGER_RECORD_FIELDS: Tuple[str, ...] = (
+    "schema_version",
+    "token_mint",
+    "operator_signal_kind",
+    "tier_token",
+    "drawdown_band",
+    "post_migration_ath_verified",
+    "ath_source_stage",
+    "policy_version",
+    "reserved_at_utc",
+)
+
+# The two committed Stage 30.11.13 composer reason tokens the dedupe hook adds
+# (mirrored BY VALUE from the composer).
+STAGE30_11_15_COMPOSER_DEDUPE_SUPPRESSED_REASON: str = (
+    "DEDUPE_SUPPRESSED_DUPLICATE"
+)
+STAGE30_11_15_COMPOSER_DEDUPE_UNAVAILABLE_REASON: str = "DEDUPE_UNAVAILABLE"
+
+# After Stage 30.11.15 the controlled live ceremony remains a SEPARATE,
+# explicitly operator-authorized step. No Stage 30.11.16+ file ships here.
+STAGE30_11_15_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized controlled live ceremony (separate step)"
+)
+
+# The surfaces the Stage 30.11.15 dedupe slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms.
+STAGE30_11_15_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real dispatch sink",
+    "real transport",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "live provider call",
+    "new live runner",
+    "new provider",
+    "ATH anchoring edit",
+    "market freshness edit",
+    "Stage 30.12 renderer edit",
+    "tier band edit",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "default storage root",
+    "repo-hardcoded ledger path",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "compression implementation",
+    "broad always-on daemon",
+    "background service",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.16+ implementation file",
+    "Stage 31",
+)
+
+STAGE30_11_15_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_15_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.15 is the committed cross-run no-send dedupe layer only; the "
+    "controlled dip-filtered private compact live ceremony remains a separate, "
+    "explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
     # Stage 30.11.11 migration-anchored ATH source surface.
     "STAGE30_11_11_MINOR_VERSION",
@@ -5271,4 +5508,50 @@ __all__ = (
     "STAGE30_11_13_FAKE_PROOF_BASENAME",
     "STAGE30_11_13_ALLOWED_STAGE30_BASENAMES",
     "STAGE30_11_13_TEST_BASENAMES",
+    # ---- Stage 30.11.15 committed cross-run private operator ping dedupe ----
+    # Minor version + schema identity + source stage.
+    "STAGE30_11_15_MINOR_VERSION",
+    "STAGE30_11_15_PING_DEDUPE_SCHEMA_VERSION",
+    "STAGE30_11_15_LEDGER_RECORD_SCHEMA_VERSION",
+    "STAGE30_11_15_SOURCE_STAGE",
+    # Key policy defaults.
+    "STAGE30_11_15_OPERATOR_SIGNAL_KIND",
+    "STAGE30_11_15_POLICY_VERSION",
+    "STAGE30_11_15_DEFAULT_TTL_SECONDS",
+    "STAGE30_11_15_DEFAULT_DRAWDOWN_BUCKET_PCT",
+    # Basenames + module paths.
+    "STAGE30_11_15_PING_DEDUPE_MODELS_BASENAME",
+    "STAGE30_11_15_PING_DEDUPE_LEDGER_BASENAME",
+    "STAGE30_11_15_NO_SEND_DEDUPE_GUARD_BASENAME",
+    "STAGE30_11_15_FAKE_DEDUPE_PROOF_BASENAME",
+    "STAGE30_11_15_PING_DEDUPE_MODELS_MODULE",
+    "STAGE30_11_15_PING_DEDUPE_LEDGER_MODULE",
+    "STAGE30_11_15_NO_SEND_DEDUPE_GUARD_MODULE",
+    "STAGE30_11_15_FAKE_DEDUPE_PROOF_MODULE",
+    "STAGE30_11_15_STAGE30_11_13_COMPOSER_MODULE",
+    "STAGE30_11_15_STAGE30_11_13_FAKE_PROOF_MODULE",
+    "STAGE30_11_15_STAGE30_11_5_FAKE_LIVE_WIRING_PROOF_MODULE",
+    # Inventory + scanned + test basenames.
+    "STAGE30_11_15_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_15_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_15_TEST_BASENAMES",
+    # Import allowlists (base + ledger-only wider stdlib).
+    "STAGE30_11_15_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_15_LEDGER_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_15_ALLOWED_PHX2_IMPORTS",
+    # Verdicts + reasons.
+    "STAGE30_11_15_DEDUPE_VERDICTS",
+    "STAGE30_11_15_DEDUPE_ALLOW_VERDICT",
+    "STAGE30_11_15_DEDUPE_REASONS",
+    # Key + ledger record field tuples.
+    "STAGE30_11_15_PING_DEDUPE_KEY_FIELDS",
+    "STAGE30_11_15_LEDGER_RECORD_FIELDS",
+    # Composer dedupe reason mirrors.
+    "STAGE30_11_15_COMPOSER_DEDUPE_SUPPRESSED_REASON",
+    "STAGE30_11_15_COMPOSER_DEDUPE_UNAVAILABLE_REASON",
+    # Next allowed stage + forbidden surfaces + live ceremony note.
+    "STAGE30_11_15_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_15_FORBIDDEN_SURFACES",
+    "STAGE30_11_15_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_15_LIVE_CEREMONY_NOTE",
 )
