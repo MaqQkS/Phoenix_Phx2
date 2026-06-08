@@ -41,10 +41,19 @@ from PHX2.stage30.stage30_11_13_committed_no_send_composer import (
     COMPOSE_DECISION_REJECTED,
     COMPOSE_REASON_NO_SEND_DISPATCH_RECORDED,
     COMPOSE_REJECTED_ATH_NOT_RESOLVED,
+    COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE,
     COMPOSE_REJECTED_GATE_BODY_MISMATCH,
-    COMPOSE_REJECTED_INVALID_REQUEST,
+    COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE,
+    COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE,
+    COMPOSE_REJECTED_MARKET_CONTEXT_MISSING,
+    COMPOSE_REJECTED_MARKET_CONTEXT_STALE,
+    COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_FUTURE,
+    COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_MISSING,
     COMPOSE_REJECTED_NON_FAKE_TRANSPORT,
+    MARKET_CONTEXT_FRESHNESS_FRESH,
     STAGE30_11_13_ATH_SOURCE_STAGE,
+    STAGE30_11_13_DEFAULT_MARKET_CONTEXT_MAX_AGE_SECONDS,
+    STAGE30_11_13_MARKET_CONTEXT_FUTURE_TOLERANCE_SECONDS,
     Stage30_11_13ComposerError,
     compose_no_send_dispatch,
     make_snapshot_bound_body_builder,
@@ -53,6 +62,7 @@ from PHX2.stage30.stage30_11_13_fake_composer_proof import (
     PROOF_CREATED_AT,
     PROOF_CURRENT_PRICE,
     PROOF_LATER_LOWER,
+    PROOF_MARKET_FETCHED_AT,
     PROOF_MIGRATION_ANCHOR,
     PROOF_MINT,
     PROOF_PEAK_ATH,
@@ -162,7 +172,10 @@ def _run_proof(
     )
 
 
-def _compose(*, request, transport_client):
+def _compose(*, request, transport_client, max_age=None):
+    kwargs = {}
+    if max_age is not None:
+        kwargs["market_context_max_age_seconds"] = max_age
     return compose_no_send_dispatch(
         request,
         ath_transport=FakeComposerBirdeyeTransport(),
@@ -170,6 +183,7 @@ def _compose(*, request, transport_client):
         now_utc=_now_utc(),
         transport_client=transport_client,
         now_seconds=make_constant_clock(Decimal(0)),
+        **kwargs,
     )
 
 
@@ -349,7 +363,7 @@ def test_invalid_current_price_blocks_dispatch_no_transport_attempt() -> None:
         transport_client=client,
     )
     assert result.decision == COMPOSE_DECISION_REJECTED
-    assert result.reason == COMPOSE_REJECTED_INVALID_REQUEST
+    assert result.reason == COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE
     assert client.attempted == 0
 
 
@@ -358,7 +372,7 @@ def test_zero_market_cap_blocks_dispatch() -> None:
         request=default_proof_request(current_market_cap_usd="0")
     )
     assert result.decision == COMPOSE_DECISION_REJECTED
-    assert result.reason == COMPOSE_REJECTED_INVALID_REQUEST
+    assert result.reason == COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE
     assert client.attempted == 0
 
 
@@ -404,3 +418,255 @@ def test_fake_transport_records_would_send_never_a_real_send() -> None:
     # it sends nothing.
     assert client.token_mints == [PROOF_MINT]
     assert len(client.bodies) == 1
+
+
+# ===========================================================================
+# Stage 30.11.14 -- market-context freshness fail-closed
+#
+# A dispatch-eligible no-send snapshot now requires PROVEN-fresh market context:
+# ``market_context_status == PRESENT``, a finite + strictly-positive MC / current
+# price / LP, and a ``market_context_fetched_at_utc`` that exists, does not lead
+# ``created_at_utc`` beyond a small skew tolerance, and is no older than the
+# bounded max age. Stale / undated / future market context can never reach a
+# dispatch -- and therefore never computes a dispatch-eligible ATH MC (the
+# freshness gate runs BEFORE the ATH source is built).
+# ===========================================================================
+
+
+def _rec_client() -> Stage30_11_5RecordingFakeTransportClient:
+    return Stage30_11_5RecordingFakeTransportClient(
+        created_at_utc=PROOF_CREATED_AT
+    )
+
+
+def _created_plus(delta_seconds: int) -> str:
+    """``PROOF_CREATED_AT`` (2026-06-07T07:06:40Z) shifted by ``delta_seconds``,
+    rendered as a trailing-Z ISO-8601 UTC string.
+    """
+    base = datetime(2026, 6, 7, 7, 6, 40, tzinfo=timezone.utc)
+    shifted = int(base.timestamp()) + delta_seconds
+    return (
+        datetime.fromtimestamp(shifted, tz=timezone.utc)
+        .strftime("%Y-%m-%dT%H:%M:%SZ")
+    )
+
+
+# ---- Fresh market context dispatches + records freshness provenance ----
+
+
+def test_fresh_snapshot_records_market_freshness_provenance() -> None:
+    result, _client = _run_proof()
+    assert result.decision == COMPOSE_DECISION_DISPATCHED, result.reason
+    snap = result.snapshot
+    assert snap is not None
+    assert snap.market_context_status == "PRESENT"
+    assert snap.market_context_freshness_status == MARKET_CONTEXT_FRESHNESS_FRESH
+    assert (
+        snap.market_context_max_age_seconds
+        == STAGE30_11_13_DEFAULT_MARKET_CONTEXT_MAX_AGE_SECONDS
+    )
+    # The recorded fetch timestamp is the request's (proven within the bound).
+    assert snap.market_context_fetched_at_utc == PROOF_MARKET_FETCHED_AT
+
+
+def test_fresh_dispatch_body_shows_real_mc_and_ath_mc_never_unknown() -> None:
+    result, client = _run_proof()
+    assert result.decision == COMPOSE_DECISION_DISPATCHED, result.reason
+    body = client.bodies[-1]
+    snap = result.snapshot
+    assert f"MC: {snap.market_cap_display}" in body
+    assert f"ATH MC: {snap.ath_market_cap_display}" in body
+    assert "MC: Unknown" not in body
+    assert "ATH MC: Unknown" not in body
+
+
+def test_market_context_max_age_boundary_is_inclusive() -> None:
+    # Exactly at the bound (age == max_age) is fresh and dispatches.
+    result_ok, client_ok = _run_proof(
+        request=default_proof_request(
+            market_context_fetched_at_utc=_created_plus(-300)
+        )
+    )
+    assert result_ok.decision == COMPOSE_DECISION_DISPATCHED, result_ok.reason
+    assert client_ok.attempted == 1
+    # One second over the bound rejects.
+    client_stale = _rec_client()
+    result_stale = _compose(
+        request=default_proof_request(
+            market_context_fetched_at_utc=_created_plus(-301)
+        ),
+        transport_client=client_stale,
+    )
+    assert result_stale.decision == COMPOSE_DECISION_REJECTED
+    assert result_stale.reason == COMPOSE_REJECTED_MARKET_CONTEXT_STALE
+    assert client_stale.attempted == 0
+
+
+def test_small_future_skew_within_tolerance_still_dispatches() -> None:
+    # A fetch timestamp leading created_at by <= the tolerance is allowed.
+    result, client = _run_proof(
+        request=default_proof_request(
+            market_context_fetched_at_utc=_created_plus(
+                STAGE30_11_13_MARKET_CONTEXT_FUTURE_TOLERANCE_SECONDS
+            )
+        )
+    )
+    assert result.decision == COMPOSE_DECISION_DISPATCHED, result.reason
+    assert client.attempted == 1
+
+
+# ---- Stale MC: fetched older than max age -> reject, no transport attempt ----
+
+
+def test_stale_market_context_fails_closed_no_dispatch() -> None:
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(
+            market_context_fetched_at_utc=_created_plus(-301)
+        ),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CONTEXT_STALE
+    assert client.attempted == 0
+    assert result.snapshot is None
+
+
+def test_custom_tight_max_age_rejects_a_minute_old_market_context() -> None:
+    client = _rec_client()
+    # 90s old, but the operator set a 60s bound -> stale.
+    result = _compose(
+        request=default_proof_request(
+            market_context_fetched_at_utc=_created_plus(-90)
+        ),
+        transport_client=client,
+        max_age=60,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CONTEXT_STALE
+    assert client.attempted == 0
+
+
+# ---- Missing / unparseable market fetch timestamp -> reject ----
+
+
+@pytest.mark.parametrize("bad_ts", [None, "", "   ", "not-a-timestamp"])
+def test_missing_or_unparseable_market_timestamp_fails_closed(bad_ts) -> None:
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(market_context_fetched_at_utc=bad_ts),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_MISSING
+    assert client.attempted == 0
+    assert result.snapshot is None
+
+
+# ---- Future market timestamp beyond tolerance -> reject ----
+
+
+def test_future_market_timestamp_beyond_tolerance_fails_closed() -> None:
+    client = _rec_client()
+    # 60s after created_at -> well beyond the small skew tolerance.
+    result = _compose(
+        request=default_proof_request(
+            market_context_fetched_at_utc=_created_plus(60)
+        ),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_FUTURE
+    assert client.attempted == 0
+
+
+# ---- Missing / invalid MC / current price / LP -> reject (granular reasons) --
+
+
+@pytest.mark.parametrize("bad_mc", [None, "0", "-1", "NaN", "Infinity", "abc"])
+def test_missing_or_invalid_market_cap_fails_closed(bad_mc) -> None:
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(current_market_cap_usd=bad_mc),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE
+    assert client.attempted == 0
+    assert result.snapshot is None
+
+
+@pytest.mark.parametrize("bad_price", [None, "0", "-1", "NaN", "Infinity", "x"])
+def test_missing_or_invalid_current_price_fails_closed(bad_price) -> None:
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(current_price=bad_price),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE
+    assert client.attempted == 0
+
+
+@pytest.mark.parametrize("bad_lp", [None, "0", "-1", "NaN", "Infinity", "lp"])
+def test_missing_or_invalid_liquidity_fails_closed(bad_lp) -> None:
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(liquidity_usd=bad_lp),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE
+    assert client.attempted == 0
+    assert result.snapshot is None
+
+
+# ---- market_context_status PRESENT alone is insufficient ----
+
+
+def test_non_present_market_context_status_fails_closed() -> None:
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(market_context_status="UNAVAILABLE"),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CONTEXT_MISSING
+    assert client.attempted == 0
+
+
+def test_present_status_with_stale_timestamp_still_fails_closed() -> None:
+    # PRESENT status alone does NOT make a stale market context dispatchable.
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(
+            market_context_status="PRESENT",
+            market_context_fetched_at_utc=_created_plus(-3600),
+        ),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CONTEXT_STALE
+    assert client.attempted == 0
+
+
+# ---- Stale market context never computes a dispatch-eligible ATH MC ----
+
+
+def test_stale_market_context_never_computes_dispatch_eligible_ath_mc() -> None:
+    # The freshness gate runs BEFORE the ATH source is built, so a stale market
+    # context is rejected with a market-context reason and NO snapshot (hence NO
+    # ATH MC) is ever produced -- the body is never composed.
+    client = _rec_client()
+    result = _compose(
+        request=default_proof_request(
+            market_context_fetched_at_utc=_created_plus(-1800)
+        ),
+        transport_client=client,
+    )
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_MARKET_CONTEXT_STALE
+    assert result.snapshot is None
+    assert result.dispatched_body is None
+    assert client.attempted == 0
+    assert client.bodies == []

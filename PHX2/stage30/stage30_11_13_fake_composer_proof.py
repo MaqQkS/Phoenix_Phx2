@@ -52,12 +52,20 @@ PROOF_MARKET_CAP_USD: str = "9100"
 PROOF_LIQUIDITY_USD: str = "6900"
 PROOF_AGE_DISPLAY: str = "~24h"
 
+# Stage 30.11.14 market-context freshness defaults: the MC + LP snapshot was
+# fetched 60s before PROOF_CREATED_AT -> within the composer's default 300s
+# bound (fresh), so the default request stays dispatch-eligible.
+PROOF_MARKET_CONTEXT_STATUS: str = "PRESENT"
+PROOF_MARKET_FETCHED_AT: str = "2026-06-07T07:05:40Z"
+
 
 def default_proof_request(
     *,
     current_price: str = PROOF_CURRENT_PRICE,
     current_market_cap_usd: str = PROOF_MARKET_CAP_USD,
     liquidity_usd: Optional[str] = PROOF_LIQUIDITY_USD,
+    market_context_status: str = PROOF_MARKET_CONTEXT_STATUS,
+    market_context_fetched_at_utc: Optional[str] = PROOF_MARKET_FETCHED_AT,
 ) -> Stage30_11_13RevalidationRequest:
     """Build the deterministic default revalidation request."""
     return Stage30_11_13RevalidationRequest(
@@ -72,6 +80,8 @@ def default_proof_request(
         migration_source=PROOF_MIGRATION_SOURCE,
         liquidity_usd=liquidity_usd,
         age_display=PROOF_AGE_DISPLAY,
+        market_context_status=market_context_status,
+        market_context_fetched_at_utc=market_context_fetched_at_utc,
     )
 
 
@@ -128,6 +138,8 @@ __all__ = (
     "PROOF_LATER_LOWER",
     "PROOF_MARKET_CAP_USD",
     "PROOF_LIQUIDITY_USD",
+    "PROOF_MARKET_CONTEXT_STATUS",
+    "PROOF_MARKET_FETCHED_AT",
     "default_proof_request",
     "run_stage30_11_13_fake_composer_proof",
 )

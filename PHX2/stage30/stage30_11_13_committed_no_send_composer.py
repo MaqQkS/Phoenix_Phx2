@@ -78,8 +78,12 @@ Discipline:
   * No real provider, transport-destination, webhook, or request-metadata
     reference; no wallet / signing / trading surface; no public / subscriber
     routing; no dedupe.
-  * No PHX1 import. No ``time`` / ``datetime`` import; the runtime clock /
-    now-clock / timestamps are caller-injected.
+  * No PHX1 import. No ``time`` import. ``datetime`` is imported ONLY to PARSE
+    caller-injected ISO-8601 timestamps (the market-context freshness bound --
+    ``created_at_utc`` minus ``market_context_fetched_at_utc``); this module
+    NEVER calls ``datetime.now`` / ``utcnow`` (no wall-clock read), exactly as
+    the committed Stage 30.11.11 anchored source parses its injected anchor +
+    now-clock. The runtime clock / now-clock / timestamps stay caller-injected.
   * No module-level Call node (no implicit I/O at import time; the
     ``@dataclass(frozen=True)`` decorators are decorator-list Calls, not
     body-statement Calls).
@@ -88,6 +92,7 @@ Discipline:
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable, Optional, Tuple
 
@@ -161,6 +166,39 @@ _PAIR_TYPE_SOL: str = "SOL"
 
 
 # ---------------------------------------------------------------------------
+# Market-context freshness policy (Stage 30.11.14)
+# ---------------------------------------------------------------------------
+#
+# A dispatch-eligible snapshot now requires PROVEN-fresh market context, not a
+# bare positive market cap. The freshness bound is computed entirely between two
+# caller-injected ISO-8601 UTC timestamps already on the request -- the
+# revalidation ``created_at_utc`` and the new ``market_context_fetched_at_utc``
+# (when the operator/ceremony fetched the MC + LP snapshot) -- so the composer
+# reads NO wall clock for it (``datetime`` is used to PARSE only). A missing /
+# unparseable / future / over-age fetch timestamp fails closed, so stale or
+# undated MC/LP can never reach a dispatch.
+
+
+# The default freshness bound: MC/LP must have been fetched no more than this
+# many seconds before the revalidation ``created_at_utc``. Defaults to 300s --
+# symmetric with the committed Stage 30.11.11 price-staleness threshold
+# (``staleness_threshold_seconds=300``) that already gates the current price for
+# the ATH drawdown -- so MC/LP are held to the same freshness as the price.
+STAGE30_11_13_DEFAULT_MARKET_CONTEXT_MAX_AGE_SECONDS: int = 300
+
+
+# A small clock-skew tolerance: the market-context fetch timestamp may lead the
+# revalidation ``created_at_utc`` by at most this many seconds before it is
+# rejected as a future (impossible) fetch.
+STAGE30_11_13_MARKET_CONTEXT_FUTURE_TOLERANCE_SECONDS: int = 5
+
+
+# The freshness-status provenance token stamped on a dispatch-eligible snapshot
+# (the market context passed the bounded-age check). Display/provenance only.
+MARKET_CONTEXT_FRESHNESS_FRESH: str = "FRESH"
+
+
+# ---------------------------------------------------------------------------
 # Closed-set compose decision / reason tokens
 # ---------------------------------------------------------------------------
 
@@ -175,6 +213,18 @@ STAGE30_11_13_COMPOSE_DECISIONS: Tuple[str, ...] = (
 
 COMPOSE_REASON_NO_SEND_DISPATCH_RECORDED: str = "NO_SEND_DISPATCH_RECORDED"
 COMPOSE_REJECTED_INVALID_REQUEST: str = "INVALID_REQUEST"
+# Stage 30.11.14 market-context freshness fail-closed reasons.
+COMPOSE_REJECTED_MARKET_CONTEXT_MISSING: str = "MARKET_CONTEXT_MISSING"
+COMPOSE_REJECTED_MARKET_CONTEXT_STALE: str = "MARKET_CONTEXT_STALE"
+COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_MISSING: str = (
+    "MARKET_CONTEXT_TIMESTAMP_MISSING"
+)
+COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_FUTURE: str = (
+    "MARKET_CONTEXT_TIMESTAMP_FUTURE"
+)
+COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE: str = "MARKET_CAP_UNAVAILABLE"
+COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE: str = "CURRENT_PRICE_UNAVAILABLE"
+COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE: str = "LIQUIDITY_UNAVAILABLE"
 COMPOSE_REJECTED_ATH_SOURCE_NOT_ANCHORED: str = "ATH_SOURCE_NOT_ANCHORED"
 COMPOSE_REJECTED_NON_FAKE_TRANSPORT: str = "NON_FAKE_TRANSPORT"
 COMPOSE_REJECTED_ATH_NOT_RESOLVED: str = "ATH_NOT_RESOLVED"
@@ -191,6 +241,13 @@ COMPOSE_REJECTED_BODY_BUILD_FAILED: str = "BODY_BUILD_FAILED"
 STAGE30_11_13_COMPOSE_REASONS: Tuple[str, ...] = (
     COMPOSE_REASON_NO_SEND_DISPATCH_RECORDED,
     COMPOSE_REJECTED_INVALID_REQUEST,
+    COMPOSE_REJECTED_MARKET_CONTEXT_MISSING,
+    COMPOSE_REJECTED_MARKET_CONTEXT_STALE,
+    COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_MISSING,
+    COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_FUTURE,
+    COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE,
+    COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE,
+    COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE,
     COMPOSE_REJECTED_ATH_SOURCE_NOT_ANCHORED,
     COMPOSE_REJECTED_NON_FAKE_TRANSPORT,
     COMPOSE_REJECTED_ATH_NOT_RESOLVED,
@@ -245,10 +302,24 @@ class Stage30_11_13RevalidationRequest:
                                              (ISO-8601 UTC; the Stage 30.11.11
                                              window start).
       * ``migration_source``              -- opaque migration provenance ref.
-      * ``current_price``                 -- current price, decimal text.
-      * ``current_market_cap_usd``        -- current market cap, decimal text.
-      * ``liquidity_usd``                 -- optional LP, decimal text or None.
+      * ``current_price``                 -- current price, decimal text
+                                             (strictly positive to dispatch).
+      * ``current_market_cap_usd``        -- current market cap, decimal text
+                                             (strictly positive to dispatch).
+      * ``liquidity_usd``                 -- LP, decimal text (strictly positive
+                                             to dispatch -- a dispatch-eligible
+                                             ping shows no Unknown LP); ``None``
+                                             fails closed.
       * ``age_display``                   -- optional age display string.
+      * ``market_context_status``         -- the operator-asserted market
+                                             context status; must be ``PRESENT``
+                                             to dispatch (Stage 30.11.14).
+      * ``market_context_fetched_at_utc`` -- ISO-8601 UTC time the MC + LP
+                                             snapshot was fetched; the freshness
+                                             bound is ``created_at_utc`` minus
+                                             this (Stage 30.11.14). A missing /
+                                             unparseable / future / over-age
+                                             value fails closed.
       * ``created_at_utc``                -- caller-injected ISO-8601 UTC.
     """
 
@@ -263,6 +334,8 @@ class Stage30_11_13RevalidationRequest:
     migration_source: Optional[str] = None
     liquidity_usd: Optional[str] = None
     age_display: Optional[str] = None
+    market_context_status: str = _CONTEXT_STATUS_PRESENT
+    market_context_fetched_at_utc: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -306,6 +379,12 @@ class Stage30_11_13ComposedSnapshot:
     ath_status: str
     market_context_status: str
     post_migration_ath_verified: bool
+    # Market freshness provenance (Stage 30.11.14; recorded only on a
+    # dispatch-eligible snapshot, which is built ONLY after the bounded-age
+    # check passed -- so a stale/undated market context never reaches here).
+    market_context_fetched_at_utc: str
+    market_context_max_age_seconds: int
+    market_context_freshness_status: str
     # Display raws
     current_price: str
     ath_price: str
@@ -407,6 +486,32 @@ def _coerce_finite_decimal(value: object) -> Optional[Decimal]:
     if not parsed.is_finite() or parsed < 0:
         return None
     return parsed
+
+
+def _parse_iso_utc_to_unix(value: object) -> Optional[int]:
+    """Parse an ISO-8601 UTC timestamp to an int unix second, or ``None`` when
+    unparseable.
+
+    Accepts a trailing ``Z`` or an explicit offset; a naive timestamp is treated
+    as UTC. Pure; never raises and NEVER reads a wall clock (``datetime`` is used
+    to PARSE only -- no ``datetime.now`` / ``utcnow``). Mirrors the committed
+    Stage 30.11.11 ``_parse_iso_utc_to_unix`` BY VALUE so the freshness math here
+    matches the anchored ATH source's clock handling.
+    """
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if candidate == "":
+        return None
+    if candidate.endswith("Z"):
+        candidate = candidate[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(candidate)
+    except (ValueError, TypeError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return int(parsed.astimezone(timezone.utc).timestamp())
 
 
 def _build_present_migration_record(
@@ -587,6 +692,9 @@ def compose_no_send_dispatch(
     transport_client: Stage30_11_5RecordingFakeTransportClient,
     now_seconds: object,
     ath_timeout_seconds: int = 10,
+    market_context_max_age_seconds: int = (
+        STAGE30_11_13_DEFAULT_MARKET_CONTEXT_MAX_AGE_SECONDS
+    ),
 ) -> Stage30_11_13ComposeResult:
     """Compose ONE no-send dispatch from ONE immutable revalidation snapshot.
 
@@ -612,8 +720,10 @@ def compose_no_send_dispatch(
             request=request, reason=COMPOSE_REJECTED_NON_FAKE_TRANSPORT
         )
 
-    # ---- 1. Validate the request (fail closed on a non-positive / malformed
-    #         price / market cap, a blank mint, or a missing migration anchor) -
+    # ---- 1. Validate the request (fail closed on a blank mint / candidate, a
+    #         missing migration anchor, an absent / non-positive / malformed
+    #         market cap / current price / LP, or a missing / stale / future
+    #         market-context fetch timestamp) -------------------------------
     if not isinstance(request, Stage30_11_13RevalidationRequest):
         return Stage30_11_13ComposeResult(
             decision=COMPOSE_DECISION_REJECTED,
@@ -634,13 +744,74 @@ def compose_no_send_dispatch(
         return _rejected(
             request=request, reason=COMPOSE_REJECTED_INVALID_REQUEST
         )
-    current_price = _coerce_positive_decimal(request.current_price)
+
+    # ---- 1a. Market context must be operator-asserted PRESENT (Stage 30.11.14)
+    if request.market_context_status != _CONTEXT_STATUS_PRESENT:
+        return _rejected(
+            request=request,
+            reason=COMPOSE_REJECTED_MARKET_CONTEXT_MISSING,
+        )
+
+    # ---- 1b. MC / current price / LP must each be finite + strictly positive --
+    #          (granular reasons; a dispatch-eligible ping shows no Unknown MC /
+    #          price / LP -- a missing / zero / negative / non-finite value fails
+    #          closed) ----------------------------------------------------------
     current_market_cap = _coerce_positive_decimal(
         request.current_market_cap_usd
     )
-    if current_price is None or current_market_cap is None:
+    if current_market_cap is None:
+        return _rejected(
+            request=request, reason=COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE
+        )
+    current_price = _coerce_positive_decimal(request.current_price)
+    if current_price is None:
+        return _rejected(
+            request=request,
+            reason=COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE,
+        )
+    liquidity_decimal = _coerce_positive_decimal(request.liquidity_usd)
+    if liquidity_decimal is None:
+        return _rejected(
+            request=request, reason=COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE
+        )
+
+    # ---- 1c. Market context must be PROVEN fresh (Stage 30.11.14): a fetch
+    #          timestamp must exist + parse, must not lead ``created_at_utc``
+    #          beyond the skew tolerance (a future / impossible fetch), and must
+    #          be no older than the max-age bound. The whole check is computed
+    #          between two caller-injected ISO-8601 timestamps -- NO wall clock
+    #          is read. It runs BEFORE the ATH source is built, so a stale /
+    #          undated market context can never compute a dispatch-eligible ATH
+    #          MC. ----------------------------------------------------------
+    if not _is_nonblank(request.market_context_fetched_at_utc):
+        return _rejected(
+            request=request,
+            reason=COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_MISSING,
+        )
+    fetched_unix = _parse_iso_utc_to_unix(
+        request.market_context_fetched_at_utc
+    )
+    if fetched_unix is None:
+        return _rejected(
+            request=request,
+            reason=COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_MISSING,
+        )
+    created_unix = _parse_iso_utc_to_unix(request.created_at_utc)
+    if created_unix is None:
         return _rejected(
             request=request, reason=COMPOSE_REJECTED_INVALID_REQUEST
+        )
+    if (
+        fetched_unix - created_unix
+        > STAGE30_11_13_MARKET_CONTEXT_FUTURE_TOLERANCE_SECONDS
+    ):
+        return _rejected(
+            request=request,
+            reason=COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_FUTURE,
+        )
+    if created_unix - fetched_unix > market_context_max_age_seconds:
+        return _rejected(
+            request=request, reason=COMPOSE_REJECTED_MARKET_CONTEXT_STALE
         )
 
     # ---- 2. Build the committed Stage 30.11.11 migration-anchored ATH source -
@@ -760,19 +931,18 @@ def compose_no_send_dispatch(
         )
     except ValueError:
         return _rejected(
-            request=request, reason=COMPOSE_REJECTED_INVALID_REQUEST
+            request=request, reason=COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE
         )
-    liquidity_decimal = _coerce_finite_decimal(request.liquidity_usd)
-    liquidity_display: Optional[str]
-    if liquidity_decimal is None:
-        liquidity_display = None
-    else:
-        try:
-            liquidity_display = format_usd_compact(
-                format(liquidity_decimal, "f")
-            )
-        except ValueError:
-            liquidity_display = None
+    # ``liquidity_decimal`` was validated finite + strictly positive in step 1b,
+    # so a dispatch-eligible snapshot carries a real LP display (never Unknown).
+    # A formatter rejection of a positive finite magnitude is not expected, but
+    # it still fails closed rather than emit an Unknown LP.
+    try:
+        liquidity_display = format_usd_compact(format(liquidity_decimal, "f"))
+    except ValueError:
+        return _rejected(
+            request=request, reason=COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE
+        )
 
     binding_key = Stage30_11_13GateBindingKey(
         token_mint=request.token_mint,
@@ -796,6 +966,9 @@ def compose_no_send_dispatch(
         migration_status=_CONTEXT_STATUS_PRESENT,
         ath_status=_CONTEXT_STATUS_PRESENT,
         market_context_status=_CONTEXT_STATUS_PRESENT,
+        market_context_fetched_at_utc=request.market_context_fetched_at_utc,
+        market_context_max_age_seconds=market_context_max_age_seconds,
+        market_context_freshness_status=MARKET_CONTEXT_FRESHNESS_FRESH,
         post_migration_ath_verified=True,
         current_price=request.current_price,
         ath_price=format(ath_price, "f"),
@@ -975,11 +1148,21 @@ __all__ = (
     "STAGE30_11_13_MINOR_VERSION",
     "STAGE30_11_13_COMPOSE_SCHEMA_VERSION",
     "STAGE30_11_13_ATH_SOURCE_STAGE",
+    "STAGE30_11_13_DEFAULT_MARKET_CONTEXT_MAX_AGE_SECONDS",
+    "STAGE30_11_13_MARKET_CONTEXT_FUTURE_TOLERANCE_SECONDS",
+    "MARKET_CONTEXT_FRESHNESS_FRESH",
     "COMPOSE_DECISION_DISPATCHED",
     "COMPOSE_DECISION_REJECTED",
     "STAGE30_11_13_COMPOSE_DECISIONS",
     "COMPOSE_REASON_NO_SEND_DISPATCH_RECORDED",
     "COMPOSE_REJECTED_INVALID_REQUEST",
+    "COMPOSE_REJECTED_MARKET_CONTEXT_MISSING",
+    "COMPOSE_REJECTED_MARKET_CONTEXT_STALE",
+    "COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_MISSING",
+    "COMPOSE_REJECTED_MARKET_CONTEXT_TIMESTAMP_FUTURE",
+    "COMPOSE_REJECTED_MARKET_CAP_UNAVAILABLE",
+    "COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE",
+    "COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE",
     "COMPOSE_REJECTED_ATH_SOURCE_NOT_ANCHORED",
     "COMPOSE_REJECTED_NON_FAKE_TRANSPORT",
     "COMPOSE_REJECTED_ATH_NOT_RESOLVED",
