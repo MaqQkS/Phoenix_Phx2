@@ -84,6 +84,8 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_13_TEST_BASENAMES,
     STAGE30_11_15_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_15_TEST_BASENAMES,
+    STAGE30_11_16_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_16_TEST_BASENAMES,
     STAGE30_11_ALLOWED_INITIAL_FILES,
     STAGE30_11_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_ALWAYS_ZERO_AXES,
@@ -214,15 +216,17 @@ _STAGE_31_RE = re.compile(r"stage_?31\b")
 
 def _future_30_11_violations(basenames) -> list:
     # The now-admitted Stage 30.11.13 committed no-send composer slice carries
-    # minor token 13 and the now-admitted Stage 30.11.15 cross-run ping dedupe
-    # slice carries minor token 15 (Stage 30.11.12 + Stage 30.11.14 added no
-    # Stage 30.11.x production file -- they tightened the committed Stage 27.4
-    # ``_compute_drawdown`` and the composer's market-context freshness). The
-    # guard catches ANY Stage 30.11.<N>=16+ token going forward.
+    # minor token 13, the now-admitted Stage 30.11.15 cross-run ping dedupe slice
+    # carries minor token 15, and the now-admitted Stage 30.11.16 real private
+    # transport guard slice carries minor token 16 (Stage 30.11.12 + Stage
+    # 30.11.14 added no Stage 30.11.x production file -- they tightened the
+    # committed Stage 27.4 ``_compute_drawdown`` and the composer's
+    # market-context freshness). The guard catches ANY Stage 30.11.<N>=17+ token
+    # going forward.
     violations = []
     for basename in basenames:
         for match in _STAGE_30_11_MINOR_RE.finditer(basename.lower()):
-            if int(match.group(1)) >= 16:
+            if int(match.group(1)) >= 17:
                 violations.append(basename)
     return violations
 
@@ -1019,6 +1023,7 @@ def test_stage30_11_production_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_11_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_13_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_15_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_16_ALLOWED_STAGE30_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 production entries must be exactly the Stage 30.11.0 "
@@ -1059,6 +1064,7 @@ def test_stage30_11_test_entries_are_the_admitted_inventory() -> None:
         | set(STAGE30_11_11_TEST_BASENAMES)
         | set(STAGE30_11_13_TEST_BASENAMES)
         | set(STAGE30_11_15_TEST_BASENAMES)
+        | set(STAGE30_11_16_TEST_BASENAMES)
     )
     assert observed == allowed, (
         "Stage 30.11 test entries must be exactly the 30.11.0 pin test plus "

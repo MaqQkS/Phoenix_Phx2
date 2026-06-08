@@ -378,6 +378,16 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_15_boundaries.py",
         "test_stage_30_11_15_manifest.py",
         "test_stage_30_11_15_fake_dedupe_proof.py",
+        # Stage 30.11.16 real private transport guard slice (three production
+        # modules + five tests). No-send by default; imports no Stage 28.
+        "stage30_11_16_real_send_models.py",
+        "stage30_11_16_real_private_transport_guard.py",
+        "stage30_11_16_fake_real_send_proof.py",
+        "test_stage_30_11_16_real_send_models.py",
+        "test_stage_30_11_16_real_private_transport_guard.py",
+        "test_stage_30_11_16_fake_real_send_proof.py",
+        "test_stage_30_11_16_boundaries.py",
+        "test_stage_30_11_16_manifest.py",
     }
 )
 

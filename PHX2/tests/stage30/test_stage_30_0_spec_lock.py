@@ -608,6 +608,14 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_15_ping_dedupe_ledger.py",
         "stage30_11_15_no_send_dedupe_guard.py",
         "stage30_11_15_fake_dedupe_proof.py",
+        # Stage 30.11.16 no-send-by-default real private transport guard slice
+        # (the real-send authorization / target / result models, the one-shot
+        # burn-on-attempt guard, and the offline fake real-send proof + recording
+        # fake transport). Consumes the Stage 30.11.15 deduped result; imports no
+        # Stage 28 (the audited transport is injected duck-typed); no real send.
+        "stage30_11_16_real_send_models.py",
+        "stage30_11_16_real_private_transport_guard.py",
+        "stage30_11_16_fake_real_send_proof.py",
     }
 )
 
@@ -925,6 +933,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_15_boundaries.py",
         "test_stage_30_11_15_manifest.py",
         "test_stage_30_11_15_fake_dedupe_proof.py",
+        # Stage 30.11.16 real private transport guard tests (models, guard,
+        # fake proof, boundaries, manifest). Fakes / no-send only.
+        "test_stage_30_11_16_real_send_models.py",
+        "test_stage_30_11_16_real_private_transport_guard.py",
+        "test_stage_30_11_16_fake_real_send_proof.py",
+        "test_stage_30_11_16_boundaries.py",
+        "test_stage_30_11_16_manifest.py",
     }
 )
 

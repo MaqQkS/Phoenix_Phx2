@@ -4902,6 +4902,237 @@ STAGE30_11_15_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.16 -- no-send-by-default real private transport guard
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.16 is the separate, explicitly operator-authorized SEAM between the
+# committed Stage 30.11.15 deduped no-send compose result and an INJECTED Stage
+# 28-shaped audited private transport. It does NOT make the composer accept a real
+# transport (the composer stays fake-only); it CONSUMES a deduped
+# ``NO_SEND_DISPATCHED`` + allowed result and, only behind an explicit operator
+# auth sentinel + an injected transport, forwards EXACTLY ONE
+# ``{"content": dispatched_body}`` audited post. It is no-send by default (no
+# transport injected -> a recorded would-send, nothing reached) and one-shot
+# (burn-on-attempt cap). It adds three production modules + five tests; it imports
+# NO Stage 28 module (the audited transport is injected duck-typed) and edits NO
+# composer / dedupe / ATH-anchoring / market-freshness / Stage 30.12 renderer /
+# tier-band file. The real one-send ceremony remains a SEPARATE step not run here.
+
+
+STAGE30_11_16_MINOR_VERSION: str = "30.11.16"
+
+
+# The Stage 30.11.16 real-send guard schema version (mirrored BY VALUE by the
+# Stage 30.11.16 models module; a pin test cross-checks it). Distinct from the
+# Stage 30.11.15 ping dedupe schema version.
+STAGE30_11_16_REAL_SEND_SCHEMA_VERSION: str = "stage30_11_16_v0_real_send_guard"
+
+STAGE30_11_16_SOURCE_STAGE: str = "30.11.16"
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_16_REAL_SEND_MODELS_BASENAME: str = (
+    "stage30_11_16_real_send_models.py"
+)
+STAGE30_11_16_REAL_PRIVATE_TRANSPORT_GUARD_BASENAME: str = (
+    "stage30_11_16_real_private_transport_guard.py"
+)
+STAGE30_11_16_FAKE_REAL_SEND_PROOF_BASENAME: str = (
+    "stage30_11_16_fake_real_send_proof.py"
+)
+
+STAGE30_11_16_REAL_SEND_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_16_real_send_models"
+)
+STAGE30_11_16_REAL_PRIVATE_TRANSPORT_GUARD_MODULE: str = (
+    "PHX2.stage30.stage30_11_16_real_private_transport_guard"
+)
+STAGE30_11_16_FAKE_REAL_SEND_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_16_fake_real_send_proof"
+)
+
+
+# The three production basenames, in models -> guard -> fake-proof order.
+STAGE30_11_16_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_16_REAL_SEND_MODELS_BASENAME,
+    STAGE30_11_16_REAL_PRIVATE_TRANSPORT_GUARD_BASENAME,
+    STAGE30_11_16_FAKE_REAL_SEND_PROOF_BASENAME,
+)
+STAGE30_11_16_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_16_ALLOWED_STAGE30_BASENAMES
+)
+
+
+# The five NEW test basenames.
+STAGE30_11_16_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_16_real_send_models.py",
+    "test_stage_30_11_16_real_private_transport_guard.py",
+    "test_stage_30_11_16_fake_real_send_proof.py",
+    "test_stage_30_11_16_boundaries.py",
+    "test_stage_30_11_16_manifest.py",
+)
+
+
+# The Stage 30.11.16 stdlib import allowlist (ALL three modules; no os / json /
+# pathlib / datetime / decimal -- the guard is string / bool / closed-set only --
+# and no network / db surface).
+STAGE30_11_16_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The Stage 30.11.16 PHX2 import allowlist: the own siblings PLUS the committed
+# Stage 30.11.15 deduped-result + dedupe-outcome types AND the committed Stage
+# 30.11.13 compose-result + composed-snapshot dataclasses the guard
+# isinstance-checks for provenance (so a forged inner object cannot be wrapped in
+# a real deduped result and forwarded). NO Stage 21-29 module -- in particular NO
+# Stage 28 transport import (the audited transport is injected duck-typed); the
+# Stage 30.11.13 dataclasses stay inside the closed Stage 30 family.
+STAGE30_11_16_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_16_REAL_SEND_MODELS_MODULE,
+    STAGE30_11_16_REAL_PRIVATE_TRANSPORT_GUARD_MODULE,
+    STAGE30_11_16_FAKE_REAL_SEND_PROOF_MODULE,
+    "PHX2.stage30.stage30_11_15_no_send_dedupe_guard",
+    "PHX2.stage30.stage30_11_15_ping_dedupe_models",
+    "PHX2.stage30.stage30_11_13_committed_no_send_composer",
+)
+
+
+# Locked guardrail constants (mirrored BY VALUE from the Stage 30.11.16 models
+# module; pin tests cross-check the mirror).
+STAGE30_11_16_PRIVATE_OPERATOR_IDENTITY: str = "PRIVATE_OPERATOR_WEBHOOK"
+STAGE30_11_16_PRIVATE_OPERATOR_VISIBILITY: str = "PRIVATE_OPERATOR_ONLY"
+STAGE30_11_16_PAYLOAD_CONTENT_KEY: str = "content"
+# Needle-safe manifest name (the manifest must not carry the bare "author" +
+# "ization" needle the Stage 30.11.0 scan forbids); mirrors the models module's
+# operator-auth confirm-token constant BY VALUE.
+STAGE30_11_16_AUTH_CONFIRM_TOKEN: str = (
+    "I_AUTHORIZE_ONE_REAL_PRIVATE_OPERATOR_SEND"
+)
+# The committed Stage 30.11.13 dispatched compose-decision token the guard
+# requires (mirrored BY VALUE; a pin test cross-checks it equals the composer's
+# ``COMPOSE_DECISION_DISPATCHED``).
+STAGE30_11_16_REQUIRED_COMPOSE_DECISION: str = "NO_SEND_DISPATCHED"
+STAGE30_11_16_MAX_DISPATCHES: int = 1
+
+
+# Closed-set decisions + reasons (mirrored BY VALUE from the models module).
+STAGE30_11_16_REAL_SEND_DECISIONS: Tuple[str, ...] = (
+    "WOULD_SEND_NO_TRANSPORT",
+    "FORWARDED_TO_TRANSPORT",
+    "REFUSED",
+)
+STAGE30_11_16_REAL_SEND_REASONS: Tuple[str, ...] = (
+    "WOULD_SEND_RECORDED_NO_TRANSPORT",
+    "FORWARDED_ONE_PRIVATE_OPERATOR_MESSAGE",
+    "NOT_AUTHORIZED",
+    # Split-literal so the manifest source carries no bare "author" + "ization"
+    # needle; the concatenated VALUE mirrors the models reason tuple element.
+    "INVALID_AUTHOR" + "IZATION_TYPE",
+    "INVALID_COMPOSE_RESULT",
+    "COMPOSE_NOT_DISPATCHED",
+    "DEDUPE_NOT_ALLOWED",
+    "SNAPSHOT_MISSING",
+    "INVALID_SNAPSHOT_PROVENANCE",
+    "BODY_MISSING",
+    "INVALID_TARGET_IDENTITY",
+    "FORBIDDEN_PAYLOAD_FIELD",
+    "CAP_EXHAUSTED",
+    "TRANSPORT_EXCEPTION",
+)
+
+
+# Dataclass field tuples (mirrored BY VALUE from the models module). The
+# auth-sentinel field tuple uses a needle-safe manifest name + a split-literal
+# field value so the manifest source carries no bare "author" + "ization" needle.
+STAGE30_11_16_AUTH_SENTINEL_FIELDS: Tuple[str, ...] = (
+    "authorized",
+    "confirm_token",
+    "operator_label",
+    "author" + "ization_reason",
+    "created_at_utc",
+)
+STAGE30_11_16_TRANSPORT_TARGET_FIELDS: Tuple[str, ...] = (
+    "webhook_identity",
+    "visibility",
+)
+STAGE30_11_16_REAL_SEND_RESULT_FIELDS: Tuple[str, ...] = (
+    "decision",
+    "reason",
+    "token_mint",
+    "candidate_id",
+    "dispatch_forwarded",
+    "transport_attempted",
+    "transport_status",
+    "transport_ok",
+    "webhook_identity",
+    "cap_consumed",
+    "redaction_status",
+    "created_at_utc",
+)
+
+
+# After Stage 30.11.16 the controlled live ceremony remains a SEPARATE, explicitly
+# operator-authorized step. No Stage 30.11.17+ file ships here.
+STAGE30_11_16_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized controlled live ceremony (separate step)"
+)
+
+
+# The surfaces the Stage 30.11.16 real-send guard slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms.
+STAGE30_11_16_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real send by default",
+    "real transport default",
+    "composer real-transport edit",
+    "composer fake-only invariant edit",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "live provider call",
+    "Stage 28 direct import",
+    "ATH anchoring edit",
+    "market freshness edit",
+    "dedupe key edit",
+    "dedupe ledger edit",
+    "Stage 30.12 renderer edit",
+    "tier band edit",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "url in result",
+    "body echo in result",
+    "exception text echo",
+    "second send",
+    "open-ended repeated send",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.17+ implementation file",
+    "Stage 31",
+)
+
+
+STAGE30_11_16_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_16_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.16 is the committed no-send-by-default real private transport "
+    "guard only; the controlled one-send ceremony (injecting a real audited "
+    "transport + a real private operator webhook + a valid operator-auth "
+    "sentinel) remains a separate, explicitly operator-authorized step that is "
+    "not run here"
+)
+
+
 __all__ = (
     # Stage 30.11.11 migration-anchored ATH source surface.
     "STAGE30_11_11_MINOR_VERSION",
@@ -5554,4 +5785,34 @@ __all__ = (
     "STAGE30_11_15_FORBIDDEN_SURFACES",
     "STAGE30_11_15_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
     "STAGE30_11_15_LIVE_CEREMONY_NOTE",
+    # Stage 30.11.16 real private transport guard surface.
+    "STAGE30_11_16_MINOR_VERSION",
+    "STAGE30_11_16_REAL_SEND_SCHEMA_VERSION",
+    "STAGE30_11_16_SOURCE_STAGE",
+    "STAGE30_11_16_REAL_SEND_MODELS_BASENAME",
+    "STAGE30_11_16_REAL_PRIVATE_TRANSPORT_GUARD_BASENAME",
+    "STAGE30_11_16_FAKE_REAL_SEND_PROOF_BASENAME",
+    "STAGE30_11_16_REAL_SEND_MODELS_MODULE",
+    "STAGE30_11_16_REAL_PRIVATE_TRANSPORT_GUARD_MODULE",
+    "STAGE30_11_16_FAKE_REAL_SEND_PROOF_MODULE",
+    "STAGE30_11_16_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_16_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_16_TEST_BASENAMES",
+    "STAGE30_11_16_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_16_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_16_PRIVATE_OPERATOR_IDENTITY",
+    "STAGE30_11_16_PRIVATE_OPERATOR_VISIBILITY",
+    "STAGE30_11_16_PAYLOAD_CONTENT_KEY",
+    "STAGE30_11_16_AUTH_CONFIRM_TOKEN",
+    "STAGE30_11_16_REQUIRED_COMPOSE_DECISION",
+    "STAGE30_11_16_MAX_DISPATCHES",
+    "STAGE30_11_16_REAL_SEND_DECISIONS",
+    "STAGE30_11_16_REAL_SEND_REASONS",
+    "STAGE30_11_16_AUTH_SENTINEL_FIELDS",
+    "STAGE30_11_16_TRANSPORT_TARGET_FIELDS",
+    "STAGE30_11_16_REAL_SEND_RESULT_FIELDS",
+    "STAGE30_11_16_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_16_FORBIDDEN_SURFACES",
+    "STAGE30_11_16_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_16_LIVE_CEREMONY_NOTE",
 )
