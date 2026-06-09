@@ -5395,7 +5395,318 @@ STAGE30_11_17_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.18 -- adapt harvested candidate facts into curated compose session
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.18 is the committed OFFLINE harvested-facts -> curated compose
+# session adapter: the smallest committed bridge that maps a flat
+# harvested-candidate FACTS carrier (the same 13 revalidated inputs the committed
+# Stage 30.11.13 composer consumes) into the committed Stage 30.11.17
+# operator-curated compose session input, then runs the bounded no-send session
+# over the projected entries and rolls up a redaction-safe report. It is a
+# two-layer validator: Stage 30.11.18 owns ONLY Layer-1 presence / shape /
+# positivity projection (a closed-set per-fact decision -- PROJECTED or one of the
+# REJECTED_* tokens); the committed Stage 30.11.13 composer remains AUTHORITATIVE
+# for Layer-2 freshness / ATH / tier / gate validation (surfaced VERBATIM in the
+# embedded Stage 30.11.17 session result's mirrored compose reasons). It adds
+# three production modules + four tests; it imports NO Stage 21-29 module, NO
+# Stage 30.11.16 real-send guard, and NO Stage 30.11.6 real harvest adapter -- the
+# real harvest + market-context enrichment that produces the facts is a SEPARATE,
+# ceremony-injected step this slice does NOT build. It is no-send by default (the
+# only transport is the injected FAKE recording client the Stage 30.11.17 session
+# drives; a RECORDED would-send, NEVER a real send).
+
+
+STAGE30_11_18_MINOR_VERSION: str = "30.11.18"
+
+
+# The Stage 30.11.18 report schema version (mirrored BY VALUE by the Stage
+# 30.11.18 models module; a pin test cross-checks it). Distinct from every earlier
+# Stage 30.11 schema version.
+STAGE30_11_18_REPORT_SCHEMA_VERSION: str = (
+    "stage30_11_18_v0_harvested_facts_curated_session"
+)
+
+STAGE30_11_18_SOURCE_STAGE: str = "30.11.18"
+
+
+# The Stage 30.11.18 spec-lock doc lives under ``PHX2/docs`` (NOT
+# ``PHX2/stage30``); the path parts let a pin test join them without re-spelling
+# the path.
+STAGE30_11_18_SPEC_LOCK_FILENAME: str = (
+    "STAGE_30_11_18_HARVESTED_FACTS_CURATED_SESSION_SPEC_LOCK.md"
+)
+STAGE30_11_18_SPEC_LOCK_PATH_PARTS: Tuple[str, ...] = (
+    "PHX2",
+    "docs",
+    STAGE30_11_18_SPEC_LOCK_FILENAME,
+)
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_18_HARVESTED_FACTS_MODELS_BASENAME: str = (
+    "stage30_11_18_harvested_facts_models.py"
+)
+STAGE30_11_18_HARVEST_TO_CURATED_ADAPTER_BASENAME: str = (
+    "stage30_11_18_harvest_to_curated_adapter.py"
+)
+STAGE30_11_18_FAKE_HARVEST_SESSION_PROOF_BASENAME: str = (
+    "stage30_11_18_fake_harvest_session_proof.py"
+)
+
+STAGE30_11_18_HARVESTED_FACTS_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_18_harvested_facts_models"
+)
+STAGE30_11_18_HARVEST_TO_CURATED_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_18_harvest_to_curated_adapter"
+)
+STAGE30_11_18_FAKE_HARVEST_SESSION_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_18_fake_harvest_session_proof"
+)
+
+
+# The three production basenames, in models -> adapter -> fake-proof order.
+STAGE30_11_18_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_18_HARVESTED_FACTS_MODELS_BASENAME,
+    STAGE30_11_18_HARVEST_TO_CURATED_ADAPTER_BASENAME,
+    STAGE30_11_18_FAKE_HARVEST_SESSION_PROOF_BASENAME,
+)
+STAGE30_11_18_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_18_ALLOWED_STAGE30_BASENAMES
+)
+
+
+# The four NEW test basenames.
+STAGE30_11_18_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_18_harvest_to_curated_adapter.py",
+    "test_stage_30_11_18_fake_harvest_session_proof.py",
+    "test_stage_30_11_18_boundaries.py",
+    "test_stage_30_11_18_manifest.py",
+)
+
+
+# The Stage 30.11.18 stdlib import allowlist (ALL three modules). It adds
+# ``decimal`` over the Stage 30.11.17 set: the adapter parses the decimal-text
+# magnitudes (current price / market cap / liquidity) for the Layer-1 positivity
+# check. Still no os / json / pathlib / datetime / time -- no clock (timestamps
+# are caller-injected; the committed composer owns the Layer-2 freshness clock),
+# no network / db surface.
+STAGE30_11_18_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+    "decimal",
+)
+
+
+# The Stage 30.11.18 PHX2 import allowlist: the own siblings PLUS the committed
+# Stage 30.11.13 composer (the revalidation request type the adapter builds), the
+# committed Stage 30.11.17 models + session the adapter projects into and runs,
+# and the committed Stage 30.11.15 in-memory ledger + Stage 30.11.5 recording fake
+# client the fake proof defaults. NO Stage 21-29 module, NO Stage 30.11.16
+# real-send guard, NO Stage 30.11.6 real harvest adapter -- everything stays inside
+# the closed Stage 30 family; the real harvest source is ceremony-injected.
+STAGE30_11_18_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_18_HARVESTED_FACTS_MODELS_MODULE,
+    STAGE30_11_18_HARVEST_TO_CURATED_ADAPTER_MODULE,
+    STAGE30_11_18_FAKE_HARVEST_SESSION_PROOF_MODULE,
+    "PHX2.stage30.stage30_11_13_committed_no_send_composer",
+    "PHX2.stage30.stage30_11_17_operator_curated_candidate_list_models",
+    "PHX2.stage30.stage30_11_17_operator_curated_compose_session",
+    "PHX2.stage30.stage30_11_15_ping_dedupe_ledger",
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof",
+)
+
+
+# Bounded caps (mirrored BY VALUE from the committed Stage 30.11.17 session caps;
+# the Stage 30.11.18 adapter reuses the Stage 30.11.17 session config + cap
+# validator, so the bounded curated run can never evaluate more than the session
+# allows).
+STAGE30_11_18_MAX_CANDIDATES_HARD_CAP: int = 10
+STAGE30_11_18_DEFAULT_MAX_CANDIDATES: int = 10
+
+
+# Closed-set Layer-1 projection decision vocabulary (mirrored BY VALUE from the
+# Stage 30.11.18 models module). ``PROJECTED`` is the only decision that builds a
+# committed Stage 30.11.13 revalidation request from the facts; every REJECTED_*
+# decision is a fail-closed Layer-1 presence / shape / positivity rejection that
+# never reaches the composer. NONE of these is a Layer-2 composer reason (freshness
+# / ATH / tier / gate stay the composer's authoritative MARKET_CONTEXT_STALE /
+# MARKET_CONTEXT_TIMESTAMP_FUTURE / ... tokens, surfaced VERBATIM in the embedded
+# session result).
+STAGE30_11_18_PROJECTION_DECISIONS: Tuple[str, ...] = (
+    "PROJECTED",
+    "REJECTED_NOT_A_FACTS_RECORD",
+    "REJECTED_MISSING_TOKEN_MINT",
+    "REJECTED_INVALID_TOKEN_MINT",
+    "REJECTED_MISSING_CANDIDATE_ID",
+    "REJECTED_INVALID_CANDIDATE_ID",
+    "REJECTED_MIGRATION_NOT_CONFIRMED",
+    "REJECTED_MISSING_MIGRATION_TIME_UTC",
+    "REJECTED_INVALID_MIGRATION_TIME_UTC",
+    "REJECTED_MISSING_CREATED_AT",
+    "REJECTED_INVALID_CREATED_AT",
+    "REJECTED_MARKET_CONTEXT_NOT_PRESENT",
+    "REJECTED_MISSING_MARKET_CAP",
+    "REJECTED_INVALID_MARKET_CAP",
+    "REJECTED_MISSING_CURRENT_PRICE",
+    "REJECTED_INVALID_CURRENT_PRICE",
+    "REJECTED_MISSING_LIQUIDITY_USD",
+    "REJECTED_INVALID_LIQUIDITY_USD",
+    "REJECTED_MISSING_MARKET_CONTEXT_FETCHED_AT",
+    "REJECTED_INVALID_MARKET_CONTEXT_FETCHED_AT",
+)
+
+
+# Redaction status tokens (mirrored BY VALUE from the Stage 30.11.18 models module;
+# the same two-token set every Stage 30.11 redaction self-scan uses).
+STAGE30_11_18_REDACTION_STATUS_REDACTED: str = "REDACTED"
+STAGE30_11_18_REDACTION_STATUSES: Tuple[str, ...] = (
+    "REDACTED",
+    "REDACTION_VIOLATION",
+)
+
+
+# Dataclass field tuples (mirrored BY VALUE from the Stage 30.11.18 models module;
+# a pin test cross-checks the mirror). The facts carrier field SET equals the
+# committed Stage 30.11.13 revalidation request inputs (the adapter is a near 1:1
+# map); the projection event + session report carry ONLY safe scalars + closed-set
+# tokens + the embedded session result -- NONE is a secret / body / url / host.
+STAGE30_11_18_HARVESTED_FACTS_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "candidate_id",
+    "migration_time_utc",
+    "current_price",
+    "current_market_cap_usd",
+    "liquidity_usd",
+    "market_context_status",
+    "market_context_fetched_at_utc",
+    "created_at_utc",
+    "migration_confirmed",
+    "symbol_or_name",
+    "migration_source",
+    "age_display",
+)
+STAGE30_11_18_PROJECTION_EVENT_FIELDS: Tuple[str, ...] = (
+    "index",
+    "decision",
+    "candidate_id",
+    "token_mint",
+    "created_at_utc",
+)
+STAGE30_11_18_SESSION_REPORT_FIELDS: Tuple[str, ...] = (
+    "projection_events",
+    "facts_seen",
+    "projected",
+    "rejected_projection",
+    "session_result",
+    "redaction_status",
+    "created_at_utc",
+)
+
+
+# After Stage 30.11.18 the real harvest + market-context enrichment that produces
+# the facts (and the controlled live send) remains a SEPARATE, explicitly
+# operator-authorized step. No Stage 30.11.19+ file ships here.
+STAGE30_11_18_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized ceremony-injected real harvest + enrichment (separate "
+    "step)"
+)
+
+
+# The surfaces the Stage 30.11.18 harvested-facts curated session adapter slice
+# must not touch. Plain documentation words (family / feature names), NOT secret /
+# host / transport needle forms.
+STAGE30_11_18_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "committed real harvest runner",
+    "real candidate harvest binding",
+    "Stage 30.11.16 real-send guard call",
+    "Stage 30.11.16 real-send guard import",
+    "real transport",
+    "real send",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "live provider call",
+    "live gRPC provider session",
+    "Stage 28 direct import",
+    "Stage 29 live provider import",
+    "Stage 30.11.6 harvest adapter import",
+    "real dispatch sink",
+    "dispatch reservation",
+    "Layer-2 freshness reimplementation",
+    "stale market-context reason mint",
+    "while daemon",
+    "background service",
+    "autorestart loop",
+    "operator ceremony ledger mutation",
+    "repo-hardcoded ledger path",
+    "default storage root",
+    "Stage 30.12 renderer edit",
+    "renderer polish",
+    "tier band edit",
+    "dedupe key edit",
+    "committed composer edit",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "database implementation",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.19+ implementation file",
+    "Stage 31",
+)
+
+
+STAGE30_11_18_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_18_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.18 is the committed offline harvested-facts -> curated compose "
+    "session adapter only; the real harvest + market-context enrichment that "
+    "produces the facts and the controlled live send (a real audited transport + "
+    "a real private operator webhook + a valid operator-auth sentinel composed "
+    "via the separate Stage 30.11.16 real-send guard) remain a separate, "
+    "explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
+    # Stage 30.11.18 harvested-facts curated compose session surface.
+    "STAGE30_11_18_MINOR_VERSION",
+    "STAGE30_11_18_REPORT_SCHEMA_VERSION",
+    "STAGE30_11_18_SOURCE_STAGE",
+    "STAGE30_11_18_SPEC_LOCK_FILENAME",
+    "STAGE30_11_18_SPEC_LOCK_PATH_PARTS",
+    "STAGE30_11_18_HARVESTED_FACTS_MODELS_BASENAME",
+    "STAGE30_11_18_HARVEST_TO_CURATED_ADAPTER_BASENAME",
+    "STAGE30_11_18_FAKE_HARVEST_SESSION_PROOF_BASENAME",
+    "STAGE30_11_18_HARVESTED_FACTS_MODELS_MODULE",
+    "STAGE30_11_18_HARVEST_TO_CURATED_ADAPTER_MODULE",
+    "STAGE30_11_18_FAKE_HARVEST_SESSION_PROOF_MODULE",
+    "STAGE30_11_18_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_18_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_18_TEST_BASENAMES",
+    "STAGE30_11_18_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_18_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_18_MAX_CANDIDATES_HARD_CAP",
+    "STAGE30_11_18_DEFAULT_MAX_CANDIDATES",
+    "STAGE30_11_18_PROJECTION_DECISIONS",
+    "STAGE30_11_18_REDACTION_STATUS_REDACTED",
+    "STAGE30_11_18_REDACTION_STATUSES",
+    "STAGE30_11_18_HARVESTED_FACTS_FIELDS",
+    "STAGE30_11_18_PROJECTION_EVENT_FIELDS",
+    "STAGE30_11_18_SESSION_REPORT_FIELDS",
+    "STAGE30_11_18_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_18_FORBIDDEN_SURFACES",
+    "STAGE30_11_18_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_18_LIVE_CEREMONY_NOTE",
     # Stage 30.11.17 operator-curated compose session surface.
     "STAGE30_11_17_MINOR_VERSION",
     "STAGE30_11_17_SESSION_SCHEMA_VERSION",

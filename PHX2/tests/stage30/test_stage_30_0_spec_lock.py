@@ -622,6 +622,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_17_operator_curated_candidate_list_models.py",
         "stage30_11_17_operator_curated_compose_session.py",
         "stage30_11_17_fake_curated_session_proof.py",
+        # Stage 30.11.18 harvested-facts -> curated compose session adapter slice
+        # (three production modules). Offline; maps a flat harvested-candidate
+        # FACTS carrier into the Stage 30.11.17 curated session input, runs the
+        # bounded no-send session, and rolls up a redacted report. Imports no
+        # Stage 28/29, no Stage 30.11.16 guard, no Stage 30.11.6 harvest adapter;
+        # the real harvest source is ceremony-injected.
+        "stage30_11_18_harvested_facts_models.py",
+        "stage30_11_18_harvest_to_curated_adapter.py",
+        "stage30_11_18_fake_harvest_session_proof.py",
     }
 )
 
@@ -953,6 +962,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_17_fake_curated_session_proof.py",
         "test_stage_30_11_17_boundaries.py",
         "test_stage_30_11_17_manifest.py",
+        # Stage 30.11.18 harvested-facts -> curated compose session adapter tests
+        # (adapter, fake proof, boundaries, manifest). Fakes / offline / no-send.
+        "test_stage_30_11_18_harvest_to_curated_adapter.py",
+        "test_stage_30_11_18_fake_harvest_session_proof.py",
+        "test_stage_30_11_18_boundaries.py",
+        "test_stage_30_11_18_manifest.py",
     }
 )
 
