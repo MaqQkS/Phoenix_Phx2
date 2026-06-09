@@ -5133,7 +5133,301 @@ STAGE30_11_16_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.17 -- operator-curated compose session
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.17 is the committed OFFLINE operator-curated compose session: the
+# smallest bounded session wrapper over the already-proven single-candidate
+# no-send path. It runs an operator-curated candidate list (each entry a single
+# already-revalidated Stage 30.11.13 request) through the committed Stage 30.11.15
+# ``compose_no_send_dispatch_deduped`` over ONE shared injected dedupe ledger + an
+# injected FAKE recording transport client + an injected fake ATH source
+# transport + injected clocks, classifies each result into a closed-set per-entry
+# outcome, and rolls up a redaction-safe summary with a closed-set stop reason. It
+# adds three production modules + five tests; it imports NO Stage 21-29 module, NO
+# Stage 30.11.16 real-send guard, and NO Stage 30.11.6 real harvest adapter -- it
+# composes ONLY the committed Stage 30.11.15 deduped orchestrator (which composes
+# the committed Stage 30.11.13 composer behind the dedupe guard) plus the
+# committed Stage 30.11.5 recording fake client + Stage 30.11.15 in-memory ledger.
+# It is no-send by default (the only transport is the injected FAKE recording
+# client; a RECORDED would-send, NEVER a real send). The real one-send ceremony
+# (a real audited transport + a real private operator webhook + a valid
+# operator-auth sentinel composed via the SEPARATE Stage 30.11.16 guard) remains a
+# SEPARATE step not run here.
+
+
+STAGE30_11_17_MINOR_VERSION: str = "30.11.17"
+
+
+# The Stage 30.11.17 compose-session schema version (mirrored BY VALUE by the
+# Stage 30.11.17 models module; a pin test cross-checks it). Distinct from every
+# earlier Stage 30.11 schema version.
+STAGE30_11_17_SESSION_SCHEMA_VERSION: str = (
+    "stage30_11_17_v0_operator_curated_compose_session"
+)
+
+STAGE30_11_17_SOURCE_STAGE: str = "30.11.17"
+
+
+# The Stage 30.11.17 spec-lock doc lives under ``PHX2/docs`` (NOT
+# ``PHX2/stage30``); the path parts let a pin test join them without re-spelling
+# the path.
+STAGE30_11_17_SPEC_LOCK_FILENAME: str = (
+    "STAGE_30_11_17_OPERATOR_CURATED_COMPOSE_SESSION_SPEC_LOCK.md"
+)
+STAGE30_11_17_SPEC_LOCK_PATH_PARTS: Tuple[str, ...] = (
+    "PHX2",
+    "docs",
+    STAGE30_11_17_SPEC_LOCK_FILENAME,
+)
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_17_CANDIDATE_LIST_MODELS_BASENAME: str = (
+    "stage30_11_17_operator_curated_candidate_list_models.py"
+)
+STAGE30_11_17_COMPOSE_SESSION_BASENAME: str = (
+    "stage30_11_17_operator_curated_compose_session.py"
+)
+STAGE30_11_17_FAKE_CURATED_SESSION_PROOF_BASENAME: str = (
+    "stage30_11_17_fake_curated_session_proof.py"
+)
+
+STAGE30_11_17_CANDIDATE_LIST_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_17_operator_curated_candidate_list_models"
+)
+STAGE30_11_17_COMPOSE_SESSION_MODULE: str = (
+    "PHX2.stage30.stage30_11_17_operator_curated_compose_session"
+)
+STAGE30_11_17_FAKE_CURATED_SESSION_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_17_fake_curated_session_proof"
+)
+
+
+# The three production basenames, in models -> session -> fake-proof order.
+STAGE30_11_17_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_17_CANDIDATE_LIST_MODELS_BASENAME,
+    STAGE30_11_17_COMPOSE_SESSION_BASENAME,
+    STAGE30_11_17_FAKE_CURATED_SESSION_PROOF_BASENAME,
+)
+STAGE30_11_17_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_17_ALLOWED_STAGE30_BASENAMES
+)
+
+
+# The five NEW test basenames.
+STAGE30_11_17_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_17_operator_curated_candidate_list_models.py",
+    "test_stage_30_11_17_operator_curated_compose_session.py",
+    "test_stage_30_11_17_fake_curated_session_proof.py",
+    "test_stage_30_11_17_boundaries.py",
+    "test_stage_30_11_17_manifest.py",
+)
+
+
+# The Stage 30.11.17 stdlib import allowlist (ALL three modules; no os / json /
+# pathlib / datetime / decimal -- the session is closed-set / int / bool / str
+# only -- and no network / db surface).
+STAGE30_11_17_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The Stage 30.11.17 PHX2 import allowlist: the own siblings PLUS the committed
+# Stage 30.11.15 deduped orchestrator the session composes, the committed Stage
+# 30.11.13 composer (for the closed-set compose decision / reason tokens the
+# session mirrors for classification), the committed Stage 30.11.15 in-memory
+# ledger + the committed Stage 30.11.5 recording fake client the fake proof builds.
+# NO Stage 21-29 module, NO Stage 30.11.16 real-send guard, NO Stage 30.11.6 real
+# harvest adapter -- everything stays inside the closed Stage 30 family.
+STAGE30_11_17_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_17_CANDIDATE_LIST_MODELS_MODULE,
+    STAGE30_11_17_COMPOSE_SESSION_MODULE,
+    STAGE30_11_17_FAKE_CURATED_SESSION_PROOF_MODULE,
+    "PHX2.stage30.stage30_11_13_committed_no_send_composer",
+    "PHX2.stage30.stage30_11_15_no_send_dedupe_guard",
+    "PHX2.stage30.stage30_11_15_ping_dedupe_ledger",
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof",
+)
+
+
+# Bounded caps (mirrored BY VALUE from the Stage 30.11.17 models module). The
+# hard candidate cap mirrors the committed Stage 30.11.5 ``max_candidates <= 10``
+# ceiling; ``max_compositions`` must be within ``1..max_candidates``.
+STAGE30_11_17_MAX_CANDIDATES_HARD_CAP: int = 10
+STAGE30_11_17_DEFAULT_MAX_CANDIDATES: int = 10
+
+
+# Closed-set per-entry outcome + stop-reason + redaction vocabularies (mirrored BY
+# VALUE from the Stage 30.11.17 models module).
+STAGE30_11_17_ENTRY_OUTCOMES: Tuple[str, ...] = (
+    "DISPATCHED",
+    "REJECTED",
+    "DEDUPE_BLOCKED",
+    "ERROR",
+)
+STAGE30_11_17_STOP_REASONS: Tuple[str, ...] = (
+    "COMPLETED_ALL_CANDIDATES",
+    "STOPPED_BY_CANDIDATE_CAP",
+    "STOPPED_BY_COMPOSITION_CAP",
+)
+STAGE30_11_17_REDACTION_STATUS_REDACTED: str = "REDACTED"
+STAGE30_11_17_REDACTION_STATUSES: Tuple[str, ...] = (
+    "REDACTED",
+    "REDACTION_VIOLATION",
+)
+
+
+# The committed Stage 30.11.13 dispatched compose-decision token the session
+# classifies a DISPATCHED entry on (mirrored BY VALUE; a pin test cross-checks it
+# equals the composer's ``COMPOSE_DECISION_DISPATCHED``).
+STAGE30_11_17_REQUIRED_COMPOSE_DISPATCH_DECISION: str = "NO_SEND_DISPATCHED"
+
+
+# Dataclass field tuples (mirrored BY VALUE from the Stage 30.11.17 models module;
+# a pin test cross-checks the mirror). NONE is a secret / body / url / host.
+STAGE30_11_17_CANDIDATE_FIELDS: Tuple[str, ...] = (
+    "request",
+    "curated_label",
+)
+STAGE30_11_17_SESSION_CONFIG_FIELDS: Tuple[str, ...] = (
+    "max_candidates",
+    "max_compositions",
+    "created_at_utc",
+)
+STAGE30_11_17_SESSION_EVENT_FIELDS: Tuple[str, ...] = (
+    "index",
+    "candidate_id",
+    "token_mint",
+    "curated_label",
+    "outcome",
+    "compose_decision",
+    "compose_reason",
+    "dedupe_verdict",
+    "dedupe_reason",
+    "transport_attempts",
+    "body_present",
+    "created_at_utc",
+)
+STAGE30_11_17_SESSION_RESULT_FIELDS: Tuple[str, ...] = (
+    "events",
+    "candidates_seen",
+    "compositions_attempted",
+    "dispatched",
+    "rejected",
+    "dedupe_blocked",
+    "errors",
+    "would_send_recorded",
+    "stop_reason",
+    "redaction_status",
+    "created_at_utc",
+)
+
+
+# After Stage 30.11.17 the controlled live ceremony remains a SEPARATE, explicitly
+# operator-authorized step. No Stage 30.11.18+ file ships here.
+STAGE30_11_17_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized controlled live ceremony (separate step)"
+)
+
+
+# The surfaces the Stage 30.11.17 operator-curated compose session slice must not
+# touch. Plain documentation words (family / feature names), NOT secret / host /
+# transport needle forms.
+STAGE30_11_17_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "real harvest adapter binding",
+    "real candidate harvest",
+    "Stage 30.11.16 real-send guard call",
+    "Stage 30.11.16 real-send guard import",
+    "real transport",
+    "real send",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "live provider call",
+    "live gRPC provider session",
+    "Stage 28 direct import",
+    "Stage 29 live provider import",
+    "real dispatch sink",
+    "dispatch reservation",
+    "while daemon",
+    "background service",
+    "autorestart loop",
+    "operator ceremony ledger mutation",
+    "repo-hardcoded ledger path",
+    "default storage root",
+    "Stage 30.12 renderer edit",
+    "renderer polish",
+    "tier band edit",
+    "dedupe key edit",
+    "committed composer edit",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "database implementation",
+    "SQLite implementation",
+    "zstd implementation",
+    "compression implementation",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.18+ implementation file",
+    "Stage 31",
+)
+
+
+STAGE30_11_17_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_17_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.17 is the committed offline operator-curated compose session "
+    "only; the controlled live ceremony (a real audited transport + a real "
+    "private operator webhook + a valid operator-auth sentinel composed via the "
+    "separate Stage 30.11.16 real-send guard) remains a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
+    # Stage 30.11.17 operator-curated compose session surface.
+    "STAGE30_11_17_MINOR_VERSION",
+    "STAGE30_11_17_SESSION_SCHEMA_VERSION",
+    "STAGE30_11_17_SOURCE_STAGE",
+    "STAGE30_11_17_SPEC_LOCK_FILENAME",
+    "STAGE30_11_17_SPEC_LOCK_PATH_PARTS",
+    "STAGE30_11_17_CANDIDATE_LIST_MODELS_BASENAME",
+    "STAGE30_11_17_COMPOSE_SESSION_BASENAME",
+    "STAGE30_11_17_FAKE_CURATED_SESSION_PROOF_BASENAME",
+    "STAGE30_11_17_CANDIDATE_LIST_MODELS_MODULE",
+    "STAGE30_11_17_COMPOSE_SESSION_MODULE",
+    "STAGE30_11_17_FAKE_CURATED_SESSION_PROOF_MODULE",
+    "STAGE30_11_17_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_17_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_17_TEST_BASENAMES",
+    "STAGE30_11_17_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_17_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_17_MAX_CANDIDATES_HARD_CAP",
+    "STAGE30_11_17_DEFAULT_MAX_CANDIDATES",
+    "STAGE30_11_17_ENTRY_OUTCOMES",
+    "STAGE30_11_17_STOP_REASONS",
+    "STAGE30_11_17_REDACTION_STATUS_REDACTED",
+    "STAGE30_11_17_REDACTION_STATUSES",
+    "STAGE30_11_17_REQUIRED_COMPOSE_DISPATCH_DECISION",
+    "STAGE30_11_17_CANDIDATE_FIELDS",
+    "STAGE30_11_17_SESSION_CONFIG_FIELDS",
+    "STAGE30_11_17_SESSION_EVENT_FIELDS",
+    "STAGE30_11_17_SESSION_RESULT_FIELDS",
+    "STAGE30_11_17_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_17_FORBIDDEN_SURFACES",
+    "STAGE30_11_17_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_17_LIVE_CEREMONY_NOTE",
     # Stage 30.11.11 migration-anchored ATH source surface.
     "STAGE30_11_11_MINOR_VERSION",
     "STAGE30_11_11_ANCHORED_ATH_SCHEMA_VERSION",

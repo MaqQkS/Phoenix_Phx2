@@ -616,6 +616,12 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_16_real_send_models.py",
         "stage30_11_16_real_private_transport_guard.py",
         "stage30_11_16_fake_real_send_proof.py",
+        # Stage 30.11.17 operator-curated compose session slice (three production
+        # modules). No real send; composes the committed Stage 30.11.15 deduped
+        # orchestrator; imports no Stage 28/29, no Stage 30.11.16 guard.
+        "stage30_11_17_operator_curated_candidate_list_models.py",
+        "stage30_11_17_operator_curated_compose_session.py",
+        "stage30_11_17_fake_curated_session_proof.py",
     }
 )
 
@@ -940,6 +946,13 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_16_fake_real_send_proof.py",
         "test_stage_30_11_16_boundaries.py",
         "test_stage_30_11_16_manifest.py",
+        # Stage 30.11.17 operator-curated compose session tests (models, session,
+        # fake proof, boundaries, manifest). Fakes / no-send only.
+        "test_stage_30_11_17_operator_curated_candidate_list_models.py",
+        "test_stage_30_11_17_operator_curated_compose_session.py",
+        "test_stage_30_11_17_fake_curated_session_proof.py",
+        "test_stage_30_11_17_boundaries.py",
+        "test_stage_30_11_17_manifest.py",
     }
 )
 

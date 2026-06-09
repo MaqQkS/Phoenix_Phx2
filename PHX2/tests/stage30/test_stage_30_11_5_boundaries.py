@@ -51,6 +51,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_5_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_13_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_15_ALLOWED_STAGE30_BASENAMES,
+    STAGE30_11_17_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_5_ALLOWED_STDLIB_IMPORTS,
     STAGE30_11_5_BOUNDED_LIVE_RUNNER_BASENAME,
     STAGE30_11_5_BOUNDED_LIVE_RUNNER_MODULE,
@@ -648,6 +649,7 @@ def test_no_existing_stage30_file_imports_the_slice() -> None:
         set(STAGE30_11_6_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_13_ALLOWED_STAGE30_BASENAMES)
         | set(STAGE30_11_15_ALLOWED_STAGE30_BASENAMES)
+        | set(STAGE30_11_17_ALLOWED_STAGE30_BASENAMES)
     )
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
