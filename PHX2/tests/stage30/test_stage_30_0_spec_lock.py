@@ -631,6 +631,15 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_18_harvested_facts_models.py",
         "stage30_11_18_harvest_to_curated_adapter.py",
         "stage30_11_18_fake_harvest_session_proof.py",
+        # Stage 30.11.19 market-context enrichment adapter slice (three production
+        # modules). Offline; reuses the committed Stage 30.4.3 token-overview
+        # market-context source (injected, duck-typed) to fill the MC/LP/fetched-at
+        # bundle on harvested facts, then runs the committed Stage 30.11.18
+        # session. No new fetcher, no Stage 28/29 import, no real transport
+        # construction; the live read is ceremony-injected.
+        "stage30_11_19_market_context_enrichment_models.py",
+        "stage30_11_19_market_context_enrichment_adapter.py",
+        "stage30_11_19_fake_market_context_enrichment_proof.py",
     }
 )
 
@@ -968,6 +977,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_18_fake_harvest_session_proof.py",
         "test_stage_30_11_18_boundaries.py",
         "test_stage_30_11_18_manifest.py",
+        # Stage 30.11.19 market-context enrichment adapter tests (adapter, fake
+        # proof, boundaries, manifest). Fakes / offline / no-send.
+        "test_stage_30_11_19_market_context_enrichment_adapter.py",
+        "test_stage_30_11_19_fake_market_context_enrichment_proof.py",
+        "test_stage_30_11_19_boundaries.py",
+        "test_stage_30_11_19_manifest.py",
     }
 )
 
