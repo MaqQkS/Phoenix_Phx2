@@ -425,6 +425,19 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_19_fake_market_context_enrichment_proof.py",
         "test_stage_30_11_19_boundaries.py",
         "test_stage_30_11_19_manifest.py",
+        # Stage 30.11.20 current-price enrichment adapter slice (three production
+        # modules + four tests). Offline; reuses the committed Stage 29.2
+        # /defi/price price source (injected, duck-typed via its native
+        # fetch_snapshot surface) to overwrite ONLY current_price, then runs the
+        # committed Stage 30.11.19 session. No new fetcher, no Stage 28/29
+        # import, no real transport construction.
+        "stage30_11_20_current_price_enrichment_models.py",
+        "stage30_11_20_current_price_enrichment_adapter.py",
+        "stage30_11_20_fake_current_price_enrichment_proof.py",
+        "test_stage_30_11_20_current_price_enrichment_adapter.py",
+        "test_stage_30_11_20_fake_current_price_enrichment_proof.py",
+        "test_stage_30_11_20_boundaries.py",
+        "test_stage_30_11_20_manifest.py",
     }
 )
 

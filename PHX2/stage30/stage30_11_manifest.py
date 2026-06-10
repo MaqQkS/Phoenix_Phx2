@@ -5947,7 +5947,343 @@ STAGE30_11_19_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.20 -- enrich harvested facts with current price
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.20 is the committed OFFLINE current-price enrichment adapter: it
+# closes the current_price blocker the Stage 30.11.18 contract exposed
+# (REJECTED_MISSING_CURRENT_PRICE / REJECTED_INVALID_CURRENT_PRICE) by REUSING the
+# already-committed, live-proven Stage 29.2 Birdeye /defi/price price source -- it
+# builds NO new fetcher. Given a base Stage30_11_18HarvestedCandidateFacts and an
+# INJECTED, duck-typed price source, it reads ONE price snapshot via the source's
+# NATIVE never-raises surface (``fetch_snapshot(base_mint=...)``; no read() shim)
+# and, when the snapshot status is PRESENT and the price value + fetched-at pass a
+# pure Layer-0 presence / shape / positivity check, overwrites ONLY current_price
+# on a COPY of the facts via dataclasses.replace; otherwise it fails closed to a
+# closed-set SKIPPED_* token and the fact is NOT forwarded (no silent
+# pass-through). market_context_fetched_at_utc is NEVER overwritten (the snapshot
+# fetched-at is validated for reading coherence but written NOWHERE);
+# migration_time_utc is carried through UNCHANGED (the next separate seam). The
+# price-enriched facts run through the committed Stage 30.11.19 enrichment session
+# (and behind it the Stage 30.11.18 / 30.11.17 sessions) over an injected FAKE
+# recording transport client; the runner rolls up one combined redaction-safe
+# report. It adds three production modules + four tests + a spec-lock doc; it
+# imports NO Stage 21-29 module, constructs NO real provider transport, and reads
+# the injected source + snapshot DUCK-TYPED -- the real /defi/price read remains a
+# SEPARATE, ceremony-injected step (the ceremony constructs the committed Stage
+# 29.2 price source over a real transport + secret). No-send by default (the only
+# transport is the injected FAKE recording client).
+
+
+STAGE30_11_20_MINOR_VERSION: str = "30.11.20"
+
+
+# The Stage 30.11.20 report schema version (mirrored BY VALUE by the Stage
+# 30.11.20 models module; a pin test cross-checks it). Distinct from every earlier
+# Stage 30.11 schema version.
+STAGE30_11_20_REPORT_SCHEMA_VERSION: str = (
+    "stage30_11_20_v0_current_price_enrichment"
+)
+
+STAGE30_11_20_SOURCE_STAGE: str = "30.11.20"
+
+
+# The Stage 30.11.20 spec-lock doc lives under ``PHX2/docs`` (NOT
+# ``PHX2/stage30``); the path parts let a pin test join them without re-spelling
+# the path.
+STAGE30_11_20_SPEC_LOCK_FILENAME: str = (
+    "STAGE_30_11_20_CURRENT_PRICE_ENRICHMENT_SPEC_LOCK.md"
+)
+STAGE30_11_20_SPEC_LOCK_PATH_PARTS: Tuple[str, ...] = (
+    "PHX2",
+    "docs",
+    STAGE30_11_20_SPEC_LOCK_FILENAME,
+)
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_20_ENRICHMENT_MODELS_BASENAME: str = (
+    "stage30_11_20_current_price_enrichment_models.py"
+)
+STAGE30_11_20_ENRICHMENT_ADAPTER_BASENAME: str = (
+    "stage30_11_20_current_price_enrichment_adapter.py"
+)
+STAGE30_11_20_FAKE_ENRICHMENT_PROOF_BASENAME: str = (
+    "stage30_11_20_fake_current_price_enrichment_proof.py"
+)
+
+STAGE30_11_20_ENRICHMENT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_20_current_price_enrichment_models"
+)
+STAGE30_11_20_ENRICHMENT_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_20_current_price_enrichment_adapter"
+)
+STAGE30_11_20_FAKE_ENRICHMENT_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_20_fake_current_price_enrichment_proof"
+)
+
+
+# The three production basenames, in models -> adapter -> fake-proof order.
+STAGE30_11_20_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_20_ENRICHMENT_MODELS_BASENAME,
+    STAGE30_11_20_ENRICHMENT_ADAPTER_BASENAME,
+    STAGE30_11_20_FAKE_ENRICHMENT_PROOF_BASENAME,
+)
+STAGE30_11_20_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_20_ALLOWED_STAGE30_BASENAMES
+)
+
+
+# The four NEW test basenames.
+STAGE30_11_20_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_20_current_price_enrichment_adapter.py",
+    "test_stage_30_11_20_fake_current_price_enrichment_proof.py",
+    "test_stage_30_11_20_boundaries.py",
+    "test_stage_30_11_20_manifest.py",
+)
+
+
+# The Stage 30.11.20 stdlib import allowlist (ALL three modules). No decimal /
+# datetime: the Layer-0 positivity + ISO-shape checks REUSE the committed Stage
+# 30.11.18 predicates; timestamps are caller-injected; no clock, no io, no db.
+STAGE30_11_20_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The Stage 30.11.20 PHX2 import allowlist: the own siblings PLUS the committed
+# Stage 30.11.19 enrichment adapter (the session the price-enriched facts run
+# through), the committed Stage 30.11.18 facts models + adapter (the facts type
+# the enrichment fills via dataclasses.replace + the reused predicates), the
+# committed Stage 30.11.17 models (session config + cap validator), and the
+# committed Stage 30.11.15 in-memory ledger + Stage 30.11.5 recording fake client
+# the fake proof defaults. NO Stage 21-29 module, NO Stage 29.2 price source, NO
+# Stage 30.4.3 Birdeye source, NO Stage 30.11.16 real-send guard -- the price
+# source is injected duck-typed; everything stays inside the closed Stage 30
+# family.
+STAGE30_11_20_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_20_ENRICHMENT_MODELS_MODULE,
+    STAGE30_11_20_ENRICHMENT_ADAPTER_MODULE,
+    STAGE30_11_20_FAKE_ENRICHMENT_PROOF_MODULE,
+    "PHX2.stage30.stage30_11_19_market_context_enrichment_adapter",
+    "PHX2.stage30.stage30_11_18_harvested_facts_models",
+    "PHX2.stage30.stage30_11_18_harvest_to_curated_adapter",
+    "PHX2.stage30.stage30_11_17_operator_curated_candidate_list_models",
+    "PHX2.stage30.stage30_11_15_ping_dedupe_ledger",
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof",
+)
+
+
+# Bounded caps (mirrored BY VALUE from the committed Stage 30.11.17 session caps;
+# the Stage 30.11.20 runner reuses the Stage 30.11.17 session config + cap
+# validator, so the bounded enrichment run can never evaluate more than the
+# session allows).
+STAGE30_11_20_MAX_CANDIDATES_HARD_CAP: int = 10
+STAGE30_11_20_DEFAULT_MAX_CANDIDATES: int = 10
+
+
+# The duck-typed price-source surface (the locked key decision): the adapter
+# calls ONLY ``price_source.fetch_snapshot(base_mint=token_mint)`` -- the NATIVE
+# never-raises surface the committed Stage 29.2 price source already exposes --
+# and reads the snapshot by attribute. NO read() shim, NO new fetcher. Mirrored
+# BY VALUE by the Stage 30.11.20 models module.
+STAGE30_11_20_PRICE_SOURCE_METHOD: str = "fetch_snapshot"
+STAGE30_11_20_PRICE_SNAPSHOT_REQUIRED_ATTRS: Tuple[str, ...] = (
+    "price_value",
+    "birdeye_price_status",
+    "fetched_at_utc",
+)
+
+
+# The closed-set price-snapshot status tokens the Layer-0 ladder consumes
+# (mirrored BY VALUE from the committed Stage 29.2 snapshot vocabulary; a pin
+# test cross-checks the mirror -- the committed Stage 30.11.20 production code
+# imports NO Stage 29 module).
+STAGE30_11_20_PRICE_STATUS_PRESENT: str = "PRESENT"
+STAGE30_11_20_PRICE_STATUS_MISSING: str = "MISSING"
+STAGE30_11_20_PRICE_STATUS_SOURCE_ERROR: str = "SOURCE_ERROR"
+
+
+# Closed-set Layer-0 enrichment decision vocabulary (mirrored BY VALUE from the
+# Stage 30.11.20 models module). ``ENRICHED`` is the only decision that overwrites
+# current_price (and forwards the fact to the committed Stage 30.11.19 session);
+# every ``SKIPPED_*`` decision is a fail-closed Layer-0 rejection that leaves the
+# fact UN-enriched and NOT forwarded (no silent pass-through). NONE of these is a
+# Stage 30.11.19 Layer-0 market-context token, a Layer-1 projection token, or a
+# Layer-2 composer reason.
+STAGE30_11_20_ENRICHMENT_DECISIONS: Tuple[str, ...] = (
+    "ENRICHED",
+    "SKIPPED_NOT_BASE_FACTS",
+    "SKIPPED_NO_PRICE_READING",
+    "SKIPPED_NOT_A_PRICE_READING",
+    "SKIPPED_PRICE_SOURCE_ERROR",
+    "SKIPPED_PRICE_MISSING",
+    "SKIPPED_PRICE_STATUS_UNRECOGNIZED",
+    "SKIPPED_MISSING_PRICE_VALUE",
+    "SKIPPED_INVALID_PRICE_VALUE",
+    "SKIPPED_MISSING_PRICE_FETCHED_AT",
+    "SKIPPED_INVALID_PRICE_FETCHED_AT",
+)
+
+
+# The exact ONE field the enrichment overwrites on the facts via
+# dataclasses.replace. market_context_fetched_at_utc is NEVER overwritten here
+# (the Stage 30.11.19 bundle owns it; the snapshot fetched-at is validated for
+# reading coherence but written NOWHERE); migration_time_utc is NEVER enriched
+# here (the next separate seam).
+STAGE30_11_20_ENRICHED_PRICE_FIELDS: Tuple[str, ...] = (
+    "current_price",
+)
+
+
+# Redaction status tokens (mirrored BY VALUE from the Stage 30.11.20 models
+# module; the same two-token set every Stage 30.11 redaction self-scan uses).
+STAGE30_11_20_REDACTION_STATUS_REDACTED: str = "REDACTED"
+STAGE30_11_20_REDACTION_STATUSES: Tuple[str, ...] = (
+    "REDACTED",
+    "REDACTION_VIOLATION",
+)
+
+
+# Dataclass field tuples (mirrored BY VALUE from the Stage 30.11.20 models
+# module; a pin test cross-checks the mirror). The enrichment event + session
+# report carry ONLY safe scalars + closed-set tokens + the embedded downstream
+# report -- NONE is a magnitude / secret / body / url / host.
+STAGE30_11_20_ENRICHMENT_RESULT_FIELDS: Tuple[str, ...] = (
+    "decision",
+    "enriched_facts",
+)
+STAGE30_11_20_ENRICHMENT_EVENT_FIELDS: Tuple[str, ...] = (
+    "index",
+    "decision",
+    "candidate_id",
+    "token_mint",
+    "created_at_utc",
+)
+STAGE30_11_20_ENRICHMENT_SESSION_REPORT_FIELDS: Tuple[str, ...] = (
+    "enrichment_events",
+    "facts_seen",
+    "enriched",
+    "skipped",
+    "downstream_report",
+    "redaction_status",
+    "created_at_utc",
+)
+
+
+# After Stage 30.11.20 the remaining harvested-facts seam (migration_time_utc
+# enrichment), the real-fed dry-run ceremony, and the controlled live send remain
+# a SEPARATE, explicitly operator-authorized step. No Stage 30.11.21+ file ships
+# here.
+STAGE30_11_20_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized migration_time enrichment seam + real-fed dry-run "
+    "ceremony (separate steps)"
+)
+
+
+# The surfaces the Stage 30.11.20 current-price enrichment adapter slice must not
+# touch. Plain documentation words (family / feature names), NOT secret / host /
+# transport needle forms.
+STAGE30_11_20_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "new price fetcher",
+    "real provider transport construction",
+    "Stage 29.2 price source edit",
+    "Stage 29.2 price source import",
+    "committed live provider call",
+    "real transport",
+    "real send",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "live provider call",
+    "Stage 28 direct import",
+    "Stage 29 direct import",
+    "Stage 30.4.3 source import",
+    "Stage 30.11.16 real-send guard call",
+    "Stage 30.11.16 real-send guard import",
+    "migration_time enrichment",
+    "market_context_fetched_at_utc overwrite",
+    "read() shim",
+    "silent pass-through on skip",
+    "while daemon",
+    "background service",
+    "autorestart loop",
+    "operator ceremony ledger mutation",
+    "repo-hardcoded ledger path",
+    "default storage root",
+    "Stage 30.12 renderer edit",
+    "renderer polish",
+    "tier band edit",
+    "dedupe key edit",
+    "committed composer edit",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "database implementation",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.21+ implementation file",
+    "Stage 31",
+)
+
+
+STAGE30_11_20_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_20_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.20 is the committed offline current-price enrichment adapter "
+    "only; the real Birdeye /defi/price read (the operator constructs the "
+    "committed Stage 29.2 price source over a real transport + secret), the "
+    "real-fed dry-run ceremony, and the controlled live send (composed via the "
+    "separate Stage 30.11.16 real-send guard) remain a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
+    # Stage 30.11.20 current-price enrichment surface.
+    "STAGE30_11_20_MINOR_VERSION",
+    "STAGE30_11_20_REPORT_SCHEMA_VERSION",
+    "STAGE30_11_20_SOURCE_STAGE",
+    "STAGE30_11_20_SPEC_LOCK_FILENAME",
+    "STAGE30_11_20_SPEC_LOCK_PATH_PARTS",
+    "STAGE30_11_20_ENRICHMENT_MODELS_BASENAME",
+    "STAGE30_11_20_ENRICHMENT_ADAPTER_BASENAME",
+    "STAGE30_11_20_FAKE_ENRICHMENT_PROOF_BASENAME",
+    "STAGE30_11_20_ENRICHMENT_MODELS_MODULE",
+    "STAGE30_11_20_ENRICHMENT_ADAPTER_MODULE",
+    "STAGE30_11_20_FAKE_ENRICHMENT_PROOF_MODULE",
+    "STAGE30_11_20_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_20_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_20_TEST_BASENAMES",
+    "STAGE30_11_20_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_20_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_20_MAX_CANDIDATES_HARD_CAP",
+    "STAGE30_11_20_DEFAULT_MAX_CANDIDATES",
+    "STAGE30_11_20_PRICE_SOURCE_METHOD",
+    "STAGE30_11_20_PRICE_SNAPSHOT_REQUIRED_ATTRS",
+    "STAGE30_11_20_PRICE_STATUS_PRESENT",
+    "STAGE30_11_20_PRICE_STATUS_MISSING",
+    "STAGE30_11_20_PRICE_STATUS_SOURCE_ERROR",
+    "STAGE30_11_20_ENRICHMENT_DECISIONS",
+    "STAGE30_11_20_ENRICHED_PRICE_FIELDS",
+    "STAGE30_11_20_REDACTION_STATUS_REDACTED",
+    "STAGE30_11_20_REDACTION_STATUSES",
+    "STAGE30_11_20_ENRICHMENT_RESULT_FIELDS",
+    "STAGE30_11_20_ENRICHMENT_EVENT_FIELDS",
+    "STAGE30_11_20_ENRICHMENT_SESSION_REPORT_FIELDS",
+    "STAGE30_11_20_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_20_FORBIDDEN_SURFACES",
+    "STAGE30_11_20_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_20_LIVE_CEREMONY_NOTE",
     # Stage 30.11.19 market-context enrichment surface.
     "STAGE30_11_19_MINOR_VERSION",
     "STAGE30_11_19_REPORT_SCHEMA_VERSION",
