@@ -650,6 +650,17 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_20_current_price_enrichment_models.py",
         "stage30_11_20_current_price_enrichment_adapter.py",
         "stage30_11_20_fake_current_price_enrichment_proof.py",
+        # Stage 30.11.21 migration-time enrichment adapter slice (three
+        # production modules). Offline; reuses the committed Stage 30.11.8
+        # migration-confirmation authority (resolve_candidate_migration) over an
+        # injected, duck-typed Stage 30.11.9 evidence source to confirm + fill
+        # migration_time_utc / migration_confirmed / migration_source on harvested
+        # facts, then runs the committed Stage 30.11.20 session. No new fetcher, no
+        # bare timestamp copy, no Stage 27/28/29 import, no Stage 30.11.11 import;
+        # the real evidence is ceremony-injected.
+        "stage30_11_21_migration_time_enrichment_models.py",
+        "stage30_11_21_migration_time_enrichment_adapter.py",
+        "stage30_11_21_fake_migration_time_enrichment_proof.py",
     }
 )
 
@@ -999,6 +1010,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_20_fake_current_price_enrichment_proof.py",
         "test_stage_30_11_20_boundaries.py",
         "test_stage_30_11_20_manifest.py",
+        # Stage 30.11.21 migration-time enrichment adapter tests (adapter, fake
+        # proof, boundaries, manifest). Fakes / offline / no-send.
+        "test_stage_30_11_21_migration_time_enrichment_adapter.py",
+        "test_stage_30_11_21_fake_migration_time_enrichment_proof.py",
+        "test_stage_30_11_21_boundaries.py",
+        "test_stage_30_11_21_manifest.py",
     }
 )
 

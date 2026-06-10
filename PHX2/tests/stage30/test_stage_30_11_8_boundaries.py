@@ -53,6 +53,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_8_FAKE_CONFIRMATION_PROOF_MODULE,
     STAGE30_11_8_SCANNED_PRODUCTION_BASENAMES,
     STAGE30_11_8_TEST_BASENAMES,
+    STAGE30_11_21_ALLOWED_STAGE30_BASENAMES,
     STAGE30_11_FORBIDDEN_TEXT_NEEDLES,
 )
 
@@ -634,10 +635,25 @@ _STAGE_30_11_8_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_8_"
 
 def test_no_existing_stage30_file_imports_the_slice() -> None:
     own_basenames = set(STAGE30_11_8_ALLOWED_STAGE30_BASENAMES)
+    # The SOLE permitted importer is the explicitly operator-authorized successor
+    # slice Stage 30.11.21 (the migration-time enrichment adapter), which REUSES the
+    # committed Stage 30.11.8 migration-confirmation authority
+    # (resolve_candidate_migration) over an injected evidence source as its Layer-0
+    # verdict (the permitted Stage 30.11 scope expansion -- the prior Stage 30.11.x
+    # enrichment slices did not import this confirmation bridge). That successor is
+    # NEW (not an edit of an existing file); every OTHER stage30 file is still
+    # forbidden from importing the slice.
+    admitted_successor_basenames = set(STAGE30_11_21_ALLOWED_STAGE30_BASENAMES)
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue
         if entry.name in own_basenames:
+            continue
+        if entry.name in admitted_successor_basenames:
+            # The authorized Stage 30.11.21 successor PRODUCTION module REUSES the
+            # committed Stage 30.11.8 confirmation (the permitted Stage 30.11 scope
+            # expansion); its own boundary test pins exactly which Stage 30.11.8
+            # modules it imports.
             continue
         text = entry.read_text(encoding="utf-8")
         for module in _imports_of(text):

@@ -438,6 +438,19 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_20_fake_current_price_enrichment_proof.py",
         "test_stage_30_11_20_boundaries.py",
         "test_stage_30_11_20_manifest.py",
+        # Stage 30.11.21 migration-time enrichment adapter slice (three production
+        # modules + four tests). Offline; reuses the committed Stage 30.11.8
+        # migration-confirmation authority (resolve_candidate_migration) over an
+        # injected, duck-typed Stage 30.11.9 evidence source to confirm + fill the
+        # migration fields, then runs the committed Stage 30.11.20 session. No new
+        # fetcher, no bare timestamp copy, no Stage 27/28/29 import.
+        "stage30_11_21_migration_time_enrichment_models.py",
+        "stage30_11_21_migration_time_enrichment_adapter.py",
+        "stage30_11_21_fake_migration_time_enrichment_proof.py",
+        "test_stage_30_11_21_migration_time_enrichment_adapter.py",
+        "test_stage_30_11_21_fake_migration_time_enrichment_proof.py",
+        "test_stage_30_11_21_boundaries.py",
+        "test_stage_30_11_21_manifest.py",
     }
 )
 

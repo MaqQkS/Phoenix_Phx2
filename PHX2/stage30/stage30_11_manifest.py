@@ -6248,7 +6248,361 @@ STAGE30_11_20_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stage 30.11.21 -- enrich harvested facts with migration time
+# ---------------------------------------------------------------------------
+#
+# Stage 30.11.21 is the committed OFFLINE migration-time enrichment adapter: it
+# closes the LAST hand-fed harvested-facts blocker the Stage 30.11.18 contract
+# exposed (REJECTED_MIGRATION_NOT_CONFIRMED / REJECTED_MISSING_MIGRATION_TIME_UTC
+# / REJECTED_INVALID_MIGRATION_TIME_UTC) by REUSING the already-committed Stage
+# 30.11.8 migration-confirmation authority (``resolve_candidate_migration``) over
+# an INJECTED, duck-typed per-mint migration evidence source (the committed Stage
+# 30.11.9 ``lookup_migration_evidence`` surface) -- it builds NO new fetcher and
+# COPIES no bare timestamp. Given a base Stage30_11_18HarvestedCandidateFacts and
+# an INJECTED evidence source, it resolves the candidate's migration verdict via
+# the committed confirmation (redaction-SAFE + on-chain COMPLETE + not-stale +
+# strict trailing-Z calendar-valid anchor) and, ONLY on a confirmed resolution,
+# overwrites ``migration_time_utc`` (from the confirmed ``migration_event_time_utc``),
+# sets ``migration_confirmed=True``, and writes a safe-gated ``migration_source``
+# (from the confirmed ``source_ref``, or None if unsafe) on a COPY of the facts
+# via dataclasses.replace; otherwise it fails closed to a closed-set ``SKIPPED_*``
+# token that MIRRORS the committed Stage 30.11.8 fail reason and the fact is NOT
+# forwarded (no silent pass-through). ``current_price`` + the Stage 30.11.19
+# market-context bundle + ``age_display`` are carried through UNCHANGED
+# (``age_display`` is NEVER derived -- no clock / datetime logic). The
+# migration-enriched facts run through the committed Stage 30.11.20 enrichment
+# session (and behind it the Stage 30.11.19 / 30.11.18 / 30.11.17 sessions) over
+# an injected FAKE recording transport client; the runner rolls up one combined
+# redaction-safe report. It adds three production modules + four tests + a
+# spec-lock doc; it imports NO Stage 21-29 module, NO Stage 30.11.11
+# migration-anchored ATH source (it drags Stage 27/29 imports), constructs NO real
+# provider transport, and reads the injected evidence source DUCK-TYPED -- the real
+# Stage 29.5 migration evidence binds at the injected Stage 30.11.9 provider seam
+# via an out-of-repo, operator-authorized wrapper. No-send by default (the only
+# transport is the injected FAKE recording client).
+
+
+STAGE30_11_21_MINOR_VERSION: str = "30.11.21"
+
+
+# The Stage 30.11.21 report schema version (mirrored BY VALUE by the Stage
+# 30.11.21 models module; a pin test cross-checks it). Distinct from every earlier
+# Stage 30.11 schema version.
+STAGE30_11_21_REPORT_SCHEMA_VERSION: str = (
+    "stage30_11_21_v0_migration_time_enrichment"
+)
+
+STAGE30_11_21_SOURCE_STAGE: str = "30.11.21"
+
+
+# The Stage 30.11.21 spec-lock doc lives under ``PHX2/docs`` (NOT
+# ``PHX2/stage30``); the path parts let a pin test join them without re-spelling
+# the path.
+STAGE30_11_21_SPEC_LOCK_FILENAME: str = (
+    "STAGE_30_11_21_MIGRATION_TIME_ENRICHMENT_SPEC_LOCK.md"
+)
+STAGE30_11_21_SPEC_LOCK_PATH_PARTS: Tuple[str, ...] = (
+    "PHX2",
+    "docs",
+    STAGE30_11_21_SPEC_LOCK_FILENAME,
+)
+
+
+# The three NEW production basenames + their dotted module paths.
+STAGE30_11_21_ENRICHMENT_MODELS_BASENAME: str = (
+    "stage30_11_21_migration_time_enrichment_models.py"
+)
+STAGE30_11_21_ENRICHMENT_ADAPTER_BASENAME: str = (
+    "stage30_11_21_migration_time_enrichment_adapter.py"
+)
+STAGE30_11_21_FAKE_ENRICHMENT_PROOF_BASENAME: str = (
+    "stage30_11_21_fake_migration_time_enrichment_proof.py"
+)
+
+STAGE30_11_21_ENRICHMENT_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_21_migration_time_enrichment_models"
+)
+STAGE30_11_21_ENRICHMENT_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_21_migration_time_enrichment_adapter"
+)
+STAGE30_11_21_FAKE_ENRICHMENT_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_21_fake_migration_time_enrichment_proof"
+)
+
+
+# The three production basenames, in models -> adapter -> fake-proof order.
+STAGE30_11_21_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_21_ENRICHMENT_MODELS_BASENAME,
+    STAGE30_11_21_ENRICHMENT_ADAPTER_BASENAME,
+    STAGE30_11_21_FAKE_ENRICHMENT_PROOF_BASENAME,
+)
+STAGE30_11_21_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_21_ALLOWED_STAGE30_BASENAMES
+)
+
+
+# The four NEW test basenames.
+STAGE30_11_21_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_21_migration_time_enrichment_adapter.py",
+    "test_stage_30_11_21_fake_migration_time_enrichment_proof.py",
+    "test_stage_30_11_21_boundaries.py",
+    "test_stage_30_11_21_manifest.py",
+)
+
+
+# The Stage 30.11.21 stdlib import allowlist (ALL three modules). No decimal /
+# datetime / re: the confirmation + anchor validation REUSE the committed Stage
+# 30.11.8 authority; timestamps are caller-injected / evidence-carried; no clock,
+# no io, no db.
+STAGE30_11_21_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The Stage 30.11.21 PHX2 import allowlist: the own siblings PLUS the committed
+# Stage 30.11.20 enrichment adapter (the session the migration-enriched facts run
+# through), the committed Stage 30.11.8 migration-confirmation adapter + models
+# (the confirmation authority the enrichment REUSES -- it builds no bare
+# timestamp), the committed Stage 30.11.18 facts models (the facts type the
+# enrichment fills via dataclasses.replace), the committed Stage 30.11.17 models
+# (session config + cap validator), and the committed Stage 30.11.15 in-memory
+# ledger + Stage 30.11.5 recording fake client the fake proof defaults. NO Stage
+# 21-29 module, NO Stage 30.11.11 migration-anchored ATH source (it drags Stage
+# 27/29 imports), NO real provider transport -- the evidence source is injected
+# duck-typed; everything stays inside the closed Stage 30 family.
+STAGE30_11_21_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_21_ENRICHMENT_MODELS_MODULE,
+    STAGE30_11_21_ENRICHMENT_ADAPTER_MODULE,
+    STAGE30_11_21_FAKE_ENRICHMENT_PROOF_MODULE,
+    "PHX2.stage30.stage30_11_20_current_price_enrichment_adapter",
+    "PHX2.stage30.stage30_11_8_migration_confirmation_adapter",
+    "PHX2.stage30.stage30_11_8_migration_confirmation_models",
+    "PHX2.stage30.stage30_11_18_harvested_facts_models",
+    "PHX2.stage30.stage30_11_17_operator_curated_candidate_list_models",
+    "PHX2.stage30.stage30_11_15_ping_dedupe_ledger",
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof",
+)
+
+
+# Bounded caps (mirrored BY VALUE from the committed Stage 30.11.17 session caps;
+# the Stage 30.11.21 runner reuses the Stage 30.11.17 session config + cap
+# validator, so the bounded enrichment run can never evaluate more than the
+# session allows).
+STAGE30_11_21_MAX_CANDIDATES_HARD_CAP: int = 10
+STAGE30_11_21_DEFAULT_MAX_CANDIDATES: int = 10
+
+
+# The duck-typed migration-evidence-source surface (the locked key decision): the
+# enrichment REUSES the committed Stage 30.11.8 ``resolve_candidate_migration``,
+# which calls ONLY ``evidence_source.lookup_migration_evidence(token_mint)`` -- the
+# surface the committed Stage 30.11.9 mint-keyed evidence-source adapter already
+# exposes -- and reads the confirmed Stage 30.11.8 resolution by attribute. NO new
+# fetcher, NO bare timestamp copy. Mirrored BY VALUE by the Stage 30.11.21 models
+# module; a manifest pin cross-checks the method against the committed Stage
+# 30.11.9 adapter + the resolution attrs / confirm decision against the committed
+# Stage 30.11.8.
+STAGE30_11_21_EVIDENCE_SOURCE_METHOD: str = "lookup_migration_evidence"
+STAGE30_11_21_MIGRATION_RESOLUTION_REQUIRED_ATTRS: Tuple[str, ...] = (
+    "confirmed",
+    "migration_event_time_utc",
+    "source_ref",
+    "reason",
+)
+
+
+# The committed Stage 30.11.8 confirm-pass decision the enrichment treats as the
+# ONLY confirmed verdict (mirrored BY VALUE; a manifest pin cross-checks it
+# against the committed Stage 30.11.8 ``CONFIRM_DECISION_CONFIRMED``).
+STAGE30_11_21_CONFIRM_DECISION_CONFIRMED: str = "CONFIRMED_MIGRATION"
+
+
+# Closed-set Layer-0 enrichment decision vocabulary (mirrored BY VALUE from the
+# Stage 30.11.21 models module). ``ENRICHED`` is the only decision that overwrites
+# the migration fields (and forwards the fact to the committed Stage 30.11.20
+# session); every ``SKIPPED_*`` decision is a fail-closed Layer-0 rejection that
+# leaves the fact UN-enriched and NOT forwarded (no silent pass-through). The ten
+# evidence / anchor SKIPPED tokens MIRROR the committed Stage 30.11.8 fail reasons
+# BY VALUE (each ``SKIPPED_<R>`` carries the Stage 30.11.8 reason ``<R>``), so the
+# session report shows the PRECISE confirmation cause; ``SKIPPED_NOT_BASE_FACTS``
+# is the local non-facts guard. NONE of these is a Stage 30.11.20 price token, a
+# Stage 30.11.19 market-context token, a Layer-1 projection token, or a Layer-2
+# composer reason.
+STAGE30_11_21_ENRICHMENT_DECISIONS: Tuple[str, ...] = (
+    "ENRICHED",
+    "SKIPPED_NOT_BASE_FACTS",
+    "SKIPPED_BLANK_CANDIDATE_MINT",
+    "SKIPPED_MISSING_MIGRATION_EVIDENCE",
+    "SKIPPED_EVIDENCE_MINT_MISMATCH",
+    "SKIPPED_REDACTION_UNSAFE",
+    "SKIPPED_UNKNOWN_MIGRATION",
+    "SKIPPED_PARTIAL_MIGRATION_UNVERIFIED",
+    "SKIPPED_EVIDENCE_REPORTS_NO_MIGRATION",
+    "SKIPPED_CONTRADICTORY_MIGRATION_EVIDENCE",
+    "SKIPPED_INVALID_MIGRATION_EVIDENCE",
+    "SKIPPED_STALE_MIGRATION_EVIDENCE",
+    "SKIPPED_INVALID_MIGRATION_ANCHOR",
+)
+
+
+# The exact fields the enrichment overwrites on the facts via dataclasses.replace
+# on ENRICHED. ``current_price`` + the Stage 30.11.19 market-context bundle +
+# ``age_display`` are NEVER touched here (``age_display`` is NEVER derived -- no
+# clock).
+STAGE30_11_21_ENRICHED_MIGRATION_FIELDS: Tuple[str, ...] = (
+    "migration_time_utc",
+    "migration_confirmed",
+    "migration_source",
+)
+
+
+# Redaction status tokens (mirrored BY VALUE from the Stage 30.11.21 models
+# module; the same two-token set every Stage 30.11 redaction self-scan uses).
+STAGE30_11_21_REDACTION_STATUS_REDACTED: str = "REDACTED"
+STAGE30_11_21_REDACTION_STATUSES: Tuple[str, ...] = (
+    "REDACTED",
+    "REDACTION_VIOLATION",
+)
+
+
+# Dataclass field tuples (mirrored BY VALUE from the Stage 30.11.21 models
+# module; a pin test cross-checks the mirror). The enrichment event + session
+# report carry ONLY safe scalars + closed-set tokens + the embedded downstream
+# report -- NONE is a magnitude / anchor / secret / body / url / host.
+STAGE30_11_21_ENRICHMENT_RESULT_FIELDS: Tuple[str, ...] = (
+    "decision",
+    "enriched_facts",
+)
+STAGE30_11_21_ENRICHMENT_EVENT_FIELDS: Tuple[str, ...] = (
+    "index",
+    "decision",
+    "candidate_id",
+    "token_mint",
+    "created_at_utc",
+)
+STAGE30_11_21_ENRICHMENT_SESSION_REPORT_FIELDS: Tuple[str, ...] = (
+    "enrichment_events",
+    "facts_seen",
+    "enriched",
+    "skipped",
+    "downstream_report",
+    "redaction_status",
+    "created_at_utc",
+)
+
+
+# After Stage 30.11.21 the harvested-facts enrichment chain is COMPLETE (no
+# hand-fed market / migration field remains); the real-fed dry-run ceremony and
+# the controlled capped private send remain a SEPARATE, explicitly
+# operator-authorized step. No Stage 30.11.22+ file ships here.
+STAGE30_11_21_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized real-fed dry-run ceremony + capped private send "
+    "(separate steps)"
+)
+
+
+# The surfaces the Stage 30.11.21 migration-time enrichment adapter slice must not
+# touch. Plain documentation words (family / feature names), NOT secret / host /
+# transport needle forms.
+STAGE30_11_21_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "new migration fetcher",
+    "bare migration timestamp copy",
+    "fake migration confirmation",
+    "Stage 30.11.8 confirmation edit",
+    "Stage 30.11.8 confirmation re-implementation",
+    "Stage 30.11.9 evidence-source edit",
+    "Stage 30.11.11 migration-anchored ATH import",
+    "Stage 27 direct import",
+    "Stage 28 direct import",
+    "Stage 29 direct import",
+    "real provider transport construction",
+    "committed live provider call",
+    "real transport",
+    "real send",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "age_display clock derivation",
+    "datetime derivation",
+    "Stage 30.11.16 real-send guard call",
+    "Stage 30.11.16 real-send guard import",
+    "silent pass-through on skip",
+    "while daemon",
+    "background service",
+    "autorestart loop",
+    "operator ceremony ledger mutation",
+    "repo-hardcoded ledger path",
+    "default storage root",
+    "Stage 30.12 renderer edit",
+    "renderer polish",
+    "tier band edit",
+    "dedupe key edit",
+    "committed composer edit",
+    "public routing",
+    "subscriber routing",
+    "paid tiers",
+    "Telegram",
+    "X / social",
+    "automated trading",
+    "wallet / signing",
+    "enforcement activation",
+    "database implementation",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.22+ implementation file",
+    "Stage 31",
+)
+
+
+STAGE30_11_21_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_21_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.21 is the committed offline migration-time enrichment adapter "
+    "only; the real Stage 29.5 migration evidence (the operator wraps the "
+    "committed Stage 29.5 reader behind the injected Stage 30.11.9 provider "
+    "seam), the real-fed dry-run ceremony, and the controlled capped private "
+    "send (composed via the separate Stage 30.11.16 real-send guard) remain a "
+    "separate, explicitly operator-authorized step that is not run here"
+)
+
+
 __all__ = (
+    # Stage 30.11.21 migration-time enrichment surface.
+    "STAGE30_11_21_MINOR_VERSION",
+    "STAGE30_11_21_REPORT_SCHEMA_VERSION",
+    "STAGE30_11_21_SOURCE_STAGE",
+    "STAGE30_11_21_SPEC_LOCK_FILENAME",
+    "STAGE30_11_21_SPEC_LOCK_PATH_PARTS",
+    "STAGE30_11_21_ENRICHMENT_MODELS_BASENAME",
+    "STAGE30_11_21_ENRICHMENT_ADAPTER_BASENAME",
+    "STAGE30_11_21_FAKE_ENRICHMENT_PROOF_BASENAME",
+    "STAGE30_11_21_ENRICHMENT_MODELS_MODULE",
+    "STAGE30_11_21_ENRICHMENT_ADAPTER_MODULE",
+    "STAGE30_11_21_FAKE_ENRICHMENT_PROOF_MODULE",
+    "STAGE30_11_21_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_21_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_21_TEST_BASENAMES",
+    "STAGE30_11_21_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_21_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_21_MAX_CANDIDATES_HARD_CAP",
+    "STAGE30_11_21_DEFAULT_MAX_CANDIDATES",
+    "STAGE30_11_21_EVIDENCE_SOURCE_METHOD",
+    "STAGE30_11_21_MIGRATION_RESOLUTION_REQUIRED_ATTRS",
+    "STAGE30_11_21_CONFIRM_DECISION_CONFIRMED",
+    "STAGE30_11_21_ENRICHMENT_DECISIONS",
+    "STAGE30_11_21_ENRICHED_MIGRATION_FIELDS",
+    "STAGE30_11_21_REDACTION_STATUS_REDACTED",
+    "STAGE30_11_21_REDACTION_STATUSES",
+    "STAGE30_11_21_ENRICHMENT_RESULT_FIELDS",
+    "STAGE30_11_21_ENRICHMENT_EVENT_FIELDS",
+    "STAGE30_11_21_ENRICHMENT_SESSION_REPORT_FIELDS",
+    "STAGE30_11_21_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_21_FORBIDDEN_SURFACES",
+    "STAGE30_11_21_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_21_LIVE_CEREMONY_NOTE",
     # Stage 30.11.20 current-price enrichment surface.
     "STAGE30_11_20_MINOR_VERSION",
     "STAGE30_11_20_REPORT_SCHEMA_VERSION",
