@@ -6569,7 +6569,290 @@ STAGE30_11_21_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ===========================================================================
+# Stage 30.11.22 -- bridge harvested candidates into a real-fed dry run
+# ===========================================================================
+#
+# Stage 30.11.22 is the committed OFFLINE real-fed dry-run wrapper: it maps the
+# committed Stage 30.11.6 harvest seam's candidate projection onto the Stage
+# 30.11.18 enrichment base fact (the correctness-critical bridge that previously
+# lived only in tests / out-of-repo glue) and orchestrates harvest -> bridge ->
+# the committed Stage 30.11.21 -> 30.11.20 -> 30.11.19 -> 30.11.18 -> 30.11.17
+# chain to a RECORDED would-send over a FAKE transport + an in-memory ledger. No
+# new fetcher, no Stage 27/28/29 import, no Stage 30.4.3 source import, no Stage
+# 30.11.16 real-send guard, no real transport construction; every provider source
+# is ceremony-injected.
+
+
+STAGE30_11_22_MINOR_VERSION: str = "30.11.22"
+
+
+# The Stage 30.11.22 report schema version (mirrored BY VALUE by the Stage
+# 30.11.22 models module; a pin test cross-checks it). Distinct from every earlier
+# Stage 30.11 schema version.
+STAGE30_11_22_REPORT_SCHEMA_VERSION: str = (
+    "stage30_11_22_v0_real_fed_dry_run"
+)
+STAGE30_11_22_SOURCE_STAGE: str = "30.11.22"
+
+
+# The Stage 30.11.22 spec-lock doc lives under ``PHX2/docs`` (NOT under stage30).
+STAGE30_11_22_SPEC_LOCK_FILENAME: str = (
+    "STAGE_30_11_22_REAL_FED_DRY_RUN_SPEC_LOCK.md"
+)
+STAGE30_11_22_SPEC_LOCK_PATH_PARTS: Tuple[str, ...] = (
+    "PHX2",
+    "docs",
+    STAGE30_11_22_SPEC_LOCK_FILENAME,
+)
+
+
+# The three Stage 30.11.22 production module basenames + their dotted module paths.
+STAGE30_11_22_MODELS_BASENAME: str = (
+    "stage30_11_22_real_fed_dry_run_models.py"
+)
+STAGE30_11_22_ADAPTER_BASENAME: str = (
+    "stage30_11_22_real_fed_dry_run_adapter.py"
+)
+STAGE30_11_22_FAKE_PROOF_BASENAME: str = (
+    "stage30_11_22_fake_real_fed_dry_run_proof.py"
+)
+STAGE30_11_22_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_22_real_fed_dry_run_models"
+)
+STAGE30_11_22_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_22_real_fed_dry_run_adapter"
+)
+STAGE30_11_22_FAKE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_22_fake_real_fed_dry_run_proof"
+)
+
+
+STAGE30_11_22_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_22_MODELS_BASENAME,
+    STAGE30_11_22_ADAPTER_BASENAME,
+    STAGE30_11_22_FAKE_PROOF_BASENAME,
+)
+STAGE30_11_22_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_22_ALLOWED_STAGE30_BASENAMES
+)
+
+
+STAGE30_11_22_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_22_real_fed_dry_run_adapter.py",
+    "test_stage_30_11_22_fake_real_fed_dry_run_proof.py",
+    "test_stage_30_11_22_boundaries.py",
+    "test_stage_30_11_22_manifest.py",
+)
+
+
+# The Stage 30.11.22 stdlib import allowlist (ALL three modules). No decimal / re /
+# io / db / clock: the bridge is a pure field map, the wrapper reuses the committed
+# downstream sessions, and every clock is injected.
+STAGE30_11_22_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The Stage 30.11.22 PHX2 import allowlist: the own siblings PLUS the committed
+# Stage 30.11.6 harvest adapter + candidate-source models (the harvest seam + the
+# projection type the bridge reads), the committed Stage 30.11.18 facts models (the
+# base-fact type the bridge builds), the committed Stage 30.11.21 enrichment adapter
+# (the chain entrypoint), the committed Stage 30.11.17 session models (config + cap
+# validator + default builder), the committed Stage 30.11.15 in-memory ledger, and
+# the committed Stage 30.11.5 recording fake transport client (the dry-run defaults).
+# NO Stage 21-29 / Stage 30.4.3 source / Stage 30.11.11 ATH source / Stage 30.11.16
+# real-send guard.
+STAGE30_11_22_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_22_MODELS_MODULE,
+    STAGE30_11_22_ADAPTER_MODULE,
+    STAGE30_11_22_FAKE_PROOF_MODULE,
+    "PHX2.stage30.stage30_11_21_migration_time_enrichment_adapter",
+    "PHX2.stage30.stage30_11_18_harvested_facts_models",
+    "PHX2.stage30.stage30_11_17_operator_curated_candidate_list_models",
+    "PHX2.stage30.stage30_11_15_ping_dedupe_ledger",
+    "PHX2.stage30.stage30_11_6_candidate_harvest_adapter",
+    "PHX2.stage30.stage30_11_6_candidate_source_models",
+    "PHX2.stage30.stage30_11_5_fake_live_wiring_proof",
+)
+
+
+# The bounded caps. The harvest front-end mirrors the committed Stage 30.11.6
+# ``max_harvest <= 10`` ceiling; the enrichment chain reuses the committed Stage
+# 30.11.17 session config + cap validator (``max_candidates <= 10``).
+STAGE30_11_22_MAX_HARVEST_HARD_CAP: int = 10
+STAGE30_11_22_MAX_CANDIDATES_HARD_CAP: int = 10
+
+
+# The bridge placeholder sentinels (mirrored BY VALUE from the Stage 30.11.22 models
+# module). The bridge stamps these onto every field the enrichment fills; the
+# enrichment overwrites them on enrich + drops the fact on skip, so they never reach
+# the composer.
+STAGE30_11_22_PENDING_ENRICHMENT: str = "PENDING_ENRICHMENT"
+STAGE30_11_22_PENDING_MARKET_CONTEXT_STATUS: str = "PENDING"
+
+
+# The base-fact fields the bridge carries VERBATIM (the real on-chain identity) vs.
+# the fields it stamps with a sentinel (the enrichment fills them).
+STAGE30_11_22_BRIDGE_VERBATIM_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "candidate_id",
+)
+STAGE30_11_22_BRIDGE_SENTINEL_FIELDS: Tuple[str, ...] = (
+    "migration_time_utc",
+    "current_price",
+    "current_market_cap_usd",
+    "liquidity_usd",
+    "market_context_fetched_at_utc",
+    "market_context_status",
+)
+
+
+# Redaction status tokens (mirrored BY VALUE from the Stage 30.11.22 models module).
+STAGE30_11_22_REDACTION_STATUS_REDACTED: str = "REDACTED"
+STAGE30_11_22_REDACTION_STATUSES: Tuple[str, ...] = (
+    "REDACTED",
+    "REDACTION_VIOLATION",
+)
+
+
+# Dataclass field tuples (mirrored BY VALUE from the Stage 30.11.22 models module).
+STAGE30_11_22_NO_REAL_SEND_ATTESTATION_FIELDS: Tuple[str, ...] = (
+    "transport_client_kind",
+    "ledger_kind",
+    "would_send_recorded",
+    "real_send_performed",
+    "real_send_guard_invoked",
+)
+STAGE30_11_22_REAL_FED_DRY_RUN_REPORT_FIELDS: Tuple[str, ...] = (
+    "events_seen",
+    "candidates_harvested",
+    "harvest_skipped_assembly_failed",
+    "harvest_skipped_projection_rejected",
+    "base_facts_built",
+    "migration_enriched",
+    "migration_skipped",
+    "migration_skip_histogram",
+    "price_enriched",
+    "price_skipped",
+    "price_skip_histogram",
+    "market_enriched",
+    "market_skipped",
+    "market_skip_histogram",
+    "projected",
+    "rejected_projection",
+    "composed",
+    "dispatched",
+    "dedupe_blocked",
+    "would_send_recorded",
+    "stop_reason",
+    "enrichment_report",
+    "attestation",
+    "redaction_status",
+    "created_at_utc",
+)
+
+
+# After Stage 30.11.22 the committed offline chain is end-to-end real-fed-ready; the
+# real-fed dry-run ceremony + the capped private send are the separate next steps.
+STAGE30_11_22_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized real-fed dry-run ceremony + capped private send "
+    "(separate steps)"
+)
+
+
+# The surfaces the Stage 30.11.22 real-fed dry-run slice must not touch. Plain
+# documentation words (family / feature names), NOT secret / host / transport
+# needle forms.
+STAGE30_11_22_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "harvested-projection field fabrication",
+    "bridge sentinel leak to composer",
+    "trusted base migration_confirmed flag",
+    "age_display clock derivation",
+    "Stage 30.11.6 harvest edit",
+    "Stage 30.11.21 enrichment edit",
+    "committed composer edit",
+    "Stage 27 direct import",
+    "Stage 28 direct import",
+    "Stage 29 direct import",
+    "Stage 30.4.3 source import",
+    "Stage 30.11.11 migration-anchored ATH import",
+    "real provider transport construction",
+    "committed live provider call",
+    "real transport",
+    "real send",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "Stage 30.11.16 real-send guard call",
+    "Stage 30.11.16 real-send guard import",
+    "durable one-send ledger mutation",
+    "repo-hardcoded ledger path",
+    "default storage root",
+    "while daemon",
+    "background service",
+    "autorestart loop",
+    "renderer polish",
+    "tier band edit",
+    "dedupe key edit",
+    "public routing",
+    "subscriber routing",
+    "wallet / signing",
+    "automated trading",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.23+ implementation file",
+    "Stage 31",
+)
+
+
+STAGE30_11_22_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_22_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.22 is the committed offline real-fed dry-run wrapper only; the "
+    "real live event source + provider sources (the operator constructs them at "
+    "the ceremony, injecting them into the wrapper), the real-fed dry-run "
+    "ceremony, and the controlled capped private send (composed via the separate "
+    "Stage 30.11.16 real-send guard) remain a separate, explicitly "
+    "operator-authorized step that is not run here"
+)
+
+
 __all__ = (
+    # Stage 30.11.22 real-fed dry-run surface.
+    "STAGE30_11_22_MINOR_VERSION",
+    "STAGE30_11_22_REPORT_SCHEMA_VERSION",
+    "STAGE30_11_22_SOURCE_STAGE",
+    "STAGE30_11_22_SPEC_LOCK_FILENAME",
+    "STAGE30_11_22_SPEC_LOCK_PATH_PARTS",
+    "STAGE30_11_22_MODELS_BASENAME",
+    "STAGE30_11_22_ADAPTER_BASENAME",
+    "STAGE30_11_22_FAKE_PROOF_BASENAME",
+    "STAGE30_11_22_MODELS_MODULE",
+    "STAGE30_11_22_ADAPTER_MODULE",
+    "STAGE30_11_22_FAKE_PROOF_MODULE",
+    "STAGE30_11_22_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_22_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_22_TEST_BASENAMES",
+    "STAGE30_11_22_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_22_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_22_MAX_HARVEST_HARD_CAP",
+    "STAGE30_11_22_MAX_CANDIDATES_HARD_CAP",
+    "STAGE30_11_22_PENDING_ENRICHMENT",
+    "STAGE30_11_22_PENDING_MARKET_CONTEXT_STATUS",
+    "STAGE30_11_22_BRIDGE_VERBATIM_FIELDS",
+    "STAGE30_11_22_BRIDGE_SENTINEL_FIELDS",
+    "STAGE30_11_22_REDACTION_STATUS_REDACTED",
+    "STAGE30_11_22_REDACTION_STATUSES",
+    "STAGE30_11_22_NO_REAL_SEND_ATTESTATION_FIELDS",
+    "STAGE30_11_22_REAL_FED_DRY_RUN_REPORT_FIELDS",
+    "STAGE30_11_22_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_22_FORBIDDEN_SURFACES",
+    "STAGE30_11_22_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_22_LIVE_CEREMONY_NOTE",
     # Stage 30.11.21 migration-time enrichment surface.
     "STAGE30_11_21_MINOR_VERSION",
     "STAGE30_11_21_REPORT_SCHEMA_VERSION",

@@ -451,6 +451,18 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_21_fake_migration_time_enrichment_proof.py",
         "test_stage_30_11_21_boundaries.py",
         "test_stage_30_11_21_manifest.py",
+        # Stage 30.11.22 real-fed dry-run wrapper slice (three production modules +
+        # four tests). Offline; bridges the committed Stage 30.11.6 harvest
+        # projection onto the Stage 30.11.18 enrichment base fact, then runs the
+        # committed Stage 30.11.21 chain to a RECORDED would-send over a FAKE
+        # transport + in-memory ledger. No Stage 27/28/29 import, no real send.
+        "stage30_11_22_real_fed_dry_run_models.py",
+        "stage30_11_22_real_fed_dry_run_adapter.py",
+        "stage30_11_22_fake_real_fed_dry_run_proof.py",
+        "test_stage_30_11_22_real_fed_dry_run_adapter.py",
+        "test_stage_30_11_22_fake_real_fed_dry_run_proof.py",
+        "test_stage_30_11_22_boundaries.py",
+        "test_stage_30_11_22_manifest.py",
     }
 )
 

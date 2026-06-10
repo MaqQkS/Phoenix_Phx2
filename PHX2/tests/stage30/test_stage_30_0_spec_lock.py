@@ -661,6 +661,16 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_21_migration_time_enrichment_models.py",
         "stage30_11_21_migration_time_enrichment_adapter.py",
         "stage30_11_21_fake_migration_time_enrichment_proof.py",
+        # Stage 30.11.22 real-fed dry-run wrapper slice (three production
+        # modules). Offline; bridges the committed Stage 30.11.6 harvest
+        # projection onto the Stage 30.11.18 enrichment base fact, then runs the
+        # committed Stage 30.11.21 chain to a RECORDED would-send over a FAKE
+        # transport + an in-memory ledger. No Stage 27/28/29 import, no Stage
+        # 30.4.3 source import, no Stage 30.11.16 real-send guard, no real
+        # transport construction; every provider source is ceremony-injected.
+        "stage30_11_22_real_fed_dry_run_models.py",
+        "stage30_11_22_real_fed_dry_run_adapter.py",
+        "stage30_11_22_fake_real_fed_dry_run_proof.py",
     }
 )
 
@@ -1016,6 +1026,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_21_fake_migration_time_enrichment_proof.py",
         "test_stage_30_11_21_boundaries.py",
         "test_stage_30_11_21_manifest.py",
+        # Stage 30.11.22 real-fed dry-run wrapper tests (adapter, fake proof,
+        # boundaries, manifest). Fakes / offline / no-send.
+        "test_stage_30_11_22_real_fed_dry_run_adapter.py",
+        "test_stage_30_11_22_fake_real_fed_dry_run_proof.py",
+        "test_stage_30_11_22_boundaries.py",
+        "test_stage_30_11_22_manifest.py",
     }
 )
 
