@@ -463,6 +463,17 @@ _ADMITTED_STAGE_30_11_BASENAMES = frozenset(
         "test_stage_30_11_22_fake_real_fed_dry_run_proof.py",
         "test_stage_30_11_22_boundaries.py",
         "test_stage_30_11_22_manifest.py",
+        # Stage 30.11.23 discovered migration-evidence -> candidate + evidence
+        # bridge slice (three production modules + four tests). Offline; reuses the
+        # committed Stage 30.11.9 evidence-source builders + the committed Stage
+        # 30.11.22 wrapper. No Stage 21-29 import, no real send.
+        "stage30_11_23_migration_evidence_candidate_bridge_models.py",
+        "stage30_11_23_migration_evidence_candidate_bridge_adapter.py",
+        "stage30_11_23_fake_migration_evidence_candidate_bridge_proof.py",
+        "test_stage_30_11_23_migration_evidence_candidate_bridge_adapter.py",
+        "test_stage_30_11_23_fake_migration_evidence_candidate_bridge_proof.py",
+        "test_stage_30_11_23_boundaries.py",
+        "test_stage_30_11_23_manifest.py",
     }
 )
 

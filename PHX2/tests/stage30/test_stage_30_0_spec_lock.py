@@ -671,6 +671,14 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_22_real_fed_dry_run_models.py",
         "stage30_11_22_real_fed_dry_run_adapter.py",
         "stage30_11_22_fake_real_fed_dry_run_proof.py",
+        # Stage 30.11.23 discovered migration-evidence -> candidate + evidence
+        # bridge slice (three production modules). Offline; derives the discovered
+        # candidate stream + the mint-keyed Stage 30.11.9 evidence source from one
+        # Stage 29.5.7 sanitized migration-evidence summary, feeding the committed
+        # Stage 30.11.22 wrapper. No Stage 21-29 import, no real send.
+        "stage30_11_23_migration_evidence_candidate_bridge_models.py",
+        "stage30_11_23_migration_evidence_candidate_bridge_adapter.py",
+        "stage30_11_23_fake_migration_evidence_candidate_bridge_proof.py",
     }
 )
 
@@ -1032,6 +1040,12 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_22_fake_real_fed_dry_run_proof.py",
         "test_stage_30_11_22_boundaries.py",
         "test_stage_30_11_22_manifest.py",
+        # Stage 30.11.23 discovered migration-evidence bridge tests (adapter, fake
+        # proof, boundaries, manifest). Fakes / offline / no-send.
+        "test_stage_30_11_23_migration_evidence_candidate_bridge_adapter.py",
+        "test_stage_30_11_23_fake_migration_evidence_candidate_bridge_proof.py",
+        "test_stage_30_11_23_boundaries.py",
+        "test_stage_30_11_23_manifest.py",
     }
 )
 

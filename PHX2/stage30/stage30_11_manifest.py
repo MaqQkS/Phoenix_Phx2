@@ -6821,7 +6821,296 @@ STAGE30_11_22_LIVE_CEREMONY_NOTE: str = (
 )
 
 
+# ===========================================================================
+# Stage 30.11.23 -- bridge discovered migration evidence into real-fed candidate +
+#                   evidence inputs
+# ===========================================================================
+#
+# Stage 30.11.23 is the committed OFFLINE bridge that removes the LAST manual input the
+# Stage 30.11.22 real-fed dry run required (a hand-fed candidate mint + migration
+# anchor): it derives BOTH the discovered candidate AND its mint-keyed migration
+# evidence from ONE committed Stage 29.5.7 sanitized migration-evidence summary
+# (consumed duck-typed; the Stage 29 type is NEVER imported), so the operator never
+# types CURATED_MINT / CURATED_MIGRATION_TIME_UTC and the two sides cannot desync. It
+# REUSES the committed Stage 30.11.9 evidence-record mapper + source builder and feeds
+# the committed Stage 30.11.22 wrapper verbatim. No new fetcher, no Stage 21-29 import,
+# no real transport, no Stage 30.11.16 real-send guard, no send.
+
+
+STAGE30_11_23_MINOR_VERSION: str = "30.11.23"
+
+
+# The Stage 30.11.23 report schema version (mirrored BY VALUE by the Stage 30.11.23
+# models module; a pin test cross-checks it). Distinct from every earlier Stage 30.11
+# schema version.
+STAGE30_11_23_REPORT_SCHEMA_VERSION: str = (
+    "stage30_11_23_v0_migration_evidence_candidate_bridge"
+)
+STAGE30_11_23_SOURCE_STAGE: str = "30.11.23"
+
+
+# The Stage 30.11.23 spec-lock doc lives under ``PHX2/docs`` (NOT under stage30).
+STAGE30_11_23_SPEC_LOCK_FILENAME: str = (
+    "STAGE_30_11_23_MIGRATION_EVIDENCE_CANDIDATE_BRIDGE_SPEC_LOCK.md"
+)
+STAGE30_11_23_SPEC_LOCK_PATH_PARTS: Tuple[str, ...] = (
+    "PHX2",
+    "docs",
+    STAGE30_11_23_SPEC_LOCK_FILENAME,
+)
+
+
+# The three Stage 30.11.23 production module basenames + their dotted module paths.
+STAGE30_11_23_MODELS_BASENAME: str = (
+    "stage30_11_23_migration_evidence_candidate_bridge_models.py"
+)
+STAGE30_11_23_ADAPTER_BASENAME: str = (
+    "stage30_11_23_migration_evidence_candidate_bridge_adapter.py"
+)
+STAGE30_11_23_FAKE_PROOF_BASENAME: str = (
+    "stage30_11_23_fake_migration_evidence_candidate_bridge_proof.py"
+)
+STAGE30_11_23_MODELS_MODULE: str = (
+    "PHX2.stage30.stage30_11_23_migration_evidence_candidate_bridge_models"
+)
+STAGE30_11_23_ADAPTER_MODULE: str = (
+    "PHX2.stage30.stage30_11_23_migration_evidence_candidate_bridge_adapter"
+)
+STAGE30_11_23_FAKE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_23_fake_migration_evidence_candidate_bridge_proof"
+)
+
+
+STAGE30_11_23_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_23_MODELS_BASENAME,
+    STAGE30_11_23_ADAPTER_BASENAME,
+    STAGE30_11_23_FAKE_PROOF_BASENAME,
+)
+STAGE30_11_23_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
+    STAGE30_11_23_ALLOWED_STAGE30_BASENAMES
+)
+
+
+STAGE30_11_23_TEST_BASENAMES: Tuple[str, ...] = (
+    "test_stage_30_11_23_migration_evidence_candidate_bridge_adapter.py",
+    "test_stage_30_11_23_fake_migration_evidence_candidate_bridge_proof.py",
+    "test_stage_30_11_23_boundaries.py",
+    "test_stage_30_11_23_manifest.py",
+)
+
+
+# The Stage 30.11.23 stdlib import allowlist (ALL three modules). No decimal / re / io
+# / db / clock: the bridge is a pure field map + duck-typed read, every clock is
+# injected.
+STAGE30_11_23_ALLOWED_STDLIB_IMPORTS: Tuple[str, ...] = (
+    "__future__",
+    "typing",
+    "dataclasses",
+)
+
+
+# The Stage 30.11.23 PHX2 import allowlist: the own siblings PLUS the committed Stage
+# 30.11.9 migration evidence-source adapter (the record mapper + source builder the
+# bridge REUSES) and the committed Stage 30.11.22 fake real-fed dry-run proof driver
+# (which the fake proof delegates to). NO Stage 21-29 (incl. the Stage 29.5.7 summary
+# type -- read duck-typed) / Stage 30.4.3 source / Stage 30.11.11 ATH source / Stage
+# 30.11.16 real-send guard.
+STAGE30_11_23_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
+    STAGE30_11_23_MODELS_MODULE,
+    STAGE30_11_23_ADAPTER_MODULE,
+    STAGE30_11_23_FAKE_PROOF_MODULE,
+    "PHX2.stage30.stage30_11_9_migration_evidence_source_adapter",
+    "PHX2.stage30.stage30_11_22_fake_real_fed_dry_run_proof",
+)
+
+
+# The bounded summary-scan cap mirrors the committed Stage 30.11.6 ``max_harvest <= 10``
+# / Stage 30.11.17 ``max_candidates <= 10`` ceilings.
+STAGE30_11_23_MAX_SUMMARIES_HARD_CAP: int = 10
+
+
+# The COMPLETE / SAFE Layer-0 routing-hygiene tokens the bridge screens on (mirrored BY
+# VALUE from the Stage 30.11.23 models module; they MIRROR -- never replace -- the
+# committed Stage 30.11.8 confirmation, which re-checks them on every bridged record).
+STAGE30_11_23_EXPECTED_MEASUREMENT_STATUS: str = "COMPLETE"
+STAGE30_11_23_EXPECTED_REDACTION_STATUS: str = "SAFE"
+
+
+# Closed-set per-summary bridge decision vocabulary (mirrored BY VALUE from the Stage
+# 30.11.23 models module). ``BRIDGED_CANDIDATE_AND_EVIDENCE`` is the ONLY pass token
+# (BOTH a discovered candidate AND a bound evidence record); every ``SKIPPED_*`` yields
+# neither.
+STAGE30_11_23_BRIDGE_DECISIONS: Tuple[str, ...] = (
+    "BRIDGED_CANDIDATE_AND_EVIDENCE",
+    "SKIPPED_NOT_A_SUMMARY",
+    "SKIPPED_MISSING_TOKEN_MINT",
+    "SKIPPED_INVALID_TOKEN_MINT",
+    "SKIPPED_MISSING_MIGRATION_TIME",
+    "SKIPPED_NOT_COMPLETE_MEASUREMENT",
+    "SKIPPED_UNSAFE_REDACTION",
+    "SKIPPED_MALFORMED_WARNINGS",
+    "SKIPPED_EVIDENCE_UNBUILDABLE",
+    "SKIPPED_DUPLICATE_MINT",
+)
+STAGE30_11_23_BRIDGE_PASS_DECISION: str = "BRIDGED_CANDIDATE_AND_EVIDENCE"
+
+
+# The inert candidate-projection placeholders the flattener stamps (mirrored BY VALUE
+# from the Stage 30.11.23 models module). The committed Stage 30.11.22 bridge discards
+# every projection field except ``token_mint`` + ``candidate_id``, so these never reach
+# the composer (shape-satisfiers only, not data).
+STAGE30_11_23_PLACEHOLDER_STATUS: str = "PENDING"
+STAGE30_11_23_PLACEHOLDER_DECIMAL: str = "0"
+
+
+# Redaction status tokens (mirrored BY VALUE from the Stage 30.11.23 models module).
+STAGE30_11_23_REDACTION_STATUS_REDACTED: str = "REDACTED"
+STAGE30_11_23_REDACTION_STATUSES: Tuple[str, ...] = (
+    "REDACTED",
+    "REDACTION_VIOLATION",
+)
+
+
+# Dataclass field tuples (mirrored BY VALUE from the Stage 30.11.23 models module). The
+# bridge event carries ONLY safe scalars + a closed-set token + a safe-echo mint -- NO
+# candidate_id (not known at bridge time), NO source_ref, NO anchor, NO magnitude.
+STAGE30_11_23_DISCOVERED_CANDIDATE_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+)
+STAGE30_11_23_ASSEMBLED_CANDIDATE_FIELDS: Tuple[str, ...] = (
+    "token_mint",
+    "candidate_id",
+)
+STAGE30_11_23_BRIDGE_EVENT_FIELDS: Tuple[str, ...] = (
+    "index",
+    "decision",
+    "token_mint",
+    "created_at_utc",
+)
+STAGE30_11_23_BRIDGE_REPORT_FIELDS: Tuple[str, ...] = (
+    "bridge_events",
+    "summaries_seen",
+    "bridged",
+    "skipped",
+    "redaction_status",
+    "created_at_utc",
+)
+STAGE30_11_23_REAL_FED_INPUTS_FIELDS: Tuple[str, ...] = (
+    "events",
+    "assembler",
+    "record_flattener",
+    "evidence_source",
+    "report",
+)
+
+
+# After Stage 30.11.23 the discovered (non-manual) candidate + evidence inputs are
+# committed; the real-fed dry-run ceremony + the capped private send remain the
+# separate next steps. No Stage 30.11.24+ file ships here.
+STAGE30_11_23_NEXT_ALLOWED_STAGE: str = (
+    "operator-authorized real-fed dry-run ceremony + capped private send "
+    "(separate steps)"
+)
+
+
+# The surfaces the Stage 30.11.23 bridge slice must not touch. Plain documentation
+# words (family / feature names), NOT secret / host / transport needle forms.
+STAGE30_11_23_FORBIDDEN_SURFACES: Tuple[str, ...] = (
+    "candidate / evidence mint desync",
+    "manual curated mint feed",
+    "manual curated migration time feed",
+    "candidate source_ref echo",
+    "bridge event source_ref leak",
+    "Stage 30.11.8 confirmation re-implementation",
+    "Stage 30.11.8 confirmation replacement",
+    "Stage 30.11.9 evidence-source edit",
+    "Stage 30.11.22 wrapper edit",
+    "committed enrichment edit",
+    "committed composer edit",
+    "Stage 27 direct import",
+    "Stage 28 direct import",
+    "Stage 29 direct import",
+    "Stage 29.5.7 summary type import",
+    "Stage 30.4.3 source import",
+    "Stage 30.11.11 migration-anchored ATH import",
+    "real provider transport construction",
+    "real migration capture client construction",
+    "real transport",
+    "real send",
+    "Discord send",
+    "webhook call",
+    "env read",
+    "live run",
+    "Stage 30.11.16 real-send guard call",
+    "Stage 30.11.16 real-send guard import",
+    "durable one-send ledger mutation",
+    "repo-hardcoded ledger path",
+    "default storage root",
+    "while daemon",
+    "background service",
+    "autorestart loop",
+    "renderer polish",
+    "tier band edit",
+    "dedupe key edit",
+    "public routing",
+    "subscriber routing",
+    "wallet / signing",
+    "automated trading",
+    "commit",
+    "tag",
+    "push",
+    "Stage 30.11.24+ implementation file",
+    "Stage 31",
+)
+
+
+STAGE30_11_23_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH: bool = True
+STAGE30_11_23_LIVE_CEREMONY_NOTE: str = (
+    "Stage 30.11.23 is the committed offline discovered migration-evidence bridge "
+    "only; the real Stage 29.5.7 migration-evidence producer (an out-of-repo "
+    "WebSocket / RPC capture the operator drives), the real-fed dry-run ceremony, "
+    "and the controlled capped private send (composed via the separate Stage "
+    "30.11.16 real-send guard) remain a separate, explicitly operator-authorized "
+    "step that is not run here"
+)
+
+
 __all__ = (
+    # Stage 30.11.23 discovered migration-evidence bridge surface.
+    "STAGE30_11_23_MINOR_VERSION",
+    "STAGE30_11_23_REPORT_SCHEMA_VERSION",
+    "STAGE30_11_23_SOURCE_STAGE",
+    "STAGE30_11_23_SPEC_LOCK_FILENAME",
+    "STAGE30_11_23_SPEC_LOCK_PATH_PARTS",
+    "STAGE30_11_23_MODELS_BASENAME",
+    "STAGE30_11_23_ADAPTER_BASENAME",
+    "STAGE30_11_23_FAKE_PROOF_BASENAME",
+    "STAGE30_11_23_MODELS_MODULE",
+    "STAGE30_11_23_ADAPTER_MODULE",
+    "STAGE30_11_23_FAKE_PROOF_MODULE",
+    "STAGE30_11_23_ALLOWED_STAGE30_BASENAMES",
+    "STAGE30_11_23_SCANNED_PRODUCTION_BASENAMES",
+    "STAGE30_11_23_TEST_BASENAMES",
+    "STAGE30_11_23_ALLOWED_STDLIB_IMPORTS",
+    "STAGE30_11_23_ALLOWED_PHX2_IMPORTS",
+    "STAGE30_11_23_MAX_SUMMARIES_HARD_CAP",
+    "STAGE30_11_23_EXPECTED_MEASUREMENT_STATUS",
+    "STAGE30_11_23_EXPECTED_REDACTION_STATUS",
+    "STAGE30_11_23_BRIDGE_DECISIONS",
+    "STAGE30_11_23_BRIDGE_PASS_DECISION",
+    "STAGE30_11_23_PLACEHOLDER_STATUS",
+    "STAGE30_11_23_PLACEHOLDER_DECIMAL",
+    "STAGE30_11_23_REDACTION_STATUS_REDACTED",
+    "STAGE30_11_23_REDACTION_STATUSES",
+    "STAGE30_11_23_DISCOVERED_CANDIDATE_FIELDS",
+    "STAGE30_11_23_ASSEMBLED_CANDIDATE_FIELDS",
+    "STAGE30_11_23_BRIDGE_EVENT_FIELDS",
+    "STAGE30_11_23_BRIDGE_REPORT_FIELDS",
+    "STAGE30_11_23_REAL_FED_INPUTS_FIELDS",
+    "STAGE30_11_23_NEXT_ALLOWED_STAGE",
+    "STAGE30_11_23_FORBIDDEN_SURFACES",
+    "STAGE30_11_23_LIVE_CEREMONY_REQUIRES_OPERATOR_AUTH",
+    "STAGE30_11_23_LIVE_CEREMONY_NOTE",
     # Stage 30.11.22 real-fed dry-run surface.
     "STAGE30_11_22_MINOR_VERSION",
     "STAGE30_11_22_REPORT_SCHEMA_VERSION",

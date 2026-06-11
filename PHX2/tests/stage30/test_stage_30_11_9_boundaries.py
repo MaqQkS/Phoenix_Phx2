@@ -42,6 +42,7 @@ from PHX2.stage30.stage30_11_manifest import (
     STAGE30_11_9_SOURCE_MODELS_BASENAME,
     STAGE30_11_9_SOURCE_MODELS_MODULE,
     STAGE30_11_9_TEST_BASENAMES,
+    STAGE30_11_23_ADAPTER_BASENAME,
     STAGE30_11_FORBIDDEN_TEXT_NEEDLES,
 )
 
@@ -620,12 +621,28 @@ def test_inventory_admits_no_stage_30_11_10_plus_or_stage_31_file() -> None:
 _STAGE_30_11_9_MODULE_PREFIX: str = "PHX2.stage30.stage30_11_9_"
 
 
+# The Stage 30.11.23 discovered migration-evidence bridge adapter is the SINGLE
+# sanctioned in-repo consumer of the Stage 30.11.9 evidence-source builders
+# (``build_evidence_record_from_sanitized_projection`` +
+# ``build_migration_evidence_source``): the approved Stage 30.11.23 contract REQUIRES
+# reusing them rather than duplicating the fail-closed evidence logic. This is an
+# additive, single-file exception -- the Stage 30.11.9 slice stays a leaf for every
+# OTHER stage30 file, no broad prefix allowlist is opened, and no Stage 30.11.9
+# production code changes.
+_STAGE_30_11_9_ADMITTED_IMPORTER_BASENAMES: frozenset = frozenset(
+    {STAGE30_11_23_ADAPTER_BASENAME}
+)
+
+
 def test_no_existing_stage30_file_imports_the_slice() -> None:
     own_basenames = set(STAGE30_11_9_ALLOWED_STAGE30_BASENAMES)
     for entry in STAGE30_ROOT.iterdir():
         if entry.name == "__pycache__" or not entry.name.endswith(".py"):
             continue
         if entry.name in own_basenames:
+            continue
+        if entry.name in _STAGE_30_11_9_ADMITTED_IMPORTER_BASENAMES:
+            # The Stage 30.11.23 bridge is the sanctioned consumer (see above).
             continue
         text = entry.read_text(encoding="utf-8")
         for module in _imports_of(text):
