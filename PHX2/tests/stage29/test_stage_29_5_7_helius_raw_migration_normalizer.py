@@ -39,6 +39,9 @@ from PHX2.stage29.stage29_5_7_helius_raw_migration_models import (
 from PHX2.stage29.stage29_5_7_helius_raw_migration_normalizer import (
     normalize_helius_raw_migration_envelope,
 )
+from PHX2.stage29.stage29_5_7_live_migration_evidence_producer import (
+    project_migration_evidence_to_sanitized_summary,
+)
 from PHX2.tests.stage29._stage_29_5_7_helius_fixtures import (
     BASE_MINT,
     BUY_DISCRIMINATOR,
@@ -450,3 +453,167 @@ def test_only_the_real_create_pool_discriminator_proves_present() -> None:
     )
     assert rejected.outcome == NORMALIZATION_OUTCOME_NO_MIGRATION_EVIDENCE
     assert rejected.evidence_record is None
+
+
+# ---------------------------------------------------------------------------
+# Stage 29.5.8: orientation-agnostic create_pool quartet. The WSOL/USDC quote
+# mint may sit at EITHER instruction-account index 3 OR 4 (both observed on real
+# PumpSwap migrations); the migrated token is always the NON-quote side. Exactly
+# one side must be a known quote (neither / both fail closed). The discriminator
+# gate, distinctness, field checks, source_ref, and redaction are unchanged.
+# ---------------------------------------------------------------------------
+
+
+# A second safe-shape NON-quote mint (length 44) and an unsafe-shape token.
+_SECOND_TOKEN: str = "Tk" + "t" * 42
+_MALFORMED_TOKEN: str = "short"
+
+
+def test_inverted_wsol_at_index_3_token_at_index_4_proves() -> None:
+    # Real-world PumpSwap layout: WSOL at index 3, the migrated token at index 4.
+    result = _normalize(
+        make_migration_envelope(base_mint=QUOTE_MINT_SOL, quote_mint=BASE_MINT)
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_MIGRATION_PROVEN
+    assert result.reject_reason == REJECT_REASON_NONE
+    record = result.evidence_record
+    assert record is not None
+    assert record.base_mint == BASE_MINT          # migrated token = the non-quote side
+    assert record.quote_mint == QUOTE_MINT_SOL    # WSOL recognized as the quote
+    assert record.pool_account == POOL
+    assert result.create_pool_match_count == 1
+
+
+def test_legacy_token_at_index_3_wsol_at_index_4_still_proves() -> None:
+    # Back-compat: the original orientation (token@3, WSOL@4) still proves.
+    result = _normalize(
+        make_migration_envelope(base_mint=BASE_MINT, quote_mint=QUOTE_MINT_SOL)
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_MIGRATION_PROVEN
+    record = result.evidence_record
+    assert record is not None
+    assert record.base_mint == BASE_MINT
+    assert record.quote_mint == QUOTE_MINT_SOL
+
+
+def test_inverted_usdc_at_index_3_token_at_index_4_proves() -> None:
+    result = _normalize(
+        make_migration_envelope(base_mint=QUOTE_MINT_USDC, quote_mint=BASE_MINT)
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_MIGRATION_PROVEN
+    record = result.evidence_record
+    assert record is not None
+    assert record.base_mint == BASE_MINT
+    assert record.quote_mint == USDC_MINT
+
+
+def test_legacy_token_at_index_3_usdc_at_index_4_still_proves() -> None:
+    result = _normalize(
+        make_migration_envelope(base_mint=BASE_MINT, quote_mint=QUOTE_MINT_USDC)
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_MIGRATION_PROVEN
+    assert result.evidence_record is not None
+    assert result.evidence_record.quote_mint == USDC_MINT
+
+
+def test_neither_side_known_quote_fails_closed() -> None:
+    # Two non-quote tokens (token/token pool) -> no known quote -> fail closed.
+    result = _normalize(
+        make_migration_envelope(base_mint=BASE_MINT, quote_mint=_SECOND_TOKEN)
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_NO_MIGRATION_EVIDENCE
+    assert result.reject_reason == REJECT_REASON_POOL_QUARTET_UNRESOLVED
+    assert result.evidence_record is None
+    assert result.create_pool_match_count == 0
+
+
+def test_both_sides_known_quote_fails_closed() -> None:
+    # WSOL@3 + USDC@4: both are known quotes -> ambiguous which side is the token
+    # -> fail closed (never guesses).
+    result = _normalize(
+        make_migration_envelope(
+            base_mint=QUOTE_MINT_SOL, quote_mint=QUOTE_MINT_USDC
+        )
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_NO_MIGRATION_EVIDENCE
+    assert result.reject_reason == REJECT_REASON_POOL_QUARTET_UNRESOLVED
+    assert result.evidence_record is None
+    assert result.create_pool_match_count == 0
+
+
+def test_malformed_migrated_token_inverted_layout_fails_closed() -> None:
+    # WSOL@3 (valid quote) + a malformed token@4 (unsafe shape) -> reject.
+    result = _normalize(
+        make_migration_envelope(
+            base_mint=QUOTE_MINT_SOL, quote_mint=_MALFORMED_TOKEN
+        )
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_NO_MIGRATION_EVIDENCE
+    assert result.reject_reason == REJECT_REASON_POOL_QUARTET_UNRESOLVED
+    assert result.evidence_record is None
+
+
+def test_inverted_layout_missing_signature_still_rejects() -> None:
+    # The inverted quartet now RESOLVES, so the later field checks must still fire.
+    result = _normalize(
+        make_migration_envelope(
+            base_mint=QUOTE_MINT_SOL, quote_mint=BASE_MINT, signature=None
+        )
+    )
+    assert result.reject_reason == REJECT_REASON_MISSING_SIGNATURE
+    assert result.evidence_record is None
+
+
+def test_inverted_layout_missing_slot_still_rejects() -> None:
+    result = _normalize(
+        make_migration_envelope(
+            base_mint=QUOTE_MINT_SOL, quote_mint=BASE_MINT, drop_slot=True
+        )
+    )
+    assert result.reject_reason == REJECT_REASON_MISSING_SLOT
+    assert result.evidence_record is None
+
+
+def test_inverted_layout_missing_block_time_still_rejects() -> None:
+    result = _normalize(
+        make_migration_envelope(
+            base_mint=QUOTE_MINT_SOL, quote_mint=BASE_MINT, drop_block_time=True
+        )
+    )
+    assert result.reject_reason == REJECT_REASON_MISSING_BLOCK_TIME
+    assert result.evidence_record is None
+
+
+def test_inverted_layout_source_ref_and_redaction_unchanged() -> None:
+    # The inverted-layout proven record carries the SAME source_ref shape, and its
+    # projected summary stays COMPLETE / SAFE (redaction behavior unchanged); the
+    # discovered token_mint is the non-quote side.
+    record = _normalize(
+        make_migration_envelope(base_mint=QUOTE_MINT_SOL, quote_mint=BASE_MINT)
+    ).evidence_record
+    assert record is not None
+    assert record.source_event_ref == (
+        f"helius:sig:{SIGNATURE}:slot:{DEFAULT_SLOT}"
+    )
+    summary = project_migration_evidence_to_sanitized_summary(record)
+    assert summary is not None
+    assert summary.token_mint == BASE_MINT
+    assert summary.measurement_status == "COMPLETE"
+    assert summary.redaction_status == "SAFE"
+    assert summary.warnings == ()
+    assert summary.source_ref == f"helius:sig:{SIGNATURE}:slot:{DEFAULT_SLOT}"
+
+
+def test_inverted_layout_with_buy_discriminator_still_fails_closed() -> None:
+    # Orientation-agnostic resolution must NOT weaken the discriminator gate: an
+    # inverted-layout instruction carrying the Buy discriminator never proves.
+    result = _normalize(
+        make_migration_envelope(
+            base_mint=QUOTE_MINT_SOL,
+            quote_mint=BASE_MINT,
+            create_pool_discriminator=BUY_DISCRIMINATOR,
+        )
+    )
+    assert result.outcome == NORMALIZATION_OUTCOME_NO_MIGRATION_EVIDENCE
+    assert result.reject_reason == REJECT_REASON_POOL_QUARTET_UNRESOLVED
+    assert result.create_pool_match_count == 0

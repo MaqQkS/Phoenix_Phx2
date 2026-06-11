@@ -513,20 +513,26 @@ def _extract_create_pool_quartet(
 ) -> Tuple[Optional[Tuple[str, str, str]], int, int]:
     """Resolve the single distinct ``create_pool`` ``(pool, base, quote)`` quartet
     across the PumpSwap instructions WHOSE OWN ``data`` DISCRIMINATOR IS the
-    IDL-pinned ``create_pool`` discriminator, applying the IDL-pinned account
-    layout to that same instruction.
+    IDL-pinned ``create_pool`` discriminator, reading the pool at index 0 and the
+    two mint slots at indices 3 and 4.
 
     Returns ``(quartet, pumpswap_instruction_count, create_pool_match_count)``.
     Only an instruction that passes :func:`_instruction_is_create_pool` (the
     discriminator gate) is considered -- an ordinary Buy / Sell shares the EXACT
-    pool@0 / base@3 / quote@4 layout, so the layout alone never qualifies.
-    ``quartet`` is the single distinct ``(pool_account, base_mint, quote_mint)``
-    iff exactly one DISTINCT quartet matched a discriminator-bound ``create_pool``
-    instruction (the new ``pool`` at index 0, ``base_mint`` at index 3, a known
-    ``quote_mint`` at index 4; pool / base / quote distinct safe-shape strings;
-    base NOT a known quote); value-identical quartets (two ``create_pool`` views
-    of the same new pool) collapse to one. Zero matches or two DISTINCT quartets
-    -> ``None`` (fail closed). ``create_pool_match_count`` counts only
+    pool@0 + two-mint-slot layout, so the layout alone never qualifies.
+
+    Stage 29.5.8 -- ORIENTATION-AGNOSTIC: PumpSwap places the WSOL/USDC quote on
+    EITHER instruction-account index 3 OR 4 (both orderings observed on-chain).
+    This reads BOTH mint slots, takes the known-quote side
+    (``_known_quote_mints()`` = WSOL / USDC) as ``quote_mint`` and the OTHER side
+    as the migrated ``base_mint`` (the token). ``quartet`` is the single distinct
+    ``(pool_account, base_mint, quote_mint)`` iff exactly one DISTINCT quartet
+    matched a discriminator-bound ``create_pool`` instruction (pool / base / quote
+    distinct safe-shape strings; EXACTLY ONE of the two mint slots a known quote --
+    neither-quote and both-quote both fail closed; ``base_mint`` is never a known
+    quote by construction); value-identical quartets (two ``create_pool`` views of
+    the same new pool) collapse to one. Zero matches or two DISTINCT quartets ->
+    ``None`` (fail closed). ``create_pool_match_count`` counts only
     discriminator-bound create_pool instructions with a valid quartet shape. Pure
     / deterministic.
     """
@@ -554,27 +560,36 @@ def _extract_create_pool_quartet(
         pool = _resolve_account_at(
             resolved_keys, accounts, CREATE_POOL_ACCOUNT_INDEX_POOL
         )
-        base_mint = _resolve_account_at(
+        # Stage 29.5.8 -- orientation-agnostic mint resolution. The IDL pins two
+        # mint slots at instruction-account indices 3 and 4, but PumpSwap places
+        # the WSOL/USDC quote on EITHER side (observed both WSOL@3 + token@4 and
+        # the reverse). Read BOTH slots; the known quote (WSOL/USDC) is the quote
+        # side and the OTHER side is the migrated token.
+        mint_slot_a = _resolve_account_at(
             resolved_keys, accounts, CREATE_POOL_ACCOUNT_INDEX_BASE_MINT
         )
-        quote_mint = _resolve_account_at(
+        mint_slot_b = _resolve_account_at(
             resolved_keys, accounts, CREATE_POOL_ACCOUNT_INDEX_QUOTE_MINT
         )
-        if pool is None or base_mint is None or quote_mint is None:
+        if pool is None or mint_slot_a is None or mint_slot_b is None:
             continue
         if not is_safe_mint_or_pool_string(pool):
             continue
-        if not is_safe_mint_or_pool_string(base_mint):
+        if not is_safe_mint_or_pool_string(mint_slot_a):
             continue
-        if not is_safe_mint_or_pool_string(quote_mint):
+        if not is_safe_mint_or_pool_string(mint_slot_b):
             continue
-        # The quote at index 4 must be a known quote mint (wrapped-SOL / USDC);
-        # the base at index 3 must be the NON-quote token; pool / base / quote
-        # must be three distinct accounts.
-        if quote_mint not in known_quotes:
+        a_is_quote = mint_slot_a in known_quotes
+        b_is_quote = mint_slot_b in known_quotes
+        # EXACTLY ONE side must be a known quote: neither-quote (token/token) and
+        # both-quote (WSOL/USDC) are ambiguous and fail closed. The migrated token
+        # is always the NON-quote side, so ``base_mint`` is never a known quote.
+        if a_is_quote == b_is_quote:
             continue
-        if base_mint in known_quotes:
-            continue
+        if a_is_quote:
+            base_mint, quote_mint = mint_slot_b, mint_slot_a
+        else:
+            base_mint, quote_mint = mint_slot_a, mint_slot_b
         if len({pool, base_mint, quote_mint}) != 3:
             continue
         matches.append((pool, base_mint, quote_mint))
