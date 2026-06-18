@@ -523,6 +523,10 @@ _ADMITTED_STAGE_30_13_BASENAMES = frozenset(
         "stage30_13_1_fake_seed_only_proof.py",
         "STAGE_30_13_1_SEED_ONLY_RUNBOOK.md",
         "test_stage_30_13_1_fake_seed_only_proof.py",
+        # Stage 30.13.2 end-to-end fake-send proof slice.
+        "stage30_13_2_fake_end_to_end_proof.py",
+        "STAGE_30_13_2_END_TO_END_RUNBOOK.md",
+        "test_stage_30_13_2_fake_end_to_end_proof.py",
     }
 )
 

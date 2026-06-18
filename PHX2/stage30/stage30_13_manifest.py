@@ -125,13 +125,12 @@ STAGE30_13_STAGE29_5_HELIUS_WS_ADAPTER_MODULE: str = (
 )
 
 
-# The committed Stage 30.11 chain the end-to-end proof feeds (the existing
-# 30.11.23 -> 30.11.22 path; the seeded summaries are a drop-in front-end input).
-STAGE30_13_STAGE30_11_23_BRIDGE_ADAPTER_MODULE: str = (
-    "PHX2.stage30.stage30_11_23_migration_evidence_candidate_bridge_adapter"
-)
-STAGE30_13_STAGE30_11_22_FAKE_PROOF_MODULE: str = (
-    "PHX2.stage30.stage30_11_22_fake_real_fed_dry_run_proof"
+# The committed Stage 30.11.23 fake real-fed dry-run proof the end-to-end proof feeds:
+# it bridges the seeded summaries (the committed Stage 30.11.23 bridge) and runs the
+# committed Stage 30.11.22 dry-run chain to a recording FAKE dispatch. The seeded
+# summaries are a drop-in front-end input to this existing, proven path.
+STAGE30_13_STAGE30_11_23_FAKE_PROOF_MODULE: str = (
+    "PHX2.stage30.stage30_11_23_fake_migration_evidence_candidate_bridge_proof"
 )
 
 
@@ -161,6 +160,7 @@ STAGE30_13_ALLOWED_STAGE30_BASENAMES: Tuple[str, ...] = (
     STAGE30_13_0_MODELS_BASENAME,
     STAGE30_13_0_AUTO_SEEDER_BASENAME,
     STAGE30_13_1_SEED_ONLY_PROOF_BASENAME,
+    STAGE30_13_2_END_TO_END_PROOF_BASENAME,
     STAGE30_13_MANIFEST_BASENAME,
 )
 
@@ -175,6 +175,7 @@ STAGE30_13_SCANNED_PRODUCTION_BASENAMES: Tuple[str, ...] = (
     STAGE30_13_0_MODELS_BASENAME,
     STAGE30_13_0_AUTO_SEEDER_BASENAME,
     STAGE30_13_1_SEED_ONLY_PROOF_BASENAME,
+    STAGE30_13_2_END_TO_END_PROOF_BASENAME,
 )
 
 
@@ -231,8 +232,7 @@ STAGE30_13_ALLOWED_PHX2_IMPORTS: Tuple[str, ...] = (
     STAGE30_13_STAGE29_MIGRATION_MODELS_MODULE,
     STAGE30_13_STAGE29_5_7_PRODUCER_MODULE,
     STAGE30_13_STAGE29_5_HELIUS_WS_ADAPTER_MODULE,
-    STAGE30_13_STAGE30_11_23_BRIDGE_ADAPTER_MODULE,
-    STAGE30_13_STAGE30_11_22_FAKE_PROOF_MODULE,
+    STAGE30_13_STAGE30_11_23_FAKE_PROOF_MODULE,
 )
 
 
@@ -376,8 +376,7 @@ __all__ = (
     "STAGE30_13_STAGE29_MIGRATION_MODELS_MODULE",
     "STAGE30_13_STAGE29_5_7_PRODUCER_MODULE",
     "STAGE30_13_STAGE29_5_HELIUS_WS_ADAPTER_MODULE",
-    "STAGE30_13_STAGE30_11_23_BRIDGE_ADAPTER_MODULE",
-    "STAGE30_13_STAGE30_11_22_FAKE_PROOF_MODULE",
+    "STAGE30_13_STAGE30_11_23_FAKE_PROOF_MODULE",
     "STAGE30_13_ALLOWED_STAGE29_IMPORTS",
     # Inventory.
     "STAGE30_13_ALLOWED_STAGE30_BASENAMES",

@@ -694,6 +694,10 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # stops at the seeded watchlist (before recheck / fake-send).
         "stage30_13_1_fake_seed_only_proof.py",
         "STAGE_30_13_1_SEED_ONLY_RUNBOOK.md",
+        # Stage 30.13.2 end-to-end fake-send proof (Build #24): WS discovery -> seed
+        # -> the existing 30.11.23 -> 30.11.22 recheck/fake-send chain -> fake dispatch.
+        "stage30_13_2_fake_end_to_end_proof.py",
+        "STAGE_30_13_2_END_TO_END_RUNBOOK.md",
     }
 )
 
@@ -1071,6 +1075,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_13_manifest.py",
         # Stage 30.13.1 seed-only proof test.
         "test_stage_30_13_1_fake_seed_only_proof.py",
+        # Stage 30.13.2 end-to-end proof test.
+        "test_stage_30_13_2_fake_end_to_end_proof.py",
     }
 )
 
