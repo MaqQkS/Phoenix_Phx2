@@ -82,6 +82,7 @@ from PHX2.stage30.stage30_13_0_ws_auto_seed_models import (
     SEED_REASON_SEEDED_FRESH_PUMP_MIGRATION,
     SEED_REASON_WS_CAPTURE_FAILED,
     STAGE30_13_DEFAULT_MAX_SEED,
+    STAGE30_13_MAX_SEED_HARD_CAP,
     STAGE30_13_REDACTED_UNSAFE_ID,
     STAGE30_13_REDACTION_STATUS_REDACTED,
     STAGE30_13_REDACTION_STATUS_VIOLATION,
@@ -276,15 +277,34 @@ def build_seeded_watchlist_from_ws_discovery(
     error = 0
 
     # ---- Drive ONE bounded discovery batch inside a fail-closed guard ----
-    records: Optional[list] = None
+    #
+    # Stage 30.13.4 hardening: NEVER materialize the caller-provided iterable in full.
+    # The old ``records = list(batch)`` would exhaust an arbitrarily large / lazy /
+    # unbounded discovery BEFORE any cap applied. Instead pull AT MOST ``process_cap``
+    # items by hand -- a LOCAL hard processing cap that is never greater than the Stage
+    # 30 seed ceiling (``STAGE30_13_MAX_SEED_HARD_CAP``) -- so an unbounded discovery is
+    # advanced at most ``process_cap`` times and the seeder always stops boundedly. A
+    # non-iterable batch, a lazy iterator that raises mid-stream, or any other
+    # discovery / transport fault still fails closed to a clean WS-capture error.
+    process_cap = min(max_seed, STAGE30_13_MAX_SEED_HARD_CAP)
+    records: Optional[List[object]] = None
     try:
         batch = discovery.read_migration_evidence_batch()
-        records = list(batch)
+        iterator = iter(batch)
+        collected: List[object] = []
+        for _ in range(process_cap):
+            try:
+                item = next(iterator)
+            except StopIteration:
+                break
+            collected.append(item)
+        records = collected
     except Stage29_5MigrationEvidenceError:
         records = None
     except Exception:
         # Any other discovery / transport fault is ALSO a clean fail-closed capture
-        # error (a real socket transport may raise a non-Stage-29.5 error). The
+        # error (a real socket transport may raise a non-Stage-29.5 error, a custom
+        # batch may not be iterable, or a lazy iterator may raise mid-stream). The
         # committed Stage 29.5 adapter raises only Stage29_5MigrationEvidenceError; a
         # custom / real transport may not.
         records = None

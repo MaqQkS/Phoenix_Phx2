@@ -102,26 +102,67 @@ _MIN_SAFE_MINT_LENGTH: int = 32
 _MAX_SAFE_MINT_LENGTH: int = 64
 
 
-def is_pump_suffix_mint(value: object) -> bool:
-    """Return ``True`` iff ``value`` is a safe-shape mint string ending in the literal
-    pump suffix.
+# The canonical base58 (Bitcoin / Solana) alphabet: the ASCII digits + letters with the
+# four visually ambiguous characters REMOVED (digit zero, capital O, capital I, lower L).
+# A genuine Solana base mint is a base58 string, so a safe-shape pump-suffix mint must be
+# drawn ENTIRELY from this alphabet. Declared as a single adjacent-string-literal
+# constant (a compile-time ``str``, NOT a Call node) so this leaf keeps its
+# no-implicit-I/O-at-import discipline. The Stage 30.13.4 hardening tightens the discovery
+# predicate from "printable, no whitespace" to "base58 only", so a value that merely ENDS
+# in ``pump`` but smuggles a slash, colon, scheme-like text, quote, punctuation,
+# backslash, unicode, or whitespace character is rejected BEFORE seeding.
+_BASE58_MINT_ALPHABET: str = (
+    "123456789"
+    "ABCDEFGHJKLMNPQRSTUVWXYZ"
+    "abcdefghijkmnopqrstuvwxyz"
+)
 
-    Pure / TOTAL; never raises. Safe-shape MIRRORS the committed Stage 29.5
-    ``is_safe_mint_or_pool_string`` BY VALUE: a printable ``str`` of length 32..64 with
-    no whitespace. The suffix check is a plain ``str.endswith`` on
-    ``STAGE30_13_PUMP_MINT_SUFFIX``. A non-string, an unsafe-shape string, or a string
-    that does not end in the pump suffix fails closed to ``False``. This is a SHAPE +
-    SUFFIX gate ONLY -- the "migrated" dimension is the PRESENT migration status the
-    auto-seeder gates on separately, and there is no migration-age bound in Build #24.
+
+def is_base58_mint_string(value: object) -> bool:
+    """Return ``True`` iff ``value`` is a non-empty string drawn ENTIRELY from the
+    canonical base58 mint alphabet (``_BASE58_MINT_ALPHABET``).
+
+    Pure / TOTAL; never raises. A non-string, an empty string, or a string carrying ANY
+    character outside the base58 alphabet (whitespace, slash, colon, quote, backslash,
+    punctuation, control, or non-ASCII unicode) fails closed to ``False``. Membership in
+    the base58 alphabet implies printable, ASCII-only, and whitespace-free, so this one
+    check subsumes the older ``isprintable`` + ``isspace`` shape gate.
+    """
+    if not isinstance(value, str):
+        return False
+    if value == "":
+        return False
+    for ch in value:
+        if ch not in _BASE58_MINT_ALPHABET:
+            return False
+    return True
+
+
+def is_pump_suffix_mint(value: object) -> bool:
+    """Return ``True`` iff ``value`` is a safe-shape base58 mint string of length 32..64
+    ending in the literal pump suffix.
+
+    Pure / TOTAL; never raises. Stage 30.13.4 hardening (after the blind-audit FAIL on a
+    too-loose predicate) requires ALL of:
+
+      * a ``str`` (a non-string fails closed);
+      * length in ``[32, 64]`` (mirrors the committed Stage 29.5 safe length range);
+      * EVERY character drawn from the canonical base58 mint alphabet
+        (``is_base58_mint_string``) -- a strictly TIGHTER gate than the old "printable,
+        no whitespace" check: it rejects whitespace, slash, colon, scheme-like text,
+        quotes, punctuation, backslash, and any unicode / non-ASCII character;
+      * the literal ``STAGE30_13_PUMP_MINT_SUFFIX`` (``"pump"``) suffix.
+
+    This is a SHAPE + SUFFIX gate ONLY -- the "migrated" dimension is the PRESENT
+    migration status the auto-seeder gates on separately, and there is no migration-age
+    bound in Build #24.
     """
     if not isinstance(value, str):
         return False
     n = len(value)
     if n < _MIN_SAFE_MINT_LENGTH or n > _MAX_SAFE_MINT_LENGTH:
         return False
-    if not value.isprintable():
-        return False
-    if any(ch.isspace() for ch in value):
+    if not is_base58_mint_string(value):
         return False
     return value.endswith(STAGE30_13_PUMP_MINT_SUFFIX)
 
@@ -425,6 +466,7 @@ __all__ = (
     "STAGE30_13_0_PURPOSE",
     # Pump-suffix predicate.
     "STAGE30_13_PUMP_MINT_SUFFIX",
+    "is_base58_mint_string",
     "is_pump_suffix_mint",
     # Seed-cap predicate.
     "STAGE30_13_MAX_SEED_HARD_CAP",

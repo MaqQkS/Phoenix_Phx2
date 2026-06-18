@@ -530,6 +530,8 @@ _ADMITTED_STAGE_30_13_BASENAMES = frozenset(
         # Stage 30.13.3 deferred real WS capture handoff slice (docs + doc test).
         "STAGE_30_13_3_REAL_WS_CAPTURE_HANDOFF.md",
         "test_stage_30_13_3_handoff_doc.py",
+        # Stage 30.13.4 blind-audit remediation hardening slice (tests only).
+        "test_stage_30_13_4_hardening.py",
     }
 )
 

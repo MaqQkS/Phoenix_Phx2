@@ -188,6 +188,7 @@ STAGE30_13_TEST_BASENAMES: Tuple[str, ...] = (
     "test_stage_30_13_1_fake_seed_only_proof.py",
     "test_stage_30_13_2_fake_end_to_end_proof.py",
     "test_stage_30_13_3_handoff_doc.py",
+    "test_stage_30_13_4_hardening.py",
 )
 
 

@@ -1082,6 +1082,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_13_2_fake_end_to_end_proof.py",
         # Stage 30.13.3 handoff-doc presence/clause test.
         "test_stage_30_13_3_handoff_doc.py",
+        # Stage 30.13.4 blind-audit remediation hardening test.
+        "test_stage_30_13_4_hardening.py",
     }
 )
 

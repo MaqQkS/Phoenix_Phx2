@@ -69,6 +69,7 @@ from PHX2.stage30.stage30_13_0_ws_auto_seed_models import (
 )
 from PHX2.stage30.stage30_13_2_fake_end_to_end_proof import (
     Stage30_13_2EndToEndProofResult,
+    Stage30_13_2FakeOnly,
     run_stage30_13_2_fake_end_to_end_proof,
 )
 
@@ -117,8 +118,8 @@ def _ws_msg(base_mint: str) -> bytes:
     ).encode("utf-8")
 
 
-class _FakeWebSocketTransport(Stage29_5WebSocketTransport):
-    """In-memory fake: yields preset byte messages, then None."""
+class _FakeWebSocketTransport(Stage29_5WebSocketTransport, Stage30_13_2FakeOnly):
+    """In-memory fake-only-marked WS transport: yields preset byte messages, then None."""
 
     def __init__(self, messages: List[Optional[bytes]]) -> None:
         self._messages = list(messages)
@@ -133,8 +134,9 @@ class _FakeWebSocketTransport(Stage29_5WebSocketTransport):
         self.close_called += 1
 
 
-class FakeBirdeyeTransport(Stage29_2BirdeyeHttpTransport):
-    """Path-routed fake transport serving price + token-overview + ohlcv (mint-agnostic)."""
+class FakeBirdeyeTransport(Stage29_2BirdeyeHttpTransport, Stage30_13_2FakeOnly):
+    """Path-routed fake-only-marked transport serving price + token-overview + ohlcv
+    (mint-agnostic)."""
 
     def get(
         self,
@@ -198,6 +200,16 @@ class FakeBirdeyeTransport(Stage29_2BirdeyeHttpTransport):
         )
 
 
+class _FakePriceSource(Stage29_2BirdeyePriceSource, Stage30_13_2FakeOnly):
+    """Fake-only-marked Stage 29.2 price source over the fake Birdeye transport."""
+
+
+class _FakeMarketContextSource(
+    Stage30_4_3BirdeyeMarketContextSource, Stage30_13_2FakeOnly
+):
+    """Fake-only-marked Stage 30.4.3 market-context source over the fake transport."""
+
+
 def _endpoint_secret() -> Stage29_2BirdeyeEndpointSecret:
     return Stage29_2BirdeyeEndpointSecret(_api_key=_GOOD_KEY, _base_url=_GOOD_URL)
 
@@ -209,12 +221,12 @@ def _run_e2e(messages=None, **kwargs) -> Stage30_13_2EndToEndProofResult:
     return run_stage30_13_2_fake_end_to_end_proof(
         _FakeWebSocketTransport(messages),
         clock=_ws_clock,
-        price_source=Stage29_2BirdeyePriceSource(
+        price_source=_FakePriceSource(
             transport=bird,
             endpoint_secret=_endpoint_secret(),
             timeout_seconds=10,
         ),
-        market_context_source=Stage30_4_3BirdeyeMarketContextSource(
+        market_context_source=_FakeMarketContextSource(
             transport=bird,
             endpoint_secret=_endpoint_secret(),
             timeout_seconds=10,
