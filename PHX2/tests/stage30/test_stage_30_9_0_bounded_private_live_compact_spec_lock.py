@@ -502,6 +502,27 @@ _ADMITTED_STAGE_30_12_BASENAMES = frozenset(
 )
 
 
+# The now-admitted Stage 30.13 bounded WS auto-seeding discovery slice
+# (Build #24). 30.13.0 lands the auto-seed models + auto-seeder + manifest +
+# spec-lock + their five tests; later substages add the seed-only proof (30.13.1),
+# the end-to-end proof (30.13.2), and the real-capture handoff doc (30.13.3). These
+# basenames carry the ``stage30_13`` / ``stage_30_13`` token and so match the Stage
+# 30.10+ guard regex; they are admitted here. Offline / fakes-only / no-send.
+_ADMITTED_STAGE_30_13_BASENAMES = frozenset(
+    {
+        "stage30_13_0_ws_auto_seed_models.py",
+        "stage30_13_0_ws_auto_seeder.py",
+        "stage30_13_manifest.py",
+        "STAGE_30_13_0_WS_AUTO_SEED_SPEC_LOCK.md",
+        "test_stage_30_13_0_ws_auto_seed_models.py",
+        "test_stage_30_13_0_ws_auto_seeder.py",
+        "test_stage_30_13_0_spec_lock.py",
+        "test_stage_30_13_boundaries.py",
+        "test_stage_30_13_manifest.py",
+    }
+)
+
+
 # The now-admitted Stage 30.9.2_RESUME dip-filtered live proof planning /
 # fake-proof slice (the three production modules + their five tests). These
 # basenames carry the ``stage30_9_2`` / ``stage_30_9_2`` minor token but are
@@ -1373,6 +1394,7 @@ def test_no_stage_30_10_or_stage_31_file_admitted() -> None:
             basename in _ADMITTED_STAGE_30_10_BASENAMES
             or basename in _ADMITTED_STAGE_30_11_BASENAMES
             or basename in _ADMITTED_STAGE_30_12_BASENAMES
+            or basename in _ADMITTED_STAGE_30_13_BASENAMES
         ):
             # The Stage 30.10.0 scaffold + the Stage 30.10.1 / 30.10.2 /
             # 30.10.3 slices + the Stage 30.11.0 spec-lock scaffold + the

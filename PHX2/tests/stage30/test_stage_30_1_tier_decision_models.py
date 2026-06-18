@@ -498,6 +498,36 @@ _STAGE30_11_11_ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
 )
 
 
+# Stage 30.13 bounded WS auto-seeding discovery carve-out. Stage 30.13 IS the
+# discovery front-end, so its auto-seeder + seed-only proof compose the committed
+# Stage 29.5 discovery currency DIRECTLY: the migration record type + PRESENT token +
+# closed-set error (migration models), the PRESENT-evidence -> sanitized-summary
+# projection (Stage 29.5.7 producer), and the Helius WS adapter (driven over a fake
+# transport in the seed-only proof). ONLY these three Stage 29.5 modules are admitted
+# for these two named files; every other Stage 21-29 prefix stays forbidden for them.
+# The Stage 30.13 models / manifest / end-to-end proof import no Stage 29 surface and
+# flow through the closed Stage 27 / Stage 30 boundary like every other leaf.
+_STAGE30_13_DISCOVERY_BASENAMES: frozenset = frozenset(
+    {
+        "stage30_13_0_ws_auto_seeder.py",
+        "stage30_13_1_fake_seed_only_proof.py",
+    }
+)
+_STAGE30_13_ALLOWED_STAGE29_MODULES: frozenset = frozenset(
+    {
+        "PHX2.stage29.stage29_5_migration_models",
+        "PHX2.stage29.stage29_5_7_live_migration_evidence_producer",
+        "PHX2.stage29.stage29_5_helius_ws_adapter",
+    }
+)
+_STAGE30_13_ALLOWED_PHX2_PREFIXES: tuple[str, ...] = (
+    "PHX2.stage29.stage29_5_migration_models",
+    "PHX2.stage29.stage29_5_7_live_migration_evidence_producer",
+    "PHX2.stage29.stage29_5_helius_ws_adapter",
+    "PHX2.stage30.",
+)
+
+
 def _stage30_production_module_paths() -> list[Path]:
     stage30_root = (
         Path(__file__).resolve().parent.parent.parent / "stage30"
@@ -603,6 +633,19 @@ def test_stage30_production_modules_dont_import_other_phx2_stages() -> (
                         f"Stage package: {imported}"
                     )
             continue
+        # The Stage 30.13 discovery front-end (auto-seeder + seed-only proof) may
+        # import ONLY the three approved Stage 29.5 discovery-currency modules; every
+        # other Stage 21-29 prefix stays forbidden for it.
+        if module_path.name in _STAGE30_13_DISCOVERY_BASENAMES:
+            for imported in imports:
+                if imported in _STAGE30_13_ALLOWED_STAGE29_MODULES:
+                    continue
+                for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
+                    assert not imported.startswith(prefix), (
+                        f"{module_path.name} imports forbidden "
+                        f"Stage package: {imported}"
+                    )
+            continue
         for imported in imports:
             for prefix in _FORBIDDEN_PHX2_PACKAGE_PREFIXES:
                 assert not imported.startswith(prefix), (
@@ -666,6 +709,22 @@ def test_stage30_production_modules_only_phx2_dep_is_stage27_or_stage30() -> (
                     imported.startswith(prefix)
                     or imported == prefix.rstrip(".")
                     for prefix in _STAGE30_11_11_ALLOWED_PHX2_PREFIXES
+                ), (
+                    f"{module_path.name} imports unexpected PHX2 "
+                    f"module: {imported}"
+                )
+            continue
+        # The Stage 30.13 discovery front-end carve-out admits the three approved
+        # Stage 29.5 discovery-currency modules in addition to the closed Stage 27 /
+        # Stage 30 dependency boundary.
+        if module_path.name in _STAGE30_13_DISCOVERY_BASENAMES:
+            for imported in imports:
+                if not imported.startswith("PHX2"):
+                    continue
+                assert any(
+                    imported.startswith(prefix)
+                    or imported == prefix.rstrip(".")
+                    for prefix in _STAGE30_13_ALLOWED_PHX2_PREFIXES
                 ), (
                     f"{module_path.name} imports unexpected PHX2 "
                     f"module: {imported}"

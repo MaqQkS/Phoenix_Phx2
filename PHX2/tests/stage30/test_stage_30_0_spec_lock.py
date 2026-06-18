@@ -679,6 +679,16 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_11_23_migration_evidence_candidate_bridge_models.py",
         "stage30_11_23_migration_evidence_candidate_bridge_adapter.py",
         "stage30_11_23_fake_migration_evidence_candidate_bridge_proof.py",
+        # Stage 30.13.0 bounded Helius WS auto-seeding discovery slice (Build #24):
+        # the auto-seed models leaf + the auto-seeder (composes the committed Stage
+        # 29.5 discovery currency) + the constants-only manifest + the spec-lock.
+        # Offline / fakes-only / no-send. Later substages add the seed-only proof
+        # (30.13.1), the end-to-end proof (30.13.2), and the real-capture handoff
+        # doc (30.13.3).
+        "stage30_13_0_ws_auto_seed_models.py",
+        "stage30_13_0_ws_auto_seeder.py",
+        "stage30_13_manifest.py",
+        "STAGE_30_13_0_WS_AUTO_SEED_SPEC_LOCK.md",
     }
 )
 
@@ -1046,6 +1056,14 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_11_23_fake_migration_evidence_candidate_bridge_proof.py",
         "test_stage_30_11_23_boundaries.py",
         "test_stage_30_11_23_manifest.py",
+        # Stage 30.13.0 bounded WS auto-seeding tests (Build #24). Later substages
+        # add the 30.13.1 seed-only proof test, the 30.13.2 end-to-end proof test,
+        # and the 30.13.3 handoff-doc test.
+        "test_stage_30_13_0_ws_auto_seed_models.py",
+        "test_stage_30_13_0_ws_auto_seeder.py",
+        "test_stage_30_13_0_spec_lock.py",
+        "test_stage_30_13_boundaries.py",
+        "test_stage_30_13_manifest.py",
     }
 )
 
