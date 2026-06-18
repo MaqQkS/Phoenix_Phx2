@@ -689,6 +689,11 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "stage30_13_0_ws_auto_seeder.py",
         "stage30_13_manifest.py",
         "STAGE_30_13_0_WS_AUTO_SEED_SPEC_LOCK.md",
+        # Stage 30.13.1 seed-only fake proof (Build #24): drives the real Stage
+        # 29.5 Helius WS adapter over a fake transport through the auto-seeder and
+        # stops at the seeded watchlist (before recheck / fake-send).
+        "stage30_13_1_fake_seed_only_proof.py",
+        "STAGE_30_13_1_SEED_ONLY_RUNBOOK.md",
     }
 )
 
@@ -1064,6 +1069,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_13_0_spec_lock.py",
         "test_stage_30_13_boundaries.py",
         "test_stage_30_13_manifest.py",
+        # Stage 30.13.1 seed-only proof test.
+        "test_stage_30_13_1_fake_seed_only_proof.py",
     }
 )
 

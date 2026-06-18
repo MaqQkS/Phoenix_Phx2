@@ -519,6 +519,10 @@ _ADMITTED_STAGE_30_13_BASENAMES = frozenset(
         "test_stage_30_13_0_spec_lock.py",
         "test_stage_30_13_boundaries.py",
         "test_stage_30_13_manifest.py",
+        # Stage 30.13.1 seed-only fake proof slice.
+        "stage30_13_1_fake_seed_only_proof.py",
+        "STAGE_30_13_1_SEED_ONLY_RUNBOOK.md",
+        "test_stage_30_13_1_fake_seed_only_proof.py",
     }
 )
 
