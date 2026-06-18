@@ -698,6 +698,9 @@ _STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         # -> the existing 30.11.23 -> 30.11.22 recheck/fake-send chain -> fake dispatch.
         "stage30_13_2_fake_end_to_end_proof.py",
         "STAGE_30_13_2_END_TO_END_RUNBOOK.md",
+        # Stage 30.13.3 deferred real read-only WS capture handoff (docs-only;
+        # un-executed spec for the future operator-authorized real capture).
+        "STAGE_30_13_3_REAL_WS_CAPTURE_HANDOFF.md",
     }
 )
 
@@ -1077,6 +1080,8 @@ _TESTS_STAGE30_ALLOWED_BASENAMES: frozenset = frozenset(
         "test_stage_30_13_1_fake_seed_only_proof.py",
         # Stage 30.13.2 end-to-end proof test.
         "test_stage_30_13_2_fake_end_to_end_proof.py",
+        # Stage 30.13.3 handoff-doc presence/clause test.
+        "test_stage_30_13_3_handoff_doc.py",
     }
 )
 

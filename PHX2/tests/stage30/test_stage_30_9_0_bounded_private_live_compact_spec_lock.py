@@ -527,6 +527,9 @@ _ADMITTED_STAGE_30_13_BASENAMES = frozenset(
         "stage30_13_2_fake_end_to_end_proof.py",
         "STAGE_30_13_2_END_TO_END_RUNBOOK.md",
         "test_stage_30_13_2_fake_end_to_end_proof.py",
+        # Stage 30.13.3 deferred real WS capture handoff slice (docs + doc test).
+        "STAGE_30_13_3_REAL_WS_CAPTURE_HANDOFF.md",
+        "test_stage_30_13_3_handoff_doc.py",
     }
 )
 
