@@ -1,0 +1,247 @@
+{
+  "input_paths": [],
+  "market_sim": {
+    "base_slippage_bps": 150.0,
+    "data_lost_after_seconds": 1800.0,
+    "data_lost_value_ratio": 0.25,
+    "fee_bps": 100.0,
+    "impact_bps_per_pct_of_lp": 30.0,
+    "max_impact_bps": 800.0,
+    "rug_action": "CLOSE",
+    "rug_lp_collapse_ratio": 0.2,
+    "rug_price_drop_pct": -0.95
+  },
+  "run": {
+    "end_of_stream_policy": "CLOSE_AT_LAST_PRICE",
+    "equity_curve_bucket_seconds": 60.0,
+    "heartbeat_every_seconds": 300.0,
+    "max_snapshots": null,
+    "output_root": "C:\\Users\\BalaC\\phx2_paper_trading",
+    "random_seed": 1337,
+    "recent_events_window": 50,
+    "run_id": null,
+    "sol_price_usd": null,
+    "starting_bankroll_usd": 1000.0
+  },
+  "schema_version": "phx2_paper_config_v1",
+  "sizing_profiles": {
+    "default_hybrid": {
+      "curve": [
+        {
+          "max_notional_usd": 150.0,
+          "mc_max_usd": 15000,
+          "token_target_max": 10000000,
+          "token_target_min": 7000000
+        },
+        {
+          "max_notional_usd": 150.0,
+          "mc_max_usd": 50000,
+          "token_target_max": 5000000,
+          "token_target_min": 2000000
+        },
+        {
+          "max_notional_usd": 250.0,
+          "mc_max_usd": 150000,
+          "token_target_max": 3000000,
+          "token_target_min": 1000000
+        },
+        {
+          "max_notional_usd": 400.0,
+          "mc_max_usd": null,
+          "notional_usd": 200.0
+        }
+      ],
+      "fallback_supply": 1000000000,
+      "fixed_sol_size": 0.25,
+      "fixed_usd_size": 100.0,
+      "max_abs_notional_usd": 500.0,
+      "max_buy_pct_of_liquidity": 0.5,
+      "max_buy_pct_of_recent_volume": 10.0,
+      "min_abs_notional_usd": 10.0,
+      "profile": "HYBRID_REALISTIC",
+      "token_target_fraction": 0.5
+    },
+    "fixed_usd_100": {
+      "curve": [
+        {
+          "mc_max_usd": 15000,
+          "notional_usd": 75.0
+        },
+        {
+          "mc_max_usd": 50000,
+          "notional_usd": 100.0
+        },
+        {
+          "mc_max_usd": 150000,
+          "notional_usd": 150.0
+        },
+        {
+          "mc_max_usd": null,
+          "notional_usd": 200.0
+        }
+      ],
+      "fallback_supply": null,
+      "fixed_sol_size": 0.25,
+      "fixed_usd_size": 100.0,
+      "max_abs_notional_usd": 500.0,
+      "max_buy_pct_of_liquidity": 0.5,
+      "max_buy_pct_of_recent_volume": 10.0,
+      "min_abs_notional_usd": 10.0,
+      "profile": "FIXED_USD",
+      "token_target_fraction": 0.5
+    }
+  },
+  "strategies": [
+    {
+      "allow_reentry": false,
+      "enabled": true,
+      "max_open_positions": 25,
+      "name": "bala_plan",
+      "params": {
+        "allow_tier3_initial_entry": true,
+        "allowed_tiers": [
+          1,
+          2,
+          3
+        ],
+        "audit": {
+          "audit_ttl_seconds": 600.0,
+          "max_age_seconds": null,
+          "max_drawdown_pct": 97.0,
+          "max_market_cap_usd": null,
+          "min_age_seconds": null,
+          "min_ath_market_cap_usd": null,
+          "min_liquidity_usd": 2000.0,
+          "min_market_cap_usd": null,
+          "min_volume_usd": null,
+          "require_migration_evidence": false
+        },
+        "dca_1_pct_of_max_position": 0.5,
+        "dca_2_pct_of_max_position": 0.4,
+        "derive_tier_from_drawdown": true,
+        "do_not_dca_if_liquidity_down_pct_exceeds": 40.0,
+        "do_not_dca_if_market_cap_below_usd": 3000.0,
+        "do_not_dca_if_price_data_stale_seconds": 900.0,
+        "do_not_dca_if_volume_dead": false,
+        "enable_scout_entry": false,
+        "high_quality_hold_multiple": 5.0,
+        "high_quality_min_score": 0.8,
+        "high_quality_tiers": [],
+        "high_quality_trailing_stop_pct": 0.25,
+        "high_quality_trim_fraction": 0.5,
+        "initials_recovery_multiple": null,
+        "max_dca_count": 2,
+        "max_entry_market_cap_usd": null,
+        "max_hold_seconds": 21600.0,
+        "max_total_position_usd": null,
+        "max_total_tokens": null,
+        "min_entry_liquidity_usd": 2000.0,
+        "min_entry_market_cap_usd": null,
+        "min_entry_volume_usd": null,
+        "min_time_between_dca_seconds": 120.0,
+        "require_reaudit_before_dca": true,
+        "require_tier": true,
+        "runner_trailing_stop_pct": 0.3,
+        "scout_entry_pct_of_max_position": 0.1,
+        "stop_loss_pct": -0.3,
+        "take_profit_pct": 0.35,
+        "tier_dip_bands": {
+          "1": [
+            50.0,
+            60.0
+          ],
+          "2": [
+            62.0,
+            80.0
+          ],
+          "3": [
+            82.0,
+            95.0
+          ]
+        },
+        "trailing_stop_pct": null
+      },
+      "sizing_profile": "default_hybrid",
+      "strategy_type": "BALA_PLAN"
+    },
+    {
+      "allow_reentry": false,
+      "enabled": true,
+      "max_open_positions": 25,
+      "name": "config_plan",
+      "params": {
+        "allowed_tiers": null,
+        "entry_dip_band_pct": null,
+        "max_entry_market_cap_usd": null,
+        "max_hold_seconds": 21600.0,
+        "min_entry_liquidity_usd": 2000.0,
+        "min_entry_market_cap_usd": null,
+        "min_entry_volume_usd": null,
+        "require_price": true,
+        "stop_loss_pct": -0.35,
+        "take_profit_pct": 0.5,
+        "trailing_stop_pct": null
+      },
+      "sizing_profile": "default_hybrid",
+      "strategy_type": "CONFIG_PLAN"
+    },
+    {
+      "allow_reentry": false,
+      "enabled": true,
+      "max_open_positions": 25,
+      "name": "monkey_random",
+      "params": {
+        "entry_probability": 0.15,
+        "hold_seconds_range": [
+          600.0,
+          21600.0
+        ],
+        "random_close_prob": 0.01,
+        "require_price": true,
+        "stop_loss_pct_range": [
+          -0.8,
+          -0.2
+        ],
+        "take_profit_pct_range": [
+          0.2,
+          3.0
+        ]
+      },
+      "sizing_profile": "default_hybrid",
+      "strategy_type": "MONKEY_RANDOM"
+    },
+    {
+      "allow_reentry": false,
+      "enabled": true,
+      "max_open_positions": 25,
+      "name": "monkey_hold",
+      "params": {
+        "entry_mode": "ALL",
+        "entry_probability": 0.5,
+        "hold_seconds": 14400.0,
+        "stop_loss_pct": null,
+        "take_profit_pct": null
+      },
+      "sizing_profile": "default_hybrid",
+      "strategy_type": "MONKEY_HOLD"
+    },
+    {
+      "allow_reentry": false,
+      "enabled": true,
+      "max_open_positions": 25,
+      "name": "three_x_runner",
+      "params": {
+        "allowed_tiers": null,
+        "max_entry_market_cap_usd": null,
+        "min_entry_liquidity_usd": 2000.0,
+        "min_entry_market_cap_usd": null,
+        "recover_multiple": 3.0,
+        "runner_max_hold_seconds": 86400.0,
+        "runner_trailing_stop_pct": 0.3,
+        "stop_loss_pct": null
+      },
+      "sizing_profile": "default_hybrid",
+      "strategy_type": "THREE_X_INITIALS_RUNNER"
+    }
+  ]
+}
