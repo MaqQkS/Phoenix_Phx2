@@ -31,6 +31,7 @@ STATUS_SKIPPED_PRICE_MISSING = "SKIPPED_PRICE_MISSING"
 STATUS_SKIPPED_LIQUIDITY_CAP = "SKIPPED_LIQUIDITY_CAP"
 STATUS_SKIPPED_MIN_NOTIONAL = "SKIPPED_MIN_NOTIONAL"
 STATUS_SKIPPED_SIZING = "SKIPPED_SIZING"
+STATUS_SKIPPED_HIGH_RISK = "SKIPPED_HIGH_RISK"
 
 CLOSED_STATUSES = (
     STATUS_CLOSED,
@@ -46,6 +47,7 @@ SKIP_STATUSES = (
     STATUS_SKIPPED_LIQUIDITY_CAP,
     STATUS_SKIPPED_MIN_NOTIONAL,
     STATUS_SKIPPED_SIZING,
+    STATUS_SKIPPED_HIGH_RISK,
 )
 
 TERMINAL_STATUSES = CLOSED_STATUSES + SKIP_STATUSES
@@ -172,6 +174,13 @@ class CandidateSnapshot:
     source_kind: Optional[str] = None
     source_file: Optional[str] = None
     source_line: int = 0
+    # Producer risk tagging (free-tier scam/bundle heuristic). None/[] when the
+    # record predates the risk layer or carried no assessment (== UNKNOWN).
+    risk_label: Optional[str] = None
+    risk_reasons: List[str] = field(default_factory=list)
+    fee_gate: Dict[str, Any] = field(default_factory=dict)
+    lp_integrity: Dict[str, Any] = field(default_factory=dict)
+    scam_policy: Dict[str, Any] = field(default_factory=dict)
     extra: Dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -208,6 +217,11 @@ class CandidateSnapshot:
             "ath_market_cap_usd": self.ath_market_cap_usd,
             "score": self.score,
             "source_kind": self.source_kind,
+            "risk_label": self.risk_label,
+            "risk_reasons": list(self.risk_reasons),
+            "fee_gate": dict(self.fee_gate),
+            "lp_integrity": dict(self.lp_integrity),
+            "scam_policy": dict(self.scam_policy),
         }
 
 
@@ -381,6 +395,23 @@ class PaperPosition:
     latest_price_epoch: Optional[float] = None
     exit_price: Optional[float] = None
     exit_market_cap: Optional[float] = None
+    # Shared producer ATH checkpoint, copied verbatim into the paper position
+    # so paper artifacts can be compared numerically with alert/dashboard.
+    ath_market_cap_usd: Optional[float] = None
+    ath_price_usd: Optional[float] = None
+    ath_observed_at_utc: Optional[str] = None
+    ath_provider: Optional[str] = None
+    ath_observation_type: Optional[str] = None
+    ath_status: Optional[str] = None
+    migration_market_cap_usd: Optional[str] = None
+    migration_market_cap_source: Optional[str] = None
+    migration_baseline_status: Optional[str] = None
+    activation_multiplier: Optional[str] = None
+    activation_target_market_cap_usd: Optional[str] = None
+    activation_state: Optional[str] = None
+    activated_at_utc: Optional[str] = None
+    activation_observation_source: Optional[str] = None
+    activation_current_market_cap_usd: Optional[str] = None
 
     virtual_sol_size: Optional[float] = None
     virtual_usd_size: float = 0.0
@@ -412,6 +443,9 @@ class PaperPosition:
     tier: Optional[int] = None
     entry_drawdown_pct: Optional[float] = None
     score: Optional[float] = None
+    # Risk view at entry/skip time (producer scam/bundle heuristic; None == UNKNOWN).
+    risk_label_at_entry: Optional[str] = None
+    risk_reasons_at_entry: List[str] = field(default_factory=list)
 
     plan: ExitPlan = field(default_factory=ExitPlan)
     # Strategy-private state (e.g. Tier/DCA machine state); JSON-safe.
@@ -554,6 +588,21 @@ class PaperPosition:
             "latest_price_at_utc": utc_iso(self.latest_price_epoch),
             "exit_price": self.exit_price,
             "exit_market_cap": self.exit_market_cap,
+            "ath_market_cap_usd": self.ath_market_cap_usd,
+            "ath_price_usd": self.ath_price_usd,
+            "ath_observed_at_utc": self.ath_observed_at_utc,
+            "ath_provider": self.ath_provider,
+            "ath_observation_type": self.ath_observation_type,
+            "ath_status": self.ath_status,
+            "migration_market_cap_usd": self.migration_market_cap_usd,
+            "migration_market_cap_source": self.migration_market_cap_source,
+            "migration_baseline_status": self.migration_baseline_status,
+            "activation_multiplier": self.activation_multiplier,
+            "activation_target_market_cap_usd": self.activation_target_market_cap_usd,
+            "activation_state": self.activation_state,
+            "activated_at_utc": self.activated_at_utc,
+            "activation_observation_source": self.activation_observation_source,
+            "activation_current_market_cap_usd": self.activation_current_market_cap_usd,
             "virtual_sol_size": self.virtual_sol_size,
             "virtual_usd_size": round(self.virtual_usd_size, 6),
             "target_token_amount": self.target_token_amount,
@@ -581,6 +630,8 @@ class PaperPosition:
             "tier": self.tier,
             "entry_drawdown_pct": self.entry_drawdown_pct,
             "score": self.score,
+            "risk_label_at_entry": self.risk_label_at_entry,
+            "risk_reasons_at_entry": list(self.risk_reasons_at_entry),
             "hold_seconds": self.hold_seconds(),
             "exit_plan": self.plan.to_record(),
             "strategy_state": dict(self.strategy_state),
@@ -612,6 +663,23 @@ class PaperPosition:
             latest_price_epoch=parse_utc(rec.get("latest_price_at_utc")),
             exit_price=rec.get("exit_price"),
             exit_market_cap=rec.get("exit_market_cap"),
+            ath_market_cap_usd=rec.get("ath_market_cap_usd"),
+            ath_price_usd=rec.get("ath_price_usd"),
+            ath_observed_at_utc=rec.get("ath_observed_at_utc"),
+            ath_provider=rec.get("ath_provider"),
+            ath_observation_type=rec.get("ath_observation_type"),
+            ath_status=rec.get("ath_status"),
+            migration_market_cap_usd=rec.get("migration_market_cap_usd"),
+            migration_market_cap_source=rec.get("migration_market_cap_source"),
+            migration_baseline_status=rec.get("migration_baseline_status"),
+            activation_multiplier=rec.get("activation_multiplier"),
+            activation_target_market_cap_usd=rec.get(
+                "activation_target_market_cap_usd"),
+            activation_state=rec.get("activation_state"),
+            activated_at_utc=rec.get("activated_at_utc"),
+            activation_observation_source=rec.get("activation_observation_source"),
+            activation_current_market_cap_usd=rec.get(
+                "activation_current_market_cap_usd"),
             virtual_sol_size=rec.get("virtual_sol_size"),
             virtual_usd_size=rec.get("virtual_usd_size", 0.0),
             target_token_amount=rec.get("target_token_amount"),
@@ -634,6 +702,8 @@ class PaperPosition:
             tier=rec.get("tier"),
             entry_drawdown_pct=rec.get("entry_drawdown_pct"),
             score=rec.get("score"),
+            risk_label_at_entry=rec.get("risk_label_at_entry"),
+            risk_reasons_at_entry=list(rec.get("risk_reasons_at_entry") or []),
             plan=ExitPlan(
                 take_profit_pct=plan_rec.get("take_profit_pct"),
                 stop_loss_pct=plan_rec.get("stop_loss_pct"),
@@ -671,6 +741,7 @@ __all__ = [
     "STATUS_SKIPPED_LIQUIDITY_CAP",
     "STATUS_SKIPPED_MIN_NOTIONAL",
     "STATUS_SKIPPED_SIZING",
+    "STATUS_SKIPPED_HIGH_RISK",
     "CLOSED_STATUSES",
     "SKIP_STATUSES",
     "TERMINAL_STATUSES",

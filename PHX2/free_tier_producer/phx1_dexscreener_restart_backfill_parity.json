@@ -1,0 +1,402 @@
+{
+  "schema_version": "phx2_phx1_dexscreener_restart_backfill_parity_v1",
+  "starting_commit": "e9999aeb06b1c830f7adb26001bea3902c0bf6d3",
+  "revisions": [
+    {
+      "revision": "phx2_dex_backfill_source_set_v2",
+      "date_utc": "2026-07-29",
+      "change": "Retired the chain-wide latest-pairs request from the restart-backfill source set and moved sweep completeness to required-source accounting.",
+      "reason_class": "CHAIN_WIDE_REQUEST_TO_PAIR_SPECIFIC_LOOKUP",
+      "evidence": "The provider API reference documents /latest/dex/pairs/{chainId}/{pairId} as a pair-specific lookup with a required pair identifier and documents no chain-wide latest-pairs endpoint; every preserved sweep (31 of 31 in the runs tree, a superset of the 19 audited) failed the request deterministically with HTTP_STATUS_NON_2XX and it never returned a single pair, so retirement removes no realized coverage."
+    }
+  ],
+  "authoritative_phx1": {
+    "repository": "C:\\Users\\BalaC\\Downloads\\Phoenix_Bot",
+    "commit": "318e359084d8711256747ae0fe307303d1b526d1",
+    "subject": "fix: preserve transaction-level PumpSwap ATH peaks",
+    "parent": "d744591b2d77b12dfaead03c7373b1953f58b1cf",
+    "read_method": "git show 318e359084d8711256747ae0fe307303d1b526d1:<path>",
+    "worktree_content_used": false
+  },
+  "phx1_function_contracts": [
+    {
+      "source_path": "main.py",
+      "function": "main",
+      "inputs": ["committed config", "aiohttp session", "database"],
+      "outputs": "starts the long-lived PHX1 tasks",
+      "thresholds": "none locally; delegates tracking config",
+      "ordering": "database and retry queue, startup notice, startup backfill, then live/price/periodic gather",
+      "missing_data_behavior": "startup backfill exception is logged and live startup continues",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "scheduling"
+    },
+    {
+      "source_path": "modules/backfill.py",
+      "function": "backfill_recent_migrations",
+      "inputs": ["config", "aiohttp session"],
+      "outputs": "persisted TRACKING tokens and admission counts",
+      "thresholds": "six-hour lookback; SOL x 410 migration MC; one-billion supply; 200 ms per admitted token",
+      "ordering": "SOL price, latest pairs, profiles/batches, pair dedupe, per-pair admission, persistence, ATH seed",
+      "missing_data_behavior": "missing created time or positive price rejects pair; market cap/liquidity/volume default zero; enrichment and ATH failures do not reject",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "startup_lookback"
+    },
+    {
+      "source_path": "modules/backfill.py",
+      "function": "_fetch_latest_pumpswap_pairs",
+      "inputs": ["aiohttp session"],
+      "outputs": "ordered pair list",
+      "thresholds": "latest profiles first 50; token batches 30; one-second spacing",
+      "ordering": "latest Solana pairs before token profiles before token batches; pairAddress first occurrence wins",
+      "missing_data_behavior": "429, non-200, malformed shape, and request exception are contained; usable responses still survive",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "startup_endpoint_order"
+    },
+    {
+      "source_path": "modules/backfill.py",
+      "function": "periodic_backfill_loop",
+      "inputs": ["config", "aiohttp session"],
+      "outputs": "periodically admitted tokens",
+      "thresholds": "30-second initial delay; 180-second interval; current MC floor SOL x 200",
+      "ordering": "sleep then repeated fetch/admit",
+      "missing_data_behavior": "missing pair creation time substitutes current time in periodic path",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "periodic_mcap_floor"
+    },
+    {
+      "source_path": "utils/dexscreener.py",
+      "function": "get_sol_price",
+      "inputs": ["aiohttp session"],
+      "outputs": "positive SOL/USD float",
+      "thresholds": "10-second timeout; 60-second cache; USD 150 fallback",
+      "ordering": "wrapped-SOL token endpoint before fallback",
+      "missing_data_behavior": "any unavailable or invalid price returns cached value or 150",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "migration_baseline"
+    },
+    {
+      "source_path": "utils/dexscreener.py",
+      "function": "get_pumpswap_pair",
+      "inputs": ["token address", "aiohttp session"],
+      "outputs": "highest-liquidity PumpSwap pair or null",
+      "thresholds": "positive/finite pair data consumed by caller",
+      "ordering": "filter PumpSwap then max liquidity.usd",
+      "missing_data_behavior": "no valid PumpSwap pair returns null",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "market_freshness"
+    },
+    {
+      "source_path": "utils/dexscreener.py",
+      "function": "get_pumpswap_pairs_bulk",
+      "inputs": ["token addresses", "aiohttp session"],
+      "outputs": "mint-keyed PumpSwap pair mapping",
+      "thresholds": "batches up to 30; one-second cadence",
+      "ordering": "input batch order; per mint highest-liquidity PumpSwap pair",
+      "missing_data_behavior": "missing mints are omitted without aborting other results",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "pair_selection"
+    },
+    {
+      "source_path": "utils/dexscreener.py",
+      "function": "extract_price_data",
+      "inputs": ["DexScreener pair mapping"],
+      "outputs": "price, market cap, liquidity, volumes, and spike flag",
+      "thresholds": "marketCap then fdv then zero; h1 spike greater than 1.5 x h6/6",
+      "ordering": "price then MC fallback then liquidity/volume normalization",
+      "missing_data_behavior": "missing numeric market fields normalize to zero; invalid positive price is rejected by caller",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "pair_parsing"
+    },
+    {
+      "source_path": "modules/ath_seeder.py",
+      "function": "seed_ath_for_token",
+      "inputs": ["TrackedToken", "session", "config"],
+      "outputs": "monotonically raised ATH or queued retry",
+      "thresholds": "Birdeye five calls/second; positive finite ATH only",
+      "ordering": "Birdeye OHLCV seed then PumpSwap floor reconciliation",
+      "missing_data_behavior": "missing Birdeye ATH does not reject token and queues retry",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "ath_seed"
+    },
+    {
+      "source_path": "modules/ath_seeder.py",
+      "function": "_apply_pumpswap_floor",
+      "inputs": ["TrackedToken", "observed execution/reserve floor"],
+      "outputs": "ATH no lower than PumpSwap floor",
+      "thresholds": "positive finite floor only",
+      "ordering": "floor reconciled after external seed and never lowers ATH",
+      "missing_data_behavior": "absent floor leaves prior ATH unchanged",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "ath_seed"
+    },
+    {
+      "source_path": "utils/birdeye.py",
+      "function": "get_ath_since_migration",
+      "inputs": ["mint", "migration time", "session"],
+      "outputs": "maximum OHLCV high or null",
+      "thresholds": "10-second timeout; 1m/15m/1H/4H/8H age-adaptive resolution",
+      "ordering": "migration-to-now OHLCV window then maximum high",
+      "missing_data_behavior": "rate limit, malformed candles, or exception returns null",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "ath_seed"
+    },
+    {
+      "source_path": "modules/ath_seeder.py",
+      "function": "process_retry_queue",
+      "inputs": ["session", "config", "durable retry queue"],
+      "outputs": "retried ATH seeds and persisted queue state",
+      "thresholds": "configured hot/cold cadence and age ceiling",
+      "ordering": "due entries only; successful seed removes retry",
+      "missing_data_behavior": "failure retains entry for a bounded later retry",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "ath_seed"
+    },
+    {
+      "source_path": "modules/price_tracker.py",
+      "function": "PriceTracker.update_prices",
+      "inputs": ["tracked tokens", "aiohttp session"],
+      "outputs": "updated current market observations",
+      "thresholds": "tokens up to 48 hours old; batches 20; one-second cadence",
+      "ordering": "bulk pair lookup then per-token update",
+      "missing_data_behavior": "missing pair leaves token tracked with prior state",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "market_freshness"
+    },
+    {
+      "source_path": "modules/price_tracker.py",
+      "function": "PriceTracker._process_token",
+      "inputs": ["TrackedToken", "selected pair"],
+      "outputs": "fresh price/MC/liquidity/volume and monotonic ATH",
+      "thresholds": "positive finite price/MC; greater-than-70-percent one-poll MC drop triggers two-second refetch",
+      "ordering": "validate/refetch then replace current fields then raise ATH",
+      "missing_data_behavior": "invalid update fails closed and preserves prior token state",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "market_freshness"
+    },
+    {
+      "source_path": "models.py",
+      "function": "TrackedToken.pump_multiple",
+      "inputs": ["ATH price", "migration price"],
+      "outputs": "ATH divided by migration price",
+      "thresholds": "1.39 transitions backfilled token to ATH_CONFIRMED",
+      "ordering": "computed after ATH authority updates",
+      "missing_data_behavior": "non-positive baseline produces no qualifying multiple",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "activation_multiple"
+    },
+    {
+      "source_path": "models.py",
+      "function": "TrackedToken.drop_from_ath",
+      "inputs": ["ATH price", "current price"],
+      "outputs": "percentage drawdown",
+      "thresholds": "tier bands 50-60, 62-80, and 82-95 percent",
+      "ordering": "computed after current price and ATH refresh",
+      "missing_data_behavior": "non-positive values cannot qualify",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "delivery_commit"
+    },
+    {
+      "source_path": "modules/alert_trigger.py",
+      "function": "AlertTrigger.check_tokens",
+      "inputs": ["tracked tokens"],
+      "outputs": "token/tier alert candidates",
+      "thresholds": "ATH_CONFIRMED or ALERTED; current freshness 300 seconds; deeper than last alerted tier",
+      "ordering": "status, positive values, freshness/cooldowns, drawdown tier, prior-tier suppression",
+      "missing_data_behavior": "missing ATH/current/freshness fails closed for this evaluation",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "market_freshness"
+    },
+    {
+      "source_path": "modules/alert_gate.py",
+      "function": "evaluate",
+      "inputs": ["TrackedToken", "fee/ghost evidence", "config"],
+      "outputs": "allow/block GateResult",
+      "thresholds": "committed PHX1 fee and ghost policy",
+      "ordering": "fee gate before ghost-holder gate and composition",
+      "missing_data_behavior": "absent fee data transiently blocks; unexpected gate exception fails open in PHX1",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "delivery_commit"
+    },
+    {
+      "source_path": "modules/alert_trigger.py",
+      "function": "AlertTrigger.mark_alerted",
+      "inputs": ["TrackedToken", "tier index", "alert time"],
+      "outputs": "ALERTED token state",
+      "thresholds": "only after successful Telegram send",
+      "ordering": "transport success before token/history mutation",
+      "missing_data_behavior": "failed send does not mark alerted",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "delivery_commit"
+    },
+    {
+      "source_path": "database.py",
+      "function": "token_exists",
+      "inputs": ["mint address", "database path"],
+      "outputs": "boolean prior-token membership",
+      "thresholds": "exact mint key",
+      "ordering": "checked before startup token persistence",
+      "missing_data_behavior": "absent row permits admission",
+      "mutates_candidate_state": false,
+      "can_influence_alert_delivery": true,
+      "parity_row": "cross_source_corroboration"
+    },
+    {
+      "source_path": "database.py",
+      "function": "save_token",
+      "inputs": ["TrackedToken", "database path"],
+      "outputs": "durable normalized token row",
+      "thresholds": "one mint-keyed row",
+      "ordering": "persisted before later startup candidates and before alert eligibility",
+      "missing_data_behavior": "write failure is contained by startup pair loop and does not persist a false admission",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "cross_source_corroboration"
+    },
+    {
+      "source_path": "database.py",
+      "function": "save_alert",
+      "inputs": ["alert record", "database path"],
+      "outputs": "durable alert history",
+      "thresholds": "called only after successful send commit",
+      "ordering": "Telegram success then alert/token persistence",
+      "missing_data_behavior": "no successful transport means no new alert-history row",
+      "mutates_candidate_state": true,
+      "can_influence_alert_delivery": true,
+      "parity_row": "delivery_commit"
+    }
+  ],  "rows": [
+    {
+      "contract": "startup_endpoint_order",
+      "phx1": "latest Solana pairs, one-second pause, latest token profiles first 50, token batches of 30",
+      "phx2": "latest-pairs source retired in phx2_dex_backfill_source_set_v2 (chain-wide request to the pair-specific lookup /latest/dex/pairs/{chainId}/{pairId}, whose pair identifier is a required path parameter; no chain-wide variant is documented); latest token profiles first 50 then token batches of 30 with the same bounds and order",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "response_shapes",
+      "phx1": "latest-pairs accepts top-level list or object.pairs; token endpoints accept list",
+      "phx2": "token endpoints accept list and all others fail closed for the response; the latest-pairs surface is retired",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "pair_selection",
+      "phx1": "PumpSwap only, discovery-order pairAddress dedupe, first admitted pair wins per mint",
+      "phx2": "same within a sweep, followed by global mint/pair/ledger dedupe",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "startup_lookback",
+      "phx1": "six hours; pairCreatedAt required and inside cutoff",
+      "phx2": "six hours; pairCreatedAt required and inside cutoff",
+      "classification": "EXACT"
+    },
+    {
+      "contract": "chain_dex_mint_validation",
+      "phx1": "Solana profile, PumpSwap dexId, base mint ends with pump",
+      "phx2": "same plus nonempty valid pair identity",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "migration_baseline",
+      "phx1": "current SOL/USD times 410; price assumes one-billion supply",
+      "phx2": "same arithmetic with explicit DEXSCREENER_INFERRED_BASELINE evidence and confidence",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "startup_market_floors",
+      "phx1": "positive price required; no startup mcap, liquidity, or volume minimum",
+      "phx2": "positive price/mcap and fresh liquidity/volume required at delivery, not discovery",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "pair_parsing",
+      "phx1": "priceUsd, marketCap else fdv, liquidity.usd, volume windows, pair, symbol, name",
+      "phx2": "same normalized fields; raw responses never persisted",
+      "classification": "EXACT"
+    },
+    {
+      "contract": "request_failure",
+      "phx1": "429/non-200/exception contained; no retry",
+      "phx2": "contained; one bounded retry for 429/5xx, response byte cap, request budget, deterministic partial outcome",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "pair_count",
+      "phx1": "no explicit cap on latest-pairs response",
+      "phx2": "explicit maximum normalized pair/candidate count per sweep",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "scheduling",
+      "phx1": "blocking startup sweep plus perpetual periodic sweep every 180 seconds",
+      "phx2": "background startup sweep and at most one sweep per continuity-breaking live epoch; no perpetual poll",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "periodic_mcap_floor",
+      "phx1": "periodic-only current mcap floor SOL/USD times 200",
+      "phx2": "excluded because the periodic path is excluded",
+      "classification": "NOT_APPLICABLE"
+    },
+    {
+      "contract": "ath_seed",
+      "phx1": "Birdeye OHLCV high plus PumpSwap floor, retry on missing",
+      "phx2": "existing central monotonic ATH authority; missing ATH remains pending",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "activation_multiple",
+      "phx1": "1.39x for all PHX1 tracked tokens",
+      "phx2": "1.39x only for DEXSCREENER_RESTART_BACKFILL evidence; live Yellowstone remains exactly 1.20x",
+      "classification": "EXACT"
+    },
+    {
+      "contract": "activation_evidence",
+      "phx1": "persisted token fields, no authenticated evidence seal",
+      "phx2": "dedicated inferred-baseline proof bound to mint, pair, sweep, baseline, current evidence, and 1.39 threshold",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "market_freshness",
+      "phx1": "current market observation no older than 300 seconds",
+      "phx2": "same maximum age for backfill-origin send evidence",
+      "classification": "EXACT"
+    },
+    {
+      "contract": "delivery_commit",
+      "phx1": "Telegram success before status/history mutation",
+      "phx2": "existing Telegram-only reserve/ledger/delivery transaction remains authoritative",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "cross_source_corroboration",
+      "phx1": "database token_exists suppresses later discovery",
+      "phx2": "live and Dex discoveries corroborate one mint-keyed candidate; initial provenance, ATH, and tier state never reset",
+      "classification": "INTENTIONAL_CHANGE"
+    },
+    {
+      "contract": "historical_block_replay",
+      "phx1": "not part of DexScreener backfill",
+      "phx2": "permanently retired from production; live epochs start at observed head plus one",
+      "classification": "NOT_APPLICABLE"
+    }
+  ]
+}

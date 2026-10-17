@@ -5,7 +5,7 @@ A strategy answers two questions over the shared candidate stream:
 * ``wants_entry(snapshot, ctx)`` -- should we open a virtual position now?
   Returns an :class:`EntryIntent` (reason + exit plan) or ``None``.
 * ``manage(position, snapshot, ctx)`` -- strategy-specific management of an
-  open position on a fresh price update (e.g. the 3x initial-recovery trim).
+  open position on a fresh price update (e.g. an initial-recovery trim).
   Returns a list of :class:`ExitIntent`.
 
 The engine enforces the *generic* exit rules from each position's
@@ -22,10 +22,11 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from PHX2.paper_trading.config import StrategyConfig
 from PHX2.paper_trading.models import CandidateSnapshot, ExitPlan, PaperPosition
+from PHX2.paper_trading.risk import parse_risk_label, parse_risk_reasons
 
 
 @dataclass
@@ -76,7 +77,7 @@ class ExitIntent:
 
     ``fraction`` sells that fraction of the currently open tokens;
     ``recover_usd`` sells just enough tokens to realize that many USD of
-    proceeds (used by the 3x initial-recovery trim). Exactly one of the two
+    net proceeds (used by the initial-recovery trim). Exactly one of the two
     should be set for PARTIAL; FULL ignores both. ``leg`` labels the sell
     fill (PARTIAL_SELL / INITIALS_RECOVERY / ...); None lets the engine
     pick a default.
@@ -104,6 +105,10 @@ class StrategyContext:
     # (a SizingDecision, or None when unavailable). Lets a DCA ladder
     # derive per-leg budgets from the profile's capped max position.
     sizing_preview: Callable[[CandidateSnapshot], Any] = lambda snapshot: None
+    # Engine-resolved risk view for a mint: (label, reasons). Falls back to
+    # (None, []) == UNKNOWN when the engine has never seen a risk tag for it.
+    resolve_risk: Callable[[str], Tuple[Optional[str], List[str]]] = \
+        lambda mint: (None, [])
 
 
 class PaperStrategy:
@@ -137,6 +142,21 @@ class PaperStrategy:
         machine counts) for the live monitor artifacts. Default: empty."""
         return {}
 
+    def export_state(self) -> Dict[str, Any]:
+        """Explicit JSON state; never deserialize executable objects."""
+        result = {}
+        for name in ("_rolled_mints", "_entries", "_not_high_risk_passes"):
+            if hasattr(self, name):
+                value = getattr(self, name)
+                result[name] = sorted(value) if isinstance(value, set) else value
+        return result
+
+    def restore_state(self, state: Dict[str, Any]) -> None:
+        for name in ("_rolled_mints", "_entries", "_not_high_risk_passes"):
+            if hasattr(self, name) and name in state:
+                value = state[name]
+                setattr(self, name, set(value) if name == "_rolled_mints" else value)
+
     def on_position_opened(self, position: PaperPosition) -> None:
         """Called by the engine right after an entry fill lands. Default:
         no-op."""
@@ -145,6 +165,18 @@ class PaperStrategy:
         """Called by the engine when a position of this strategy reaches a
         terminal status (closed / rugged / data-lost / skipped), so state
         machines can sync their per-mint state. Default: no-op."""
+
+    def on_initials_recovered(self, position: PaperPosition,
+                              price_raw: float) -> None:
+        """Arm the runner only after the engine records sufficient net proceeds."""
+        state = position.strategy_state
+        state["initial_recovered"] = True
+        state["runner_status"] = "RUNNER_ACTIVE"
+        state["recovered_at_multiple"] = round(price_raw / position.entry_price, 4)
+        state["initial_cost_usd"] = position.cost_basis_usd
+        position.plan.trailing_stop_pct = self._num(
+            self.params.get("runner_trailing_stop_pct"))
+        position.post_trim_peak_price = price_raw
 
     # -- shared helpers ---------------------------------------------------
 
@@ -156,6 +188,20 @@ class PaperStrategy:
             return float(value)
         except (TypeError, ValueError):
             return None
+
+    def snapshot_risk(self, snapshot: CandidateSnapshot,
+                      ctx: StrategyContext) -> Tuple[Optional[str], List[str]]:
+        """Risk view for this snapshot's mint: the snapshot's own tag wins, else the
+        engine's latest known view (``ctx.resolve_risk``). ``(None, [])`` == UNKNOWN."""
+        label = parse_risk_label(snapshot.risk_label)
+        if label is not None:
+            return label, parse_risk_reasons(snapshot.risk_reasons)
+        try:
+            resolved_label, resolved_reasons = ctx.resolve_risk(snapshot.mint)
+        except Exception:
+            return None, []
+        return (parse_risk_label(resolved_label),
+                parse_risk_reasons(resolved_reasons))
 
     def passes_entry_filters(self, snapshot: CandidateSnapshot,
                              check_tiers: bool = True) -> bool:
@@ -195,6 +241,9 @@ def build_strategy(cfg: StrategyConfig) -> PaperStrategy:
     # Imported here to avoid import cycles at module load.
     from PHX2.paper_trading.strategies.bala_plan import BalaPlanStrategy
     from PHX2.paper_trading.strategies.config_plan import ConfigPlanStrategy
+    from PHX2.paper_trading.strategies.high_risk_observer import (
+        HighRiskObserverStrategy,
+    )
     from PHX2.paper_trading.strategies.monkey_random import MonkeyRandomStrategy
     from PHX2.paper_trading.strategies.monkey_hold import MonkeyHoldStrategy
     from PHX2.paper_trading.strategies.three_x_initials_runner import (
@@ -207,6 +256,7 @@ def build_strategy(cfg: StrategyConfig) -> PaperStrategy:
         MonkeyRandomStrategy.strategy_type: MonkeyRandomStrategy,
         MonkeyHoldStrategy.strategy_type: MonkeyHoldStrategy,
         ThreeXInitialsRunnerStrategy.strategy_type: ThreeXInitialsRunnerStrategy,
+        HighRiskObserverStrategy.strategy_type: HighRiskObserverStrategy,
     }
     impl = registry.get(cfg.strategy_type)
     if impl is None:

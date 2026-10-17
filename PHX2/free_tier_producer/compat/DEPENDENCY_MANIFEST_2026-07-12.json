@@ -1,0 +1,159 @@
+{
+    "manifest_schema":  "PHX2_FREE_TIER_TRACKED_COMPAT_CLOSURE_V1",
+    "preservation_date":  "2026-07-12",
+    "source_head":  "aa59d19",
+    "strategy":  "TRACKED_MINIMAL_CLOSURE",
+    "module_count":  16,
+    "closure_evidence":  "External producer selftest 73/73 imported exactly these 16 out-of-repo modules",
+    "runtime_external_module_dependencies":  [
+
+                                             ],
+    "adapted_module_count":  5,
+    "byte_identical_module_count":  11,
+    "modules":  [
+                    {
+                        "module":  "build26_capture_artifacts",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build29_cap1_send\\build26_capture_artifacts.py",
+                        "original_sha256":  "f8a8543dde73b15cf242ceee1b535c475edd556ad5e8d2c6511fd0cb8b5c1ee3",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build26_capture_artifacts.py",
+                        "tracked_sha256":  "f8a8543dde73b15cf242ceee1b535c475edd556ad5e8d2c6511fd0cb8b5c1ee3",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build26_evidence_capture",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build29_cap1_send\\build26_evidence_capture.py",
+                        "original_sha256":  "be7bc14bc230e251f8e9a7be3f95b552b254aa6f6db905255e3f9e33510e0e6a",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build26_evidence_capture.py",
+                        "tracked_sha256":  "be7bc14bc230e251f8e9a7be3f95b552b254aa6f6db905255e3f9e33510e0e6a",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build29_cap1_artifacts",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build29_cap1_send\\build29_cap1_artifacts.py",
+                        "original_sha256":  "110610bbf44ffc4f2ab2bb15159e892778e15ef18de86746bcd6d379036ff41a",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build29_cap1_artifacts.py",
+                        "tracked_sha256":  "110610bbf44ffc4f2ab2bb15159e892778e15ef18de86746bcd6d379036ff41a",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build29_cap1_compose_send",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build29_cap1_send\\build29_cap1_compose_send.py",
+                        "original_sha256":  "9d7262f67d5d4f9bac00d780a0c87e977bb2790dbbc09e1a814c2b550d89fd35",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build29_cap1_compose_send.py",
+                        "tracked_sha256":  "9d7262f67d5d4f9bac00d780a0c87e977bb2790dbbc09e1a814c2b550d89fd35",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build29_cap1_ledger",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build29_cap1_send\\build29_cap1_ledger.py",
+                        "original_sha256":  "ebe622500c10ca45dba98e18cc19104d8e7b0bc72cf31026ec339e9ad362f264",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build29_cap1_ledger.py",
+                        "tracked_sha256":  "ebe622500c10ca45dba98e18cc19104d8e7b0bc72cf31026ec339e9ad362f264",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build29_cap1_market_sidecar",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build29_cap1_send\\build29_cap1_market_sidecar.py",
+                        "original_sha256":  "0c88587afc4166a37834dd9fd54688e4fca2ed7c3a27b95d61a2c9008161fac4",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build29_cap1_market_sidecar.py",
+                        "tracked_sha256":  "0c88587afc4166a37834dd9fd54688e4fca2ed7c3a27b95d61a2c9008161fac4",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build29_cap1_session",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build29_cap1_send\\build29_cap1_session.py",
+                        "original_sha256":  "186236db0ce9002dacc332eef1b5682b1afdfff314212522c7063d74eb1ba9d7",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build29_cap1_session.py",
+                        "tracked_sha256":  "186236db0ce9002dacc332eef1b5682b1afdfff314212522c7063d74eb1ba9d7",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build30_artifacts",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build30_cap1_forward_watch\\build30_artifacts.py",
+                        "original_sha256":  "4ecf5b1a7e626042446fd50a40a27c4398f3b311f84723c62f4114bebf136a03",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build30_artifacts.py",
+                        "tracked_sha256":  "773d940af974bda301b7fd2fd8a8720a8b2c601cfb6a8cd0604278bd0ff4af0d",
+                        "byte_identical":  false,
+                        "path_only_adaptation":  "dependency root rebound to tracked compatibility directory"
+                    },
+                    {
+                        "module":  "build30_forward_watch",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build30_cap1_forward_watch\\build30_forward_watch.py",
+                        "original_sha256":  "a9dbab567eed0ca1f55ad22807a923c59d557dcc8696a46424b23c412e744237",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build30_forward_watch.py",
+                        "tracked_sha256":  "a9dbab567eed0ca1f55ad22807a923c59d557dcc8696a46424b23c412e744237",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "build30_session",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build30_cap1_forward_watch\\build30_session.py",
+                        "original_sha256":  "548b3d6b45b43f59452dc29ccdc0aa91ae5a4f259e79d3d80ec2fb47cdeb7ff4",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build30_session.py",
+                        "tracked_sha256":  "a994e33f2b669fb6850619e830ba3b7c779fa473c6dedfa90084b7f6068c1d89",
+                        "byte_identical":  false,
+                        "path_only_adaptation":  "repository root derived from tracked location; Build 29 and Build 30 roots rebound to tracked compatibility directory"
+                    },
+                    {
+                        "module":  "build30_watchlist",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_build30_cap1_forward_watch\\build30_watchlist.py",
+                        "original_sha256":  "7317d01e3647c7006685e598703f05a16726172150e160e142d199e7c5bf6784",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/build30_watchlist.py",
+                        "tracked_sha256":  "7317d01e3647c7006685e598703f05a16726172150e160e142d199e7c5bf6784",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "production_live_artifacts",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_production_private_live\\production_live_artifacts.py",
+                        "original_sha256":  "8d3d2cf1011d3035b9f3086d80eff4a6fd15edf07b36e5d394ed54860a40ad22",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/production_live_artifacts.py",
+                        "tracked_sha256":  "aa9027c6bf1f91d0a6753600b42a8f63c4d1cee492f362afc3a3bdf53243f145",
+                        "byte_identical":  false,
+                        "path_only_adaptation":  "production, Build 29, and Build 30 sibling roots rebound to tracked compatibility directory"
+                    },
+                    {
+                        "module":  "production_live_axiom_gate",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_production_private_live\\production_live_axiom_gate.py",
+                        "original_sha256":  "3128e33cc5e55c5c0b0b9249c2b67083d35f870dfabd6e6edfb76da345842db9",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/production_live_axiom_gate.py",
+                        "tracked_sha256":  "3128e33cc5e55c5c0b0b9249c2b67083d35f870dfabd6e6edfb76da345842db9",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "production_live_lp_verify",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_production_private_live\\production_live_lp_verify.py",
+                        "original_sha256":  "818feb26268c18e86db1b9435f23c840ba4f1fab06cd560663405933e2e5a3ce",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/production_live_lp_verify.py",
+                        "tracked_sha256":  "40ba11ed78119032ad53a93992636aa8013bd37817311a1ceb14a48081f32417",
+                        "byte_identical":  false,
+                        "path_only_adaptation":  "production sibling root rebound to tracked compatibility directory"
+                    },
+                    {
+                        "module":  "production_live_lp_verify_models",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_production_private_live\\production_live_lp_verify_models.py",
+                        "original_sha256":  "5859bc185dfe3b3474c5e285dfe03d26a55a0af68bf57de94bafd77c0d51c7ef",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/production_live_lp_verify_models.py",
+                        "tracked_sha256":  "5859bc185dfe3b3474c5e285dfe03d26a55a0af68bf57de94bafd77c0d51c7ef",
+                        "byte_identical":  true,
+                        "path_only_adaptation":  "none"
+                    },
+                    {
+                        "module":  "production_live_runner",
+                        "original_absolute_path":  "C:\\Users\\BalaC\\phx2_production_private_live\\production_live_runner.py",
+                        "original_sha256":  "6bb13cd7c425c0f7f1c1d3114acf89579b24db8164bdf3dbb6364c07ace3730c",
+                        "tracked_relative_path":  "PHX2/free_tier_producer/compat/production_live_runner.py",
+                        "tracked_sha256":  "582bc61ddfb66088168c4f3a42171be209e483577dd22e040f55175595bf09bf",
+                        "byte_identical":  false,
+                        "path_only_adaptation":  "production sibling root rebound to tracked compatibility directory"
+                    }
+                ]
+}

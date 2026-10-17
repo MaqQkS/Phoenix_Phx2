@@ -1,0 +1,62 @@
+[
+  {
+    "name": "phx1_row_13172_normal",
+    "source_row_id": 13172,
+    "total_fee_sol": "42.564652288",
+    "lp_sol": "5.972356718",
+    "protocol_sol": "7.002608315",
+    "creator_sol": "29.589687255",
+    "bribes_sol": "3.1962953609999993",
+    "transaction_count": 13856,
+    "event_count": 13857,
+    "score": 0,
+    "flags": [],
+    "label": "Normal",
+    "hard_block": false
+  },
+  {
+    "name": "phx1_row_13173_elevated",
+    "source_row_id": 13173,
+    "total_fee_sol": "8.487772566",
+    "lp_sol": "0.881198103",
+    "protocol_sol": "2.84024899",
+    "creator_sol": "4.766325473",
+    "bribes_sol": "0.421590753",
+    "transaction_count": 1481,
+    "event_count": 1481,
+    "score": 1,
+    "flags": ["bribes_low"],
+    "label": "Elevated",
+    "hard_block": false
+  },
+  {
+    "name": "phx1_row_13174_suspicious",
+    "source_row_id": 13174,
+    "total_fee_sol": "84.149762356",
+    "lp_sol": "14.384759917",
+    "protocol_sol": "3.693454571",
+    "creator_sol": "66.071547868",
+    "bribes_sol": "3.3521306120000003",
+    "transaction_count": 11864,
+    "event_count": 11864,
+    "score": 3,
+    "flags": ["bribes_low", "creator_dom_hi"],
+    "label": "Suspicious",
+    "hard_block": false
+  },
+  {
+    "name": "phx1_row_13176_scam_likely",
+    "source_row_id": 13176,
+    "total_fee_sol": "21.072504102",
+    "lp_sol": "3.627251787",
+    "protocol_sol": "0.906814277",
+    "creator_sol": "16.538438038",
+    "bribes_sol": "0.21493607399999998",
+    "transaction_count": 3534,
+    "event_count": 3534,
+    "score": 5,
+    "flags": ["bribes_starved", "creator_dom_hi"],
+    "label": "SCAM Likely",
+    "hard_block": true
+  }
+]

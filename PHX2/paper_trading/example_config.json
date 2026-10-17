@@ -93,6 +93,7 @@
   },
   "strategies": [
     {
+      "allow_high_risk": false,
       "allow_reentry": false,
       "enabled": true,
       "max_open_positions": 25,
@@ -129,7 +130,7 @@
         "high_quality_tiers": [],
         "high_quality_trailing_stop_pct": 0.25,
         "high_quality_trim_fraction": 0.5,
-        "initials_recovery_multiple": null,
+        "initials_recovery_multiple": 1.35,
         "max_dca_count": 2,
         "max_entry_market_cap_usd": null,
         "max_hold_seconds": 21600.0,
@@ -141,10 +142,13 @@
         "min_time_between_dca_seconds": 120.0,
         "require_reaudit_before_dca": true,
         "require_tier": true,
+        "risk_medium_min_liquidity_usd": 10000.0,
+        "risk_medium_min_market_cap_usd": 30000.0,
+        "risk_medium_require_fresh_market": true,
         "runner_trailing_stop_pct": 0.3,
         "scout_entry_pct_of_max_position": 0.1,
         "stop_loss_pct": -0.3,
-        "take_profit_pct": 0.35,
+        "take_profit_pct": null,
         "tier_dip_bands": {
           "1": [
             50.0,
@@ -165,6 +169,7 @@
       "strategy_type": "BALA_PLAN"
     },
     {
+      "allow_high_risk": false,
       "allow_reentry": false,
       "enabled": true,
       "max_open_positions": 25,
@@ -186,6 +191,7 @@
       "strategy_type": "CONFIG_PLAN"
     },
     {
+      "allow_high_risk": false,
       "allow_reentry": false,
       "enabled": true,
       "max_open_positions": 25,
@@ -211,6 +217,7 @@
       "strategy_type": "MONKEY_RANDOM"
     },
     {
+      "allow_high_risk": false,
       "allow_reentry": false,
       "enabled": true,
       "max_open_positions": 25,
@@ -226,6 +233,7 @@
       "strategy_type": "MONKEY_HOLD"
     },
     {
+      "allow_high_risk": false,
       "allow_reentry": false,
       "enabled": true,
       "max_open_positions": 25,
@@ -242,6 +250,23 @@
       },
       "sizing_profile": "default_hybrid",
       "strategy_type": "THREE_X_INITIALS_RUNNER"
+    },
+    {
+      "allow_high_risk": true,
+      "allow_reentry": false,
+      "enabled": true,
+      "max_open_positions": 25,
+      "name": "high_risk_observer",
+      "params": {
+        "max_hold_seconds": 3600.0,
+        "only_high_risk": true,
+        "require_price": true,
+        "stop_loss_pct": -0.6,
+        "take_profit_pct": 0.5,
+        "trailing_stop_pct": null
+      },
+      "sizing_profile": "default_hybrid",
+      "strategy_type": "HIGH_RISK_OBSERVER"
     }
   ]
 }

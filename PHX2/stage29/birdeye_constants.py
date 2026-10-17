@@ -97,12 +97,23 @@ BIRDEYE_PATH_OHLCV: Final[str] = "/defi/ohlcv"
 # HTTP transport. Stage 29.2 owns the allowed-path surface; the
 # Stage 30.4 bridge owns the mapping into compact market context.
 BIRDEYE_PATH_TOKEN_OVERVIEW: Final[str] = "/defi/token_overview"
+# 2026-08-03 V3 pair-history expansion (post-migration ATH remediation).
+# The V3 pair endpoint is the canonical post-migration ATH history
+# source: candles of the EXACT authenticated migration pool, quoted in
+# the pool's quote asset (native). The V3 token endpoint is admitted
+# ONLY for (a) USD valuation of an already-selected pair candle and
+# (b) explicit token-vs-pair divergence diagnostics -- it is never a
+# silent substitute for pair candles.
+BIRDEYE_PATH_V3_PAIR_OHLCV: Final[str] = "/defi/v3/ohlcv/pair"
+BIRDEYE_PATH_V3_TOKEN_OHLCV: Final[str] = "/defi/v3/ohlcv"
 
 
 BIRDEYE_ALLOWED_PATHS: Final[tuple[str, ...]] = (
     BIRDEYE_PATH_PRICE,
     BIRDEYE_PATH_OHLCV,
     BIRDEYE_PATH_TOKEN_OVERVIEW,
+    BIRDEYE_PATH_V3_PAIR_OHLCV,
+    BIRDEYE_PATH_V3_TOKEN_OHLCV,
 )
 
 
@@ -182,6 +193,61 @@ BIRDEYE_OHLCV_TYPE_ALLOWED: Final[tuple[str, ...]] = (
 
 
 BIRDEYE_DEFAULT_OHLCV_TYPE: Final[str] = BIRDEYE_OHLCV_TYPE_15M
+
+
+# ---------------------------------------------------------------------------
+# Birdeye V3 second-resolution candle types (V3 endpoints only)
+# ---------------------------------------------------------------------------
+#
+# V3 supports sub-minute candles with shorter retention. The 2026-08-03
+# capability probe against the last real alert's migration pair proved both
+# resolutions live: 15s full-window scan plus 1s peak refinement. The V1
+# closed set above is deliberately untouched -- second-resolution tokens are
+# valid ONLY on the V3 paths.
+
+
+BIRDEYE_V3_OHLCV_TYPE_1S: Final[str] = "1s"
+BIRDEYE_V3_OHLCV_TYPE_15S: Final[str] = "15s"
+BIRDEYE_V3_OHLCV_TYPE_30S: Final[str] = "30s"
+
+BIRDEYE_V3_OHLCV_TYPE_ALLOWED: Final[tuple[str, ...]] = (
+    BIRDEYE_V3_OHLCV_TYPE_1S,
+    BIRDEYE_V3_OHLCV_TYPE_15S,
+    BIRDEYE_V3_OHLCV_TYPE_30S,
+) + BIRDEYE_OHLCV_TYPE_ALLOWED
+
+#: Seconds spanned by each V3 candle type PHX2 actually requests.
+BIRDEYE_V3_OHLCV_TYPE_SECONDS: Final[dict] = {
+    BIRDEYE_V3_OHLCV_TYPE_1S: 1,
+    BIRDEYE_V3_OHLCV_TYPE_15S: 15,
+    BIRDEYE_V3_OHLCV_TYPE_30S: 30,
+    BIRDEYE_OHLCV_TYPE_1M: 60,
+}
+
+#: Fixed V3 request-shape parameters (2026-08-03 probe-validated):
+#: ``mode=range`` selects an explicit unix-second window and
+#: ``padding=false`` refuses synthesized empty candles -- a padded candle
+#: carries no trade and must never become an ATH observation.
+BIRDEYE_V3_MODE_RANGE: Final[str] = "range"
+BIRDEYE_V3_PADDING_DISABLED: Final[str] = "false"
+
+#: Outlier handling: the probe queried the last real alert's pair with the
+#: parameter unset, ``outlier=true`` and ``outlier=false`` -- all three
+#: returned byte-identical candles, so PHX2 pins the provider default
+#: (parameter omitted) and records this mode token in evidence. The retained
+#: maximum is therefore the LITERAL chart ATH; no filtered variant exists to
+#: retain separately while the provider returns identical series.
+BIRDEYE_V3_OUTLIER_MODE_PROVIDER_DEFAULT: Final[str] = (
+    "PROVIDER_DEFAULT_UNSET")
+
+
+def is_allowed_v3_ohlcv_type(value: object) -> bool:
+    """True iff ``value`` is a candle type admitted on the V3 paths."""
+
+    return (
+        isinstance(value, str)
+        and value in BIRDEYE_V3_OHLCV_TYPE_ALLOWED
+    )
 
 
 def is_allowed_ohlcv_type(value: object) -> bool:
@@ -384,7 +450,18 @@ __all__ = (
     "BIRDEYE_PATH_PRICE",
     "BIRDEYE_PATH_OHLCV",
     "BIRDEYE_PATH_TOKEN_OVERVIEW",
+    "BIRDEYE_PATH_V3_PAIR_OHLCV",
+    "BIRDEYE_PATH_V3_TOKEN_OHLCV",
     "BIRDEYE_ALLOWED_PATHS",
+    "BIRDEYE_V3_OHLCV_TYPE_1S",
+    "BIRDEYE_V3_OHLCV_TYPE_15S",
+    "BIRDEYE_V3_OHLCV_TYPE_30S",
+    "BIRDEYE_V3_OHLCV_TYPE_ALLOWED",
+    "BIRDEYE_V3_OHLCV_TYPE_SECONDS",
+    "BIRDEYE_V3_MODE_RANGE",
+    "BIRDEYE_V3_PADDING_DISABLED",
+    "BIRDEYE_V3_OUTLIER_MODE_PROVIDER_DEFAULT",
+    "is_allowed_v3_ohlcv_type",
     "BIRDEYE_HTTP_METHOD_GET",
     "BIRDEYE_HEADER_X_API_KEY",
     "BIRDEYE_HEADER_X_CHAIN",

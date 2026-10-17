@@ -82,6 +82,7 @@ def default_proof_request(
         age_display=PROOF_AGE_DISPLAY,
         market_context_status=market_context_status,
         market_context_fetched_at_utc=market_context_fetched_at_utc,
+        allow_legacy_inferred_ath_market_cap=True,
     )
 
 

@@ -96,12 +96,17 @@ def test_token_overview_path_pinned_and_allowed_in_stage29() -> None:
     assert BIRDEYE_PATH_TOKEN_OVERVIEW in BIRDEYE_ALLOWED_PATHS
 
 
-def test_stage29_allowed_paths_now_three() -> None:
-    assert len(BIRDEYE_ALLOWED_PATHS) == 3
+def test_stage29_allowed_paths_now_five() -> None:
+    # Three legacy paths plus the two V3 candle paths added by the
+    # 2026-08-03 post-migration-ATH remediation (pair history canonical,
+    # token USD series for valuation/diagnostics).
+    assert len(BIRDEYE_ALLOWED_PATHS) == 5
     assert BIRDEYE_ALLOWED_PATHS == (
         "/defi/price",
         "/defi/ohlcv",
         "/defi/token_overview",
+        "/defi/v3/ohlcv/pair",
+        "/defi/v3/ohlcv",
     )
 
 

@@ -1,151 +1,82 @@
-# Build #23 — Safe `main.py` Supervised Entrypoint Runbook
+# Build #23 — `main.py` Supervised Entrypoint Runbook (DEPRECATED / HISTORICAL)
 
-Build #23 wires a **safe `python main.py` entrypoint** to the already-proven,
-**out-of-repo supervised private operator flow**. `main.py` is a thin launcher: it
-validates operator inputs and **subprocesses** the supervisor. It imports no
-supervisor, builds no second send path, constructs no transport, flips no arm, and
-sends nothing. `--live` only *launches* the supervised flow; the interactive human
-approval, the one-line arm flip, and the single private operator send all remain
-**inside the out-of-repo supervisor**.
-
-> This build performs **no send, no arm, no durable-ledger mutation**. The default
-> `python main.py` is no-send / status-only.
-
----
-
-## 1. Command surface
-
-```
-python main.py
-python main.py --mode private-supervised --preflight-only \
-    --require-baseline <sha256>:<size_bytes>:<line_count>
-python main.py --mode private-supervised --dry-run \
-    --require-baseline <sha256>:<size_bytes>:<line_count>
-python main.py --mode private-supervised --live --post-send stop \
-    --require-baseline <sha256>:<size_bytes>:<line_count>
-```
-
-- **Default (`python main.py`)** — prints a one-line safe status and exits `0`.
-  Never reaches the launcher, never reads a credential, never spawns a process.
-- **`--mode private-supervised`** — the only accepted mode. Requires exactly one
-  action and a `--require-baseline` assertion.
-- **`--preflight-only`** — invokes the supervisor's preflight verb (policy gate +
-  durable dedupe forecast). No send.
-- **`--dry-run`** — invokes the supervisor's dry-run verb (preview + send-fake +
-  dedupe forecast). No real transport.
-- **`--live --post-send stop`** — *launches* the supervised live flow. The
-  supervisor still performs interactive human approval, the one-line arm flip, the
-  single private send, immediate re-safe, the +1 ledger verification, and the
-  baseline update. `--post-send stop` is required with `--live`.
-
-Exit codes: `0` default safe / relayed child success · child exit code relayed for
-an invoked supervisor · `3` fail-closed launcher refusal · `2` argparse usage error.
+> **DEPRECATED — DO NOT RUN. This runbook is retained for history only.**
+>
+> The command surface it originally documented
+> (`python main.py --mode private-supervised --live …`) is **no longer a
+> supported armed path** and is not the way to arm a private-live send. It is
+> superseded by the three canonical PowerShell launchers (below). The 2026-07-20
+> residual re-audit recorded the old command surface as a competing, unmarked
+> armed entry point (finding **M-3**); this banner and the rewrite below close it.
+>
+> Two facts make the old command inert as well as unsupported:
+>
+> - `python main.py` at the repository root now runs the **non-arming production
+>   supervisor** (`PHX2.runtime.production_entrypoint`), whose parser accepts only
+>   `--hours`, `--status`, and `--run-dir`. The documented `--mode
+>   private-supervised --live` flags **argparse-error**; they cannot execute.
+> - The supervisor's producer child **fails closed** and never arms or sends
+>   (`run_producer_child` → `ARMED_PRIVATE_LIVE_REFUSED_USE_CANONICAL_LAUNCHERS`).
+>   `python main.py --hours N` is observation/orchestration only.
 
 ---
 
-## 2. Durable-ledger baseline assertion (exact semantics)
+## The canonical armed private-live path (and the only one)
 
-`--require-baseline` carries the operator's durable JSONL ledger baseline as
-**`sha256:size_bytes:line_count`**:
+The armed private-live send path is one of the three PowerShell launchers in
+`C:\Users\BalaC\phx2_production_private_live`, and **only** those:
 
-| Field | Meaning |
+```
+launch_pressure_24h_01.ps1     # 24 h
+launch_soak_02h_01.ps1         # 2 h
+launch_window_04.ps1           # 30 min
+```
+
+Each runs the **tracked repository module** from the repository root with the
+complete production-gRPC contract:
+
+| Argument | Value |
 |---|---|
-| `sha256` | the durable ledger content digest (64 hex chars, case preserved) |
-| `size_bytes` | the durable ledger size in **bytes** |
-| `line_count` | the durable ledger **line / JSONL record** count |
+| module | `PHX2.free_tier_producer.free_tier_session` |
+| provider mode | `--provider-mode paid_primary` |
+| contract | `--require-production-grpc` (fails closed before any network object) |
+| durable state | `--cursor-state-dir …\phx2_paid_primary_runtime\state` (stable) |
+| ledger | `…\phx2_paid_primary_runtime\ledger\ping_dedupe.jsonl` |
+| run output | `…\phx2_paid_primary_runtime\runs\<run-id>` (rotates) |
+| HEAD pin | `--expected-head <repository HEAD>` |
 
-**Current baseline:**
-
-```
-78D20A7A2FE69BEF8BF833B60BB92209D06D23CE69A8D6F2800F991AC0331D96 / 1096 bytes / 3 lines
-```
-
-Current preflight example:
-
-```
-python main.py --mode private-supervised --preflight-only \
-    --require-baseline 78D20A7A2FE69BEF8BF833B60BB92209D06D23CE69A8D6F2800F991AC0331D96:1096:3
-```
-
-**After a successful next real send** (owned by the out-of-repo supervisor, not by
-this repo):
-
-- `line_count` advances **3 → 4** (one appended JSONL record),
-- `size_bytes` grows by **one JSONL record** (not by exactly +1 byte),
-- `sha256` **changes** and becomes the new baseline.
-
-`main.py` only **passes the triple through verbatim** to the supervisor and
-verifies its shape. It computes no digest, reads no ledger, and mutates no ledger.
-The supervisor verifies the live ledger against the baseline before arming and
-re-verifies the advanced baseline after a successful send.
+`PHX2.free_tier_producer.launcher_contract.validate_launcher_arguments` checks
+that whole vector offline, without starting anything. Operator arm
+acknowledgement (the confirm token) is fetched and held only inside the launcher.
 
 ---
 
-## 3. Supervisor command pointer (`PHX2_SUPERVISOR_CMD`)
+## What Build #23 was
 
-`main.py` resolves *where* the out-of-repo supervisor lives from a single owned
-**pointer** env var (a command location — **not** a credential):
+Build #23 wired a thin `python main.py` launcher that validated operator inputs
+and **subprocessed** an out-of-repo supervised private-operator flow. It imported
+no supervisor, built no second send path, constructed no transport, flipped no
+arm, and sent nothing itself; `--live` only *launched* the out-of-repo flow.
 
-```
-# A single executable / launcher path:
-$env:PHX2_SUPERVISOR_CMD = "C:\path\to\supervisor.exe"
-
-# Or a JSON argv array (interpreter + script + any prefix args):
-$env:PHX2_SUPERVISOR_CMD = '["python", "C:\\path\\to\\supervisor.py"]'
-```
-
-If `PHX2_SUPERVISOR_CMD` is unset, blank, or malformed, every `--mode
-private-supervised` action **fails closed** (exit `3`) and no subprocess is spawned.
-
-The supervisor inherits the real environment and stdio when launched, so **it** —
-not `main.py` — reads its own credentials and runs its own interactive approval.
-`main.py` reads no credential env var.
+That entrypoint has been superseded. The repository root `main.py` is now the
+non-arming production supervisor described in the banner above, and the armed
+private-live path is exclusively the three launchers. The supervised-launcher
+modules under `PHX2/entrypoint/` remain in the tree with their own tests, but no
+operator command surface documents an armed run through them, and none is
+supported.
 
 ---
 
-## 4. Handoff contract (argv `main.py` appends to the supervisor command)
-
-`main.py` appends only this closed-set tail to the resolved command prefix:
-
-```
---mode private-supervised --action <preflight-only|dry-run|live> \
-    --require-baseline <sha256>:<size_bytes>:<line_count> [ --post-send stop ]
-```
-
-`--post-send stop` is appended only for `--live`. No routing, audience, arm,
-transport, or credential flag is ever appended. The out-of-repo supervisor must
-accept this contract.
-
----
-
-## 5. Safety invariants
-
-- Default `python main.py` is no-send / status-only.
-- `main.py` subprocesses the supervisor; it never imports it and builds no second
-  send path.
-- `main.py` constructs no transport, passes no authorization sentinel, and flips no
-  arm. `--live` only launches the supervised flow.
-- The only accepted mode is `private-supervised`; there is no public / subscriber /
-  paid routing path.
-- `main.py` reads exactly one env var (the supervisor command pointer) and never a
-  credential.
-- `main.py` prints only a redacted baseline (first/last 8 hex chars) and closed-set
-  status tokens — never the full digest, the handoff argv, or any secret.
-- `_ARMED_REAL_SEND_WIRING_REVIEWED` (in `supervised_launcher.py`) stays `False`:
-  this repo ships no reviewed real-send wiring of its own.
-
----
-
-## 6. Verification (offline, no send)
+## Verification (offline, no send)
 
 ```powershell
-# Build #23 entrypoint test subset (fakes only; never spawns a process):
-python -m pytest PHX2/tests/entrypoint -q
+# Non-arming supervisor status (read-only; constructs nothing, sends nothing):
+python main.py --status
 
-# Default safe status:
-python PHX2/main.py
+# The offline launcher-argument contract (checks the canonical vector without
+# starting anything):
+python -m pytest PHX2/tests/test_production_launch_contract.py -q
 ```
 
-Do **not** run `--mode private-supervised --live` as part of verification: it is the
-real supervised ceremony and is gated by interactive human approval inside the
-out-of-repo supervisor.
+Do **not** attempt to arm a private-live send through `main.py`. The armed path
+is a canonical launcher, run interactively by the operator, and only that.

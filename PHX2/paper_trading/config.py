@@ -45,6 +45,7 @@ STRATEGY_CONFIG_PLAN = "CONFIG_PLAN"
 STRATEGY_MONKEY_RANDOM = "MONKEY_RANDOM"
 STRATEGY_MONKEY_HOLD = "MONKEY_HOLD"
 STRATEGY_THREE_X = "THREE_X_INITIALS_RUNNER"
+STRATEGY_HIGH_RISK_OBSERVER = "HIGH_RISK_OBSERVER"
 
 STRATEGY_TYPES = (
     STRATEGY_BALA_PLAN,
@@ -52,6 +53,7 @@ STRATEGY_TYPES = (
     STRATEGY_MONKEY_RANDOM,
     STRATEGY_MONKEY_HOLD,
     STRATEGY_THREE_X,
+    STRATEGY_HIGH_RISK_OBSERVER,
 )
 
 END_OF_STREAM_CLOSE = "CLOSE_AT_LAST_PRICE"
@@ -211,6 +213,9 @@ class StrategyConfig:
     sizing_profile: str = "default_hybrid"
     max_open_positions: int = 25
     allow_reentry: bool = False
+    # Risk-aware paper protection (default OFF): a strategy only receives RISK_HIGH
+    # candidates when it explicitly opts in (the HIGH_RISK_OBSERVER bucket does).
+    allow_high_risk: bool = False
     params: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -221,6 +226,7 @@ class StrategyConfig:
             "sizing_profile": self.sizing_profile,
             "max_open_positions": self.max_open_positions,
             "allow_reentry": self.allow_reentry,
+            "allow_high_risk": self.allow_high_risk,
             "params": copy.deepcopy(self.params),
         }
 
@@ -239,8 +245,11 @@ class StrategyConfig:
                 f"(expected one of {', '.join(STRATEGY_TYPES)})")
             return None
         cfg = cls(name=name.strip(), strategy_type=stype)
+        if stype == STRATEGY_HIGH_RISK_OBSERVER:
+            # The observer bucket exists to absorb RISK_HIGH candidates; opt-in by type.
+            cfg.allow_high_risk = True
         for key in ("enabled", "sizing_profile", "max_open_positions",
-                    "allow_reentry"):
+                    "allow_reentry", "allow_high_risk"):
             if key in raw:
                 setattr(cfg, key, raw[key])
         params = raw.get("params", {})
@@ -412,12 +421,19 @@ def default_strategy_params(strategy_type: str) -> Dict[str, Any]:
             "do_not_dca_if_volume_dead": False,
             "do_not_dca_if_price_data_stale_seconds": 900.0,
             "do_not_dca_if_market_cap_below_usd": 3000.0,
+            # --- Risk-aware entry conservatism (RISK_HIGH is already refused by the
+            # engine gate: bala never sets allow_high_risk). RISK_MEDIUM is allowed
+            # ONLY when LP/MC clear these floors and no market-quality risk reason
+            # (stale / refresh-failing / incomplete / LP-missing) is present.
+            "risk_medium_min_liquidity_usd": 10000.0,
+            "risk_medium_min_market_cap_usd": 30000.0,
+            "risk_medium_require_fresh_market": True,
             # --- Exit management.
             "take_profit_pct": 0.35,
             "stop_loss_pct": -0.30,
             "trailing_stop_pct": None,
             "max_hold_seconds": 21600.0,
-            # Optional 3x initials recovery (sell back initial cost, ride
+            # Optional initials recovery (sell back initial cost, ride
             # the rest as a runner). None disables.
             "initials_recovery_multiple": None,
             "runner_trailing_stop_pct": 0.30,
@@ -470,6 +486,19 @@ def default_strategy_params(strategy_type: str) -> Dict[str, Any]:
             "max_entry_market_cap_usd": None,
             "allowed_tiers": None,
         }
+    if strategy_type == STRATEGY_HIGH_RISK_OBSERVER:
+        return {
+            # The degen/scam study bucket: enters ONLY RISK_HIGH candidates (the ones
+            # every default strategy skips), so clean-strategy results stay unpolluted
+            # while the wreckage is still measured. Tight plan: small notional profile
+            # is the operator's choice; exits are fast by default.
+            "require_price": True,
+            "only_high_risk": True,
+            "take_profit_pct": 0.50,
+            "stop_loss_pct": -0.60,
+            "max_hold_seconds": 3600.0,
+            "trailing_stop_pct": None,
+        }
     raise ValueError(f"unknown strategy type: {strategy_type}")
 
 
@@ -494,7 +523,10 @@ def default_config() -> PaperConfig:
     cfg.strategies = [
         StrategyConfig(name="bala_plan", strategy_type=STRATEGY_BALA_PLAN,
                        sizing_profile="default_hybrid",
-                       params=default_strategy_params(STRATEGY_BALA_PLAN)),
+                       params={**default_strategy_params(STRATEGY_BALA_PLAN),
+                               "initials_recovery_multiple": 1.35,
+                               "take_profit_pct": None,
+                               "runner_trailing_stop_pct": 0.30}),
         StrategyConfig(name="config_plan", strategy_type=STRATEGY_CONFIG_PLAN,
                        sizing_profile="default_hybrid",
                        params={**default_strategy_params(STRATEGY_CONFIG_PLAN),
@@ -512,6 +544,12 @@ def default_config() -> PaperConfig:
         StrategyConfig(name="three_x_runner", strategy_type=STRATEGY_THREE_X,
                        sizing_profile="default_hybrid",
                        params=default_strategy_params(STRATEGY_THREE_X)),
+        StrategyConfig(name="high_risk_observer",
+                       strategy_type=STRATEGY_HIGH_RISK_OBSERVER,
+                       sizing_profile="default_hybrid",
+                       allow_high_risk=True,
+                       params=default_strategy_params(
+                           STRATEGY_HIGH_RISK_OBSERVER)),
     ]
     return cfg
 
@@ -622,6 +660,7 @@ __all__ = [
     "STRATEGY_MONKEY_RANDOM",
     "STRATEGY_MONKEY_HOLD",
     "STRATEGY_THREE_X",
+    "STRATEGY_HIGH_RISK_OBSERVER",
     "STRATEGY_TYPES",
     "END_OF_STREAM_CLOSE",
     "END_OF_STREAM_LEAVE_OPEN",

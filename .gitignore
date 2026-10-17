@@ -39,6 +39,12 @@ PHX2/stage18_runs/
 PHX2/stage19_runs/
 stage20_closure_runs/
 
+# Helius developer capability evidence (sanitized, bulky, never committed)
+artifacts/helius_developer_shadow/
+
+# Helius/Chainstack shadow parity runs (sanitized runtime evidence)
+artifacts/helius_shadow_parity/
+
 # Local pytest --basetemp dirs (used to bypass system temp ACL issues).
 # Stages that create fresh basetemp paths per phase
 # (e.g. .pytest_basetmp_stage16b_p1, .pytest_basetmp_stage16b_p2)

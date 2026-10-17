@@ -24,7 +24,7 @@ Tier semantics (dip bands are config, defaults Tier 1 50-60%, Tier 2
   the DCA time gate hold. Never averages down into obvious death.
 
 After entries the engine manages TP/SL/trailing/max-hold/rug/data-lost
-from the exit plan; this strategy adds the optional 3x initials recovery
+from the exit plan; this strategy adds configurable initials recovery
 (sell back the initial cost, ride the runner with a trailing stop) and the
 high-quality 5x trim path.
 
@@ -50,6 +50,10 @@ from PHX2.paper_trading.models import (
     STATUS_DATA_LOST,
     STATUS_RUGGED,
     SKIP_STATUSES,
+)
+from PHX2.paper_trading.risk import (
+    MARKET_QUALITY_REASONS,
+    RISK_MEDIUM,
 )
 from PHX2.paper_trading.strategy import (
     AddIntent,
@@ -106,6 +110,11 @@ class BalaPlanStrategy(PaperStrategy):
     def __init__(self, cfg) -> None:
         super().__init__(cfg)
         self._tracks: Dict[str, _MintTrack] = {}
+        # Risk-conservatism telemetry (bala never trades RISK_HIGH — the engine
+        # gate enforces that and records the skip row; these count the strategy's
+        # OWN medium-risk refusals).
+        self._risk_medium_skips = 0
+        self._last_risk_skip: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Validation
@@ -291,7 +300,8 @@ class BalaPlanStrategy(PaperStrategy):
         return min(profile_max, config_max)
 
     def _build_plan(self, high_quality: bool) -> ExitPlan:
-        if high_quality:
+        recovery = self._num(self.params.get("initials_recovery_multiple"))
+        if high_quality and recovery is None:
             return ExitPlan(
                 take_profit_pct=None,
                 stop_loss_pct=self._num(self.params.get("stop_loss_pct")),
@@ -304,13 +314,14 @@ class BalaPlanStrategy(PaperStrategy):
                     self.params.get("high_quality_trim_fraction")),
             )
         take_profit = self._num(self.params.get("take_profit_pct"))
-        if self._num(self.params.get("initials_recovery_multiple")) is not None:
-            # The 3x recovery leg is the profit event; no flat TP before it.
+        if recovery is not None:
+            # Recovery owns the profit event for every quality tier.
             take_profit = None
         return ExitPlan(
             take_profit_pct=take_profit,
             stop_loss_pct=self._num(self.params.get("stop_loss_pct")),
-            trailing_stop_pct=self._num(self.params.get("trailing_stop_pct")),
+            trailing_stop_pct=(None if recovery is not None else
+                               self._num(self.params.get("trailing_stop_pct"))),
             max_hold_seconds=self._num(self.params.get("max_hold_seconds")),
         )
 
@@ -328,6 +339,32 @@ class BalaPlanStrategy(PaperStrategy):
             return None
         if not self.passes_entry_filters(snapshot, check_tiers=False):
             return None
+        # Risk conservatism (RISK_HIGH never reaches an entry for bala: the engine
+        # gate refuses it and records the SKIPPED_HIGH_RISK row; allow_high_risk is
+        # never set on bala). RISK_MEDIUM is tradeable ONLY on a strong, fresh
+        # market: LP/MC floors + no market-quality risk reason. LOW/UNKNOWN pass —
+        # missing free-tier data alone must not veto (the audit still runs).
+        risk_label, risk_reasons = self.snapshot_risk(snapshot, ctx)
+        if risk_label == RISK_MEDIUM:
+            min_lp = self._num(self.params.get("risk_medium_min_liquidity_usd"))
+            min_mc = self._num(self.params.get("risk_medium_min_market_cap_usd"))
+            lp_ok = (min_lp is None
+                     or (snapshot.liquidity_usd is not None
+                         and snapshot.liquidity_usd >= min_lp))
+            mc_ok = (min_mc is None
+                     or (snapshot.market_cap_usd is not None
+                         and snapshot.market_cap_usd >= min_mc))
+            fresh_ok = (not self.params.get("risk_medium_require_fresh_market",
+                                            True)
+                        or not (set(risk_reasons) & MARKET_QUALITY_REASONS))
+            if not (lp_ok and mc_ok and fresh_ok):
+                cause = ("MARKET_NOT_FRESH" if not fresh_ok
+                         else ("LP_BELOW_FLOOR" if not lp_ok else "MC_BELOW_FLOOR"))
+                self._risk_medium_skips += 1
+                self._last_risk_skip = (
+                    f"{snapshot.mint[:8]}.. RISK_MEDIUM_{cause}")
+                track.note = f"RISK_MEDIUM_SKIP_{cause}"
+                return None
         drawdown = self._resolve_drawdown(snapshot)
         tier = self._resolve_tier(snapshot, drawdown)
         if tier is None:
@@ -423,9 +460,11 @@ class BalaPlanStrategy(PaperStrategy):
 
         if not snapshot.has_price or not position.entry_price:
             return []
+        recovery = self._maybe_initials_recovery(position, snapshot, ctx)
+        if recovery:
+            return recovery  # do not add fresh exposure at the recovery trigger
         intents: List[Any] = []
         intents.extend(self._maybe_dca(position, snapshot, ctx))
-        intents.extend(self._maybe_initials_recovery(position, snapshot, ctx))
         intents.extend(self._maybe_hq_trim(position, snapshot, ctx))
         return intents
 
@@ -441,7 +480,8 @@ class BalaPlanStrategy(PaperStrategy):
         dca_count = int(state.get("dca_count", 0))
         if dca_count >= int(params.get("max_dca_count", 0)):
             return []
-        if state.get("initial_recovered") or state.get("trimmed"):
+        if (state.get("initial_recovered") or state.get("trimmed")
+                or state.get("initial_recovery_proceeds_usd", 0.0) > 0):
             return []  # never DCA after the profit machinery fired
 
         drawdown = self._resolve_drawdown(snapshot)
@@ -553,25 +593,24 @@ class BalaPlanStrategy(PaperStrategy):
         multiple = snapshot.price_usd / position.entry_price
         if multiple < mult * (1.0 - _EPS):
             return []
-        state = position.strategy_state
-        state["initial_recovered"] = True
-        state["recovered_at_multiple"] = round(multiple, 4)
-        state["initial_cost_usd"] = round(position.cost_basis_usd, 6)
-        state["bala_state"] = STATE_INITIALS_RECOVERED
-        state["runner_status"] = STATE_RUNNER_ACTIVE
-        position.plan.trailing_stop_pct = self._num(
-            self.params.get("runner_trailing_stop_pct"))
-        position.post_trim_peak_price = snapshot.price_usd
         return [ExitIntent(
             kind=EXIT_PARTIAL,
             recover_usd=position.cost_basis_usd,
             leg=LEG_INITIALS_RECOVERY,
-            reason=f"BALA_INITIALS_RECOVERED_AT_{mult:g}X",
+            reason=f"BALA_INITIALS_RECOVERY_AT_{mult:g}X",
         )]
+
+    def on_initials_recovered(self, position: PaperPosition,
+                              price_raw: float) -> None:
+        super().on_initials_recovered(position, price_raw)
+        position.strategy_state["bala_state"] = STATE_INITIALS_RECOVERED
 
     def _maybe_hq_trim(self, position: PaperPosition,
                        snapshot: CandidateSnapshot,
                        ctx: StrategyContext) -> List[Any]:
+        # Also covers resumed positions whose saved plan predates this policy.
+        if self._num(self.params.get("initials_recovery_multiple")) is not None:
+            return []
         plan = position.plan
         if (plan.hold_to_multiple is None or plan.trim_fraction is None
                 or position.strategy_state.get("trimmed")):
@@ -630,7 +669,27 @@ class BalaPlanStrategy(PaperStrategy):
         return {
             "machine_counts": dict(sorted(counts.items())),
             "watching_sample": watching,
+            "risk_medium_skips": self._risk_medium_skips,
+            "last_risk_skip": self._last_risk_skip,
         }
+
+    def export_state(self) -> Dict[str, Any]:
+        return {
+            "tracks": {mint: {key: getattr(track, key) for key in _MintTrack.__slots__}
+                       for mint, track in self._tracks.items()},
+            "risk_medium_skips": self._risk_medium_skips,
+            "last_risk_skip": self._last_risk_skip,
+        }
+
+    def restore_state(self, state: Dict[str, Any]) -> None:
+        self._tracks = {}
+        for mint, saved in state.get("tracks", {}).items():
+            track = _MintTrack(saved["first_seen_epoch"])
+            for key in _MintTrack.__slots__:
+                setattr(track, key, saved[key])
+            self._tracks[mint] = track
+        self._risk_medium_skips = state.get("risk_medium_skips", 0)
+        self._last_risk_skip = state.get("last_risk_skip")
 
 
 __all__ = [

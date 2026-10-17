@@ -214,6 +214,37 @@ class TestExitPaths:
 
 
 class TestEntryDiscipline:
+    def test_central_ath_persists_monotonically_in_paper_position(self, tmp_path):
+        cfg = one_strategy_config(tmp_path)
+        first = snap(ts=0.0)
+        first.ath_market_cap_usd = 95_000.0
+        first.extra["central_ath"] = {
+            "ath_price": "0.000095", "ath_market_cap": "95000",
+            "ath_timestamp": "1970-01-01T00:00:00Z",
+            "ath_provider": "PUMPSWAP_EVENT_EFFECTIVE_RESERVES",
+            "ath_observation_type": "PUMPSWAP_BUY_EFFECTIVE_RESERVES",
+            "ath_status": "CONFIRMED",
+        }
+        lower = snap(ts=30.0)
+        lower.ath_market_cap_usd = 75_000.0
+        lower.extra["central_ath"] = {
+            **first.extra["central_ath"], "ath_market_cap": "75000"}
+        higher = snap(ts=60.0)
+        higher.ath_market_cap_usd = 100_000.0
+        higher.extra["central_ath"] = {
+            "ath_price": "0.0001", "ath_market_cap": "100000",
+            "ath_timestamp": "1970-01-01T00:01:00Z",
+            "ath_provider": "PAID_OHLCV_HIGH",
+            "ath_observation_type": "PAID_OHLCV_HIGH",
+            "ath_status": "CONFIRMED",
+        }
+        engine, _ = run_engine(cfg, [first, lower, higher], finalize=False)
+        record = engine.runtimes[0].open_by_mint[MINT_A].to_record()
+        assert record["ath_market_cap_usd"] == 100_000.0
+        assert record["ath_price_usd"] == pytest.approx(0.0001)
+        assert record["ath_provider"] == "PAID_OHLCV_HIGH"
+        assert record["ath_observed_at_utc"] == "1970-01-01T00:01:00Z"
+
     def test_duplicate_mint_prevention(self, tmp_path):
         cfg = one_strategy_config(tmp_path, params={"take_profit_pct": 0.5})
         engine, _ = run_engine(cfg, [

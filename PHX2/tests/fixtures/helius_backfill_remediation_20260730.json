@@ -1,0 +1,41 @@
+{
+  "schema_version": "phx2_helius_backfill_remediation_fixture_v1",
+  "source_run": "paid_primary_live_24x7_20260730T132310Z",
+  "notes": "Deterministic sanitized fixtures for the 2026-07-30 integrated remediation. The funnel pairs are real public mint + transaction-signature pairs preserved verbatim from the failed run's provider_handoff.jsonl (no secrets, no endpoints). The backfill timings reproduce the three PHX1-recovered coins' migration ages relative to PHX2 startup.",
+  "helius_funnel": {
+    "expected_decoded": 17,
+    "expected_dedupe_survivors": 17,
+    "expected_watchlist_admissions": 17,
+    "expected_provenance": "LIVE_HELIUS",
+    "expected_provider_dedupe_applied": true,
+    "pairs": [
+      ["vBxqbsdHzu4RWV4ZR19Uds4njdL9bKMwAQQP2Wopump", "4G5SHLDAX3bQDHAtxnaG5EzJS5BDVvJ5GVt4JEjrMke2CCdVcULGMw1vaqZTT462eM7Ha3B9BErVYfchqytJJA63"],
+      ["JAtsUZ3Lisoc84gjENYZMeNnjqvxPFBQG9qAZfDKpump", "FttxMoTXkEyWKsfnL6YwETtTRmpYFkrQLrTYY7y5PE4UDRpyenY4rLAp5nC7LHGYtNXPDrFvLsm49qhypXK89UR"],
+      ["6ZjsyxzMudRTEKGtt24WpE8DpqsD9NCHWfsQcG5dpump", "31ssmpCGBnvaEr98B8aUAT6oovoJJF7Vy4jNUgAGG5TR5djD7JvLGmXmEFAVVh4H3Jm18TMLKTdCumqNsdPzfhrG"],
+      ["BChit3Cc3iDHaQMYh8g5zvu937R9ESoGCh8NQsAWpump", "3jtp1RX5Mw6SDnhEpeRmLTrm7o884FAuDgNySW73f8G65UNc3PhNpigc4AV7ekiMjB1iAPkDF8s5ZXu1hmGxtokF"],
+      ["CdPtnwX3cXhj1WrdVQsT59DwpagRNbA5Jfvxj3Ufpump", "4v8BcTSS5uGF2xoesgfFWidqPC85dqzxFFd2nKqRxHfNdubv3bHsavR4Cno5EhvX2H3VTMhaUzD3E5NcSrqRiU7z"],
+      ["VRGZgoVr2AgLmq5hZm3RFRup1znPDb31jerLp6xpump", "d7Z8LXF2KLPYUBw1A74SUg51eXCVcM3w6dJa8tPcLwxG6MGsgd8fzAvtn2o3JbXyU2JZ5SjruAfGP47KmaKQKKN"],
+      ["3Hfbhg84nsUtzrTPTu8SpnhzFcDpAsvXv1cEyX4opump", "3aMhZ6N2n5SGMF31fpyjD37mnBQUyrLFZE7puSGQHJEjbwPUnRkois3fDNPczzd1jigVcc85LPvQxaDLqfSKibWD"],
+      ["FAijGiVUkZQgK1gEyMyGXxqQo9QJwd5CRJxRBBkfpump", "3gsZiWc2LrEx6fyB195CxdBZRK49MLqkiSwpHhbVWT9BiYytXipsdz7ECM9CSbSPtGgTd52mBpWGJ6zoDgCVoViz"],
+      ["AYJ1tYQZZJ1gmZhURYuXLwG9bygUcgBnYPzriLpxpump", "66nqRYNBtn469L6HwN1zB5QbGvvmJKdKpKFeUgSiB79Eb2paGVZQJsJAjmpiZ29kXorTFzesmaAqhXi5D3zv7AJ"],
+      ["HDyrWRNA2TyhqsrqEkowqp3NiwVoYA8DkubzoZLwpump", "WBLKdzr1wSn4bUjdctj82DwUBEDLyigaXbycbrKfnAx8MatbzFCn69hehc8MuZ6CXfRPC9L7eiWZwoC74FV1syL"],
+      ["4y6B6BtDh4ptagHwS2VdqvcYB1AoY3TE2gTGQubUpump", "4aXNqv3MbVUbA7bEfjcapXfTRXP9HCEKF4toaDqPGpQVrAxxVz9r9dG4VUqaqvn5HwjabXTqG1pDXMVKU5E5wTcg"],
+      ["3EvGLExjtB3mKLvJfFiWeuQUS98ZKW4nseMgvRs7pump", "28tNForNfcBUhyey9dFGvaiF351JFQTw1HkAH6dPeN1FNRxjw7L2gzuHVYbxtuRLtcQkNesRV6GWTU75g9yodnS6"],
+      ["9WQYVo6WwJgVEZn6oH3ZtYAPiMhgTdrTRRNZVAcgpump", "NwijDeQSmPzGJWcbyPXeCEJM5K8WSRBgy3YXr8mEEva9K7uCfsjSATBmWVJpbyFAWvXw53NshZkcpmZ4pJsFCQP"],
+      ["QsVoocMoSkY48sttDwj6PyTZPTXNcm4LhKDKyW5pump", "3nBzc8dY5DCFaSkdMrHe9Nr9mUQtqrNhztk7aTuEcHARGNBpZamjhGKnDPQqz88ocQHYqouD6MtwsAb4y44mKigy"],
+      ["3WDDidkfnqzjnz4AUPjDerWQ5XJthdFEtymqNZaWpump", "63RcXxzHWi6fRb96WeMwuv9Yz4By8H8S9fS8cZ7SrcuDL37kWypDkbCineXQfyk47v4DUsdxW7ZWdZtSoNDxZrgd"],
+      ["PzJEixcwKRQifceAACKnzuhHcQ46UJDgajFogFCpump", "33Xdknk4Qu1MYErzfBKYCXhSQb5omeirL8RvcUynBWT3j2NTkzidm1R44ep1ox1Qoprwd883ZhBKanYWfUApXRxt"],
+      ["mqAVp5Fx9o6ubpnqDGnY4u7WMpGYaocfzWzrJASpump", "3wpMXVMBZ3f5ZCkskv1wUZeV2sBoetB21yfuZkr5dZTDwrnF5Xt2zX8PDkPUGTxPLoe9koYPGzH27t8dmhaWe525"]
+    ]
+  },
+  "backfill_recovery_timings": {
+    "notes": "Migration ages relative to PHX2 startup for the three coins PHX1 recovered through its periodic backfill while PHX2 (backfill disabled) missed them. All are inside the six-hour recovery window.",
+    "entries": [
+      {"label": "SQUIRREL_TIMING", "migration_age_seconds_before_startup": 300},
+      {"label": "PPONYO_TIMING", "migration_age_seconds_before_startup": 3060},
+      {"label": "ASHTY_TIMING", "migration_age_seconds_before_startup": 5580}
+    ],
+    "boundary_seconds": 21600,
+    "boundary_rule": "A pair whose age is exactly the six-hour boundary is admitted (age > boundary rejects with OUTSIDE_PHX1_LOOKBACK); one second past the boundary is rejected explicitly."
+  }
+}

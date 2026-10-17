@@ -1,0 +1,1 @@
+"""Offline Telegram delivery tests."""

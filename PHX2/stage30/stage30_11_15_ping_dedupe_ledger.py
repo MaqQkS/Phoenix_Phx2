@@ -150,6 +150,86 @@ def _classify_existing(
     return True, DEDUPE_REASON_TTL_EXPIRED
 
 
+_TIER_RANKS: Dict[str, int] = {"Tier 1": 1, "Tier 2": 2, "Tier 3": 3}
+
+
+def _tier_rank(tier_token: object) -> Optional[int]:
+    """Closed-set tier ordinal, or ``None`` for an unrecognized token.
+
+    Pure / total; an unknown tier token never participates in the regression
+    comparison (fail open to the ordinary same-key classification, never to an
+    extra ping).
+    """
+    if not isinstance(tier_token, str):
+        return None
+    return _TIER_RANKS.get(tier_token)
+
+
+#: The lifetime tier-monotonicity SCOPE: mint + operator_signal_kind +
+#: policy_version -- deliberately none of the other key axes, so no amount of
+#: state loss (band / ATH-verification flag / source stage all change across
+#: a restart re-admission) can re-key around the guard.
+_TierScopeKey = Tuple[str, str, str]
+
+
+def _tier_scope(key: Stage30_11_15PingDedupeKey) -> _TierScopeKey:
+    return (key.token_mint, key.operator_signal_kind, key.policy_version)
+
+
+def _note_reserved_tier(
+    index: Dict[_TierScopeKey, int], *, scope: _TierScopeKey,
+    tier_token: object,
+) -> None:
+    """Fold one AUTHORITATIVE reservation into the highest-tier index.
+
+    Idempotent (``max``); an unrecognized tier token never enters the index
+    (mirroring the guard, which never judges an unknown tier).  Callers invoke
+    this ONLY after a reservation is durable/authoritative -- a failed append
+    must leave the index exactly as it was.
+    """
+    rank = _tier_rank(tier_token)
+    if rank is None:
+        return
+    if rank > index.get(scope, 0):
+        index[scope] = rank
+
+
+def _higher_tier_ever_reserved(
+    highest_tier_by_scope: Dict[_TierScopeKey, int],
+    *,
+    key: Stage30_11_15PingDedupeKey,
+) -> bool:
+    """``True`` iff the same mint + signal kind + policy version has EVER held a
+    STRICTLY HIGHER tier reservation, at any age.
+
+    Highest-sent-tier monotonicity (2026-07-27 remediation): a candidate whose
+    canonical state was lost across a process restart can legitimately re-enter
+    at a LOWER tier with a different drawdown band / ATH-verification flag /
+    source stage -- every axis of the exact-key lookup changes, so the exact-key
+    dedupe alone cannot see the regression (proven live: Tier 2 sent 10:20:46Z,
+    the SAME mint re-sent Tier 1 11:09:44Z after a restart wiped its state).
+    The guard is deliberately LIFETIME-scoped over the append-only ledger, NOT
+    TTL-scoped: the TTL exists so an UNCHANGED state may re-alert, but a mint
+    that already alerted at a deeper tier never becomes new information at a
+    shallower one -- "Tier 2 sent => no later Tier 1" holds for the whole
+    ledger lifecycle, including after ordinary TTL expiry and across live /
+    restart-backfill re-admission.  Tier ESCALATION (a strictly deeper tier)
+    always remains allowed, and a policy-version bump intentionally re-opens
+    alerting.
+
+    2026-07-28 scalability fix: the check reads a DERIVED in-memory index
+    (``highest_reserved_tier_by_scope``) built once during the single startup
+    replay and folded forward on each authoritative reservation, so every
+    classification is an O(1) dict lookup instead of an O(n) walk of the full
+    replayed ledger state.  The append-only ledger remains the sole durable
+    source of truth; the index is reconstructible from it verbatim.
+    """
+    candidate_rank = _tier_rank(key.tier_token)
+    if candidate_rank is None:
+        return False
+    return highest_tier_by_scope.get(_tier_scope(key), 0) > candidate_rank
+
+
 def _serialize_record(
     *, key: Stage30_11_15PingDedupeKey, reserved_at_utc: str
 ) -> str:
@@ -255,6 +335,54 @@ class InMemoryPingDedupeLedger:
 
     def __init__(self) -> None:
         self._state: Dict[_KeyTuple, int] = {}
+        #: Derived highest-reserved-tier index over the lifetime scope
+        #: (mint, signal kind, policy version) -> tier rank.  O(1) per
+        #: classification; folded forward only by authoritative reservations
+        #: and fully reconstructible from ``_state``.
+        self._highest_tier_by_scope: Dict[_TierScopeKey, int] = {}
+
+    def _classify(
+        self,
+        *,
+        key: Stage30_11_15PingDedupeKey,
+        now_utc: str,
+        ttl_seconds: int,
+    ):
+        if not is_ping_dedupe_key(key):
+            return None, unavailable_outcome(DEDUPE_REASON_MALFORMED_KEY)
+        if not _is_valid_ttl_seconds(ttl_seconds):
+            return None, unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
+        now_unix = _parse_iso_utc_to_unix(now_utc)
+        if now_unix is None:
+            return None, unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
+        if _higher_tier_ever_reserved(self._highest_tier_by_scope, key=key):
+            # A lower-tier alert for a mint that already reserved a higher
+            # tier is a regression duplicate, never new information -- at any
+            # age (lifetime monotonicity; escalation stays allowed).
+            return None, suppressed_outcome(DEDUPE_REASON_DUPLICATE_WITHIN_TTL)
+        tup = canonical_ping_dedupe_key_tuple(key)
+        should_reserve, reason = _classify_existing(
+            existing_unix=self._state.get(tup),
+            now_unix=now_unix,
+            ttl_seconds=ttl_seconds,
+        )
+        if not should_reserve:
+            return None, suppressed_outcome(DEDUPE_REASON_DUPLICATE_WITHIN_TTL)
+        return (tup, now_unix, reason), None
+
+    def check_only(
+        self,
+        *,
+        key: Stage30_11_15PingDedupeKey,
+        now_utc: str,
+        ttl_seconds: int,
+    ) -> Stage30_11_15PingDedupeOutcome:
+        """Classify without mutating: an allowed verdict reserves NOTHING."""
+        plan, verdict = self._classify(
+            key=key, now_utc=now_utc, ttl_seconds=ttl_seconds)
+        if verdict is not None:
+            return verdict
+        return allowed_outcome(plan[2])
 
     def check_and_reserve(
         self,
@@ -263,23 +391,28 @@ class InMemoryPingDedupeLedger:
         now_utc: str,
         ttl_seconds: int,
     ) -> Stage30_11_15PingDedupeOutcome:
-        if not is_ping_dedupe_key(key):
-            return unavailable_outcome(DEDUPE_REASON_MALFORMED_KEY)
-        if not _is_valid_ttl_seconds(ttl_seconds):
-            return unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
-        now_unix = _parse_iso_utc_to_unix(now_utc)
-        if now_unix is None:
-            return unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
-        tup = canonical_ping_dedupe_key_tuple(key)
-        should_reserve, reason = _classify_existing(
-            existing_unix=self._state.get(tup),
-            now_unix=now_unix,
-            ttl_seconds=ttl_seconds,
-        )
-        if not should_reserve:
-            return suppressed_outcome(DEDUPE_REASON_DUPLICATE_WITHIN_TTL)
+        plan, verdict = self._classify(
+            key=key, now_utc=now_utc, ttl_seconds=ttl_seconds)
+        if verdict is not None:
+            return verdict
+        tup, now_unix, reason = plan
         self._state[tup] = now_unix
+        _note_reserved_tier(
+            self._highest_tier_by_scope, scope=_tier_scope(key),
+            tier_token=key.tier_token)
         return allowed_outcome(reason)
+
+    def commit_confirmed_send(
+        self,
+        *,
+        key: Stage30_11_15PingDedupeKey,
+        now_utc: str,
+        ttl_seconds: int,
+    ) -> Stage30_11_15PingDedupeOutcome:
+        """Record one CONFIRMED successful send. Idempotent: a key already
+        reserved within TTL records nothing again (restart-safe replay)."""
+        return self.check_and_reserve(
+            key=key, now_utc=now_utc, ttl_seconds=ttl_seconds)
 
 
 # ---------------------------------------------------------------------------
@@ -308,6 +441,12 @@ class JsonlPingDedupeLedger:
     def __init__(self, *, path: object) -> None:
         self._path: Optional[Path] = path if isinstance(path, Path) else None
         self._state: Dict[_KeyTuple, int] = {}
+        #: Derived highest-reserved-tier index over the lifetime scope
+        #: (mint, signal kind, policy version) -> tier rank.  Built once
+        #: during the single startup replay of the append-only ledger, folded
+        #: forward on each durable reservation; O(1) per classification and
+        #: fully reconstructible from the ledger file.
+        self._highest_tier_by_scope: Dict[_TierScopeKey, int] = {}
         self._available: bool = True
         self._unavailable_reason: str = ""
         try:
@@ -350,6 +489,12 @@ class JsonlPingDedupeLedger:
                     return
                 # The latest line for a key wins (most recent reservation).
                 self._state[_key_tuple_from_record(decoded)] = reserved_unix
+                _note_reserved_tier(
+                    self._highest_tier_by_scope,
+                    scope=(decoded["token_mint"],
+                           decoded["operator_signal_kind"],
+                           decoded["policy_version"]),
+                    tier_token=decoded["tier_token"])
 
     def _append_record(
         self, *, key: Stage30_11_15PingDedupeKey, reserved_at_utc: str
@@ -361,24 +506,29 @@ class JsonlPingDedupeLedger:
         with self._path.open("a", encoding="utf-8", newline="") as f:
             f.write(line + "\n")
 
-    def check_and_reserve(
+    def _classify(
         self,
         *,
         key: Stage30_11_15PingDedupeKey,
         now_utc: str,
         ttl_seconds: int,
-    ) -> Stage30_11_15PingDedupeOutcome:
+    ):
         if not self._available:
-            return unavailable_outcome(
+            return None, unavailable_outcome(
                 self._unavailable_reason or DEDUPE_REASON_LEDGER_UNAVAILABLE
             )
         if not is_ping_dedupe_key(key):
-            return unavailable_outcome(DEDUPE_REASON_MALFORMED_KEY)
+            return None, unavailable_outcome(DEDUPE_REASON_MALFORMED_KEY)
         if not _is_valid_ttl_seconds(ttl_seconds):
-            return unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
+            return None, unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
         now_unix = _parse_iso_utc_to_unix(now_utc)
         if now_unix is None:
-            return unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
+            return None, unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
+        if _higher_tier_ever_reserved(self._highest_tier_by_scope, key=key):
+            # A lower-tier alert for a mint that already reserved a higher
+            # tier is a regression duplicate, never new information -- at any
+            # age (lifetime monotonicity; escalation stays allowed).
+            return None, suppressed_outcome(DEDUPE_REASON_DUPLICATE_WITHIN_TTL)
         tup = canonical_ping_dedupe_key_tuple(key)
         should_reserve, reason = _classify_existing(
             existing_unix=self._state.get(tup),
@@ -386,17 +536,96 @@ class JsonlPingDedupeLedger:
             ttl_seconds=ttl_seconds,
         )
         if not should_reserve:
-            return suppressed_outcome(DEDUPE_REASON_DUPLICATE_WITHIN_TTL)
+            return None, suppressed_outcome(DEDUPE_REASON_DUPLICATE_WITHIN_TTL)
+        return (tup, now_unix, reason), None
+
+    def check_only(
+        self,
+        *,
+        key: Stage30_11_15PingDedupeKey,
+        now_utc: str,
+        ttl_seconds: int,
+    ) -> Stage30_11_15PingDedupeOutcome:
+        """Classify without mutating the ledger: an allowed verdict appends
+        NOTHING and reserves NOTHING (the durable successful-send row is written
+        only by ``commit_confirmed_send`` after confirmed delivery)."""
+        plan, verdict = self._classify(
+            key=key, now_utc=now_utc, ttl_seconds=ttl_seconds)
+        if verdict is not None:
+            return verdict
+        return allowed_outcome(plan[2])
+
+    def check_and_reserve(
+        self,
+        *,
+        key: Stage30_11_15PingDedupeKey,
+        now_utc: str,
+        ttl_seconds: int,
+    ) -> Stage30_11_15PingDedupeOutcome:
+        plan, verdict = self._classify(
+            key=key, now_utc=now_utc, ttl_seconds=ttl_seconds)
+        if verdict is not None:
+            return verdict
+        tup, now_unix, reason = plan
         try:
             self._append_record(key=key, reserved_at_utc=now_utc)
         except OSError:
+            # The reservation never became durable: neither the replayed
+            # state nor the derived tier index may advance.
             return unavailable_outcome(DEDUPE_REASON_LEDGER_WRITE_FAILED)
         self._state[tup] = now_unix
+        _note_reserved_tier(
+            self._highest_tier_by_scope, scope=_tier_scope(key),
+            tier_token=key.tier_token)
         return allowed_outcome(reason)
+
+    def commit_confirmed_send(
+        self,
+        *,
+        key: Stage30_11_15PingDedupeKey,
+        now_utc: str,
+        ttl_seconds: int,
+    ) -> Stage30_11_15PingDedupeOutcome:
+        """Append the ONE durable successful-send row for a CONFIRMED delivery.
+
+        Idempotent by classification: a key already reserved within TTL (the
+        row this commit -- or an earlier confirmed send -- already wrote)
+        appends nothing again, so a restart replaying a durable receipt can
+        never double-append. Same fail-closed outcomes as ``check_and_reserve``.
+        """
+        return self.check_and_reserve(
+            key=key, now_utc=now_utc, ttl_seconds=ttl_seconds)
+
+
+class PeekOnlyPingDedupeLedgerView:
+    """A non-mutating dedupe view over a real ledger.
+
+    Exposes the ``PingDedupeLedger`` Protocol (``check_and_reserve``) but
+    delegates to the underlying ledger's ``check_only`` -- so the committed
+    composer's pre-dispatch dedupe guard can still SUPPRESS duplicates while
+    the durable successful-send row is deferred to the post-delivery
+    ``commit_confirmed_send``. Total; never raises beyond the ledger contract.
+    """
+
+    def __init__(self, ledger: PingDedupeLedger) -> None:
+        self._ledger = ledger
+
+    def check_and_reserve(
+        self,
+        *,
+        key: Stage30_11_15PingDedupeKey,
+        now_utc: str,
+        ttl_seconds: int,
+    ) -> Stage30_11_15PingDedupeOutcome:
+        check_only = getattr(self._ledger, "check_only", None)
+        if not callable(check_only):
+            return unavailable_outcome(DEDUPE_REASON_LEDGER_UNAVAILABLE)
+        return check_only(key=key, now_utc=now_utc, ttl_seconds=ttl_seconds)
 
 
 __all__ = (
     "PingDedupeLedger",
     "InMemoryPingDedupeLedger",
     "JsonlPingDedupeLedger",
+    "PeekOnlyPingDedupeLedgerView",
 )

@@ -1,6 +1,6 @@
 """Static safety boundary for the paper trading surface.
 
-Proves the paper trading package (plus its two scripts) is a pure
+Proves the paper trading package (plus its scripts) is a pure
 simulation leaf:
 
 * every import resolves to an allowlisted stdlib module or to
@@ -23,17 +23,25 @@ PACKAGE_DIR = REPO_ROOT / "PHX2" / "paper_trading"
 SCRIPTS = [
     REPO_ROOT / "PHX2" / "scripts" / "phx2_replay_paper_trade.py",
     REPO_ROOT / "PHX2" / "scripts" / "phx2_live_paper_trade.py",
+    REPO_ROOT / "PHX2" / "scripts" / "phx2_compare_paper_exits.py",
 ]
 
 # Only these stdlib modules may be imported by the paper trading surface.
 ALLOWED_STDLIB = {
     "__future__", "argparse", "collections", "copy", "dataclasses",
     "datetime", "glob", "hashlib", "io", "json", "math", "os", "pathlib",
-    "random", "re", "statistics", "sys", "time", "typing",
+    "random", "re", "statistics", "sys", "tempfile", "time", "typing",
+    "msvcrt", "fcntl", "bisect", "itertools",
 }
 
 # The only allowed PHX2 import prefix: the paper package itself (a leaf).
 ALLOWED_PHX2_PREFIX = "PHX2.paper_trading"
+# The command-line delivery seam is separately armed and destination-bound;
+# the simulation package itself remains a network-free leaf.
+LIVE_CLI_IMPORTS = {
+    "PHX2.delivery.telegram_config", "PHX2.delivery.telegram_transport",
+    "PHX2.scripts.phx2_paper_preflight",
+}
 
 # Capability tokens that must never appear in the paper trading surface.
 # Assembled from fragments so this test file does not match itself.
@@ -87,6 +95,8 @@ class TestImportBoundary:
             for target in _import_targets(tree):
                 root = target.split(".")[0]
                 if root == "PHX2":
+                    if path.name == "phx2_live_paper_trade.py" and target in LIVE_CLI_IMPORTS:
+                        continue
                     if not (target == ALLOWED_PHX2_PREFIX
                             or target.startswith(ALLOWED_PHX2_PREFIX + ".")):
                         problems.append(f"{path.name}: PHX2 import outside "
@@ -113,6 +123,10 @@ class TestCapabilityTokens:
         hits = []
         for path, source in _paper_sources():
             lowered = source.lower()
+            if path.name == "phx2_live_paper_trade.py":
+                # Required configuration explicitly disables the unused transport.
+                # Only this exact key/value literal is exempt from token matching.
+                lowered = lowered.replace('"phx2_dis' + 'cord_enabled": "false"', "")
             for token in BANNED_TOKENS:
                 if token in lowered:
                     hits.append(f"{path.name}: contains '{token}'")

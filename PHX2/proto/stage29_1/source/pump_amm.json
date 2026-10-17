@@ -5086,6 +5086,26 @@
           {
             "name": "cashback",
             "type": "u64"
+          },
+          {
+            "name": "buyback_fee_basis_points",
+            "type": "u64"
+          },
+          {
+            "name": "buyback_fee",
+            "type": "u64"
+          },
+          {
+            "name": "virtual_quote_reserves",
+            "type": "i128"
+          },
+          {
+            "name": "can_boost",
+            "type": "bool"
+          },
+          {
+            "name": "base_supply",
+            "type": "u64"
           }
         ]
       }
@@ -5808,6 +5828,13 @@
           {
             "name": "is_cashback_coin",
             "type": "bool"
+          },
+          {
+            "name": "virtual_quote_reserves",
+            "docs": [
+              "For non-boost pools, value is 0, so the behavior is identical to legacy pools."
+            ],
+            "type": "i128"
           }
         ]
       }
@@ -5940,6 +5967,26 @@
           },
           {
             "name": "cashback",
+            "type": "u64"
+          },
+          {
+            "name": "buyback_fee_basis_points",
+            "type": "u64"
+          },
+          {
+            "name": "buyback_fee",
+            "type": "u64"
+          },
+          {
+            "name": "virtual_quote_reserves",
+            "type": "i128"
+          },
+          {
+            "name": "can_boost",
+            "type": "bool"
+          },
+          {
+            "name": "base_supply",
             "type": "u64"
           }
         ]

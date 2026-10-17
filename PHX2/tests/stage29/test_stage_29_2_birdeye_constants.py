@@ -97,15 +97,21 @@ def test_endpoint_path_history_price_NOT_present():
             )
 
 
-def test_allowed_paths_set_is_exactly_three():
+def test_allowed_paths_set_is_exactly_five():
     # Stage 29.2 owns two paths (price + ohlcv) for the price/ATH
     # adapter; Stage 30.4.3 added token_overview for the compact
-    # market-context bridge. Any further endpoint expansion requires
-    # a separately-authorized substage.
+    # market-context bridge; the 2026-08-03 post-migration-ATH
+    # remediation added the two V3 candle paths (the authenticated
+    # migration PAIR history as the canonical ATH source, plus the
+    # token USD series for peak valuation / divergence diagnostics).
+    # Any further endpoint expansion requires a separately-authorized
+    # substage.
     assert C.BIRDEYE_ALLOWED_PATHS == (
         C.BIRDEYE_PATH_PRICE,
         C.BIRDEYE_PATH_OHLCV,
         C.BIRDEYE_PATH_TOKEN_OVERVIEW,
+        C.BIRDEYE_PATH_V3_PAIR_OHLCV,
+        C.BIRDEYE_PATH_V3_TOKEN_OHLCV,
     )
 
 

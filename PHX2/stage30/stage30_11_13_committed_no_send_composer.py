@@ -32,12 +32,11 @@ private dispatch chain over ONE immutable revalidation snapshot:
          anchored drawdown (no arbitrary duck-typed source)
       -> classify the tier from the committed Stage 30.1 ``decide_tier`` over
          the committed Stage 27.4 reading; fail closed on a non-dip tier
-      -> compute the ATH market cap in COMMITTED code
-         (``inferred_supply = current_mc / current_price``;
-         ``ath_mc = ath_price * inferred_supply``) and format it via the
-         committed Stage 30.4.1 ``format_usd_compact``; fail closed (NO
-         dispatch) when it cannot be computed -- a dispatch-eligible body
-         NEVER shows ``Unknown`` ATH MC
+      -> in the paid runtime, accept the exact centralized ATH market cap and
+         format it via the committed Stage 30.4.1 ``format_usd_compact``;
+         fail closed (NO dispatch) on a partial central contract.  The old
+         inferred-supply formula is quarantined behind an explicit flag used
+         only by historical offline Stage 30 proofs; production never sets it
       -> build ONE immutable Stage30_11_13ComposedSnapshot whose
          ``gate_binding_key`` ties the gate-decision scalars together
       -> derive BOTH the committed Stage 30.11.7 enriched candidate (-> the
@@ -95,7 +94,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, localcontext
 from typing import Any, Callable, Optional, Tuple
 
 from PHX2.stage27.migration_context_models import (
@@ -119,6 +118,7 @@ from PHX2.stage30.stage30_11_7_candidate_enrichment_adapter import (
 )
 from PHX2.stage30.stage30_11_7_candidate_enrichment_models import (
     ENRICH_DECISION_ENRICHED,
+    Stage30_11_7AthResolution,
     Stage30_11_7MarketContextResolution,
     Stage30_11_7MigrationResolution,
     Stage30_11_7TierResolution,
@@ -158,6 +158,61 @@ STAGE30_11_13_COMPOSE_SCHEMA_VERSION: str = (
 # The committed ATH source provenance stamp; ONLY the Stage 30.11.11
 # migration-anchored source can produce a composer snapshot.
 STAGE30_11_13_ATH_SOURCE_STAGE: str = "stage30_11_11"
+STAGE30_11_13_CENTRAL_ATH_SOURCE_STAGE: str = "central_ath_v1"
+_CENTRAL_ATH_PROVIDERS: Tuple[str, ...] = (
+    "PUMPSWAP_EVENT_EFFECTIVE_RESERVES",
+    "PAID_OHLCV_HIGH",
+    # 2026-08-03: canonical V3 pair-history candle high (role-based token,
+    # mirrored BY VALUE from ``ath_state.SOURCE_PAID_V3_PAIR``).
+    "PAID_V3_PAIR_OHLCV_HIGH",
+    "PAID_CURRENT_PRICE",
+)
+_CENTRAL_ATH_STATUSES: Tuple[str, ...] = ("CONFIRMED", "PROVISIONAL")
+#: Resolved-tuple contract, mirrored BY VALUE from
+#: ``PHX2.free_tier_producer.ath_state`` for the same reason the coverage
+#: tokens are (this module imports no PHX2 package outside Stage 27 / Stage
+#: 30).  A test pins every value -- including the arithmetic precision --
+#: equal to the producer's, so the two can never drift apart silently.
+_CENTRAL_ATH_RESOLUTION_METHODS: Tuple[str, ...] = (
+    "PRICE_X_AUTHORITATIVE_SUPPLY",
+)
+_CENTRAL_ATH_SUPPLY_BASES: Tuple[str, ...] = (
+    "OBSERVATION_IMPLIED_SUPPLY",
+    "EVENT_SOURCED_SUPPLY",
+    "AUTHENTICATED_ONCHAIN_TOKEN_SUPPLY",
+    "PROVIDER_REPORTED_SUPPLY",
+)
+#: MUST equal ``ath_state.ATH_RESOLUTION_PRECISION``.  A different working
+#: precision here would make an honest resolved tuple fail its own exact
+#: recompute check, which is precisely the class of unsatisfiable gate this
+#: remediation removed.
+_CENTRAL_ATH_RESOLUTION_PRECISION: int = 60
+
+
+def resolved_market_cap_from(price: object, supply: object) -> Optional[Decimal]:
+    """Canonical resolved-market-cap recompute (mirrors the producer exactly)."""
+
+    price_value = _coerce_positive_decimal(price)
+    supply_value = _coerce_positive_decimal(supply)
+    if price_value is None or supply_value is None:
+        return None
+    with localcontext() as ctx:
+        ctx.prec = _CENTRAL_ATH_RESOLUTION_PRECISION
+        product = price_value * supply_value
+    return product if product.is_finite() and product > 0 else None
+#: Post-migration ATH coverage tokens that authorize a tier + a body, mirrored
+#: BY VALUE from ``PHX2.models.ath_coverage`` (this module imports no PHX2
+#: package outside Stage 27 / Stage 30; the shared module is the contract and a
+#: test pins these values equal to it).  ``COMPLETE_LIVE`` = the mint was
+#: observed live from its migration; ``COMPLETE_HYDRATED`` = a bounded
+#: restart-backfill admission whose migration-anchored OHLCV history was
+#: fetched to completion and verified.  Everything else -- a still-hydrating
+#: backfill admission or an unclassifiable provenance -- is a maximum covering
+#: only part of the post-migration window and can never be tiered or rendered.
+_COMPLETE_ATH_COVERAGE_TOKENS: Tuple[str, ...] = (
+    "COMPLETE_LIVE",
+    "COMPLETE_HYDRATED",
+)
 
 # The gate's PRESENT token the committed Stage 30.11.7 enrichment stamps on a
 # confirmed dimension (mirrored BY VALUE; the composer imports no enrichment
@@ -235,6 +290,27 @@ COMPOSE_REJECTED_MISSING_ATH_PRICE: str = "MISSING_ATH_PRICE"
 COMPOSE_REJECTED_ATH_RESOLUTION_MISMATCH: str = "ATH_RESOLUTION_MISMATCH"
 COMPOSE_REJECTED_TIER_NOT_ELIGIBLE: str = "TIER_NOT_ELIGIBLE"
 COMPOSE_REJECTED_ATH_MC_UNAVAILABLE: str = "ATH_MC_UNAVAILABLE"
+#: The candidate's post-migration ATH coverage is not PROVEN complete (a
+#: bounded restart-backfill admission still hydrating its migration-anchored
+#: OHLCV history, or a provenance PHX2 cannot classify).  Its running maximum
+#: is only what PHX2 has seen since admission, so it can never be tiered,
+#: rendered, or sent.  2026-07-30 defect: a partial maximum composed Tier 1
+#: (-57%) on a candidate whose complete post-migration history was Tier 2
+#: (-70%).
+COMPOSE_REJECTED_ATH_COVERAGE_INCOMPLETE: str = "ATH_COVERAGE_INCOMPLETE"
+#: The RESOLVED ATH observation is not internally coherent -- its market cap
+#: is not the canonical product of its own price and supply.  Before
+#: 2026-08-02 this token meant "the two independently maximized arms
+#: disagree", which after the first divergence was permanently unrecoverable
+#: and blocked 80 of 96 compose attempts in the PHX1_PARITY run.  It now
+#: means the ONE resolved observation contradicts itself, which is a genuine
+#: corruption and still fails closed.
+COMPOSE_REJECTED_ATH_MC_INCONSISTENT: str = "ATH_MC_INCONSISTENT"
+#: The central ATH contract was supplied but carries no valid resolved
+#: observation (missing/invalid supply, or a malformed resolved tuple).  Fail
+#: closed: no tier, no body, bounded retry continues upstream.
+COMPOSE_REJECTED_ATH_RESOLVED_TUPLE_INVALID: str = (
+    "ATH_RESOLVED_TUPLE_INVALID")
 COMPOSE_REJECTED_ENRICHMENT_FAILED: str = "ENRICHMENT_FAILED"
 COMPOSE_REJECTED_GATE_DID_NOT_PASS: str = "GATE_DID_NOT_PASS"
 COMPOSE_REJECTED_GATE_BODY_MISMATCH: str = "GATE_BODY_MISMATCH"
@@ -264,6 +340,9 @@ STAGE30_11_13_COMPOSE_REASONS: Tuple[str, ...] = (
     COMPOSE_REJECTED_ATH_RESOLUTION_MISMATCH,
     COMPOSE_REJECTED_TIER_NOT_ELIGIBLE,
     COMPOSE_REJECTED_ATH_MC_UNAVAILABLE,
+    COMPOSE_REJECTED_ATH_COVERAGE_INCOMPLETE,
+    COMPOSE_REJECTED_ATH_MC_INCONSISTENT,
+    COMPOSE_REJECTED_ATH_RESOLVED_TUPLE_INVALID,
     COMPOSE_REJECTED_ENRICHMENT_FAILED,
     COMPOSE_REJECTED_GATE_DID_NOT_PASS,
     COMPOSE_REJECTED_GATE_BODY_MISMATCH,
@@ -346,6 +425,45 @@ class Stage30_11_13RevalidationRequest:
     age_display: Optional[str] = None
     market_context_status: str = _CONTEXT_STATUS_PRESENT
     market_context_fetched_at_utc: Optional[str] = None
+    # Optional centralized ATH contract.  The paid producer always supplies
+    # all fields together; older offline callers may omit every field and keep
+    # the historical Stage 30.11.13 behavior.
+    authoritative_ath_price: Optional[str] = None
+    authoritative_ath_market_cap_usd: Optional[str] = None
+    authoritative_ath_timestamp: Optional[str] = None
+    authoritative_ath_provider: Optional[str] = None
+    authoritative_ath_observation_type: Optional[str] = None
+    authoritative_ath_status: Optional[str] = None
+    authoritative_ath_transaction_signature: Optional[str] = None
+    #: The exact price whose market cap became ``authoritative_ath_market_cap_usd``.
+    #: RAW diagnostic evidence only since 2026-08-02: the two arms above are
+    #: independently maximized, so once they land on different ticks no later
+    #: observation can make them agree.  Tier and body math bind to the
+    #: RESOLVED tuple below instead.
+    authoritative_ath_market_cap_evidence_price_usd: Optional[str] = None
+    # ---- resolved coherent ATH observation (authoritative) --------------
+    # ONE observation: the accepted peak price, the authoritative supply
+    # belonging to that SAME observation, and the market cap derived from
+    # the two.  Supplied together or not at all.  When the central contract
+    # is in play these fields -- not the split arms -- are what the tier is
+    # computed on and what the body renders.
+    resolved_ath_price: Optional[str] = None
+    resolved_supply: Optional[str] = None
+    resolved_supply_basis: Optional[str] = None
+    resolved_ath_market_cap_usd: Optional[str] = None
+    resolved_observed_at_utc: Optional[str] = None
+    resolved_ath_source: Optional[str] = None
+    resolved_ath_observation_type: Optional[str] = None
+    resolved_ath_status: Optional[str] = None
+    resolved_evidence_digest: Optional[str] = None
+    resolution_method: Optional[str] = None
+    #: Closed-set post-migration coverage token
+    #: (:mod:`PHX2.models.ath_coverage`).  Required whenever the central ATH
+    #: contract is supplied; only a COMPLETE token authorizes a tier or a body.
+    ath_coverage: Optional[str] = None
+    # Historical offline Stage 30 proofs may opt into the pre-central formula.
+    # Production builders never set this flag.
+    allow_legacy_inferred_ath_market_cap: bool = False
 
 
 @dataclass(frozen=True)
@@ -550,9 +668,10 @@ def _build_present_migration_record(
 def _compute_ath_market_cap_display(
     *, current_market_cap_usd: Decimal, current_price: Decimal, ath_price: Decimal
 ) -> Optional[str]:
-    """Compute + compact-format the ATH market cap in committed code.
+    """Historical offline-proof compatibility formula.
 
-    ``inferred_supply = current_market_cap / current_price``;
+    Never called by the paid live request builder.  ``inferred_supply =
+    current_market_cap / current_price``;
     ``ath_market_cap = ath_price * inferred_supply``; formatted via the committed
     Stage 30.4.1 ``format_usd_compact``. Returns ``None`` (fail closed) on any
     non-finite / non-positive intermediate or a formatter rejection. Pure.
@@ -836,6 +955,30 @@ def compose_no_send_dispatch(
             request=request, reason=COMPOSE_REJECTED_MARKET_CONTEXT_STALE
         )
 
+    # ---- 1b. Post-migration ATH coverage gate --------------------------------
+    # Coverage is a SEND-AUTHORIZATION input, not a display label.  Before
+    # 2026-07-30 the classification existed only in the Telegram renderer, so a
+    # restart-backfill candidate whose maximum covered 5 of its 13
+    # post-migration minutes composed a tier and sent.  The check is
+    # request-only and runs BEFORE the anchored source is built, so a candidate
+    # that cannot send never spends a provider request either.
+    central_enabled = any(
+        value is not None for value in (
+            request.authoritative_ath_price,
+            request.authoritative_ath_market_cap_usd,
+            request.authoritative_ath_timestamp,
+            request.authoritative_ath_provider,
+            request.authoritative_ath_observation_type,
+            request.authoritative_ath_status,
+        )
+    )
+    if central_enabled \
+            and request.ath_coverage not in _COMPLETE_ATH_COVERAGE_TOKENS:
+        return _rejected(
+            request=request,
+            reason=COMPOSE_REJECTED_ATH_COVERAGE_INCOMPLETE,
+        )
+
     # ---- 2. Build the committed Stage 30.11.11 migration-anchored ATH source -
     ath_source = build_migration_anchored_ath_context_source(
         transport=ath_transport,
@@ -915,6 +1058,105 @@ def compose_no_send_dispatch(
             request=request, reason=COMPOSE_REJECTED_ATH_RESOLUTION_MISMATCH
         )
 
+    # The paid runtime carries the maximum from its single centralized ATH
+    # store.  Keep the anchored Birdeye resolution above as an independent
+    # freshness/availability gate, then bind all tier/display math to the
+    # central maximum.  A partial central contract fails closed; it can never
+    # silently fall back to the old inferred-supply display.
+    central_market_cap: Optional[Decimal] = None
+    tier_ath_reading = getattr(anchored, "reading", None)
+    enrichment_ath_resolution: Any = ath_resolution
+    ath_source_stage = STAGE30_11_13_ATH_SOURCE_STAGE
+    ath_source_ref = request.migration_source
+    if central_enabled:
+        # ---- The ONE resolved coherent ATH observation -------------------
+        # The tier is computed on PRICE and the body renders the MARKET CAP,
+        # so both must come from the SAME observation.  That requirement is
+        # unchanged.  What changed on 2026-08-02 is HOW it is established:
+        # the producer now resolves one coherent tuple (peak price x the
+        # authoritative supply of that same observation) instead of the
+        # composer comparing two independently maximized arms that, once
+        # diverged, no later observation could ever reconcile.
+        resolved_price = _coerce_positive_decimal(request.resolved_ath_price)
+        resolved_supply = _coerce_positive_decimal(request.resolved_supply)
+        resolved_market_cap = _coerce_positive_decimal(
+            request.resolved_ath_market_cap_usd)
+        if (resolved_price is None or resolved_supply is None
+                or resolved_market_cap is None
+                or request.resolution_method
+                not in _CENTRAL_ATH_RESOLUTION_METHODS
+                or request.resolved_supply_basis
+                not in _CENTRAL_ATH_SUPPLY_BASES
+                or request.resolved_ath_source not in _CENTRAL_ATH_PROVIDERS
+                or request.resolved_ath_status not in _CENTRAL_ATH_STATUSES
+                or not _is_nonblank(request.resolved_ath_observation_type)):
+            return _rejected(
+                request=request,
+                reason=COMPOSE_REJECTED_ATH_RESOLVED_TUPLE_INVALID,
+            )
+        # Exact arithmetic re-derivation through the SAME canonical helper
+        # the producer used: a tuple whose market cap is not the product of
+        # its own price and supply is internally contradictory.
+        if resolved_market_cap_from(
+                resolved_price, resolved_supply) != resolved_market_cap:
+            return _rejected(
+                request=request, reason=COMPOSE_REJECTED_ATH_MC_INCONSISTENT
+            )
+        central_price = resolved_price
+        central_market_cap = resolved_market_cap
+        central_timestamp = _parse_iso_utc_to_unix(
+            request.resolved_observed_at_utc)
+        migration_unix = _parse_iso_utc_to_unix(request.migration_time_utc)
+        if not (
+            central_timestamp is not None
+            and migration_unix is not None
+            and migration_unix <= central_timestamp
+            and central_timestamp <= created_unix + STAGE30_11_13_MARKET_CONTEXT_FUTURE_TOLERANCE_SECONDS
+            and request.authoritative_ath_provider in _CENTRAL_ATH_PROVIDERS
+            and request.authoritative_ath_status in _CENTRAL_ATH_STATUSES
+            and _is_nonblank(request.authoritative_ath_observation_type)
+            and tier_ath_reading is not None
+        ):
+            return _rejected(
+                request=request, reason=COMPOSE_REJECTED_ATH_MC_UNAVAILABLE
+            )
+        # The resolved observation must be the record's accepted maximum,
+        # never a stale or unrelated observation smuggled in beside it.
+        if _coerce_positive_decimal(
+                request.authoritative_ath_price) != resolved_price:
+            return _rejected(
+                request=request,
+                reason=COMPOSE_REJECTED_ATH_RESOLVED_TUPLE_INVALID,
+            )
+        ath_price = central_price
+        anchored_drawdown = max(Decimal(0), ath_price - current_price)
+        try:
+            tier_ath_reading = tier_ath_reading._replace(
+                ath_value=format(ath_price, "f"),
+                ath_source=request.authoritative_ath_provider,
+                ath_observed_at_utc=request.authoritative_ath_timestamp,
+                drawdown_from_ath=format(anchored_drawdown, "f"),
+            )
+        except (AttributeError, TypeError, ValueError):
+            return _rejected(
+                request=request, reason=COMPOSE_REJECTED_ATH_NOT_RESOLVED
+            )
+        ath_source_stage = STAGE30_11_13_CENTRAL_ATH_SOURCE_STAGE
+        ath_source_ref = (
+            request.authoritative_ath_transaction_signature
+            or request.authoritative_ath_provider
+        )
+        # The downstream enrichment/9.3 gate reads this resolver, not the
+        # composed snapshot directly.  Bind it to the same central drawdown so
+        # the gate input, immutable snapshot, and rendered body cannot diverge.
+        enrichment_ath_resolution = Stage30_11_7AthResolution(
+            present=True,
+            fresh=True,
+            post_migration_ath_verified=True,
+            drawdown_from_ath=format(anchored_drawdown, "f"),
+            source_ref=ath_source_ref,
+        )
+
     # ---- 5. Classify the tier from the committed Stage 30.1 brain ----
     migration_record = _build_present_migration_record(
         token_mint=request.token_mint,
@@ -922,7 +1164,7 @@ def compose_no_send_dispatch(
         observed_at_utc=request.created_at_utc,
     )
     tier_decision = decide_tier(
-        ath_record=getattr(anchored, "reading", None),
+        ath_record=tier_ath_reading,
         migration_record=migration_record,
         basis=BASIS_PRICE,
         created_at_utc=request.created_at_utc,
@@ -936,11 +1178,22 @@ def compose_no_send_dispatch(
         )
 
     # ---- 6. Compute the ATH market cap in committed code (fail closed) ----
-    ath_market_cap_display = _compute_ath_market_cap_display(
-        current_market_cap_usd=current_market_cap,
-        current_price=current_price,
-        ath_price=ath_price,
-    )
+    if central_market_cap is not None:
+        try:
+            ath_market_cap_display = format_usd_compact(
+                format(central_market_cap, "f"))
+        except ValueError:
+            ath_market_cap_display = None
+    elif request.allow_legacy_inferred_ath_market_cap is True:
+        # Explicitly quarantined compatibility for the historical pure Stage
+        # 30 proof chain.  No live producer builder enables this branch.
+        ath_market_cap_display = _compute_ath_market_cap_display(
+            current_market_cap_usd=current_market_cap,
+            current_price=current_price,
+            ath_price=ath_price,
+        )
+    else:
+        ath_market_cap_display = None
     if ath_market_cap_display is None:
         return _rejected(
             request=request, reason=COMPOSE_REJECTED_ATH_MC_UNAVAILABLE
@@ -1008,12 +1261,12 @@ def compose_no_send_dispatch(
             drawdown=anchored_drawdown, ath_value=ath_price
         ),
         tier_band_display=None,
-        ath_source_stage=STAGE30_11_13_ATH_SOURCE_STAGE,
+        ath_source_stage=ath_source_stage,
         time_from_unix=getattr(anchored, "time_from_unix", None),
         time_to_unix=getattr(anchored, "time_to_unix", None),
         ohlcv_type=getattr(anchored, "ohlcv_type", None),
         span_seconds=getattr(anchored, "span_seconds", None),
-        ath_source_ref=request.migration_source,
+        ath_source_ref=ath_source_ref,
         gate_binding_key=binding_key,
     )
 
@@ -1059,7 +1312,7 @@ def compose_no_send_dispatch(
         market_context_resolver=_market_resolver(snapshot),
         tier_resolver=_tier_resolver(snapshot),
         migration_resolver=_migration_resolver(),
-        ath_resolver=_ath_resolution_resolver(ath_resolution),
+        ath_resolver=_ath_resolution_resolver(enrichment_ath_resolution),
         created_at_utc=request.created_at_utc,
     )
     if (
@@ -1227,6 +1480,8 @@ __all__ = (
     "COMPOSE_REJECTED_ATH_RESOLUTION_MISMATCH",
     "COMPOSE_REJECTED_TIER_NOT_ELIGIBLE",
     "COMPOSE_REJECTED_ATH_MC_UNAVAILABLE",
+    "COMPOSE_REJECTED_ATH_COVERAGE_INCOMPLETE",
+    "COMPOSE_REJECTED_ATH_MC_INCONSISTENT",
     "COMPOSE_REJECTED_ENRICHMENT_FAILED",
     "COMPOSE_REJECTED_GATE_DID_NOT_PASS",
     "COMPOSE_REJECTED_GATE_BODY_MISMATCH",

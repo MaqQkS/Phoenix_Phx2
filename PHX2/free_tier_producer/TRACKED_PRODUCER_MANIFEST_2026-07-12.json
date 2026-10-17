@@ -1,0 +1,98 @@
+{
+    "manifest_schema":  "PHX2_FREE_TIER_TRACKED_PRODUCER_COPY_V1",
+    "preservation_date":  "2026-07-12",
+    "source_head":  "aa59d19",
+    "file_count":  9,
+    "byte_identical_file_count":  6,
+    "path_adapted_file_count":  3,
+    "external_runtime_defaults_preserved":  true,
+    "external_runtime_paths":  {
+                                   "env_file":  "C:\\Users\\BalaC\\Documents\\phx2.env",
+                                   "free_tier_root":  "C:\\Users\\BalaC\\phx2_live_free_tier",
+                                   "dedupe_ledger":  "C:\\Users\\BalaC\\phx2_live_free_tier\\ping_dedupe.jsonl",
+                                   "default_output":  "C:\\Users\\BalaC\\phx2_live_free_tier\\out\\live_01"
+                               },
+    "files":  [
+                  {
+                      "name":  "free_tier_risk.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_risk.py",
+                      "original_sha256":  "5b1c6379a56d7862ee21900b4ce7311cf6211cde744d3aa7e2837a1798fc1e6f",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_risk.py",
+                      "tracked_sha256":  "5b1c6379a56d7862ee21900b4ce7311cf6211cde744d3aa7e2837a1798fc1e6f",
+                      "byte_identical":  true,
+                      "path_only_adaptation":  "none"
+                  },
+                  {
+                      "name":  "free_tier_session.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_session.py",
+                      "original_sha256":  "23a5361b4d8bee4eebbe0645edf1496be5633fc57b865579cd17f9b76dbfb752",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_session.py",
+                      "tracked_sha256":  "4c7d5d52a17734a8267725237159b7ed6e09d7f83e36c987f3e24bb1caf85cf8",
+                      "byte_identical":  false,
+                      "path_only_adaptation":  "repository, compatibility, and producer import roots derived from tracked package; external runtime defaults unchanged"
+                  },
+                  {
+                      "name":  "free_tier_selftest.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_selftest.py",
+                      "original_sha256":  "0df59f5521195f68a86307bc600de76125bb6c4d63511a25a0c6e3f63b96bb4a",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_selftest.py",
+                      "tracked_sha256":  "299fd2f7f60254ea1279c18442677d7ad321816ef2ea99d9441464bcb5e560e0",
+                      "byte_identical":  false,
+                      "path_only_adaptation":  "selftest sibling import root derived from tracked package"
+                  },
+                  {
+                      "name":  "free_tier_credit_budget.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_credit_budget.py",
+                      "original_sha256":  "a1f26eedf90e0f0bb82bcf4276bf9358ff4996534921450eadd91a10d29820d1",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_credit_budget.py",
+                      "tracked_sha256":  "a1f26eedf90e0f0bb82bcf4276bf9358ff4996534921450eadd91a10d29820d1",
+                      "byte_identical":  true,
+                      "path_only_adaptation":  "none"
+                  },
+                  {
+                      "name":  "free_tier_market_transport.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_market_transport.py",
+                      "original_sha256":  "aa4ad60f2416027d1860020a32752cdb396ecdeb4f69c246b1f02635e916e5e7",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_market_transport.py",
+                      "tracked_sha256":  "aa4ad60f2416027d1860020a32752cdb396ecdeb4f69c246b1f02635e916e5e7",
+                      "byte_identical":  true,
+                      "path_only_adaptation":  "none"
+                  },
+                  {
+                      "name":  "free_tier_polling_discovery.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_polling_discovery.py",
+                      "original_sha256":  "a290c0881500ea23c1833ef5366080d0776191c674767f4c5bd3893a8a3f1de4",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_polling_discovery.py",
+                      "tracked_sha256":  "48eaa25639506133d8df36916492f68e6ade26887626c357377982b34fa2896b",
+                      "byte_identical":  false,
+                      "path_only_adaptation":  "repository and Build 29 import roots rebound to tracked repository and compatibility closure"
+                  },
+                  {
+                      "name":  "free_tier_pricing_tail.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_pricing_tail.py",
+                      "original_sha256":  "5049e81ffa3fe11a3a9b03e7a8a07ae2c72f2a2b09cde665b3d663ec78f8eac9",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_pricing_tail.py",
+                      "tracked_sha256":  "5049e81ffa3fe11a3a9b03e7a8a07ae2c72f2a2b09cde665b3d663ec78f8eac9",
+                      "byte_identical":  true,
+                      "path_only_adaptation":  "none"
+                  },
+                  {
+                      "name":  "free_tier_no_send_transport.py",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\free_tier_no_send_transport.py",
+                      "original_sha256":  "6d78cc426126c2d6f3bbf1e52e8574861884675029b754933571c62f4c49c44a",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/free_tier_no_send_transport.py",
+                      "tracked_sha256":  "6d78cc426126c2d6f3bbf1e52e8574861884675029b754933571c62f4c49c44a",
+                      "byte_identical":  true,
+                      "path_only_adaptation":  "none"
+                  },
+                  {
+                      "name":  "README_FREE_TIER.md",
+                      "original_absolute_path":  "C:\\Users\\BalaC\\phx2_live_free_tier\\README_FREE_TIER.md",
+                      "original_sha256":  "c8eac618544dd633961404c3d0ff346fafee0c22ee9a99883a6974476b66ba05",
+                      "tracked_relative_path":  "PHX2/free_tier_producer/README_FREE_TIER.md",
+                      "tracked_sha256":  "c8eac618544dd633961404c3d0ff346fafee0c22ee9a99883a6974476b66ba05",
+                      "byte_identical":  true,
+                      "path_only_adaptation":  "none"
+                  }
+              ]
+}

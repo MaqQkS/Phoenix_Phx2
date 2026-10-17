@@ -1,0 +1,712 @@
+{
+  "schema_version": "phx2_phx1_structural_shadow_policy_matrix_v1",
+  "starting_commit": "ca923f123c76d90a2c59939a2f9a57501b38e8ce",
+  "authoritative_phx1": {
+    "commit": "318e359084d8711256747ae0fe307303d1b526d1",
+    "read_method": "git show 318e359084d8711256747ae0fe307303d1b526d1:<path>",
+    "worktree_content_used": false
+  },
+  "policy": {
+    "cli": "--phx1-structural-policy enforce|shadow",
+    "default": "ENFORCE",
+    "modes": [
+      "ENFORCE",
+      "SHADOW"
+    ],
+    "unknown_reason_behavior": "NON_SHADOWABLE_SAFETY"
+  },
+  "blockers": [
+    {
+      "filter_name": "phx1_fee_gate_v2_score",
+      "source_module_function": "PHX2/free_tier_producer/phx1_fee_gate.py:score_fee_gate,fee_gate_block_reason",
+      "reason_tokens": [
+        "PHX1_FEE_GATE_SCAM_LIKELY"
+      ],
+      "original_input_fields": [
+        "total_fees",
+        "lp_fees",
+        "protocol_fees",
+        "creator_fees",
+        "bribes",
+        "distinct_transaction_count",
+        "event_count"
+      ],
+      "authoritative_phx1_classification": "C1_STRUCTURAL HARD_BLOCK",
+      "current_phx2_classification": "composite delivery HARD_BLOCK",
+      "downstream_effect": "blocks before market, compose, reserve, ledger, and transport",
+      "policy_classification": "SHADOWABLE_STRUCTURAL",
+      "justification": "Exact PHX1 generalized fee-composition scam score; calculations, threshold, label, component reasons, and original HARD_BLOCK remain retained.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_shadow_converts_only_fee_structural_block",
+        "test_composite_scam_policy.py::test_single_stream_scam_likely_is_still_a_hard_block"
+      ]
+    },
+    {
+      "filter_name": "phx1_fee_gate_conservative_no_data",
+      "source_module_function": "PHX2/free_tier_producer/phx1_fee_gate.py:build_fee_snapshot,fee_gate_block_reason; fee_gate_lifecycle.py:_send_block_reasons",
+      "reason_tokens": [
+        "PHX1_FEE_GATE_DATA_STALE",
+        "PHX1_FEE_GATE_INSUFFICIENT_SAMPLE",
+        "PHX1_FEE_GATE_PROOF_MISSING",
+        "PHX1_FEE_GATE_PAIR_UNCALIBRATED",
+        "PHX1_FEE_GATE_NO_DATA"
+      ],
+      "original_input_fields": [
+        "fee evidence presence",
+        "fee evidence age",
+        "quote pair",
+        "event count",
+        "signature count"
+      ],
+      "authoritative_phx1_classification": "C1_STRUCTURAL transient alert-gate HARD_BLOCK",
+      "current_phx2_classification": "sealed UNKNOWN fee snapshot HARD_BLOCK",
+      "downstream_effect": "blocks the current candidate send while tracking continues",
+      "policy_classification": "SHADOWABLE_STRUCTURAL",
+      "justification": "These are conservative scam-screening insufficiency outcomes, not proof that canonical migration, current market, reserve, or candidate state is invalid; independent current evidence gates remain enforced.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_stale_fee_alone_shadows_but_final_market_stale_blocks",
+        "test_phx1_structural_shadow_policy.py::test_five_token_and_holdout_frozen_routing"
+      ]
+    },
+    {
+      "filter_name": "phx1_fee_gate_integrity",
+      "source_module_function": "PHX2/free_tier_producer/phx1_fee_gate.py:validate_fee_snapshot",
+      "reason_tokens": [
+        "PHX1_FEE_GATE_DATA_INVALID",
+        "PHX1_FEE_GATE_PROOF_INCONSISTENT"
+      ],
+      "original_input_fields": [
+        "numeric fields",
+        "schema version",
+        "source",
+        "mint binding",
+        "proof digest",
+        "recomputed score and component sum"
+      ],
+      "authoritative_phx1_classification": "no equivalent authenticated proof seal",
+      "current_phx2_classification": "integrity HARD_BLOCK",
+      "downstream_effect": "invalid sealed decision; no compose, reserve, ledger, or transport",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Malformed, nonfinite, impossible, or digest-inconsistent evidence is an integrity failure rather than a structural opinion.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_invalid_numeric_and_proof_reasons_never_shadow"
+      ]
+    },
+    {
+      "filter_name": "fee_gate_lifecycle_structural_screen",
+      "source_module_function": "PHX2/free_tier_producer/fee_gate_lifecycle.py:_send_block_reasons,send_time_block_reason",
+      "reason_tokens": [
+        "PHX2_FEE_LIFECYCLE_IMMATURE",
+        "PHX2_FEE_LIFECYCLE_PROVISIONAL",
+        "PHX2_FEE_LIFECYCLE_TEMPORARILY_STALE",
+        "PHX2_FEE_LIFECYCLE_DURABLE_SCAM_LOCK"
+      ],
+      "original_input_fields": [
+        "fee evidence identity digest",
+        "maturity",
+        "confirmation count",
+        "fee verdict",
+        "fee evidence age"
+      ],
+      "authoritative_phx1_classification": "fee alert-gate conservative screen",
+      "current_phx2_classification": "pre-reserve HARD_BLOCK",
+      "downstream_effect": "blocks current send before compose and reservation",
+      "policy_classification": "SHADOWABLE_STRUCTURAL",
+      "justification": "Lifecycle states preserve PHX1 fee-screen conservatism and durable structural scam judgment; they do not replace current source, market, reserve, liquidity, or delivery safety gates.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_all_fee_lifecycle_structural_tokens_route_together",
+        "test_fee_gate_lifecycle.py"
+      ]
+    },
+    {
+      "filter_name": "fee_gate_lifecycle_state_integrity",
+      "source_module_function": "PHX2/free_tier_producer/fee_gate_lifecycle.py:_send_block_reasons,send_time_block_reason",
+      "reason_tokens": [
+        "PHX2_FEE_LIFECYCLE_STATE_INVALID",
+        "PHX2_FEE_LIFECYCLE_EVIDENCE_UNBOUND"
+      ],
+      "original_input_fields": [
+        "authenticated lifecycle state",
+        "candidate mint binding",
+        "bound fee proof timestamp"
+      ],
+      "authoritative_phx1_classification": "no equivalent authenticated state",
+      "current_phx2_classification": "state/proof HARD_BLOCK",
+      "downstream_effect": "blocks at security and pre-reserve proof boundaries",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Tainted state or evidence not bound to the exact candidate cannot truthfully authorize composition.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_mixed_shadow_and_lifecycle_integrity_remains_blocked"
+      ]
+    },
+    {
+      "filter_name": "phx1_holder_ghost_v2",
+      "source_module_function": "PHX2/free_tier_producer/phx1_structural_parity.py:evaluate_structural_filters",
+      "reason_tokens": [
+        "PHX1_GHOST_BLOCK"
+      ],
+      "original_input_fields": [
+        "top-holder wallet classifications",
+        "wallet SOL balances",
+        "funding-balance clusters"
+      ],
+      "authoritative_phx1_classification": "C2 scam HARD_BLOCK when evidence exists; fail open when unavailable",
+      "current_phx2_classification": "retained parity result only; production data unavailable",
+      "downstream_effect": "would be a structural scam block if evidence is supplied",
+      "policy_classification": "SHADOWABLE_STRUCTURAL",
+      "justification": "It is an explicit generalized PHX1 scam/organicity judgment; organicity remains UNVERIFIED and no wallet-specific production implementation is added.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_holder_ghost_token_is_structural_but_unverified"
+      ]
+    },
+    {
+      "filter_name": "final_market_freshness",
+      "source_module_function": "PHX2/free_tier_producer/phx1_structural_parity.py:evaluate_structural_filters; compat/build29_cap1_market_sidecar.py:resolve",
+      "reason_tokens": [
+        "PHX1_MARKET_DATA_MISSING",
+        "PHX1_MARKET_DATA_STALE",
+        "NO_SEND_MARKET_UNAVAILABLE",
+        "MARKET_UNAVAILABLE_PERSISTENT"
+      ],
+      "original_input_fields": [
+        "market observation timestamp",
+        "provider timestamp",
+        "current price",
+        "current market cap",
+        "liquidity"
+      ],
+      "authoritative_phx1_classification": "C1 freshness HARD_BLOCK/skip alert",
+      "current_phx2_classification": "final truthful-alert HARD_BLOCK",
+      "downstream_effect": "no compose, reserve, ledger, or transport",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "The task explicitly keeps final alert evidence freshness enforced; stale fee evidence is distinct from stale current market evidence.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_stale_fee_alone_shadows_but_final_market_stale_blocks",
+        "test_ath_activation_risk_regression.py"
+      ]
+    },
+    {
+      "filter_name": "canonical_migration_admission",
+      "source_module_function": "PHX2/free_tier_producer/migration_admission.py:evaluate_migration_admission",
+      "reason_tokens": [
+        "NOT_PUMPFUN_MIGRATION",
+        "CREATE_POOL_NOT_IN_MIGRATION_CPI",
+        "MIGRATION_PROGRAM_PROOF_MISSING",
+        "MIGRATION_QUOTE_DEPOSIT_MISSING",
+        "MIGRATION_QUOTE_DEPOSIT_BELOW_FLOOR",
+        "CANONICAL_POOL_MISMATCH",
+        "MIGRATION_VAULT_PROOF_INVALID",
+        "MIGRATION_MINT_BINDING_INVALID",
+        "MIGRATION_TRANSACTION_FAILED",
+        "MIGRATION_EVENT_MALFORMED",
+        "MIGRATION_QUOTE_MINT_UNSUPPORTED",
+        "TRANSACTION_ERROR_MALFORMED_FAIL_CLOSED",
+        "TRANSACTION_ERROR_UNSUPPORTED_ENCODING",
+        "TRANSACTION_ERROR_ACCESS_FAILED",
+        "TRANSACTION_ERROR_PRESENCE_CONFLICT"
+      ],
+      "original_input_fields": [
+        "migration CPI ancestry",
+        "transaction status",
+        "canonical pool PDA",
+        "vault derivation and ownership",
+        "mint binding",
+        "quote deposit"
+      ],
+      "authoritative_phx1_classification": "PHX2 intentional stronger canonicality rule",
+      "current_phx2_classification": "admission HARD_BLOCK/rejection",
+      "downstream_effect": "candidate never enters census/watch/send pipeline",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Invalid or unproven migration identity cannot be converted into a warning.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_migration_and_identity_reasons_never_shadow",
+        "test_migration_admission.py"
+      ]
+    },
+    {
+      "filter_name": "sealed_migration_proof_validation",
+      "source_module_function": "PHX2/free_tier_producer/migration_admission.py:validate_migration_proof,migration_proof_matches_identity",
+      "reason_tokens": [
+        "CANONICAL_MIGRATION_PROOF_REQUIRED",
+        "MIGRATION_PROOF_MISSING",
+        "MIGRATION_PROOF_INCONSISTENT"
+      ],
+      "original_input_fields": [
+        "proof digest",
+        "mint",
+        "pool",
+        "signature binding",
+        "slot",
+        "instruction version"
+      ],
+      "authoritative_phx1_classification": "PHX2 intentional stronger proof seal",
+      "current_phx2_classification": "proof HARD_BLOCK",
+      "downstream_effect": "no tracking authorization or send eligibility",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Missing/mismatched canonical proof is identity safety.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_migration_and_identity_reasons_never_shadow",
+        "test_migration_proof_lifecycle.py"
+      ]
+    },
+    {
+      "filter_name": "authenticated_census_state",
+      "source_module_function": "PHX2/free_tier_producer/migration_census.py:validate_migration_census_state,MigrationCensusStore.load",
+      "reason_tokens": [
+        "MIGRATION_CENSUS_CHECKPOINT_QUARANTINED",
+        "CENSUS_INTEGRITY_FAILURE",
+        "DUPLICATE_MIGRATION_SUPPRESSED",
+        "DUPLICATE_MIGRATION_APPLICATION"
+      ],
+      "original_input_fields": [
+        "authenticated checkpoint digest",
+        "canonical census identity",
+        "tracker cross-consistency",
+        "application count"
+      ],
+      "authoritative_phx1_classification": "PHX2 intentional stronger canonical dedupe/state",
+      "current_phx2_classification": "startup/admission HARD_BLOCK",
+      "downstream_effect": "refuses run or duplicate candidate application",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Census corruption and duplicate canonical application are state-integrity failures.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_state_quarantine_and_duplicate_reasons_never_shadow",
+        "test_migration_census_tracker.py"
+      ]
+    },
+    {
+      "filter_name": "cursor_reconciliation_watermark_integrity",
+      "source_module_function": "PHX2/free_tier_producer/grpc_stream_cursor.py; migration_reconciliation.py; transport_watermark.py",
+      "reason_tokens": [
+        "CHECKPOINT_QUARANTINED",
+        "CURSOR_INTEGRITY_FAILURE",
+        "FALSE_CURSOR_ADVANCEMENT",
+        "RECONCILIATION_INTEGRITY_FAILURE",
+        "TRANSPORT_WATERMARK_INTEGRITY_FAILURE"
+      ],
+      "original_input_fields": [
+        "authenticated cursor",
+        "commitment",
+        "overlap proof",
+        "reconciliation watermark",
+        "transport watermark"
+      ],
+      "authoritative_phx1_classification": "no equivalent authenticated recovery state",
+      "current_phx2_classification": "startup/source authorization HARD_BLOCK",
+      "downstream_effect": "startup refused or outbound path remains closed",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Coverage and authenticated state must be proven before any dispatch.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_state_quarantine_and_duplicate_reasons_never_shadow",
+        "test_migration_reconciliation.py"
+      ]
+    },
+    {
+      "filter_name": "canonical_1_20x_tracker",
+      "source_module_function": "PHX2/free_tier_producer/migration_census.py:observe_canonical_reserve,finalize_expired",
+      "reason_tokens": [
+        "PENDING_1_20X",
+        "DATA_GAP_UNRESOLVED",
+        "STRUCTURAL_COLLAPSE",
+        "LIQUIDITY_LOST",
+        "NEVER_REACHED_1_20X",
+        "EXPIRED"
+      ],
+      "original_input_fields": [
+        "canonical raw reserves",
+        "virtual reserves",
+        "effective reserves",
+        "baseline",
+        "crossing slot/time",
+        "trusted horizon completeness"
+      ],
+      "authoritative_phx1_classification": "PHX2 explicit 1.20x remediation tracker",
+      "current_phx2_classification": "block until REACHED_1_20X or terminal",
+      "downstream_effect": "no compose/reserve/transport",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Activation, reserve consistency, unresolved data gaps, liquidity loss, and structural impossibility are explicit non-shadowable gates.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_activation_data_gap_liquidity_loss_never_shadow",
+        "test_migration_census_tracker.py"
+      ]
+    },
+    {
+      "filter_name": "activation_proof",
+      "source_module_function": "PHX2/free_tier_producer/compat/build30_watchlist.py:activation_proof_is_eligible; compat/build29_cap1_session.py:run_cap1_candidates",
+      "reason_tokens": [
+        "ACTIVATION_ENTRY_MISSING",
+        "ACTIVATION_PROOF_REQUIRED",
+        "ACTIVATION_GATE_ERROR",
+        "NO_SEND_PENDING_1_20X"
+      ],
+      "original_input_fields": [
+        "migration baseline digest",
+        "activation evidence digest",
+        "1.20x target",
+        "crossing-tick block",
+        "latched state"
+      ],
+      "authoritative_phx1_classification": "PHX2 explicit stronger activation proof",
+      "current_phx2_classification": "pre-compose HARD_BLOCK",
+      "downstream_effect": "no compose or later side effect",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "SHADOW never bypasses the accepted activation threshold or proof.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_activation_data_gap_liquidity_loss_never_shadow",
+        "test_ath_activation_risk_regression.py"
+      ]
+    },
+    {
+      "filter_name": "current_market_required_fields",
+      "source_module_function": "PHX2/free_tier_producer/compat/build29_cap1_session.py:run_cap1_candidates; build29_cap1_compose_send.py:build_revalidation_request",
+      "reason_tokens": [
+        "NO_SEND_MARKET_UNAVAILABLE",
+        "MARKET_CAP_UNAVAILABLE",
+        "CURRENT_PRICE_REQUIRED",
+        "CURRENT_MARKET_CAP_REQUIRED",
+        "LIQUIDITY_REQUIRED"
+      ],
+      "original_input_fields": [
+        "current price",
+        "current market cap",
+        "liquidity",
+        "market fetched timestamp"
+      ],
+      "authoritative_phx1_classification": "truthful-alert required evidence",
+      "current_phx2_classification": "pre-compose HARD_BLOCK",
+      "downstream_effect": "request not built; no compose, reserve, or delivery",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Missing current alert evidence cannot be replaced by a warning.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_message_and_current_market_failures_never_shadow"
+      ]
+    },
+    {
+      "filter_name": "production_liquidity_floor_and_loss",
+      "source_module_function": "PHX2/free_tier_producer/compat/production_live_runner.py:liquidity_floor_block_reason; free_tier_risk.py:FreeTierRiskEngine._assess_inner",
+      "reason_tokens": [
+        "LIQUIDITY_USD_BELOW_MIN",
+        "LIQUIDITY_COLLAPSE",
+        "LP_CRITICALLY_LOW"
+      ],
+      "original_input_fields": [
+        "current liquidity_usd",
+        "peak liquidity",
+        "configured minimum"
+      ],
+      "authoritative_phx1_classification": "PHX1 LP floor was observe-only; current PHX2 floor/loss is independent safety",
+      "current_phx2_classification": "pre-reserve HARD_BLOCK",
+      "downstream_effect": "no reserve, ledger mutation, or transport",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Actual insufficient/lost liquidity is explicitly non-shadowable and is not reclassified as the PHX1 observe-only LP label.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_activation_data_gap_liquidity_loss_never_shadow",
+        "test_ath_activation_risk_regression.py"
+      ]
+    },
+    {
+      "filter_name": "phx2_current_high_risk_dispatch",
+      "source_module_function": "PHX2/free_tier_producer/free_tier_risk.py:classify_discord_dispatch; free_tier_session.py:make_discord_risk_gate",
+      "reason_tokens": [
+        "SKIPPED_HIGH_RISK_DISCORD",
+        "PRICE_SPIKE_DUMP",
+        "EARLY_EXTREME_DRAWDOWN",
+        "POOL_TOO_HOT",
+        "LIQUIDITY_COLLAPSE",
+        "LP_CRITICALLY_LOW",
+        "MARKET_UNAVAILABLE_PERSISTENT"
+      ],
+      "original_input_fields": [
+        "current/peak price",
+        "current/peak liquidity",
+        "market misses",
+        "creation-page signature count"
+      ],
+      "authoritative_phx1_classification": "not an authoritative PHX1 filter",
+      "current_phx2_classification": "reason-aggregating pre-reserve HARD_BLOCK",
+      "downstream_effect": "no reserve or dispatch",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "This PHX2 gate can aggregate true liquidity/freshness failures under one terminal token and is outside the narrowly authorized PHX1 policy conversion.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_current_phx2_high_risk_terminal_never_shadows",
+        "test_ath_activation_risk_regression.py"
+      ]
+    },
+    {
+      "filter_name": "alert_numeric_age_and_identity",
+      "source_module_function": "PHX2/delivery/telegram_adapter.py:build_ping_data; telegram_composer.py:TelegramPingData.__post_init__",
+      "reason_tokens": [
+        "CENTRAL_SECURITY_IDENTITY_MISMATCH",
+        "CENTRAL_COMPOSE_IDENTITY_MISMATCH",
+        "CENTRAL_MIGRATION_TIME_REQUIRED",
+        "CENTRAL_MARKET_CAP_MISMATCH",
+        "CENTRAL_TIER_REQUIRED",
+        "AGE_MINUTES_INVALID",
+        "TIER_INVALID"
+      ],
+      "original_input_fields": [
+        "mint bindings",
+        "migration time",
+        "current market cap",
+        "tier",
+        "token age"
+      ],
+      "authoritative_phx1_classification": "truthful-alert invariant",
+      "current_phx2_classification": "compose rejection",
+      "downstream_effect": "no valid composed body; no delivery",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Identity mismatch, negative age, and invalid/missing alert numerics are non-shadowable.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_message_and_current_market_failures_never_shadow",
+        "delivery/test_telegram_composer.py"
+      ]
+    },
+    {
+      "filter_name": "ath_drawdown_dip_composition",
+      "source_module_function": "PHX2/free_tier_producer/ath_state.py; stage30/stage30_11_13_committed_no_send_composer.py",
+      "reason_tokens": [
+        "ATH_NOT_RESOLVED",
+        "ATH_DRAWDOWN_INCONSISTENT",
+        "TIER_NOT_ELIGIBLE",
+        "NOT_DISPATCHABLE"
+      ],
+      "original_input_fields": [
+        "sealed central ATH",
+        "current market cap",
+        "drawdown",
+        "dip-tier thresholds"
+      ],
+      "authoritative_phx1_classification": "PHX2 stronger central-ATH consistency",
+      "current_phx2_classification": "compose HARD_BLOCK/rejection",
+      "downstream_effect": "no reservation or delivery",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "SHADOW does not change ATH, drawdown, or dip-tier calculations and cannot authorize an ineligible alert.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_message_and_current_market_failures_never_shadow",
+        "test_central_ath_state.py"
+      ]
+    },
+    {
+      "filter_name": "candidate_and_notification_dedupe",
+      "source_module_function": "PHX2/free_tier_producer/compat/build30_watchlist.py:seed,record_recheck; stage30/stage30_11_15_no_send_dedupe_guard.py",
+      "reason_tokens": [
+        "TERMINAL_HISTORY_DUPLICATE",
+        "DUPLICATE_CANDIDATE_APPLICATION",
+        "DEDUPE_SUPPRESSED_DUPLICATE",
+        "DUPLICATE_WITHIN_TTL"
+      ],
+      "original_input_fields": [
+        "candidate mint",
+        "canonical candidate identity",
+        "mint/tier key",
+        "terminal history",
+        "TTL"
+      ],
+      "authoritative_phx1_classification": "duplicate alert suppression",
+      "current_phx2_classification": "watch/composer HARD_BLOCK",
+      "downstream_effect": "no duplicate reservation or transport",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "No policy mode may bypass candidate or mint/tier dedupe identity.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_state_quarantine_and_duplicate_reasons_never_shadow",
+        "test_security_cross_consumer.py"
+      ]
+    },
+    {
+      "filter_name": "canonical_ledger_dedupe_and_reservation",
+      "source_module_function": "PHX2/free_tier_producer/compat/build29_cap1_compose_send.py:compose_and_maybe_send; stage30/stage30_11_15_ping_dedupe_ledger.py",
+      "reason_tokens": [
+        "CANONICAL_LEDGER_DEDUPE_HIT",
+        "LEDGER_RESERVATION_FAILED",
+        "LEDGER_STATE_UNKNOWN",
+        "LEDGER_MISMATCH"
+      ],
+      "original_input_fields": [
+        "mint/tier dedupe key",
+        "durable ledger baseline",
+        "reservation result"
+      ],
+      "authoritative_phx1_classification": "delivery dedupe safety",
+      "current_phx2_classification": "reservation/run HARD_BLOCK",
+      "downstream_effect": "no transport or successful-send commit",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Durable ledger and dedupe failures remain enforced in both modes.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_delivery_ledger_authorization_reasons_never_shadow",
+        "test_delivery_transaction_state.py"
+      ]
+    },
+    {
+      "filter_name": "composite_security_proof",
+      "source_module_function": "PHX2/free_tier_producer/scam_policy.py:validate_delivery_decision,delivery_block_reason",
+      "reason_tokens": [
+        "SECURITY_DECISION_PROOF_MISSING",
+        "SECURITY_DECISION_PROOF_INCONSISTENT"
+      ],
+      "original_input_fields": [
+        "candidate mint",
+        "fee proof",
+        "policy digest",
+        "composite proof digest",
+        "eligibility flags"
+      ],
+      "authoritative_phx1_classification": "no equivalent sealed cross-consumer proof",
+      "current_phx2_classification": "security HARD_BLOCK at multiple boundaries",
+      "downstream_effect": "no market or no compose/reserve/transport depending boundary",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "A forged, missing, or inconsistent policy/security decision cannot be shadowed.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_invalid_numeric_and_proof_reasons_never_shadow",
+        "test_security_cross_consumer.py"
+      ]
+    },
+    {
+      "filter_name": "historical_two_stream_lp_integrity",
+      "source_module_function": "PHX2/free_tier_producer/scam_policy.py:evaluate_delivery_safety(two-stream offline mode)",
+      "reason_tokens": [
+        "LP_INTEGRITY_FAIL",
+        "LP_INTEGRITY_UNKNOWN",
+        "CANONICAL_POOL_PROOF_REQUIRED",
+        "LP_AND_FEE_COMPOSITE_BLOCK",
+        "LP_INTEGRITY_PROOF_MISSING",
+        "LP_INTEGRITY_PROOF_INCONSISTENT"
+      ],
+      "original_input_fields": [
+        "canonical pool identity",
+        "vault proof",
+        "liquidity add/remove events",
+        "LP proof digest"
+      ],
+      "authoritative_phx1_classification": "historical PHX2 stronger liquidity proof",
+      "current_phx2_classification": "offline two-stream HARD_BLOCK; disabled in production single stream",
+      "downstream_effect": "blocks offline historical composite",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Actual liquidity loss and canonical-pool proof failures are safety; production does not revive this removed stream.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_activation_data_gap_liquidity_loss_never_shadow",
+        "test_composite_scam_policy.py"
+      ]
+    },
+    {
+      "filter_name": "delivery_transaction_state",
+      "source_module_function": "PHX2/free_tier_producer/compat/build29_cap1_compose_send.py:compose_and_maybe_send; delivery_journal.py",
+      "reason_tokens": [
+        "DELIVERY_UNKNOWN",
+        "SENT_OK_COMMIT_PENDING",
+        "DELIVERY_COMMIT_INCOMPLETE",
+        "LEDGER_COMMIT_FAILED",
+        "TRANSPORT_START_STATE_INVALID"
+      ],
+      "original_input_fields": [
+        "attempt lease",
+        "transport-start journal",
+        "durable receipt",
+        "ledger commit"
+      ],
+      "authoritative_phx1_classification": "no equivalent transaction journal",
+      "current_phx2_classification": "terminal/retry HARD_BLOCK",
+      "downstream_effect": "no silent retry or second transport; run stops when ambiguous",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Delivery ambiguity and commit failure must remain fail closed.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_delivery_ledger_authorization_reasons_never_shadow",
+        "test_delivery_transaction_state.py"
+      ]
+    },
+    {
+      "filter_name": "authorization_send_cap_and_routing",
+      "source_module_function": "PHX2/free_tier_producer/free_tier_session.py:verify_arm,verify_telegram_arm; stage30_11_16_real_private_transport_guard.py",
+      "reason_tokens": [
+        "DUAL_TRANSPORT_FORBIDDEN",
+        "AUTHORIZATION_REQUIRED",
+        "CONFIRMATION_REQUIRED",
+        "SEND_CAP_REACHED",
+        "MULTIPLE_TRANSPORT_ROUTING"
+      ],
+      "original_input_fields": [
+        "explicit arm flags",
+        "confirmation token",
+        "send cap",
+        "transport selection"
+      ],
+      "authoritative_phx1_classification": "delivery authorization safety",
+      "current_phx2_classification": "startup/guard HARD_BLOCK",
+      "downstream_effect": "no transport attempt or additional send",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Policy mode cannot grant authorization, raise caps, or enable multiple routes.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_delivery_ledger_authorization_reasons_never_shadow",
+        "runtime/test_production_armed_route_closed.py"
+      ]
+    },
+    {
+      "filter_name": "source_health_and_gap_recovery",
+      "source_module_function": "PHX2/free_tier_producer/free_tier_session.py:source_health_gate; paid_primary_discovery.py:authorizes_send",
+      "reason_tokens": [
+        "PHX2_GRPC_SOURCE_UNHEALTHY",
+        "SOURCE_HEALTH_GATE_ERROR",
+        "RPC_GAP_RECOVERY_CONFIG_REFUSED",
+        "PRODUCTION_GRPC_CONTRACT_REFUSED"
+      ],
+      "original_input_fields": [
+        "stream freshness",
+        "resume cursor",
+        "replay overlap",
+        "gap-recovery state"
+      ],
+      "authoritative_phx1_classification": "PHX2 coverage safety",
+      "current_phx2_classification": "startup/pre-reserve HARD_BLOCK",
+      "downstream_effect": "outbound path closed while ingestion/recovery may continue",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Unproven source coverage is an unresolved canonical data gap.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_state_quarantine_and_duplicate_reasons_never_shadow",
+        "test_production_grpc_contract.py"
+      ]
+    },
+    {
+      "filter_name": "message_schema_and_length",
+      "source_module_function": "PHX2/delivery/telegram_composer.py:TelegramPingData.__post_init__,compose_telegram_ping; telegram_adapter.py:bind_delivery",
+      "reason_tokens": [
+        "TOKEN_MINT_REQUIRED",
+        "BUILDER_READ_REQUIRED",
+        "UNRESOLVED_MESSAGE_PLACEHOLDER",
+        "MESSAGE_REJECTED",
+        "MESSAGE_LENGTH_LIMIT_EXCEEDED"
+      ],
+      "original_input_fields": [
+        "required alert fields",
+        "rendered body",
+        "shadow reason tokens",
+        "transport character limit"
+      ],
+      "authoritative_phx1_classification": "truthful-message/delivery safety",
+      "current_phx2_classification": "compose/local delivery refusal",
+      "downstream_effect": "zero network-capable transport attempts for local overlength refusal",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "Required warning text is never truncated; an overlength body fails closed before delivery.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_shadow_alert_and_overlength_behavior",
+        "delivery/test_telegram_composer.py"
+      ]
+    },
+    {
+      "filter_name": "unknown_upstream_hard_block",
+      "source_module_function": "PHX2/free_tier_producer/scam_policy.py:evaluate_delivery_safety; phx1_structural_policy.py:route_phx1_structural_reasons",
+      "reason_tokens": [
+        "<ANY_UNCLASSIFIED_REASON>"
+      ],
+      "original_input_fields": [
+        "caller-supplied existing_block_reasons"
+      ],
+      "authoritative_phx1_classification": "not established",
+      "current_phx2_classification": "independent HARD_BLOCK",
+      "downstream_effect": "remains in effective final block list",
+      "policy_classification": "NON_SHADOWABLE_SAFETY",
+      "justification": "The allowlist is closed; classification uncertainty can never broaden SHADOW eligibility.",
+      "tests": [
+        "test_phx1_structural_shadow_policy.py::test_unknown_reason_fails_closed"
+      ]
+    }
+  ]
+}

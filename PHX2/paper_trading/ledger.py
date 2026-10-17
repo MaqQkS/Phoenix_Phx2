@@ -11,10 +11,10 @@ holds:
   ``paper_open_positions.json``, ``strategy_comparison.json`` / ``.md``,
   ``paper_recent_events.jsonl`` (bounded tail).
 
-Appends are flushed line-by-line and snapshots are written via a temp file
-+ ``os.replace`` so a crash never leaves a torn artifact. Restart safety:
-``load_last_positions()`` replays the positions ledger and returns the last
-recorded state per paper_trade_id, so open positions survive a restart.
+The engine stages appends during a transaction. Its atomic paper_state.json
+commit contains full state, input checkpoints and the last projection plan.
+JSONL suffixes can be rebuilt after a torn append without duplicating fills.
+Legacy ledger readers remain available for reports and reviewed replay use.
 """
 
 from __future__ import annotations
@@ -22,6 +22,8 @@ from __future__ import annotations
 import io
 import json
 import os
+import tempfile
+import time
 from pathlib import Path
 from typing import Any, Dict, IO, Iterable, List, Optional
 
@@ -40,9 +42,23 @@ RUN_CONFIG_ECHO_FILE = "run_config_echo.json"
 HEARTBEAT_FILE = "heartbeat.json"
 LIVE_MONITOR_FILE = "live_monitor.json"
 CHECKPOINTS_FILE = "input_checkpoints.json"
+STATE_FILE = "paper_state.json"
+# Stop before the producer's 32 MiB feedback reader limit; never commit a
+# newly opened position whose authoritative coverage pin would be unreadable.
+MAX_STATE_BYTES = 24 * 1024 * 1024
 
 APPEND_FILES = (POSITIONS_FILE, FILLS_FILE, EVENTS_FILE, ERRORS_FILE,
                 EQUITY_FILE, CLOSED_FILE)
+
+# Windows can temporarily deny ``os.replace`` while a read-only consumer has
+# the destination open without delete sharing.  Keep the retry policy small,
+# deterministic, and local to the atomic replacement boundary.  The complete
+# backoff is 25 + 50 + 100 ms, and the elapsed-time guard prevents retries from
+# continuing beyond half a second even if an individual attempt is slow.
+ATOMIC_REPLACE_MAX_ATTEMPTS = 4
+ATOMIC_REPLACE_INITIAL_BACKOFF_SECONDS = 0.025
+ATOMIC_REPLACE_MAX_BACKOFF_SECONDS = 0.100
+ATOMIC_REPLACE_MAX_DURATION_SECONDS = 0.500
 
 # Every artifact a paper run can leave in its run directory. Used to detect
 # an already-used run dir (replay refuses to append duplicates) and to
@@ -51,7 +67,7 @@ APPEND_FILES = (POSITIONS_FILE, FILLS_FILE, EVENTS_FILE, ERRORS_FILE,
 KNOWN_RUN_ARTIFACTS = APPEND_FILES + (
     SUMMARY_FILE, OPEN_POSITIONS_FILE, COMPARISON_JSON_FILE,
     COMPARISON_MD_FILE, RECENT_EVENTS_FILE, RUN_CONFIG_ECHO_FILE,
-    HEARTBEAT_FILE, LIVE_MONITOR_FILE, CHECKPOINTS_FILE,
+    HEARTBEAT_FILE, LIVE_MONITOR_FILE, CHECKPOINTS_FILE, STATE_FILE,
 )
 
 
@@ -67,6 +83,7 @@ class PaperLedger:
         self.run_dir = Path(run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self._handles: Dict[str, IO[str]] = {}
+        self._pending = None
         # Pre-create the append-only ledgers (empty on a fresh run) so the
         # dashboard artifact set is complete before the first append.
         for name in APPEND_FILES:
@@ -85,9 +102,66 @@ class PaperLedger:
         return handle
 
     def append(self, name: str, record: Dict[str, Any]) -> None:
+        if self._pending is not None:
+            self._pending.append((name, json.loads(_dumps(record))))
+            return
         handle = self._handle(name)
         handle.write(_dumps(record) + "\n")
         handle.flush()
+        os.fsync(handle.fileno())
+
+    def begin_transaction(self) -> None:
+        if self._pending is not None:
+            raise RuntimeError("PAPER_TRANSACTION_ALREADY_ACTIVE")
+        self._pending = []
+
+    def rollback_transaction(self) -> None:
+        self._pending = None
+
+    def commit_transaction(self, state: Dict[str, Any]) -> None:
+        """Commit authority first, then materialize recoverable JSONL views.
+
+        A surviving state file carries the exact pre-append offsets and rows.
+        On restart, replay replaces only the last committed projection suffix,
+        so a torn append or process crash cannot duplicate a simulated fill.
+        """
+        if self._pending is None:
+            raise RuntimeError("PAPER_TRANSACTION_NOT_ACTIVE")
+        self.close()
+        projection = {"offsets": {
+            name: (self.run_dir / name).stat().st_size for name in APPEND_FILES
+        }, "rows": list(self._pending)}
+        payload = dict(state, projection=projection)
+        self.write_json_atomic(STATE_FILE, payload)
+        self._pending = None
+        self.recover_projection(payload)
+
+    def recover_projection(self, state: Dict[str, Any]) -> None:
+        projection = state.get("projection") or {}
+        offsets = projection.get("offsets") or {}
+        rows = projection.get("rows") or []
+        if set(offsets) != set(APPEND_FILES):
+            raise ValueError("PAPER_STATE_PROJECTION_INVALID")
+        grouped = {name: [] for name in APPEND_FILES}
+        for name, record in rows:
+            if name not in grouped or not isinstance(record, dict):
+                raise ValueError("PAPER_STATE_PROJECTION_INVALID")
+            grouped[name].append((_dumps(record) + "\n").encode("utf-8"))
+        self.close()
+        # Validate every boundary before changing any projection.
+        for name in APPEND_FILES:
+            offset = offsets[name]
+            if (not isinstance(offset, int) or isinstance(offset, bool)
+                    or offset < 0 or (self.run_dir / name).stat().st_size < offset):
+                raise ValueError("PAPER_STATE_LEDGER_PREFIX_MISSING")
+        for name in APPEND_FILES:
+            with io.open(self.run_dir / name, "r+b") as handle:
+                handle.seek(offsets[name])
+                handle.truncate()
+                for raw in grouped[name]:
+                    handle.write(raw)
+                handle.flush()
+                os.fsync(handle.fileno())
 
     def append_position(self, record: Dict[str, Any]) -> None:
         self.append(POSITIONS_FILE, record)
@@ -110,19 +184,98 @@ class PaperLedger:
     # -- snapshot artifacts ---------------------------------------------------
 
     def write_json_atomic(self, name: str, payload: Any) -> None:
-        target = self.run_dir / name
-        tmp = target.with_suffix(target.suffix + ".tmp")
-        tmp.write_text(
-            json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=True,
-                       default=str) + "\n",
-            encoding="utf-8")
-        os.replace(tmp, target)
+        text = json.dumps(
+            payload,
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=True,
+            default=str,
+        ) + "\n"
+        if name == STATE_FILE and len(text.encode("utf-8")) > MAX_STATE_BYTES:
+            raise ValueError("PAPER_STATE_RETENTION_LIMIT_REQUIRES_REVIEW")
+        self._write_atomic(name, text)
 
     def write_text_atomic(self, name: str, text: str) -> None:
+        self._write_atomic(name, text)
+
+    def _write_atomic(self, name: str, text: str) -> None:
         target = self.run_dir / name
-        tmp = target.with_suffix(target.suffix + ".tmp")
-        tmp.write_text(text, encoding="utf-8")
-        os.replace(tmp, target)
+        descriptor, temporary_name = tempfile.mkstemp(
+            dir=str(target.parent),
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+        )
+        temporary: Optional[Path] = Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+                handle.write(text)
+                handle.flush()
+                os.fsync(handle.fileno())
+
+            started = time.monotonic()
+            for attempt in range(1, ATOMIC_REPLACE_MAX_ATTEMPTS + 1):
+                try:
+                    os.replace(temporary, target)
+                    temporary = None
+                    return
+                except PermissionError:
+                    elapsed = max(0.0, time.monotonic() - started)
+                    delay = min(
+                        ATOMIC_REPLACE_INITIAL_BACKOFF_SECONDS * (2 ** (attempt - 1)),
+                        ATOMIC_REPLACE_MAX_BACKOFF_SECONDS,
+                    )
+                    retrying = (
+                        attempt < ATOMIC_REPLACE_MAX_ATTEMPTS
+                        and elapsed + delay <= ATOMIC_REPLACE_MAX_DURATION_SECONDS
+                    )
+                    self._atomic_write_diagnostic(
+                        name=name,
+                        attempt=attempt,
+                        retrying=retrying,
+                    )
+                    if not retrying:
+                        raise
+                    time.sleep(delay)
+        finally:
+            if temporary is not None:
+                try:
+                    temporary.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    # Preserve the replacement failure as the primary error.
+                    # The fixed diagnostic contains no path, payload, or raw
+                    # exception text that could disclose operator data.
+                    self._atomic_write_diagnostic(
+                        name=name,
+                        attempt=ATOMIC_REPLACE_MAX_ATTEMPTS,
+                        retrying=False,
+                        cleanup_failed=True,
+                    )
+
+    def _atomic_write_diagnostic(
+            self, *, name: str, attempt: int, retrying: bool,
+            cleanup_failed: bool = False) -> None:
+        event = {
+            "kind": "PAPER_ATOMIC_WRITE_DIAGNOSTIC",
+            "event": (
+                "ATOMIC_TEMP_CLEANUP_FAILED"
+                if cleanup_failed
+                else ("ATOMIC_REPLACE_RETRY" if retrying else "ATOMIC_REPLACE_FAILED")
+            ),
+            "artifact_category": (
+                "HEARTBEAT" if name == HEARTBEAT_FILE else "PAPER_SNAPSHOT"
+            ),
+            "attempt_count": int(attempt),
+            "max_attempts": ATOMIC_REPLACE_MAX_ATTEMPTS,
+            "error_category": "PERMISSION_ERROR_ACCESS_DENIED",
+        }
+        try:
+            self.append_event(event)
+        except OSError:
+            # A diagnostic failure must not replace or hide the original
+            # atomic-write exception.  The caller still receives that error.
+            pass
 
     def write_recent_events(self, events: Iterable[Dict[str, Any]]) -> None:
         lines = "".join(_dumps(e) + "\n" for e in events)
@@ -216,6 +369,12 @@ __all__ = [
     "HEARTBEAT_FILE",
     "LIVE_MONITOR_FILE",
     "CHECKPOINTS_FILE",
+    "STATE_FILE",
+    "MAX_STATE_BYTES",
+    "ATOMIC_REPLACE_MAX_ATTEMPTS",
+    "ATOMIC_REPLACE_INITIAL_BACKOFF_SECONDS",
+    "ATOMIC_REPLACE_MAX_BACKOFF_SECONDS",
+    "ATOMIC_REPLACE_MAX_DURATION_SECONDS",
     "APPEND_FILES",
     "KNOWN_RUN_ARTIFACTS",
     "PaperLedger",

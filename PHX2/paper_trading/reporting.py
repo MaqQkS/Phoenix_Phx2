@@ -18,6 +18,7 @@ from PHX2.paper_trading.models import (
     STATUS_DATA_LOST,
     STATUS_OPEN,
     STATUS_RUGGED,
+    STATUS_SKIPPED_HIGH_RISK,
     STATUS_SKIPPED_MIN_NOTIONAL,
     STATUS_SKIPPED_PRICE_MISSING,
 )
@@ -190,7 +191,19 @@ def summarize_strategy(strategy_name: str,
         "skipped_min_notional": sum(
             1 for r in skipped_recs
             if r.get("status") == STATUS_SKIPPED_MIN_NOTIONAL),
+        # Risk-aware protection: entries this strategy refused because the risk
+        # layer said RISK_HIGH. These rows carry no fills/PnL, so every PnL figure
+        # above already EXCLUDES the high-risk cohort.
+        "high_risk_skips": sum(
+            1 for r in skipped_recs
+            if r.get("status") == STATUS_SKIPPED_HIGH_RISK),
+        "high_risk_skip_reasons": dict(sorted(
+            (reason, count) for reason, count in skip_reasons.items()
+            if str(reason).startswith("HIGH_RISK_"))),
         "skip_reasons": dict(sorted(skip_reasons.items())),
+        "performance_by_risk_label": _group_perf(
+            closed_recs,
+            lambda r: str(r.get("risk_label_at_entry") or "RISK_UNKNOWN")),
         "performance_by_tier": _group_perf(
             closed_recs,
             lambda r: f"TIER_{r['tier']}" if r.get("tier") is not None
@@ -251,6 +264,7 @@ def build_ranking(strategies: Dict[str, Dict[str, Any]]) -> List[Dict[str, Any]]
             "max_drawdown_pct": summary.get("max_drawdown_pct"),
             "rugged_trades": summary.get("rugged_trades", 0),
             "data_lost_trades": summary.get("data_lost_trades", 0),
+            "high_risk_skips": summary.get("high_risk_skips", 0),
         })
     rows.sort(key=lambda r: (-(r["total_pnl_usd"] or 0.0), r["strategy_name"]))
     for rank, row in enumerate(rows, start=1):

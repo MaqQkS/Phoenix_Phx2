@@ -338,6 +338,9 @@ class TestBalaPlanExits:
         assert intents[0].recover_usd == pytest.approx(100.0)
         assert intents[0].leg == "INITIALS_RECOVERY"
         state = position.strategy_state
+        assert not state.get("initial_recovered")
+        assert position.plan.trailing_stop_pct is None
+        strat.on_initials_recovered(position, 0.0003)
         assert state["initial_recovered"] is True
         assert state["bala_state"] == "INITIALS_RECOVERED"
         assert position.plan.trailing_stop_pct == pytest.approx(0.30)
@@ -485,6 +488,9 @@ class TestThreeXRunner:
         assert intents[0].kind == EXIT_PARTIAL
         assert intents[0].recover_usd == pytest.approx(100.0)
         state = position.strategy_state
+        assert not state.get("initial_recovered")
+        assert position.plan.trailing_stop_pct is None
+        strat.on_initials_recovered(position, 0.0003)
         assert state["initial_recovered"] is True
         assert state["runner_status"] == "RUNNER_ACTIVE"
         assert position.plan.trailing_stop_pct == pytest.approx(0.30)

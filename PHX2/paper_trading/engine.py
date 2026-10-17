@@ -19,8 +19,10 @@ paper mode feeds the same engine from a tailing snapshot source.
 from __future__ import annotations
 
 import json
+import math
 import random
 from collections import deque
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
@@ -28,6 +30,7 @@ from PHX2.paper_trading.config import (
     END_OF_STREAM_CLOSE,
     PaperConfig,
     RUG_ACTION_FREEZE,
+    STRATEGY_HIGH_RISK_OBSERVER,
     StrategyConfig,
 )
 from PHX2.paper_trading.ledger import (
@@ -38,6 +41,8 @@ from PHX2.paper_trading.ledger import (
     LIVE_MONITOR_FILE,
     RUN_CONFIG_ECHO_FILE,
     SUMMARY_FILE,
+    STATE_FILE,
+    APPEND_FILES,
     PaperLedger,
     load_last_positions,
     reset_run_dir,
@@ -47,6 +52,7 @@ from PHX2.paper_trading.models import (
     CandidateSnapshot,
     ExitPlan,
     LEG_FINAL,
+    LEG_INITIALS_RECOVERY,
     LEG_PARTIAL_SELL,
     LEG_RUNNER_CLOSE,
     PaperFill,
@@ -58,6 +64,7 @@ from PHX2.paper_trading.models import (
     STATUS_EXPIRED,
     STATUS_OPEN,
     STATUS_RUGGED,
+    STATUS_SKIPPED_HIGH_RISK,
     STATUS_SKIPPED_LIQUIDITY_CAP,
     STATUS_SKIPPED_MIN_NOTIONAL,
     STATUS_SKIPPED_PRICE_MISSING,
@@ -65,7 +72,13 @@ from PHX2.paper_trading.models import (
     STATUS_STOPPED,
     STATUS_TAKE_PROFIT,
     parse_utc,
+    parse_number,
     utc_iso,
+)
+from PHX2.paper_trading.risk import (
+    REASON_PAPER_RUG_HISTORY,
+    RISK_HIGH,
+    high_risk_skip_reason,
 )
 from PHX2.paper_trading.reporting import (
     build_comparison,
@@ -88,6 +101,8 @@ from PHX2.paper_trading.strategy import (
     StrategyContext,
     build_strategy,
 )
+from PHX2.paper_trading.state import json_copy, transaction, tuples
+from PHX2.paper_trading.notifications import PaperNotificationOutbox, make_notification
 
 MODE_REPLAY = "REPLAY"
 MODE_LIVE_PAPER = "LIVE_PAPER"
@@ -115,7 +130,8 @@ _SKIP_STATUS_BY_REASON = {
 
 class _MintState:
     __slots__ = ("last_price", "last_price_epoch", "last_mc", "last_lp",
-                 "peak_mc", "first_seen_epoch", "symbol")
+                 "peak_mc", "first_seen_epoch", "symbol",
+                 "risk_label", "risk_reasons", "rug_seen", "last_observation_epoch")
 
     def __init__(self) -> None:
         self.last_price: Optional[float] = None
@@ -125,6 +141,12 @@ class _MintState:
         self.peak_mc: Optional[float] = None
         self.first_seen_epoch: Optional[float] = None
         self.symbol: Optional[str] = None
+        # Latest producer risk tag seen for this mint (+ whether the paper book
+        # itself already watched it rug/collapse — sticky for the run).
+        self.risk_label: Optional[str] = None
+        self.risk_reasons: List[str] = []
+        self.rug_seen: bool = False
+        self.last_observation_epoch: Optional[float] = None
 
 
 class _StrategyRuntime:
@@ -180,6 +202,33 @@ class PaperTradingEngine:
         self.run_id = resolve_run_id(config, mode)
         base_dir = run_dir or str(
             Path(config.run.output_root) / self.run_id)
+        saved = None
+        state_path = Path(base_dir) / STATE_FILE
+        if state_path.exists():
+            if not resume:
+                raise ValueError("PAPER_EXISTING_STATE_REQUIRES_RESUME")
+            try:
+                saved = json.loads(state_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as exc:
+                raise ValueError("PAPER_STATE_UNREADABLE") from exc
+            if (saved.get("schema_version") != "phx2_paper_state_v1"
+                    or saved.get("run_id") != self.run_id
+                    or saved.get("config_digest") != digest
+                    or saved.get("mode") != mode):
+                raise ValueError("PAPER_RESUME_IDENTITY_MISMATCH")
+        elif resume:
+            if mode == MODE_LIVE_PAPER and any(
+                    (Path(base_dir) / name).exists() and (Path(base_dir) / name).stat().st_size
+                    for name in APPEND_FILES):
+                raise ValueError("PAPER_LEGACY_STATE_REQUIRES_REVIEWED_MIGRATION")
+            echo_path = Path(base_dir) / RUN_CONFIG_ECHO_FILE
+            if echo_path.exists():
+                try:
+                    old = json.loads(echo_path.read_text(encoding="utf-8"))
+                except (OSError, ValueError) as exc:
+                    raise ValueError("PAPER_RESUME_CONFIG_UNREADABLE") from exc
+                if old.get("config_digest") != digest or old.get("run_id") != self.run_id:
+                    raise ValueError("PAPER_RESUME_IDENTITY_MISMATCH")
         self.ledger = PaperLedger(base_dir)
         self.run_dir = str(self.ledger.run_dir)
 
@@ -200,15 +249,220 @@ class PaperTradingEngine:
         self._next_equity_epoch: Optional[float] = None
         # Final (or latest) position record per trade id, for reporting.
         self._final_records: Dict[str, Dict[str, Any]] = {}
+        self.notification_events: Dict[str, Dict[str, Any]] = {}
+        self.notification_outbox = PaperNotificationOutbox(self)
+        self.durable_source_checkpoint: Dict[str, Any] = {}
+        self._batch_active = False
+        self._before_batch = None
+        self._state_generation = 0
+        self._seen_record_digests = deque(maxlen=8192)
+        self._fatal_state_error = False
 
+        if saved is not None:
+            self._restore_state(saved["engine"])
+            self.ledger.recover_projection(saved)
+            self.durable_source_checkpoint = saved.get("source_checkpoint") or {}
+            self._state_generation = saved.get("generation", 0)
+            # A request may have reached its destination before a crash.
+            unknown = [event for event in self.notification_events.values()
+                       if event["status"] == "IN_FLIGHT"]
+            if unknown:
+                self.begin_batch()
+                for event in unknown:
+                    event["status"] = "UNKNOWN"
+                self.commit_batch()
+        elif resume:
+            self._resume_from_ledger()
         self.ledger.write_json_atomic(RUN_CONFIG_ECHO_FILE, {
             "run_id": self.run_id,
             "mode": self.mode,
             "config": config.to_dict(),
             "config_digest": digest,
         })
-        if resume:
-            self._resume_from_ledger()
+
+    @property
+    def durable_source_offsets(self):
+        return dict(self.durable_source_checkpoint.get("offsets") or {})
+
+    def _export_state(self):
+        return json_copy({
+            "now_epoch": self.now_epoch, "snapshots_processed": self.snapshots_processed,
+            "last_snapshot": asdict(self.last_snapshot) if self.last_snapshot else None,
+            "last_error": self.last_error, "last_skip": self.last_skip,
+            "recent_events": list(self.recent_events),
+            "next_heartbeat_epoch": self._next_heartbeat_epoch,
+            "next_equity_epoch": self._next_equity_epoch,
+            "final_records": self._final_records,
+            "notification_events": self.notification_events,
+            "seen_record_digests": list(self._seen_record_digests),
+            "market": {mint: {key: getattr(value, key) for key in _MintState.__slots__}
+                       for mint, value in self.market.items()},
+            "runtimes": [{
+                "name": rt.cfg.name, "rng": rt.rng.getstate(),
+                "strategy": rt.strategy.export_state(),
+                "open": {mint: asdict(pos) for mint, pos in rt.open_by_mint.items()},
+                "traded_mints": sorted(rt.traded_mints), "trade_seq": rt.trade_seq,
+                "realized_pnl_usd": rt.realized_pnl_usd, "equity_series": rt.equity_series,
+                "last_opened": rt.last_opened, "last_closed": rt.last_closed,
+                "last_dca": rt.last_dca,
+            } for rt in self.runtimes],
+        })
+
+    def _restore_state(self, state):
+        for key in ("now_epoch", "snapshots_processed", "last_error", "last_skip"):
+            setattr(self, key, state[key])
+        self.last_snapshot = CandidateSnapshot(**state["last_snapshot"]) if state["last_snapshot"] else None
+        self.recent_events.clear()
+        self.recent_events.extend(state["recent_events"])
+        self._next_heartbeat_epoch = state["next_heartbeat_epoch"]
+        self._next_equity_epoch = state["next_equity_epoch"]
+        self._final_records = state["final_records"]
+        self.notification_events = state["notification_events"]
+        self._seen_record_digests = deque(state.get("seen_record_digests", []), maxlen=8192)
+        self.market = {}
+        for mint, saved in state["market"].items():
+            item = _MintState()
+            for key, value in saved.items():
+                setattr(item, key, value)
+            self.market[mint] = item
+        by_name = {rt.cfg.name: rt for rt in self.runtimes}
+        for saved in state["runtimes"]:
+            rt = by_name[saved["name"]]
+            rt.rng.setstate(tuples(saved["rng"]))
+            rt.strategy.restore_state(saved["strategy"])
+            rt.open_by_mint = {}
+            for mint, record in saved["open"].items():
+                record = dict(record)
+                record["plan"] = ExitPlan(**record["plan"])
+                rt.open_by_mint[mint] = PaperPosition(**record)
+            rt.traded_mints = set(saved["traded_mints"])
+            for key in ("trade_seq", "realized_pnl_usd", "equity_series",
+                        "last_opened", "last_closed", "last_dca"):
+                setattr(rt, key, saved[key])
+
+    def begin_batch(self):
+        if self._fatal_state_error:
+            raise RuntimeError("PAPER_RESTART_REQUIRED_AFTER_COMMIT_FAILURE")
+        if self._batch_active:
+            raise RuntimeError("PAPER_TRANSACTION_ALREADY_ACTIVE")
+        self._before_batch = self._export_state()
+        self.ledger.begin_transaction()
+        self._batch_active = True
+
+    def commit_batch(self, source_checkpoint=None):
+        if not self._batch_active:
+            raise RuntimeError("PAPER_TRANSACTION_NOT_ACTIVE")
+        checkpoint = (self.durable_source_checkpoint if source_checkpoint is None
+                      else source_checkpoint)
+        payload = {
+            "schema_version": "phx2_paper_state_v1", "run_id": self.run_id,
+            "config_digest": self.config.config_digest(), "mode": self.mode,
+            "generation": self._state_generation + 1,
+            "engine": self._export_state(), "source_checkpoint": checkpoint,
+            "heartbeat_utc": self._heartbeat_stamp_utc(),
+            "open_mints": [self._position_feedback(pos)
+                           for rt in self.runtimes for pos in rt.open_by_mint.values()],
+        }
+        try:
+            self.ledger.commit_transaction(payload)
+        except BaseException:
+            # If replacement succeeded, the new checkpoint is authoritative
+            # even if projection failed. Never roll memory behind that state.
+            path = Path(self.run_dir) / STATE_FILE
+            if path.exists():
+                try:
+                    saved = json.loads(path.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    self._fatal_state_error = True
+                    raise
+                if saved.get("generation") == payload["generation"]:
+                    self._fatal_state_error = True
+                    self._state_generation = payload["generation"]
+                    self.durable_source_checkpoint = json_copy(checkpoint)
+                    self._before_batch = None
+                    self._batch_active = False
+                    self.ledger.rollback_transaction()
+            raise
+        self._state_generation = payload["generation"]
+        self.durable_source_checkpoint = json_copy(checkpoint)
+        self._before_batch = None
+        self._batch_active = False
+        self._write_monitor_snapshots()
+
+    def rollback_batch(self):
+        if self._batch_active:
+            self.ledger.rollback_transaction()
+            self._restore_state(self._before_batch)
+            self._before_batch = None
+            self._batch_active = False
+
+    def _enqueue_notification(self, position, transition, ts_epoch):
+        event = make_notification(self.run_id, position, transition, ts_epoch)
+        self.notification_events.setdefault(event["event_id"], event)
+
+    @staticmethod
+    def _position_feedback(position):
+        row = {"mint": position.mint, "candidate_id": position.source_candidate_id}
+        context = position.strategy_state.get("paper_position_context")
+        if isinstance(context, dict):
+            row["paper_position_context"] = json_copy(context)
+        return row
+
+    @staticmethod
+    def _admitted_position_context(snapshot):
+        """Bind the entry's admitted proof once; later market rows cannot replace it."""
+        activation = snapshot.extra.get("activation")
+        if (not snapshot.extra.get("contract_required")
+                or snapshot.extra.get("exposure_eligible") is not True
+                or snapshot.extra.get("activation_eligible") is not True
+                or not isinstance(activation, dict)
+                or not snapshot.candidate_id
+                or activation.get("token_mint") != snapshot.mint
+                or activation.get("candidate_id") != snapshot.candidate_id
+                or activation.get("activation_proven") is not True
+                or activation.get("activation_latched") is not True
+                or activation.get("activation_proof_valid") is not True):
+            return None
+        migration = activation.get("migration_time_utc")
+        migration_epoch = parse_utc(migration)
+        if (migration_epoch is None or migration_epoch > snapshot.ts_epoch
+                or migration_epoch != snapshot.migration_ts_epoch):
+            return None
+        return json_copy({"mint": snapshot.mint, "candidate_id": snapshot.candidate_id,
+                          "migration_time_utc": migration, "activation": activation})
+
+    @staticmethod
+    def _dca_context_eligible(position, snapshot):
+        if not snapshot.extra.get("contract_required"):
+            return True
+        if (snapshot.extra.get("exposure_eligible") is True
+                and (not position.source_candidate_id
+                     or snapshot.candidate_id == position.source_candidate_id)):
+            return True
+        saved = position.strategy_state.get("paper_position_context")
+        supplied = snapshot.extra.get("paper_position_context")
+        contexts = snapshot.extra.get("paper_position_contexts")
+        matched_list = (isinstance(contexts, list) and isinstance(saved, dict)
+                        and any(saved == context for context in contexts))
+        if (snapshot.extra.get("dca_exposure_eligible") is not True
+                or not isinstance(saved, dict) or not (matched_list or saved == supplied)
+                or saved.get("mint") != position.mint
+                or snapshot.mint != position.mint
+                or not position.source_candidate_id
+                or saved.get("candidate_id") != position.source_candidate_id
+                or (not matched_list and snapshot.candidate_id != position.source_candidate_id)):
+            return False
+        activation = saved.get("activation")
+        migration = parse_utc(saved.get("migration_time_utc"))
+        return bool(isinstance(activation, dict)
+                    and activation.get("token_mint") == position.mint
+                    and activation.get("candidate_id") == position.source_candidate_id
+                    and activation.get("activation_proven") is True
+                    and activation.get("activation_latched") is True
+                    and activation.get("activation_proof_valid") is True
+                    and migration is not None and migration <= snapshot.ts_epoch
+                    and (matched_list or migration == snapshot.migration_ts_epoch)
+                    and activation.get("migration_time_utc") == saved.get("migration_time_utc"))
 
     # ------------------------------------------------------------------
     # Resume
@@ -290,25 +544,117 @@ class PaperTradingEngine:
     # Main loop
     # ------------------------------------------------------------------
 
+    @transaction
     def process_snapshot(self, snapshot: CandidateSnapshot) -> None:
         """Advance the engine by one normalized market observation."""
+        digest = snapshot.extra.get("source_record_digest")
+        if digest and digest in self._seen_record_digests:
+            return
+        if digest:
+            self._seen_record_digests.append(digest)
         self.snapshots_processed += 1
         self.last_snapshot = snapshot
         if self.now_epoch is None or snapshot.ts_epoch > self.now_epoch:
             self.now_epoch = snapshot.ts_epoch
+        strict = bool(snapshot.extra.get("contract_required"))
+        live_now = (self.wall_clock() if strict and self.mode == MODE_LIVE_PAPER
+                    and self.wall_clock is not None else None)
+        if live_now is not None:
+            self.now_epoch = max(self.now_epoch, live_now)
+        old = self.market.get(snapshot.mint)
+        if (old and old.last_observation_epoch is not None
+                and snapshot.ts_epoch < old.last_observation_epoch):
+            self._check_time_exits()
+            return
+        quote_epoch = (snapshot.extra.get("quote_observed_epoch") if strict
+                       else snapshot.ts_epoch)
+        usable = snapshot.has_price and (not strict or snapshot.extra.get("quote_usable") is True)
+        if (quote_epoch is None or quote_epoch > snapshot.ts_epoch
+                or (old and old.last_price_epoch is not None
+                    and quote_epoch < old.last_price_epoch)):
+            usable = False
+        already_marked = bool(strict and old and quote_epoch == old.last_price_epoch)
+        if already_marked and snapshot.price_usd != old.last_price:
+            usable = False  # inconsistent observations at one quote timestamp
+        if strict:
+            decision_time = live_now if live_now is not None else snapshot.ts_epoch
+            ttl = parse_number(snapshot.extra.get("quote_ttl_seconds"))
+            mc_ts = parse_number(snapshot.extra.get("market_cap_observed_epoch"))
+            lp_ts = parse_number(snapshot.extra.get("liquidity_observed_epoch"))
+            lp_ttl = parse_number(snapshot.extra.get("liquidity_ttl_seconds"))
+            mc_current = bool(ttl is not None and ttl > 0 and mc_ts is not None
+                              and 0 <= decision_time - mc_ts <= ttl)
+            lp_current = bool(lp_ttl is not None and lp_ttl > 0 and lp_ts is not None
+                              and 0 <= decision_time - lp_ts <= lp_ttl)
+            if not mc_current or not lp_current:
+                snapshot = replace(snapshot,
+                    market_cap_usd=snapshot.market_cap_usd if mc_current else None,
+                    liquidity_usd=snapshot.liquidity_usd if lp_current else None,
+                    extra=dict(snapshot.extra, exposure_eligible=False,
+                               dca_exposure_eligible=False))
+        if live_now is not None:
+            ttl = parse_number(snapshot.extra.get("quote_ttl_seconds"))
+            if ttl is None or ttl <= 0 or quote_epoch is None or not 0 <= live_now - quote_epoch <= ttl:
+                usable = False
+            coverage = snapshot.extra.get("pricing_coverage") or {}
+            lease_until = parse_utc(coverage.get("lease_until_utc"))
+            if lease_until is None or lease_until < live_now:
+                snapshot = replace(snapshot, extra=dict(snapshot.extra, exposure_eligible=False,
+                                   dca_exposure_eligible=False))
+            risk_ts = parse_number(snapshot.extra.get("risk_assessed_epoch"))
+            security_ts = parse_number(snapshot.extra.get("security_assessed_epoch"))
+            if risk_ts is None or not 0 <= live_now - risk_ts <= 300:
+                snapshot = replace(snapshot, risk_label=None, risk_reasons=[],
+                                   extra=dict(snapshot.extra, exposure_eligible=False,
+                                              dca_exposure_eligible=False))
+            if security_ts is None or not 0 <= live_now - security_ts <= 300:
+                snapshot = replace(snapshot, extra=dict(snapshot.extra, exposure_eligible=False,
+                                   dca_exposure_eligible=False))
+        if not usable:
+            snapshot = replace(snapshot, price_usd=None, market_cap_usd=None,
+                               liquidity_usd=None, extra=dict(snapshot.extra,
+                               exposure_eligible=False, dca_exposure_eligible=False))
         self._update_market(snapshot)
+        if usable:
+            # Event time drives lifecycle; actual quote time drives freshness.
+            self.market[snapshot.mint].last_price_epoch = quote_epoch
+            snapshot = replace(snapshot, extra=dict(snapshot.extra,
+                               _paper_quote_epoch=quote_epoch,
+                               _paper_quote_already_marked=already_marked))
+        activation = snapshot.extra.get("activation") or {}
+        if snapshot.extra.get("activation_required"):
+            self._emit_event({
+                "event": "CANDIDATE_ACTIVATION_OBSERVED",
+                "mint": snapshot.mint,
+                "candidate_id": snapshot.candidate_id,
+                "activation_state": activation.get("activation_state"),
+                "activation_eligible": bool(snapshot.extra.get("activation_eligible")),
+                "migration_market_cap_usd": activation.get("migration_market_cap_usd"),
+                "migration_market_cap_source": activation.get("migration_market_cap_source"),
+                "migration_baseline_status": activation.get("migration_baseline_status"),
+                "activation_multiplier": activation.get("activation_multiplier"),
+                "activation_target_market_cap_usd": activation.get(
+                    "activation_target_market_cap_usd"),
+                "activated_at_utc": activation.get("activated_at_utc"),
+            }, snapshot.ts_epoch)
 
         for runtime in self.runtimes:
             position = runtime.open_by_mint.get(snapshot.mint)
             if position is not None:
                 self._update_open_position(runtime, position, snapshot)
             else:
+                if strict and not snapshot.extra.get("exposure_eligible"):
+                    continue
+                if (snapshot.extra.get("activation_required")
+                        and not snapshot.extra.get("activation_eligible")):
+                    continue
                 self._consider_entry(runtime, snapshot)
 
         self._check_time_exits()
         self._maybe_equity_points()
         self._maybe_heartbeat()
 
+    @transaction
     def process_idle_tick(self, now_epoch: float) -> None:
         """Advance the engine clock without a snapshot (live mode).
 
@@ -330,6 +676,7 @@ class PaperTradingEngine:
             self.market[snapshot.mint] = state
         if snapshot.symbol:
             state.symbol = snapshot.symbol
+        state.last_observation_epoch = snapshot.ts_epoch
         if snapshot.has_price:
             state.last_price = snapshot.price_usd
             state.last_price_epoch = snapshot.ts_epoch
@@ -339,6 +686,22 @@ class PaperTradingEngine:
                 state.peak_mc = snapshot.market_cap_usd
         if snapshot.liquidity_usd is not None:
             state.last_lp = snapshot.liquidity_usd
+        if snapshot.risk_label is not None or snapshot.extra.get("contract_required"):
+            state.risk_label = snapshot.risk_label
+            state.risk_reasons = list(snapshot.risk_reasons or [])
+
+    def _risk_view(self, mint: str) -> Tuple[Optional[str], List[str]]:
+        """Latest known risk view for a mint (producer tag carried on snapshots),
+        escalated to RISK_HIGH once the paper book itself watched this mint rug /
+        collapse its liquidity in this run. ``(None, [])`` == UNKNOWN."""
+        state = self.market.get(mint)
+        label = state.risk_label if state is not None else None
+        reasons = list(state.risk_reasons) if state is not None else []
+        if state is not None and state.rug_seen:
+            label = RISK_HIGH
+            if REASON_PAPER_RUG_HISTORY not in reasons:
+                reasons = [REASON_PAPER_RUG_HISTORY] + reasons
+        return label, reasons
 
     def _context(self, runtime: _StrategyRuntime) -> StrategyContext:
         market = self.market
@@ -364,6 +727,7 @@ class PaperTradingEngine:
             observed_peak_mc=observed_peak_mc,
             first_seen_epoch=first_seen,
             sizing_preview=sizing_preview,
+            resolve_risk=self._risk_view,
         )
 
     # ------------------------------------------------------------------
@@ -372,8 +736,24 @@ class PaperTradingEngine:
 
     def _consider_entry(self, runtime: _StrategyRuntime,
                         snapshot: CandidateSnapshot) -> None:
+        if (snapshot.extra.get("_paper_quote_already_marked")
+                and snapshot.mint in runtime.traded_mints):
+            return  # re-entry requires a later quote, not another copy of an exit tick
         if snapshot.mint in runtime.traded_mints and \
                 not runtime.cfg.allow_reentry:
+            return
+        # The paper engine consumes the producer's centralized verdict.  It may
+        # display a blocked candidate, but it cannot recalculate or override the
+        # fee/LP hard block to create a simulated entry.
+        if snapshot.scam_policy.get("verdict") == "HARD_BLOCK":
+            self._emit_event({
+                "event": "ENTRY_SKIPPED_SECURITY_POLICY",
+                "strategy_name": runtime.cfg.name,
+                "mint": snapshot.mint,
+                "reason": "+".join(snapshot.scam_policy.get("final_block_reasons") or []),
+                "fee_gate": dict(snapshot.fee_gate),
+                "lp_integrity": dict(snapshot.lp_integrity),
+            }, snapshot.ts_epoch)
             return
         try:
             intent = runtime.strategy.wants_entry(
@@ -384,6 +764,39 @@ class PaperTradingEngine:
             return
         if intent is None:
             return
+
+        # Risk-aware paper protection: a candidate currently assessed RISK_HIGH never
+        # opens a position for a strategy that did not explicitly opt in — instead the
+        # refusal is RECORDED (terminal skip row + event) so "what we avoided" is
+        # measurable. No fake trades: a skip has no fills and no PnL. UNKNOWN never
+        # blocks (absence of free-tier data is not evidence of danger).
+        risk_label, risk_reasons = self._risk_view(snapshot.mint)
+        allow_high_risk = (runtime.cfg.allow_high_risk
+                           or runtime.cfg.strategy_type == STRATEGY_HIGH_RISK_OBSERVER)
+        if risk_label == RISK_HIGH and not allow_high_risk:
+            runtime.traded_mints.add(snapshot.mint)
+            trade_id = runtime.next_trade_id(snapshot.mint)
+            skip_reason = high_risk_skip_reason(risk_reasons)
+            position = self._new_position(runtime, snapshot, trade_id, intent)
+            position.status = STATUS_SKIPPED_HIGH_RISK
+            position.reason_closed = skip_reason
+            position.closed_at_epoch = snapshot.ts_epoch
+            self.last_skip = (f"{runtime.cfg.name} {snapshot.mint[:8]}.. "
+                              f"{skip_reason}")
+            self._notify_terminal(runtime, position)
+            self._record_position(position)
+            self._emit_event({
+                "event": "ENTRY_SKIPPED_HIGH_RISK",
+                "strategy_name": runtime.cfg.name,
+                "mint": snapshot.mint,
+                "paper_trade_id": trade_id,
+                "status": STATUS_SKIPPED_HIGH_RISK,
+                "reason": skip_reason,
+                "risk_label": risk_label,
+                "risk_reasons": list(risk_reasons),
+            }, snapshot.ts_epoch)
+            return
+
         if len(runtime.open_by_mint) >= runtime.cfg.max_open_positions:
             self._emit_event({
                 "event": "ENTRY_SKIPPED_MAX_OPEN",
@@ -460,8 +873,12 @@ class PaperTradingEngine:
         position.simulated_market_impact_bps = decision.simulated_market_impact_bps
         position.simulated_fee_bps = decision.simulated_fee_bps
         position.cap_reasons = list(decision.cap_reasons)
-        position.strategy_state.update(
-            getattr(intent, "state_seed", None) or {})
+        position.strategy_state.update({key: value for key, value in
+            (getattr(intent, "state_seed", None) or {}).items()
+            if key != "paper_position_context"})
+        admitted_context = self._admitted_position_context(snapshot)
+        if admitted_context is not None:
+            position.strategy_state["paper_position_context"] = admitted_context
         eff_price = (decision.final_size_usd
                      / decision.estimated_tokens_received
                      if decision.estimated_tokens_received > 0
@@ -479,7 +896,7 @@ class PaperTradingEngine:
         )
         position.virtual_sol_size = decision.final_size_sol
         position.peak_price = snapshot.price_usd
-        position.mark_price(snapshot.price_usd, snapshot.ts_epoch,
+        position.mark_price(snapshot.price_usd, snapshot.extra.get("_paper_quote_epoch", snapshot.ts_epoch),
                             snapshot.market_cap_usd, snapshot.liquidity_usd)
 
         fee_usd = decision.final_size_usd * self.sim.fee_bps / 10_000.0
@@ -508,6 +925,7 @@ class PaperTradingEngine:
             f"${decision.final_size_usd:,.2f}")
         self.ledger.append_fill(fill.to_record())
         self._record_position(position)
+        self._enqueue_notification(position, "ENTRY", snapshot.ts_epoch)
         try:
             runtime.strategy.on_position_opened(position)
         except Exception as exc:
@@ -528,6 +946,9 @@ class PaperTradingEngine:
     def _new_position(self, runtime: _StrategyRuntime,
                       snapshot: CandidateSnapshot, trade_id: str,
                       intent: Any) -> PaperPosition:
+        risk_label, risk_reasons = self._risk_view(snapshot.mint)
+        central_ath = snapshot.extra.get("central_ath") or {}
+        activation = snapshot.extra.get("activation") or {}
         return PaperPosition(
             paper_trade_id=trade_id,
             strategy_name=runtime.cfg.name,
@@ -541,7 +962,26 @@ class PaperTradingEngine:
             reason_opened=intent.reason,
             tier=snapshot.tier,
             entry_drawdown_pct=snapshot.drawdown_pct,
+            ath_market_cap_usd=snapshot.ath_market_cap_usd,
+            ath_price_usd=parse_number(central_ath.get("ath_price")),
+            ath_observed_at_utc=central_ath.get("ath_timestamp"),
+            ath_provider=central_ath.get("ath_provider"),
+            ath_observation_type=central_ath.get("ath_observation_type"),
+            ath_status=central_ath.get("ath_status"),
+            migration_market_cap_usd=activation.get("migration_market_cap_usd"),
+            migration_market_cap_source=activation.get("migration_market_cap_source"),
+            migration_baseline_status=activation.get("migration_baseline_status"),
+            activation_multiplier=activation.get("activation_multiplier"),
+            activation_target_market_cap_usd=activation.get(
+                "activation_target_market_cap_usd"),
+            activation_state=activation.get("activation_state"),
+            activated_at_utc=activation.get("activated_at_utc"),
+            activation_observation_source=activation.get("activation_observation_source"),
+            activation_current_market_cap_usd=activation.get(
+                "activation_current_market_cap_usd"),
             score=snapshot.score,
+            risk_label_at_entry=risk_label,
+            risk_reasons_at_entry=list(risk_reasons),
             plan=intent.plan or ExitPlan(),
         )
 
@@ -556,10 +996,22 @@ class PaperTradingEngine:
             position.latest_liquidity = snapshot.liquidity_usd
         if snapshot.market_cap_usd is not None:
             position.latest_market_cap = snapshot.market_cap_usd
+        if (snapshot.ath_market_cap_usd is not None
+                and (position.ath_market_cap_usd is None
+                     or snapshot.ath_market_cap_usd >= position.ath_market_cap_usd)):
+            position.ath_market_cap_usd = snapshot.ath_market_cap_usd
+            central_ath = snapshot.extra.get("central_ath") or {}
+            position.ath_price_usd = parse_number(central_ath.get("ath_price"))
+            position.ath_observed_at_utc = central_ath.get("ath_timestamp")
+            position.ath_provider = central_ath.get("ath_provider")
+            position.ath_observation_type = central_ath.get("ath_observation_type")
+            position.ath_status = central_ath.get("ath_status")
         if not snapshot.has_price:
             return
-        position.mark_price(snapshot.price_usd, snapshot.ts_epoch,
-                            snapshot.market_cap_usd, snapshot.liquidity_usd)
+        already_marked = snapshot.extra.get("_paper_quote_already_marked")
+        if not already_marked:
+            position.mark_price(snapshot.price_usd, snapshot.extra.get("_paper_quote_epoch", snapshot.ts_epoch),
+                                snapshot.market_cap_usd, snapshot.liquidity_usd)
 
         # Strategy-specific management first (DCA ladder, 3x recovery,
         # 5x trim); each new snapshot is a re-audit opportunity.
@@ -578,17 +1030,29 @@ class PaperTradingEngine:
         for intent in intents:
             if isinstance(intent, AddIntent):
                 self._add_leg(runtime, position, snapshot, intent)
-            else:
+            elif not already_marked:
                 self._apply_exit_intent(runtime, position, snapshot, intent)
                 if not position.is_open:
                     return
 
+        # Overview/security evidence can advance while a price is unchanged.
+        # Protective deterministic exits still apply; random rolls are deduped.
         self._standard_exit_checks(runtime, position, snapshot)
 
     def _add_leg(self, runtime: _StrategyRuntime, position: PaperPosition,
                  snapshot: CandidateSnapshot, intent: AddIntent) -> None:
         """Add a DCA buy leg to an open position (strategy-requested)."""
         if not snapshot.has_price or intent.size_usd is None:
+            return
+        risk_label, _ = self._risk_view(snapshot.mint)
+        if (not self._dca_context_eligible(position, snapshot)
+                or (snapshot.extra.get("contract_required") and
+                    (risk_label is None or snapshot.scam_policy.get("verdict") not in
+                     ("ALLOW", "ALLOW_WITH_SHADOW_WARNING")))
+                or snapshot.scam_policy.get("verdict") == "HARD_BLOCK"
+                or (risk_label == RISK_HIGH and not (runtime.cfg.allow_high_risk
+                    or runtime.cfg.strategy_type == STRATEGY_HIGH_RISK_OBSERVER))):
+            position.strategy_state["last_dca_skip"] = "DCA_SECURITY_OR_CONTEXT_BLOCKED"
             return
         profile = self.config.sizing_profiles[runtime.profile_name]
         budget = float(intent.size_usd)
@@ -643,7 +1107,8 @@ class PaperTradingEngine:
         for cap_reason in decision.cap_reasons:
             if cap_reason not in position.cap_reasons:
                 position.cap_reasons.append(cap_reason)
-        position.strategy_state.update(intent.state_seed or {})
+        position.strategy_state.update({key: value for key, value in
+            (intent.state_seed or {}).items() if key != "paper_position_context"})
         if self.sol_price_usd:
             position.virtual_sol_size = (
                 position.virtual_usd_size / self.sol_price_usd)
@@ -707,14 +1172,28 @@ class PaperTradingEngine:
             return
         tokens = 0.0
         if intent.recover_usd is not None and intent.recover_usd > 0:
-            impact = simulate_impact_bps(
-                min(intent.recover_usd, position.tokens_open * price),
-                position.latest_liquidity, self.sim)
-            sell_price = effective_sell_price(
-                price, self.sim.base_slippage_bps, impact)
-            net_per_token = sell_price * (1.0 - self.sim.fee_bps / 10_000.0)
-            if net_per_token > 0:
-                tokens = intent.recover_usd / net_per_token
+            # A preceding DCA intent in this same update may have raised cost.
+            target = (position.cost_basis_usd if intent.leg == LEG_INITIALS_RECOVERY
+                      else float(intent.recover_usd))
+            recovered = float(position.strategy_state.get(
+                "initial_recovery_proceeds_usd", 0.0))
+            remaining = target - recovered
+            tokens = self._recovery_tokens(position, price, remaining)
+            if tokens is None:
+                self._defer_recovery(runtime, position, snapshot.ts_epoch,
+                                     target, "INSUFFICIENT_NET_PROCEEDS")
+                return
+            # Do not silently turn a recovery request into a full exit or
+            # discard a small runner with the generic partial-exit dust rule.
+            if tokens >= position.tokens_open:
+                self._defer_recovery(runtime, position, snapshot.ts_epoch,
+                                     target, "NO_RUNNER_REMAINS")
+                return
+            self._partial_exit(runtime, position, price, snapshot.ts_epoch,
+                               tokens, intent.reason,
+                               leg=intent.leg or LEG_PARTIAL_SELL,
+                               recovery_target=target)
+            return
         elif intent.fraction is not None and intent.fraction > 0:
             tokens = position.tokens_open * min(1.0, float(intent.fraction))
         tokens = min(tokens, position.tokens_open)
@@ -800,7 +1279,7 @@ class PaperTradingEngine:
                 return
 
         # 5. Random close (monkey baseline behavior).
-        if plan.random_close_prob:
+        if plan.random_close_prob and not snapshot.extra.get("_paper_quote_already_marked"):
             if runtime.rng.random() < float(plan.random_close_prob):
                 self._close_position(
                     runtime, position, price, snapshot.ts_epoch,
@@ -836,6 +1315,69 @@ class PaperTradingEngine:
     # Exits / accounting
     # ------------------------------------------------------------------
 
+    def _recovery_tokens(self, position: PaperPosition, price: float,
+                         target: float) -> Optional[float]:
+        """Smallest sale covering target under the actual net fill model.
+
+        Net proceeds are a concave quadratic before the impact cap and
+        linear afterwards. Search only increasing intervals, including the
+        capped interval when unusually large impact makes the curve dip.
+        No sale is proposed without finite costs and positive known LP.
+        """
+        lp = position.latest_liquidity
+        values = (price, target, position.tokens_open, lp,
+                  self.sim.base_slippage_bps, self.sim.fee_bps,
+                  self.sim.impact_bps_per_pct_of_lp, self.sim.max_impact_bps)
+        if (any(v is None or not math.isfinite(v) for v in values)
+                or min(price, target, position.tokens_open, lp) <= 0
+                or min(values[4:]) < 0
+                or self.sim.base_slippage_bps >= 10_000
+                or self.sim.fee_bps >= 10_000):
+            return None
+
+        def net(tokens: float) -> float:
+            return self._sell_tokens(position, price, tokens, lp)[0]
+
+        # Roundoff cushion only, far below a cent; never accept a shortfall.
+        goal = target + max(1e-9, target * 1e-12)
+        available = position.tokens_open
+        low, high = 0.0, available
+        slope = self.sim.impact_bps_per_pct_of_lp / (100.0 * lp)
+        if slope > 0 and self.sim.max_impact_bps > 0:
+            cap_tokens = self.sim.max_impact_bps / 10_000.0 / slope / price
+            peak_tokens = (1.0 - self.sim.base_slippage_bps / 10_000.0) \
+                / (2.0 * slope * price)
+            high = min(available, cap_tokens, peak_tokens)
+            if net(high) < goal:
+                if cap_tokens >= available:
+                    return None
+                low, high = cap_tokens, available
+        if net(high) < goal:
+            return None
+        for _ in range(64):
+            mid = (low + high) / 2.0
+            if net(mid) >= goal:
+                high = mid
+            else:
+                low = mid
+        return high
+
+    def _defer_recovery(self, runtime: _StrategyRuntime,
+                        position: PaperPosition, ts_epoch: float,
+                        target: float, reason: str) -> None:
+        state = position.strategy_state
+        state["recovery_status"] = reason
+        state["recovery_target_usd"] = target
+        self._record_position(position)
+        self._emit_event({
+            "event": "INITIALS_RECOVERY_DEFERRED",
+            "strategy_name": runtime.cfg.name,
+            "paper_trade_id": position.paper_trade_id,
+            "reason": reason,
+            "target_usd": target,
+            "net_proceeds_usd": state.get("initial_recovery_proceeds_usd", 0.0),
+        }, ts_epoch)
+
     def _sell_tokens(self, position: PaperPosition, price_raw: float,
                      tokens: float, liquidity: Optional[float],
                      value_ratio: float = 1.0
@@ -852,20 +1394,19 @@ class PaperTradingEngine:
     def _partial_exit(self, runtime: _StrategyRuntime,
                       position: PaperPosition, price_raw: float,
                       ts_epoch: float, tokens: float, reason: str,
-                      leg: str = LEG_PARTIAL_SELL) -> None:
+                      leg: str = LEG_PARTIAL_SELL,
+                      recovery_target: Optional[float] = None) -> None:
         proceeds, fee, eff_price, impact = self._sell_tokens(
             position, price_raw, tokens, position.latest_liquidity)
+        if recovery_target is not None and (
+                not all(math.isfinite(v) for v in (proceeds, fee, eff_price, impact))
+                or proceeds <= 0 or eff_price <= 0 or fee < 0):
+            self._defer_recovery(runtime, position, ts_epoch,
+                                 recovery_target, "INVALID_RECOVERY_FILL")
+            return
         avg_cost = position.avg_cost_per_token or 0.0
         pnl_delta = proceeds - tokens * avg_cost
-        position.realized_pnl_usd += pnl_delta
-        runtime.realized_pnl_usd += pnl_delta
-        position.tokens_open -= tokens
-        position.refresh_unrealized(price_raw)
-        if self.sol_price_usd:
-            position.realized_pnl_sol = (
-                position.realized_pnl_usd / self.sol_price_usd)
         fill_no = int(position.strategy_state.get("fill_count", 1)) + 1
-        position.strategy_state["fill_count"] = fill_no
         fill = PaperFill(
             fill_id=f"{position.paper_trade_id}-F{fill_no:03d}",
             paper_trade_id=position.paper_trade_id,
@@ -885,6 +1426,25 @@ class PaperTradingEngine:
             leg=leg,
         )
         self.ledger.append_fill(fill.to_record())
+        position.strategy_state["fill_count"] = fill_no
+        position.realized_pnl_usd += pnl_delta
+        runtime.realized_pnl_usd += pnl_delta
+        position.tokens_open -= tokens
+        position.refresh_unrealized(price_raw)
+        if self.sol_price_usd:
+            position.realized_pnl_sol = (
+                position.realized_pnl_usd / self.sol_price_usd)
+        if recovery_target is not None:
+            state = position.strategy_state
+            recovered = float(state.get("initial_recovery_proceeds_usd", 0.0))
+            recovered += proceeds
+            state["initial_recovery_proceeds_usd"] = recovered
+            state["recovery_target_usd"] = recovery_target
+            state["recovery_status"] = "SHORTFALL"
+            if recovered >= recovery_target:
+                runtime.strategy.on_initials_recovered(position, price_raw)
+                state["recovery_status"] = "RECOVERED"
+                self._enqueue_notification(position, "STAKE_RECOVERED", ts_epoch)
         self._record_position(position)
         self._emit_event({
             "event": "PARTIAL_EXIT",
@@ -945,6 +1505,7 @@ class PaperTradingEngine:
         position.closed_at_epoch = ts_epoch
         position.exit_price = price_raw
         position.exit_market_cap = position.latest_market_cap
+        self._note_rug_history(position.mint, status, reason)
         if position.cost_basis_usd > 0:
             position.realized_pnl_pct = (
                 position.realized_pnl_usd / position.cost_basis_usd * 100.0)
@@ -962,6 +1523,7 @@ class PaperTradingEngine:
         self._final_records[position.paper_trade_id] = record
         self.ledger.append_position(record)
         self.ledger.append_closed_position(record)
+        self._enqueue_notification(position, "FINAL_EXIT", ts_epoch)
         self._emit_event({
             "event": "POSITION_CLOSED",
             "strategy_name": runtime.cfg.name,
@@ -976,6 +1538,16 @@ class PaperTradingEngine:
                                  else None),
         }, ts_epoch)
         self._equity_point(runtime, ts_epoch)
+
+    def _note_rug_history(self, mint: str, status: str, reason: Any) -> None:
+        """Sticky per-mint escalation: once ANY strategy watched this mint rug or
+        collapse its liquidity, later entry attempts (other strategies, re-entries)
+        resolve as RISK_HIGH with PAPER_RUG_HISTORY. DATA_LOST is deliberately NOT
+        included: a dead feed indicts the feed, not (provably) the token."""
+        if status == STATUS_RUGGED or "LIQUIDITY_COLLAPSE" in str(reason or ""):
+            state = self.market.get(mint)
+            if state is not None:
+                state.rug_seen = True
 
     def _notify_terminal(self, runtime: _StrategyRuntime,
                          position: PaperPosition) -> None:
@@ -998,6 +1570,7 @@ class PaperTradingEngine:
         position.reason_closed = f"{reason}_FROZEN"
         position.closed_at_epoch = ts_epoch
         position.exit_price = None
+        self._note_rug_history(position.mint, STATUS_RUGGED, reason)
         if position.cost_basis_usd > 0:
             position.realized_pnl_pct = (
                 position.realized_pnl_usd / position.cost_basis_usd * 100.0)
@@ -1015,6 +1588,7 @@ class PaperTradingEngine:
         self._final_records[position.paper_trade_id] = record
         self.ledger.append_position(record)
         self.ledger.append_closed_position(record)
+        self._enqueue_notification(position, "FINAL_EXIT", ts_epoch)
         self._emit_event({
             "event": "POSITION_CLOSED",
             "strategy_name": runtime.cfg.name,
@@ -1117,6 +1691,7 @@ class PaperTradingEngine:
             return utc_iso(self.wall_clock())
         return utc_iso(self.now_epoch)
 
+    @transaction
     def heartbeat(self) -> None:
         """Refresh monitor artifacts and (unless quiet) print the console
         summary Bala watches."""
@@ -1124,6 +1699,11 @@ class PaperTradingEngine:
                           "snapshots_processed": self.snapshots_processed},
                          self.now_epoch)
         self._write_monitor_snapshots()
+        # Refresh paper_summary.json / strategy_comparison.* on the same beat
+        # as the monitor so the on-disk summary never lags the monitor's open
+        # marks -- including when the process is killed during a quiet period
+        # and the graceful exit-path flush never runs.
+        self.write_summary_artifacts()
         if not self.quiet:
             self.echo(self.console_summary())
 
@@ -1147,6 +1727,8 @@ class PaperTradingEngine:
         self._write_monitor_snapshots()
 
     def _write_monitor_snapshots(self) -> None:
+        if self._batch_active:
+            return  # monitors are projections of committed state only
         open_positions = []
         for runtime in self.runtimes:
             for position in runtime.open_by_mint.values():
@@ -1287,6 +1869,7 @@ class PaperTradingEngine:
     # Finalization / summary artifacts
     # ------------------------------------------------------------------
 
+    @transaction
     def record_input_errors(self, errors: Iterable[Dict[str, Any]]) -> None:
         for error in errors:
             record = dict(error)
@@ -1294,6 +1877,7 @@ class PaperTradingEngine:
             self.ledger.append_error(record)
             self.last_error = record.get("error", self.last_error)
 
+    @transaction
     def finalize(self) -> Dict[str, Any]:
         """End of stream: settle positions per policy, write all artifacts."""
         if self.config.run.end_of_stream_policy == END_OF_STREAM_CLOSE:
@@ -1324,7 +1908,25 @@ class PaperTradingEngine:
             self.echo(self.console_summary())
         return summary
 
+    def _settle_open_marks(self) -> None:
+        """Sync every open position's latest mark into the reporting map.
+
+        ``_final_records`` only gets a fresh row on a position *transition*
+        (entry / DCA / partial / close), so between transitions an open
+        position's unrealized PnL there goes stale while the live monitor
+        recomputes it on every refresh. Calling this before building the
+        summary keeps ``paper_summary.json`` consistent with
+        ``live_monitor.json`` / ``paper_open_positions.json`` -- the same
+        settled open-position marks. In-memory only (no ledger append), so it
+        is idempotent and safe to call on every summary write."""
+        for runtime in self.runtimes:
+            for position in runtime.open_by_mint.values():
+                position.refresh_unrealized()
+                self._final_records[position.paper_trade_id] = \
+                    position.to_record()
+
     def write_summary_artifacts(self) -> Dict[str, Any]:
+        self._settle_open_marks()
         records_by_strategy: Dict[str, List[Dict[str, Any]]] = {
             rt.cfg.name: [] for rt in self.runtimes}
         for record in self._final_records.values():

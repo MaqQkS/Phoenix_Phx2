@@ -21,6 +21,9 @@ from typing import Mapping, Optional
 
 import pytest
 
+from PHX2.models.ath_coverage import (
+    ATH_COVERAGE_COMPLETE_LIVE,
+)
 from PHX2.stage29.birdeye_constants import (
     BIRDEYE_PATH_OHLCV,
     BIRDEYE_PATH_PRICE,
@@ -41,6 +44,7 @@ from PHX2.stage30.stage30_11_13_committed_no_send_composer import (
     COMPOSE_DECISION_REJECTED,
     COMPOSE_REASON_NO_SEND_DISPATCH_RECORDED,
     COMPOSE_REJECTED_ATH_NOT_RESOLVED,
+    COMPOSE_REJECTED_ATH_MC_UNAVAILABLE,
     COMPOSE_REJECTED_CURRENT_PRICE_UNAVAILABLE,
     COMPOSE_REJECTED_GATE_BODY_MISMATCH,
     COMPOSE_REJECTED_LIQUIDITY_UNAVAILABLE,
@@ -52,11 +56,13 @@ from PHX2.stage30.stage30_11_13_committed_no_send_composer import (
     COMPOSE_REJECTED_NON_FAKE_TRANSPORT,
     MARKET_CONTEXT_FRESHNESS_FRESH,
     STAGE30_11_13_ATH_SOURCE_STAGE,
+    STAGE30_11_13_CENTRAL_ATH_SOURCE_STAGE,
     STAGE30_11_13_DEFAULT_MARKET_CONTEXT_MAX_AGE_SECONDS,
     STAGE30_11_13_MARKET_CONTEXT_FUTURE_TOLERANCE_SECONDS,
     Stage30_11_13ComposerError,
     compose_no_send_dispatch,
     make_snapshot_bound_body_builder,
+    resolved_market_cap_from,
 )
 from PHX2.stage30.stage30_11_13_fake_composer_proof import (
     PROOF_CREATED_AT,
@@ -84,6 +90,38 @@ _FETCHED_AT: str = "2026-06-07T07:06:40+00:00"
 
 def _now_utc() -> datetime:
     return datetime(2026, 6, 7, 7, 6, 40, tzinfo=timezone.utc)
+
+
+def resolved_ath_fields(
+    *, price: str, market_cap: str, observed_at_utc: str, provider: str,
+    observation_type: str, status: str = "CONFIRMED",
+    supply_basis: str = "OBSERVATION_IMPLIED_SUPPLY",
+) -> dict:
+    """The resolved coherent ATH tuple the central store now publishes.
+
+    Derives the supply this ONE observation implied, then the market cap
+    from price x that supply through the composer's own canonical helper,
+    so a fixture can never encode an arithmetic the composer would reject.
+    """
+
+    from decimal import localcontext
+
+    with localcontext() as ctx:
+        ctx.prec = 60
+        supply = Decimal(market_cap) / Decimal(price)
+    return {
+        "resolved_ath_price": price,
+        "resolved_supply": format(supply, "f"),
+        "resolved_supply_basis": supply_basis,
+        "resolved_ath_market_cap_usd": format(
+            resolved_market_cap_from(price, supply), "f"),
+        "resolved_observed_at_utc": observed_at_utc,
+        "resolved_ath_source": provider,
+        "resolved_ath_observation_type": observation_type,
+        "resolved_ath_status": status,
+        "resolved_evidence_digest": "d" * 64,
+        "resolution_method": "PRICE_X_AUTHORITATIVE_SUPPLY",
+    }
 
 
 def _unix(iso: str) -> int:
@@ -265,6 +303,68 @@ def test_body_values_match_the_gate_snapshot() -> None:
     # ATH MC was computed (never an Unknown for a dispatch-eligible body).
     assert snapshot.ath_market_cap_display.startswith("$")
     assert "ATH MC: Unknown" not in body
+
+
+def test_central_event_ath_drives_exact_discord_market_cap_without_supply_inference() -> None:
+    request = replace(default_proof_request(),
+        authoritative_ath_price=PROOF_PEAK_ATH,
+        authoritative_ath_market_cap_usd="95000",
+        authoritative_ath_timestamp="2026-06-06T06:15:00Z",
+        authoritative_ath_provider="PUMPSWAP_EVENT_EFFECTIVE_RESERVES",
+        authoritative_ath_observation_type="PUMPSWAP_BUY_EFFECTIVE_RESERVES",
+        authoritative_ath_status="CONFIRMED",
+        authoritative_ath_transaction_signature="event-signature",
+        # A live PumpSwap-event maximum: the market cap IS the market cap of
+        # the ATH price observation, and live discovery proves complete
+        # post-migration coverage.
+        authoritative_ath_market_cap_evidence_price_usd=PROOF_PEAK_ATH,
+        ath_coverage=ATH_COVERAGE_COMPLETE_LIVE,
+        **resolved_ath_fields(
+            price=PROOF_PEAK_ATH, market_cap="95000",
+            observed_at_utc="2026-06-06T06:15:00Z",
+            provider="PUMPSWAP_EVENT_EFFECTIVE_RESERVES",
+            observation_type="PUMPSWAP_BUY_EFFECTIVE_RESERVES"),
+    )
+    result, client = _run_proof(request=request)
+    assert result.decision == COMPOSE_DECISION_DISPATCHED, result.reason
+    assert result.snapshot.ath_market_cap_display == "$95k"
+    assert result.snapshot.ath_source_stage == STAGE30_11_13_CENTRAL_ATH_SOURCE_STAGE
+    assert result.snapshot.ath_source_ref == "event-signature"
+    assert "ATH MC: $95k" in client.bodies[-1]
+
+
+def test_captured_canary_ath_replay_renders_same_compact_market_cap() -> None:
+    request = replace(default_proof_request(),
+        authoritative_ath_price="0.00003670855210594000685964273593",
+        authoritative_ath_market_cap_usd="36708.55210594000685964273593",
+        authoritative_ath_timestamp="2026-06-06T06:15:00Z",
+        authoritative_ath_provider="PUMPSWAP_EVENT_EFFECTIVE_RESERVES",
+        authoritative_ath_observation_type="PUMPSWAP_SELL_EFFECTIVE_RESERVES",
+        authoritative_ath_status="CONFIRMED",
+        authoritative_ath_transaction_signature="captured-canary-event",
+        authoritative_ath_market_cap_evidence_price_usd=(
+            "0.00003670855210594000685964273593"),
+        ath_coverage=ATH_COVERAGE_COMPLETE_LIVE,
+        **resolved_ath_fields(
+            price="0.00003670855210594000685964273593",
+            market_cap="36708.55210594000685964273593",
+            observed_at_utc="2026-06-06T06:15:00Z",
+            provider="PUMPSWAP_EVENT_EFFECTIVE_RESERVES",
+            observation_type="PUMPSWAP_SELL_EFFECTIVE_RESERVES"),
+    )
+    result, client = _run_proof(request=request)
+    assert result.decision == COMPOSE_DECISION_DISPATCHED, result.reason
+    assert result.snapshot.ath_market_cap_display == "$36.7k"
+    assert "ATH MC: $36.7k" in client.bodies[-1]
+
+
+def test_nonlegacy_request_without_central_market_cap_fails_closed() -> None:
+    request = replace(
+        default_proof_request(), allow_legacy_inferred_ath_market_cap=False)
+    result, client = _run_proof(request=request)
+    assert result.decision == COMPOSE_DECISION_REJECTED
+    assert result.reason == COMPOSE_REJECTED_ATH_MC_UNAVAILABLE
+    assert client.attempted == 0
 
 
 def test_snapshot_records_stage30_11_11_anchored_ath_provenance() -> None:

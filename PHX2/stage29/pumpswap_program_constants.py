@@ -188,11 +188,11 @@ PUMPSWAP_EVENT_DISCRIMINATORS: tuple[bytes, ...] = (
 # SHA-256 of the vendored ``PHX2/proto/stage29_1/source/pump_amm.json``
 # byte-for-byte. Test pins this matches the file on disk.
 VENDORED_PUMP_AMM_IDL_SHA256: str = (
-    "da268f6f26a1e89fa83ec47f1db7dbff8ce16f96564a683fad00353e1bf19443"
+    "b763a073878046322fa82153db928fe46914e82a8ca7a694dfe89d692870ed56"
 )
 
 
-VENDORED_PUMP_AMM_IDL_BYTE_LENGTH: int = 136802
+VENDORED_PUMP_AMM_IDL_BYTE_LENGTH: int = 137929
 
 
 VENDORED_PUMP_AMM_IDL_RELATIVE_PATH: str = (

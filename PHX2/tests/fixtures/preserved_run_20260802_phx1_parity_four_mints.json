@@ -1,0 +1,295 @@
+{
+  "fixture_kind": "PHX2_PRESERVED_RUN_20260802_PHX1_PARITY_FOUR_MINTS",
+  "fixture_note": "Sanitized deterministic replay input built from the preserved PHX1_PARITY run of 2026-08-02.  Contains ONLY public chain identifiers and numeric market/ATH/activation facts: no key, URL, header, endpoint, provider name or transport detail.  Candidate ids are synthetic.",
+  "mints": {
+    "APRIL": {
+      "activation": {
+        "activation_current_market_cap_usd": "34493.50803880419",
+        "activation_multiplier": "1.20",
+        "activation_proven": true,
+        "activation_target_market_cap_usd": "32980.5775379402760",
+        "migration_market_cap_usd": "27483.81461495023"
+      },
+      "activation_state": "ACTIVE_DIP_WATCH",
+      "ath_dip_status": {
+        "compose_decision": null
+      },
+      "ath_hydration": {
+        "anchor_utc": null,
+        "attempt_count": 5,
+        "history_complete": true,
+        "interval": "1m",
+        "last_attempt_at_utc": "2026-08-02T06:00:41Z",
+        "next_attempt_at_utc": "2026-08-02T06:08:41Z",
+        "reason": "ATH_HYDRATION_ANCHOR_MISSING",
+        "status": "ATH_HYDRATION_PENDING",
+        "window_from_unix": 1785649716,
+        "window_to_unix": 1785650415
+      },
+      "candidate_id": "fixture-candidate-april-0",
+      "central_ath": {
+        "ath_evidence_digest": "25704662096c63a28772bc37af21d886d58bb1e9c42cacac1af797f6f06fec43",
+        "ath_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_hydration_reason": "ATH_HYDRATION_ANCHOR_MISSING",
+        "ath_hydration_status": "ATH_HYDRATION_PENDING",
+        "ath_ingested_at_utc": "2026-08-02T05:56:51.023077Z",
+        "ath_market_cap": "34493.50803880419",
+        "ath_market_cap_evidence_price_usd": "0.000030576358816258254",
+        "ath_observation_seal_digest": "3c210934b6a154e9c56d960351beb4980656d92e71d6279c40d9d83e214cbdeb",
+        "ath_observation_seal_validated": true,
+        "ath_observation_seal_version": "phx2_central_ath_observation_seal_v1",
+        "ath_observation_type": "PAID_CURRENT_PRICE",
+        "ath_post_migration_complete": false,
+        "ath_price": "0.000046977332249524816",
+        "ath_provider": "PAID_CURRENT_PRICE",
+        "ath_source_evidence_digest": "25704662096c63a28772bc37af21d886d58bb1e9c42cacac1af797f6f06fec43",
+        "ath_source_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_status": "PROVISIONAL",
+        "ath_supply_at_observation": null,
+        "ath_supply_basis": null,
+        "ath_timestamp": "2026-08-02T05:56:46Z",
+        "token_mint": "G4U3xD4DuNVjmBRiwhegUE5KrYRtc6tPkJgroPiNpump"
+      },
+      "expected_resolution": {
+        "implied_supply": "1128110389.01280438779358571011200273965350939726732184434731",
+        "resolved_ath_market_cap": "52995.6165587952012225444598825744301815392989240847071401553",
+        "resolved_drawdown_pct": "72.89725",
+        "split_arm_drawdown_pct": "58.35949"
+      },
+      "label": "APRIL",
+      "market_context": {
+        "basis": "SCHEDULED_MARKET_INCOMPLETE",
+        "current_market_cap_usd": "14363.269232296574",
+        "current_price": "0.00001798862664779725",
+        "liquidity_usd": "11741.777442655039",
+        "market_context_fetched_at_utc": "2026-08-02T06:01:15Z",
+        "market_reason_code": "INDEPENDENT_FIELD_STALE",
+        "market_state": "MARKET_INCOMPLETE",
+        "provider_timestamp_utc": "2026-08-02T06:01:15Z"
+      },
+      "migration_time_utc": "2026-08-02T05:47:42.655022Z",
+      "observed_at_utc": "2026-08-02T06:01:42Z",
+      "rejection_reason": "MARKET_INCOMPLETE",
+      "rejection_reason_raw": "NO_SEND_MARKET_INCOMPLETE",
+      "target_instant_utc": "2026-08-02T06:01:42Z",
+      "token_mint": "G4U3xD4DuNVjmBRiwhegUE5KrYRtc6tPkJgroPiNpump"
+    },
+    "COGE": {
+      "activation": {
+        "activation_current_market_cap_usd": null,
+        "activation_multiplier": "1.20",
+        "activation_proven": false,
+        "activation_target_market_cap_usd": "44289.1914889153440",
+        "migration_market_cap_usd": "36907.65957409612"
+      },
+      "activation_state": "PENDING_1_20X",
+      "ath_dip_status": {
+        "compose_decision": "REJECTED"
+      },
+      "ath_hydration": {
+        "anchor_utc": null,
+        "attempt_count": 3,
+        "history_complete": true,
+        "interval": "1m",
+        "last_attempt_at_utc": "2026-08-02T05:03:37Z",
+        "next_attempt_at_utc": "2026-08-02T05:05:37Z",
+        "reason": "ATH_HYDRATION_ANCHOR_MISSING",
+        "status": "ATH_HYDRATION_PENDING",
+        "window_from_unix": 1785646816,
+        "window_to_unix": 1785647017
+      },
+      "candidate_id": "fixture-candidate-coge-1",
+      "central_ath": {
+        "ath_evidence_digest": "e66052c30ebb2f334cb94253858867b7543bdbe9cc9a7fa515f3939a296a4dc0",
+        "ath_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_hydration_reason": "ATH_HYDRATION_ANCHOR_MISSING",
+        "ath_hydration_status": "ATH_HYDRATION_PENDING",
+        "ath_ingested_at_utc": "2026-08-02T05:00:19.326210Z",
+        "ath_market_cap": "36907.65957409612",
+        "ath_market_cap_evidence_price_usd": "0.00003690765957409612",
+        "ath_observation_seal_digest": "47313845355770cc99887134160f04d2914ecd1c7bbd36a6d9ca8ed58d9f0b32",
+        "ath_observation_seal_validated": true,
+        "ath_observation_seal_version": "phx2_central_ath_observation_seal_v1",
+        "ath_observation_type": "PAID_CURRENT_PRICE",
+        "ath_post_migration_complete": false,
+        "ath_price": "0.00003784825918394588",
+        "ath_provider": "PAID_CURRENT_PRICE",
+        "ath_source_evidence_digest": "e66052c30ebb2f334cb94253858867b7543bdbe9cc9a7fa515f3939a296a4dc0",
+        "ath_source_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_status": "PROVISIONAL",
+        "ath_supply_at_observation": null,
+        "ath_supply_basis": null,
+        "ath_timestamp": "2026-08-02T05:00:16Z",
+        "token_mint": "KuhCeZ6NV6qjLVcpPnmCzswnHine6tx5XhLgXQNpump"
+      },
+      "expected_resolution": {
+        "implied_supply": "1000000000",
+        "resolved_ath_market_cap": "37848.25918394588",
+        "resolved_drawdown_pct": "67.99322",
+        "split_arm_drawdown_pct": "67.17752"
+      },
+      "label": "COGE",
+      "market_context": {
+        "basis": "SCHEDULED_MARKET_PRESENT",
+        "current_market_cap_usd": "12114.007952379",
+        "current_price": "0.000013091192896199687",
+        "liquidity_usd": "11175.549089616556",
+        "market_context_fetched_at_utc": "2026-08-02T05:05:14Z",
+        "market_reason_code": "REQUIRED_FIELDS_FRESH",
+        "market_state": "MARKET_READY",
+        "provider_timestamp_utc": "2026-08-02T05:05:14Z"
+      },
+      "migration_time_utc": "2026-08-02T04:59:27.965327Z",
+      "observed_at_utc": "2026-08-02T05:05:39Z",
+      "rejection_reason": "NOT_DISPATCHABLE",
+      "rejection_reason_raw": "NO_SEND_NOT_DISPATCHABLE",
+      "target_instant_utc": "2026-08-02T05:05:39Z",
+      "token_mint": "KuhCeZ6NV6qjLVcpPnmCzswnHine6tx5XhLgXQNpump"
+    },
+    "RABBIT": {
+      "activation": {
+        "activation_current_market_cap_usd": "36371.581351284934",
+        "activation_multiplier": "1.20",
+        "activation_proven": true,
+        "activation_target_market_cap_usd": "35113.01832748925400",
+        "migration_market_cap_usd": "29260.848606241045"
+      },
+      "activation_state": "ACTIVE_DIP_WATCH",
+      "ath_dip_status": {
+        "compose_decision": "REJECTED"
+      },
+      "ath_hydration": {
+        "anchor_utc": null,
+        "attempt_count": 5,
+        "history_complete": true,
+        "interval": "1m",
+        "last_attempt_at_utc": "2026-08-02T05:40:38Z",
+        "next_attempt_at_utc": "2026-08-02T05:48:38Z",
+        "reason": "ATH_HYDRATION_ANCHOR_MISSING",
+        "status": "ATH_HYDRATION_PENDING",
+        "window_from_unix": 1785648559,
+        "window_to_unix": 1785649236
+      },
+      "candidate_id": "fixture-candidate-rabbit-2",
+      "central_ath": {
+        "ath_evidence_digest": "b9c56f5d835406dbaac3c6724d71bd1e432c53527ed27850d028570d49ab2e59",
+        "ath_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_hydration_reason": "ATH_HYDRATION_ANCHOR_MISSING",
+        "ath_hydration_status": "ATH_HYDRATION_PENDING",
+        "ath_ingested_at_utc": "2026-08-02T05:38:49.228453Z",
+        "ath_market_cap": "49454.61529615241",
+        "ath_market_cap_evidence_price_usd": "0.0000510628486069661",
+        "ath_observation_seal_digest": "855c760573babf8ca051e6934e5b55716334557aab99f93cc0b898d5f42da365",
+        "ath_observation_seal_validated": true,
+        "ath_observation_seal_version": "phx2_central_ath_observation_seal_v1",
+        "ath_observation_type": "PAID_CURRENT_PRICE",
+        "ath_post_migration_complete": false,
+        "ath_price": "0.00005312979593325151",
+        "ath_provider": "PAID_CURRENT_PRICE",
+        "ath_source_evidence_digest": "b9c56f5d835406dbaac3c6724d71bd1e432c53527ed27850d028570d49ab2e59",
+        "ath_source_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_status": "PROVISIONAL",
+        "ath_supply_at_observation": null,
+        "ath_supply_basis": null,
+        "ath_timestamp": "2026-08-02T05:38:43Z",
+        "token_mint": "8fJBTjPyaF8M5WKhnc6gWG2vbdZZ4AHGsuNiufQPpump"
+      },
+      "expected_resolution": {
+        "implied_supply": "968504825.823714592625163919592097445572777739320940919659472",
+        "resolved_ath_market_cap": "51456.4637563832535869521082657937128601488640186226703842737",
+        "resolved_drawdown_pct": "75.87685",
+        "split_arm_drawdown_pct": "74.90038"
+      },
+      "label": "RABBIT",
+      "market_context": {
+        "basis": "SCHEDULED_MARKET_PRESENT",
+        "current_market_cap_usd": "12412.919283746289",
+        "current_price": "0.000013116085717538688",
+        "liquidity_usd": "14507.00035642633",
+        "market_context_fetched_at_utc": "2026-08-02T05:47:14Z",
+        "market_reason_code": "REQUIRED_FIELDS_FRESH",
+        "market_state": "MARKET_READY",
+        "provider_timestamp_utc": "2026-08-02T05:47:14Z"
+      },
+      "migration_time_utc": "2026-08-02T05:29:17.954908Z",
+      "observed_at_utc": "2026-08-02T05:47:25Z",
+      "rejection_reason": "NOT_DISPATCHABLE",
+      "rejection_reason_raw": "NO_SEND_NOT_DISPATCHABLE",
+      "target_instant_utc": "2026-08-02T05:47:25Z",
+      "token_mint": "8fJBTjPyaF8M5WKhnc6gWG2vbdZZ4AHGsuNiufQPpump"
+    },
+    "TURTLE": {
+      "activation": {
+        "activation_current_market_cap_usd": "37575.056249253015",
+        "activation_multiplier": "1.39",
+        "activation_proven": true,
+        "activation_target_market_cap_usd": "36088.200",
+        "migration_market_cap_usd": "30073.5"
+      },
+      "activation_state": "ACTIVE_DIP_WATCH",
+      "ath_dip_status": {
+        "compose_decision": null
+      },
+      "ath_hydration": {
+        "anchor_utc": "2026-08-02T03:48:00Z",
+        "attempt_count": 0,
+        "history_complete": false,
+        "interval": null,
+        "last_attempt_at_utc": null,
+        "next_attempt_at_utc": null,
+        "reason": "ATH_HYDRATION_NEVER_ATTEMPTED",
+        "status": "ATH_HYDRATION_PENDING",
+        "window_from_unix": null,
+        "window_to_unix": null
+      },
+      "candidate_id": "fixture-candidate-turtle-3",
+      "central_ath": {
+        "ath_evidence_digest": "9a88d67b20bfa52430f89fede9b9f0af165c019ce82047e6214e5cbd7abdd17f",
+        "ath_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_hydration_reason": "ATH_HYDRATION_NEVER_ATTEMPTED",
+        "ath_hydration_status": "ATH_HYDRATION_PENDING",
+        "ath_ingested_at_utc": "2026-08-02T04:34:33.465247Z",
+        "ath_market_cap": "53593.479234364684",
+        "ath_market_cap_evidence_price_usd": "0.000055685508838798224",
+        "ath_observation_seal_digest": "366213d8b33430c392b27feb7c1e9aff8e1f96b2c657cd98589d0935275f85b9",
+        "ath_observation_seal_validated": true,
+        "ath_observation_seal_version": "phx2_central_ath_observation_seal_v1",
+        "ath_observation_type": "PAID_CURRENT_PRICE",
+        "ath_post_migration_complete": false,
+        "ath_price": "0.000055685508838798224",
+        "ath_provider": "PAID_CURRENT_PRICE",
+        "ath_source_evidence_digest": "9a88d67b20bfa52430f89fede9b9f0af165c019ce82047e6214e5cbd7abdd17f",
+        "ath_source_evidence_version": "phx2_central_ath_evidence_v2",
+        "ath_status": "PROVISIONAL",
+        "ath_supply_at_observation": null,
+        "ath_supply_basis": null,
+        "ath_timestamp": "2026-08-02T04:34:29Z",
+        "token_mint": "F6Tbmw6bosL5nEopb1UeykhocaWiXMdkcHsVGbvypump"
+      },
+      "expected_resolution": {
+        "implied_supply": "962431346.178596055969614956898343752019514884636313301218254",
+        "resolved_ath_market_cap": "53593.4792343646840000000000000000000000000000000000000000000",
+        "resolved_drawdown_pct": "59.44702",
+        "split_arm_drawdown_pct": "59.44702"
+      },
+      "label": "TURTLE",
+      "market_context": {
+        "basis": "SCHEDULED_MARKET_PRESENT",
+        "current_market_cap_usd": "21733.750763382373",
+        "current_price": "0.00002289116954813531",
+        "liquidity_usd": "10231.528824289342",
+        "market_context_fetched_at_utc": "2026-08-02T05:38:41Z",
+        "market_reason_code": "REQUIRED_FIELDS_FRESH",
+        "market_state": "MARKET_READY",
+        "provider_timestamp_utc": "2026-08-02T05:38:41Z"
+      },
+      "migration_time_utc": "2026-08-02T03:48:00Z",
+      "observed_at_utc": "2026-08-02T05:38:54Z",
+      "rejection_reason": "NOT_DISPATCHABLE",
+      "rejection_reason_raw": "NO_SEND_NOT_DISPATCHABLE",
+      "target_instant_utc": "2026-08-02T05:38:54Z",
+      "token_mint": "F6Tbmw6bosL5nEopb1UeykhocaWiXMdkcHsVGbvypump"
+    }
+  },
+  "source_run_label": "PRESERVED_PHX1_PARITY_RUN_20260802"
+}

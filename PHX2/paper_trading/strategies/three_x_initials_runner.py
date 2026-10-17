@@ -14,7 +14,9 @@ from __future__ import annotations
 from typing import List, Optional
 
 from PHX2.paper_trading.config import STRATEGY_THREE_X
-from PHX2.paper_trading.models import CandidateSnapshot, ExitPlan, PaperPosition
+from PHX2.paper_trading.models import (
+    CandidateSnapshot, ExitPlan, LEG_INITIALS_RECOVERY, PaperPosition,
+)
 from PHX2.paper_trading.strategy import (
     EXIT_PARTIAL,
     EntryIntent,
@@ -73,17 +75,11 @@ class ThreeXInitialsRunnerStrategy(PaperStrategy):
         recover_multiple = float(self.params["recover_multiple"])
         if multiple < recover_multiple * (1.0 - 1e-9):  # float-noise tolerant
             return []
-        state["initial_recovered"] = True
-        state["runner_status"] = RUNNER_ACTIVE
-        state["recovered_at_multiple"] = round(multiple, 4)
-        state["initial_cost_usd"] = round(position.cost_basis_usd, 6)
-        position.plan.trailing_stop_pct = self._num(
-            self.params.get("runner_trailing_stop_pct"))
-        position.post_trim_peak_price = snapshot.price_usd
         return [ExitIntent(
             kind=EXIT_PARTIAL,
             recover_usd=position.cost_basis_usd,
-            reason=f"INITIALS_RECOVERED_AT_{recover_multiple:g}X",
+            leg=LEG_INITIALS_RECOVERY,
+            reason=f"INITIALS_RECOVERY_AT_{recover_multiple:g}X",
         )]
 
 

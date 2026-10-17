@@ -140,6 +140,7 @@ GRPC_METADATA_KEY_X_TOKEN: str = "x-token"
 # Stage 29.1 ``stage29_1_pumpswap`` names so server-side audit logs
 # can attribute each substage's traffic separately.
 STAGE29_3_TRANSACTION_FILTER_NAME: str = "stage29_3_pumpswap"
+STAGE29_3_SLOT_FILTER_NAME: str = "stage29_3_confirmed_slots"
 
 
 # Default cap on the number of upstream ``SubscribeUpdate``
@@ -180,7 +181,9 @@ REFUSAL_REASON_RUNTIME_CONFIG_INVALID: str = (
 # ---------------------------------------------------------------------------
 
 
-def build_pumpswap_subscribe_request() -> object:
+def build_pumpswap_subscribe_request(
+    *, from_slot: Optional[int] = None
+) -> object:
     """Build a Yellowstone ``SubscribeRequest`` that narrows the
     upstream stream to PumpSwap AMM transactions only.
 
@@ -192,10 +195,23 @@ def build_pumpswap_subscribe_request() -> object:
         program id,
       * sets ``vote = False``,
       * sets ``failed = False``,
-      * sets ``commitment = CONFIRMED``.
+      * carries a same-connection confirmed-slot filter used only by the
+        independent transport watermark,
+      * sets ``commitment = CONFIRMED``,
+      * sets ``from_slot`` when a resume position is supplied.
 
-    No other filter axes (slots / accounts / blocks / entries)
-    are touched.
+    ``from_slot`` is the provider's native replay position
+    (``SubscribeRequest.from_slot``, ``geyser.proto`` field 11).
+    Omitting it makes the provider start at the CURRENT live
+    head, which is correct only for a genuinely new subscription:
+    a reconnect that omits it silently skips every slot between
+    the disconnect and the reconnect (PHX2-E2E-008). The value is
+    inclusive, so the boundary slot is redelivered -- already
+    processed events are suppressed by exact identity while an
+    unprocessed sibling event in that same slot is recovered.
+
+    No account / block / entry filter axes are touched. Slot updates are a
+    transport/head side channel only and never advance the transaction cursor.
     """
     request = _geyser_pb2.SubscribeRequest()
     tx_filter = request.transactions[
@@ -204,7 +220,18 @@ def build_pumpswap_subscribe_request() -> object:
     tx_filter.account_include.append(PUMPSWAP_PROGRAM_ID)
     tx_filter.vote = False
     tx_filter.failed = False
+    slot_filter = request.slots[STAGE29_3_SLOT_FILTER_NAME]
+    slot_filter.filter_by_commitment = True
+    slot_filter.interslot_updates = False
     request.commitment = _geyser_pb2.CONFIRMED
+    if from_slot is not None:
+        if (isinstance(from_slot, bool)
+                or not isinstance(from_slot, int)
+                or from_slot < 0):
+            raise ValueError(
+                "from_slot must be a non-negative int or None"
+            )
+        request.from_slot = from_slot
     return request
 
 
@@ -660,6 +687,7 @@ __all__ = (
     # Locked constants.
     "GRPC_METADATA_KEY_X_TOKEN",
     "STAGE29_3_TRANSACTION_FILTER_NAME",
+    "STAGE29_3_SLOT_FILTER_NAME",
     "DEFAULT_MAX_MESSAGES_TO_SCAN",
     # Refusal-reason vocabulary.
     "REFUSAL_REASON_NONE",

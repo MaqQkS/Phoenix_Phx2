@@ -1,0 +1,3 @@
+# Optional Telegram image rendering; version verified by offline rendering tests.
+# Install only into the reviewed project environment when explicitly authorized.
+Pillow==13.0.0

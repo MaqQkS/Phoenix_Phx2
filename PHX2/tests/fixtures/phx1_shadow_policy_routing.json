@@ -1,0 +1,71 @@
+{
+  "schema_version": "phx2_phx1_shadow_policy_routing_fixture_v1",
+  "authoritative_phx1_commit": "318e359084d8711256747ae0fe307303d1b526d1",
+  "frozen_parity_matrix_sha256": "637c1b1b319674253e96a0c3fdb03d1bcf3b52554c3eae9b7cc7a8b553907faa",
+  "retained_source": {
+    "path": "C:\\Users\\BalaC\\phx2_migration_census_reconciliation\\run_20260725T103824Z\\regression\\phx1_filter_results.jsonl",
+    "bytes": 12880,
+    "lines": 6,
+    "sha256": "7aca23517ce83e7ec3a89fe055f32dfe24903446a2264a336c9b32ea72923c8d"
+  },
+  "thresholds_tuned_to_mint": false,
+  "production_address_specific_logic": false,
+  "records": [
+    {
+      "label": "MANIPULATED_COORDINATED",
+      "mint": "QFT3RzKwhGy8Uy2Wy27GxbF1G6RtWeLGTo7uZ1fpump",
+      "original_phx1_structural_verdict": "HARD_BLOCK",
+      "original_hard_block_reason_tokens": [
+        "PHX1_FEE_GATE_DATA_STALE",
+        "PHX1_MARKET_DATA_STALE"
+      ],
+      "expected_shadow_effective_verdict": "HARD_BLOCK"
+    },
+    {
+      "label": "MANIPULATED_COORDINATED",
+      "mint": "3cGkb5qJ3dSGn8obmZ4ZN2LTwyypvyeWKgZeTNrUpump",
+      "original_phx1_structural_verdict": "HARD_BLOCK",
+      "original_hard_block_reason_tokens": [
+        "PHX1_FEE_GATE_DATA_STALE",
+        "PHX1_MARKET_DATA_STALE"
+      ],
+      "expected_shadow_effective_verdict": "HARD_BLOCK"
+    },
+    {
+      "label": "MANIPULATED_COORDINATED",
+      "mint": "8QDqweEx5cdFufumvihMb67RrJFdEvZQBv8Phkripump",
+      "original_phx1_structural_verdict": "HARD_BLOCK",
+      "original_hard_block_reason_tokens": [
+        "PHX1_FEE_GATE_DATA_STALE",
+        "PHX1_MARKET_DATA_STALE"
+      ],
+      "expected_shadow_effective_verdict": "HARD_BLOCK"
+    },
+    {
+      "label": "MANIPULATED_COORDINATED",
+      "mint": "CsF6F5xjuAxvSej3DMDzurnF7YjGA72AnTG9cQmbpump",
+      "original_phx1_structural_verdict": "HARD_BLOCK",
+      "original_hard_block_reason_tokens": [
+        "PHX1_FEE_GATE_DATA_STALE",
+        "PHX1_MARKET_DATA_STALE"
+      ],
+      "expected_shadow_effective_verdict": "HARD_BLOCK"
+    },
+    {
+      "label": "ORGANIC_CONTROL",
+      "mint": "8s8J5k2kH1gb9YgBxdWoFLAHoyZWEhsTPKh1kTtbpump",
+      "original_phx1_structural_verdict": "HARD_BLOCK",
+      "original_hard_block_reason_tokens": [
+        "PHX1_FEE_GATE_DATA_STALE"
+      ],
+      "expected_shadow_effective_verdict": "ALLOW_WITH_SHADOW_WARNING"
+    },
+    {
+      "label": "STAGE8_HOLDOUT",
+      "mint": "CLiSoY33WTemQYg4SJQ1oDiCcJ1YWKaVPNLUPshepump",
+      "original_phx1_structural_verdict": "PASS",
+      "original_hard_block_reason_tokens": [],
+      "expected_shadow_effective_verdict": "PASS"
+    }
+  ]
+}

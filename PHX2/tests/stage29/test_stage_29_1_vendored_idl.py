@@ -92,6 +92,17 @@ def test_vendored_idl_has_sell_event_with_matching_discriminator():
     assert disc == PUMPSWAP_SELL_EVENT_DISCRIMINATOR_BYTES
 
 
+def test_vendored_idl_carries_virtual_quote_reserve_layouts():
+    data = json.loads(_read_raw().decode("utf-8"))
+    types = {item["name"]: item for item in data.get("types", [])}
+    for name in ("Pool", "BuyEvent", "SellEvent"):
+        fields = types[name]["type"]["fields"]
+        virtual = [field for field in fields if field.get("name") == "virtual_quote_reserves"]
+        assert len(virtual) == 1
+        assert virtual[0]["type"] == "i128"
+    assert types["Pool"]["type"]["fields"][-1]["name"] == "virtual_quote_reserves"
+
+
 def test_vendored_idl_does_not_carry_pump_fun_bonding_curve_program():
     # Pump.fun bonding-curve coverage is deferred to a future
     # Stage 29.1 follow-up; the vendored IDL at Stage 29.1 is

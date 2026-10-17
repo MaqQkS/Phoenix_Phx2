@@ -445,6 +445,7 @@ def project_harvested_facts_to_request(
         age_display=facts.age_display,
         market_context_status=facts.market_context_status,
         market_context_fetched_at_utc=facts.market_context_fetched_at_utc,
+        allow_legacy_inferred_ath_market_cap=True,
     )
     return Stage30_11_18ProjectionResult(
         decision=PROJECTION_DECISION_PROJECTED,

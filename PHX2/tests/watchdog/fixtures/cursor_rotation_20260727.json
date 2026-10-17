@@ -1,0 +1,15 @@
+{
+  "captured_at_utc": "2026-07-27T06:27:51Z",
+  "circuit_reason": "CURSOR_DOCUMENT_INVALID",
+  "cursor_checkpoint_attempted_total": 4812,
+  "cursor_checkpoint_succeeded_total": 4811,
+  "cursor_checkpoint_failed_total": 1,
+  "cursor_durability_status": "CHECKPOINT_DURABILITY_HEALTHY",
+  "first_primary_observation": "INVALID",
+  "resolved_at_utc": "2026-07-27T06:29:27Z",
+  "resolved_primary_generation": 63269,
+  "resolved_backup_generation": 63268,
+  "resolved_pair_status": "CHECKPOINT_PRIMARY_AND_BACKUP_OK",
+  "heartbeat_age_seconds": 13,
+  "yellowstone_owner_count": 1
+}
